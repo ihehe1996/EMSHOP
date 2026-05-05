@@ -274,6 +274,10 @@ $csrfToken = $csrfToken ?? Csrf::token();
     </div>
 </script>
 
+<script type="text/html" id="appstoreAuthorTpl">
+    {{ (d.author || d.developer || d.publisher || d.author_name || d.developer_name || d.publisher_name || '-') }}
+</script>
+
 <script type="text/html" id="appstoreInstallTpl">
     <span style="font-family:Menlo,Consolas,monospace;color:#374151;">{{ (Number(d.install_num) || 0).toLocaleString() }}</span>
 </script>
@@ -405,7 +409,7 @@ $(function () {
                     }
                 },
                 { field: 'name_cn', title: '应用名称', minWidth: 240, templet: '#appstoreTitleTpl' },
-                { field: 'install_num', title: '安装量', width: 100, templet: '#appstoreInstallTpl', align: 'center', sort: true },
+                { field: 'author', title: '作者', width: 140, templet: '#appstoreAuthorTpl', align: 'center' },
                 { title: '至尊授权', width: 120, templet: '#appstorePriceSupremeTpl', align: 'center' },
                 { field: 'svip_price', title: 'SVIP 授权', width: 130, templet: '#appstorePriceSvipTpl', align: 'center' },
                 { field: 'vip_price', title: 'VIP 授权', width: 130, templet: '#appstorePriceVipTpl', align: 'center' },

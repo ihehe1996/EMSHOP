@@ -102,7 +102,7 @@ $GLOBALS['__em_current_scope'] = $emCurrentScope;
 //
 // scope 解析（getRuntimeNames）：
 //   - 主站 scope：加载 main 启用的所有插件
-//   - 商户 scope：SYSTEM_PLUGINS（支付插件 / 商品类型 / 对接商品）强制从 main 取，
+//   - 商户 scope：SYSTEM_PLUGINS（支付插件 / 商品类型 / 共享店铺）强制从 main 取，
 //     其它分类按商户自身 scope 取 —— 这三类属于商城底层能力，由主站统一管控；其它分类
 //     给商户保留差异化扩展空间。
 //

@@ -90,7 +90,7 @@ if ((string) Input::get('_action', '') === 'list') {
                          LEFT JOIN `{$prefix}app_purchase` p
                            ON p.merchant_id = ? AND p.app_code = m.app_code AND p.type = m.type
                         WHERE m.is_listed = 1";
-            // 商户端应用商店不展示主站统管插件（支付/商品类型/对接商品）
+            // 商户端应用商店不展示主站统管插件（支付/商品类型/共享店铺）
             $sysCats = array_values(PluginModel::SYSTEM_PLUGINS);
             if ($sysCats !== []) {
                 $sqlBase .= ' AND NOT (m.type = \'plugin\' AND m.category IN (' . implode(',', array_fill(0, count($sysCats), '?')) . '))';

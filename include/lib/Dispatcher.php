@@ -803,7 +803,7 @@ final class Dispatcher
         }
 
         // 启用校验：主站访问用 main，商户域名下用 merchant_{id}
-        // 注意：商户站会继承主站 SYSTEM_PLUGINS（支付插件/商品类型/对接商品），
+        // 注意：商户站会继承主站 SYSTEM_PLUGINS（支付插件/商品类型/共享店铺），
         // 因此前台展示页也要按“运行时名单”校验，而不是仅看商户显式 enabled 列表。
         $merchantId = class_exists('MerchantContext') ? MerchantContext::currentId() : 0;
         $scope = $merchantId > 0 ? 'merchant_' . $merchantId : 'main';

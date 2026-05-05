@@ -27,7 +27,7 @@ final class PluginModel
     public const MAIN_PLUGIN_CATEGORIES = [
         1  => '支付插件',
         2  => '商品类型',
-        3  => '对接商品',
+        3  => '共享店铺',
         4  => '功能扩展',
         5  => '消息通知',
         6  => '系统美化',
@@ -47,7 +47,7 @@ final class PluginModel
     /**
      * 系统级插件分类(id => 名称)。
      *
-     * 这几个分类属于商城底层能力(支付通道/商品类型/对接商品),由主站统一管理启停,
+     * 这几个分类属于商城底层能力(支付通道/商品类型/共享店铺),由主站统一管理启停,
      * 商户站不能独立装/启停 —— init.php 加载商户 scope 时,会按主站启用名单中
      * category 命中本常量的部分自动注入,商户继承使用。
      *
@@ -56,7 +56,7 @@ final class PluginModel
     public const SYSTEM_PLUGINS = [
         1 => '支付插件',
         2 => '商品类型',
-        3 => '对接商品',
+        3 => '共享店铺',
     ];
 
     /** 主站启用列表的 config key */

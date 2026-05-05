@@ -15,7 +15,7 @@ require_once __DIR__ . '/global.php';
  * 列表来源:
  *   - 自身已购:em_app_purchase where merchant_id = {id} AND type = 'plugin'
  *   - 自身启用:em_merchant.enabled_plugins(逗号分隔 slug)
- *   - 系统统管插件(支付/商品类型/对接商品)在商户端列表中隐藏
+ *   - 系统统管插件(支付/商品类型/共享店铺)在商户端列表中隐藏
  *
  * 弹窗模式(?_popup=1)沿用:渲染 plugin 自带的 *_setting.php 视图,save_config 仍走本控制器。
  */
