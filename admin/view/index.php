@@ -1,0 +1,409 @@
+<?php
+if (!defined('EM_ROOT')) {
+    exit('Access Denied');
+}
+$csrfToken = Csrf::token();
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 - <?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></title>
+    <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
+    <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/content/static/lib/cropper.min.css">
+    <link rel="stylesheet" href="/content/static/lib/viewer.js/viewer.min.css">
+    <link rel="stylesheet" href="/admin/static/css/reset-layui.css">
+    <link rel="stylesheet" href="/admin/static/css/admin.css">
+    <link rel="stylesheet" href="/admin/static/css/admin-modal.css">
+    <link rel="stylesheet" href="/admin/static/css/style.css">
+    <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
+    <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+    <style>
+    /* ================ 授权服务器线路切换（toolbar 全局）================ */
+    .admin-line-switch { position: relative; }
+    .admin-line-switch__trigger {
+        display: inline-flex; align-items: center; gap: 6px;
+    }
+    .admin-line-switch__dot {
+        color: #10b981;
+        animation: adminLinePulse 2s ease-in-out infinite;
+    }
+    @keyframes adminLinePulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.5; transform: scale(0.88); }
+    }
+    .admin-line-switch__name {
+        font-weight: 500;
+        max-width: 120px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .admin-line-switch__dropdown {
+        position: absolute; top: calc(100% + 6px); right: 0;
+        min-width: 237px;
+        background: #fff;
+        border: 1px solid #e4e7eb;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+        padding: 8px;
+        z-index: 1000;
+        opacity: 0; visibility: hidden;
+        transform: translateY(-4px);
+        transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+    }
+    .admin-line-switch__dropdown.is-open {
+        opacity: 1; visibility: visible; transform: translateY(0);
+        transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s;
+    }
+    .admin-line-switch__title {
+        font-size: 11px; color: #9ca3af;
+        text-transform: uppercase; letter-spacing: 0.6px;
+        padding: 8px 12px 6px;
+    }
+    .admin-line-switch__item {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 10px 12px;
+        background: transparent; border: none; border-radius: 8px;
+        cursor: pointer; text-align: left;
+        transition: background 0.15s ease;
+    }
+    .admin-line-switch__item:hover { background: #f8fafc; }
+    .admin-line-switch__item.is-current { background: #f5f3ff; }
+    .admin-line-switch__item > i.fa-circle-o {
+        font-size: 10px; color: #cbd5e1; flex-shrink: 0;
+    }
+    .admin-line-switch__item.is-current > i.fa-circle-o { color: #6366f1; }
+    .admin-line-switch__body { flex: 1; min-width: 0; }
+    .admin-line-switch__item-name {
+        font-size: 13px; font-weight: 500; color: #111827;
+    }
+    .admin-line-switch__check { color: #6366f1; font-size: 13px; }
+    @media (max-width: 600px) {
+        .admin-line-switch__dropdown { right: -143px; min-width: 260px; }
+    }
+    </style>
+</head>
+<body<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' class="sidebar-pre-collapsed"'; } ?>>
+<div class="admin-shell">
+    <!-- 移动端遮罩 -->
+    <div class="admin-overlay" id="adminOverlay"></div>
+
+    <div class="admin-container">
+        <!-- 左侧菜单 -->
+        <aside class="admin-sidebar<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' is-collapsed'; } ?>" id="adminSidebar">
+            <div class="admin-sidebar__header">
+                <div class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></div>
+            </div>
+
+            <div class="admin-sidebar__body">
+                <!-- 菜单分组标题：控制台 -->
+                <div class="admin-menu-title"><?= t('Dashboard'); ?></div>
+
+                <!-- 1. 控制台 -->
+                <a href="/admin/home.php" data-pjax="#adminContent" class="admin-menu-item is-active">
+                    <i class="fa fa-dashboard"></i>
+                    <span><?= t('控制台'); ?></span>
+                </a>
+
+                <!-- 菜单分组标题：商城 -->
+                <div class="admin-menu-title"><?= t('Store'); ?></div>
+
+                <!-- 2. 商品管理 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="product">
+                        <i class="fa fa-shopping-bag"></i>
+                        <span><?= t('商品管理'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/goods.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品列表'); ?></a>
+                        <a href="/admin/goods_category.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品分类'); ?></a>
+                        <a href="/admin/goods_tag.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品标签'); ?></a>
+                        <a href="/admin/coupon.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('优惠券'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 3. 订单管理 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="order">
+                        <i class="fa fa-file-text"></i>
+                        <span><?= t('订单管理'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/order.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品订单'); ?></a>
+                        <a href="/admin/recharge.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('充值订单'); ?></a>
+                        <a href="/admin/app_order.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('应用订单'); ?></a>
+                        <a href="/admin/withdraw.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('提现申请'); ?></a>
+                        <a href="/admin/merchant_order.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('分站订单'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 4. 用户管理 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="user">
+                        <i class="fa fa-users"></i>
+                        <span><?= t('用户管理'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/user_list.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户列表'); ?></a>
+                        <a href="/admin/user_level.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户等级'); ?></a>
+                        <a href="/admin/merchant_level.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商户等级'); ?></a>
+                        <a href="/admin/commission.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('推广返佣'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 5. 博客管理 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="blog">
+                        <i class="fa fa-pencil-square"></i>
+                        <span><?= t('博客管理'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/blog.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章列表'); ?></a>
+                        <a href="/admin/blog_category.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章分类'); ?></a>
+                        <a href="/admin/blog_comment.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('评论管理'); ?></a>
+                        <a href="/admin/blog_tag.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('标签管理'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 菜单分组标题：设置 -->
+                <div class="admin-menu-title"><?= t('Settings'); ?></div>
+
+                <!-- 6. 外观设置 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="appearance">
+                        <i class="fa fa-paint-brush"></i>
+                        <span><?= t('外观设置'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/template.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('模板管理'); ?></a>
+                        <a href="/admin/navi.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('导航管理'); ?></a>
+                        <a href="/admin/page.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('页面管理'); ?></a>
+                        <a href="/admin/friend_link.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('友情链接'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 7. 语言设置 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="language">
+                        <i class="fa fa-globe"></i>
+                        <span><?= t('语言设置'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/language.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('语言列表'); ?></a>
+                        <a href="/admin/lang.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('翻译管理'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 8. 插件管理 -->
+                <a href="/admin/plugin.php" data-pjax="#adminContent" class="admin-menu-item">
+                    <i class="fa fa-puzzle-piece"></i>
+                    <span><?= t('插件管理'); ?></span>
+                </a>
+
+                <!-- 9. 系统管理 -->
+                <div class="admin-menu-group">
+                    <div class="admin-menu-group__header" data-group="system">
+                        <i class="fa fa-gears"></i>
+                        <span><?= t('系统管理'); ?></span>
+                        <i class="fa fa-angle-right"></i>
+                    </div>
+                    <div class="admin-menu-group__body">
+                        <a href="/admin/settings.php?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
+                        <a href="/admin/currency.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('货币配置'); ?></a>
+                        <a href="/admin/attachment.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
+                        <a href="/admin/system_log.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('系统日志'); ?></a>
+                    </div>
+                </div>
+
+                <!-- 10. 应用商店 -->
+                <a href="/admin/appstore.php" data-pjax="#adminContent" class="admin-menu-item">
+                    <i class="fa fa-shopping-basket"></i>
+                    <span><?= t('应用商店'); ?></span>
+                </a>
+
+                <!-- 11. 正版授权 -->
+                <a href="/admin/license.php" data-pjax="#adminContent" class="admin-menu-item">
+                    <i class="fa fa-shield"></i>
+                    <span><?= t('正版授权'); ?></span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- 右侧区域 -->
+        <div class="admin-right">
+            <!-- 右上工具栏 -->
+            <div class="admin-toolbar">
+                <div class="admin-toolbar__left">
+                    <button type="button" class="admin-toolbar__toggle" id="adminSidebarToggle">
+                        <i class="fa fa-bars"></i>
+                    </button>
+                    <span class="admin-toolbar__page-title"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
+                <div class="admin-toolbar__right">
+                    <!-- 语言切换 -->
+                    <div class="admin-lang-switch" id="adminLangSwitch">
+                        <button type="button" class="admin-toolbar__ghost admin-lang-switch__trigger">
+                            <i class="fa fa-globe"></i>
+                            <span id="currentLangName"><?php
+                                $currentLangCode = isset($_COOKIE['admin_lang']) ? $_COOKIE['admin_lang'] : '';
+                                $currentLangName = '简体中文';
+                                $langOptionsHtml = '';
+                                foreach ($languages as $lang) {
+                                    $isActive = $lang['code'] === $currentLangCode;
+                                    if ($isActive) $currentLangName = $lang['name'];
+                                    $iconHtml = $lang['icon']
+                                        ? '<img src="' . htmlspecialchars($lang['icon'], ENT_QUOTES, 'UTF-8') . '" alt="">'
+                                        : '<i class="fa fa-globe" style="width:20px;text-align:center;color:#9ca3af;"></i>';
+                                    $activeClass = $isActive ? ' is-active' : '';
+                                    $langOptionsHtml .= '<div class="admin-lang-option' . $activeClass . '" data-code="' . htmlspecialchars($lang['code'], ENT_QUOTES, 'UTF-8') . '" data-name="' . htmlspecialchars($lang['name'], ENT_QUOTES, 'UTF-8') . '">' . $iconHtml . '<span>' . htmlspecialchars($lang['name'], ENT_QUOTES, 'UTF-8') . '</span></div>';
+                                }
+                                echo htmlspecialchars($currentLangName, ENT_QUOTES, 'UTF-8');
+                            ?></span>
+                            <i class="fa fa-angle-down"></i>
+                        </button>
+                        <div class="admin-lang-dropdown" id="adminLangDropdown"><?php echo $langOptionsHtml; ?></div>
+                    </div>
+                    
+                    <?php
+                    // ============ 授权服务器线路切换（全局 toolbar）============
+                    // 放在 toolbar 而非单页，原因：
+                    //   - 后台首页 / license 页都会请求中心服务；线路不通时任何页都需要能切换
+                    //   - PJAX 不会重载 toolbar，切换后状态在所有页面一致
+                    $__lines = [];
+                    $__lineIdx = 0;
+                    try {
+                        $__lines = LicenseService::getAllLines();
+                        $__lineIdx = LicenseService::currentLineIndex();
+                    } catch (Throwable $e) {
+                        // 不影响布局
+                    }
+                    if (count($__lines) > 1):
+                    ?>
+                    <div class="admin-line-switch" id="adminLineSwitch">
+                        <button type="button" class="admin-toolbar__ghost admin-line-switch__trigger">
+                            <i class="fa fa-signal admin-line-switch__dot"></i>
+                            <span class="admin-line-switch__name" id="adminLineName"><?= htmlspecialchars((string) ($__lines[$__lineIdx]['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                            <i class="fa fa-angle-down"></i>
+                        </button>
+                        <div class="admin-line-switch__dropdown" id="adminLineDropdown">
+                            <div class="admin-line-switch__title">切换官方服务线路</div>
+                            <?php foreach ($__lines as $__i => $__ln): ?>
+                            <button type="button" class="admin-line-switch__item <?= $__i === $__lineIdx ? 'is-current' : '' ?>" data-idx="<?= $__i ?>">
+                                <i class="fa fa-circle-o"></i>
+                                <div class="admin-line-switch__body">
+                                    <div class="admin-line-switch__item-name"><?= htmlspecialchars((string) $__ln['name'], ENT_QUOTES, 'UTF-8') ?></div>
+                                </div>
+                                <?php if ($__i === $__lineIdx): ?>
+                                <i class="fa fa-check admin-line-switch__check"></i>
+                                <?php endif; ?>
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="admin-user-menu" id="adminUserMenu">
+                        <button type="button" class="admin-user-menu__trigger">
+                            <span class="admin-avatar"><img src="<?php echo htmlspecialchars((string) ($user['avatar'] ?: (EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg')), ENT_QUOTES, 'UTF-8'); ?>" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.src='<?php echo htmlspecialchars(EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg', ENT_QUOTES, 'UTF-8'); ?>';this.onerror=null;"></span>
+                            <span class="admin-user-menu__meta">
+                                <strong><?php echo htmlspecialchars((string) (!empty($user['nickname']) ? $user['nickname'] : $user['username']), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                <small>超级管理员</small>
+                            </span>
+                            <span class="admin-user-menu__arrow"><i class="fa fa-angle-down"></i></span>
+                        </button>
+                        <div class="admin-user-menu__dropdown">
+                            <a href="/" target="_blank" class="admin-dropdown-link"><i class="fa fa-home"></i> 网站首页</a>
+                            <a href="/admin/profile.php" data-pjax="#adminContent" class="admin-dropdown-link"><i class="fa fa-user"></i> 个人信息</a>
+
+                            <!-- 移动端：语言切换 -->
+                            <div class="admin-user-menu__lang" id="mobileLangSwitch">
+                                <button type="button" class="admin-dropdown-link admin-dropdown-link--lang">
+                                    <i class="fa fa-globe"></i>
+                                    <span id="mobileLangName"><?php echo htmlspecialchars($currentLangName, ENT_QUOTES, 'UTF-8'); ?></span>
+                                </button>
+                                <div class="admin-lang-dropdown" id="mobileLangDropdown"><?php echo $langOptionsHtml; ?></div>
+                            </div>
+                            <!-- 移动端：清除缓存 -->
+                            <button type="button" class="admin-dropdown-link" id="mobileDropdownClearCache"><i class="fa fa-refresh"></i> 清除缓存</button>
+                            <a href="/admin/index.php?action=logout" class="admin-dropdown-link admin-dropdown-link--danger"><i class="fa fa-power-off"></i> 退出登录</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右下内容区 -->
+            <div id="adminContent" class="admin-content">
+                <?php include $adminContentView; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="/content/static/lib/jquery.pjax.js"></script>
+<script src="/content/static/lib/cropper.min.js"></script>
+<script src="/content/static/lib/viewer.js/viewer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<script>window.adminCsrfToken = <?php echo json_encode($csrfToken); ?>;</script>
+<script src="/admin/static/js/admin.js"></script>
+<script>
+$(function () {
+    layui.use(['layer'], function () {
+        var layer = layui.layer;
+        // ========== 授权服务器线路切换（toolbar 全局）==========
+        var $lineWrap = $('#adminLineSwitch');
+        if ($lineWrap.length) {
+            $lineWrap.find('.admin-line-switch__trigger').on('click', function (e) {
+                e.stopPropagation();
+                $('#adminLineDropdown').toggleClass('is-open');
+            });
+            $(document).on('click', function (e) {
+                if (!$(e.target).closest('#adminLineSwitch').length) {
+                    $('#adminLineDropdown').removeClass('is-open');
+                }
+            });
+            $(document).on('click', '#adminLineDropdown .admin-line-switch__item', function () {
+                var idx = parseInt($(this).data('idx'), 10);
+                var $item = $(this);
+                $.ajax({
+                    url: '/admin/license.php',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _action: 'switch_line',
+                        index: idx,
+                        csrf_token: window.adminCsrfToken
+                    }
+                }).done(function (res) {
+                    if (res.code === 200) {
+                        if (res.data && res.data.csrf_token) {
+                            window.adminCsrfToken = res.data.csrf_token;
+                        }
+                        $('#adminLineName').text((res.data && res.data.current_name) || '');
+                        $('#adminLineDropdown .admin-line-switch__item').removeClass('is-current').find('.admin-line-switch__check').remove();
+                        $item.addClass('is-current').append('<i class="fa fa-check admin-line-switch__check"></i>');
+                        $('#adminLineDropdown').removeClass('is-open');
+                        layer.msg(res.msg || '已切换线路');
+                        // 切换线路后刷新页面，让依赖当前线路的首页数据（代理商、公告、延迟等）重新拉取
+                        setTimeout(function () { location.reload(); }, 700);
+                    } else {
+                        layer.msg(res.msg || '切换失败', {icon: 2});
+                    }
+                }).fail(function () {
+                    layer.msg('网络异常', {icon: 2});
+                });
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>

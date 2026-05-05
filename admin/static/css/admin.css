@@ -1,0 +1,1471 @@
+/* ================================================
+   EMSHOP 后台全局样式
+   参考登录页色调：#4f46e5 #6366f1 #2563eb
+   ================================================ */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f4f5f3;
+    color: #374151;
+    -webkit-font-smoothing: antialiased;
+}
+
+.mr-5{
+    margin-right: 5px;
+}
+.mr-6{
+    margin-right: 6px;
+}
+.mr-8{
+    margin-right: 8px;
+}
+.mr-10{
+    margin-right: 10px;
+}
+.mb-10{
+    margin-bottom: 10px;
+}
+.mb-15{ 
+    margin-bottom: 15px;
+}   
+
+/* ================================================
+   后台容器 — 最大宽度1680px，居中
+   ================================================ */
+.admin-shell {
+    height: 100vh;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+}
+
+.admin-container {
+    width: 100%;
+    max-width: 1680px;
+    display: flex;
+    align-items: stretch;
+    padding: 15px;
+    gap: 0;
+}
+
+.admin-container__inner {
+    display: contents;
+}
+
+/* ================================================
+   左侧边栏
+   ================================================ */
+.admin-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: #212529;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width .4s cubic-bezier(.4, 0, .2, 1);
+    border-radius: 8px 0 0 8px;
+}
+
+/* 侧栏头部 */
+.admin-sidebar__header {
+    padding: 24px 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.admin-sidebar__site-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    max-width: 100%;
+}
+
+/* 折叠状态 */
+.admin-sidebar.is-collapsed {
+    width: 0;
+    overflow: hidden;
+}
+
+/* 防止侧栏折叠状态闪烁：页面加载前已折叠时，侧栏立即隐藏 */
+body.sidebar-pre-collapsed .admin-sidebar {
+    width: 0;
+    overflow: hidden;
+}
+
+/* 移动端：cookie 折叠状态不影响手机布局 */
+@media (max-width: 1024px) {
+    body.sidebar-pre-collapsed .admin-sidebar {
+        width: 260px;
+    }
+
+    /* 手机端 is-open 时强制全宽、滑入，覆盖 is-collapsed 的 60px 和 transform */
+    .admin-sidebar.is-open {
+        width: 260px !important;
+        transform: translateX(0) !important;
+    }
+}
+
+/* 侧栏折叠时，工具栏左上角恢复圆角（因为左侧没有圆角了） */
+body.sidebar-pre-collapsed .admin-toolbar,
+.admin-sidebar.is-collapsed ~ .admin-right .admin-toolbar {
+    border-radius: 8px 8px 0 0;
+}
+
+/* 侧栏展开时，工具栏左上角无圆角（因为要与左侧圆角衔接） */
+body:not(.sidebar-pre-collapsed) .admin-sidebar:not(.is-collapsed) ~ .admin-right .admin-toolbar,
+.admin-sidebar:not(.is-collapsed) ~ .admin-right .admin-toolbar {
+    border-radius: 0 8px 0 0;
+}
+
+/* 右侧区域本身只在侧栏折叠时有圆角 */
+.admin-right {
+    border-radius: 0;
+}
+body.sidebar-pre-collapsed .admin-right {
+    border-radius: 8px;
+}
+.admin-sidebar.is-collapsed ~ .admin-right {
+    border-radius: 8px;
+}
+
+/* 侧栏内容 */
+.admin-sidebar__body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 8px;
+}
+
+.admin-sidebar__body::-webkit-scrollbar {
+    width: 3px;
+}
+
+.admin-sidebar__body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-sidebar__body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+/* ================================================
+   菜单分组标题（如"控制台""商城""设置"）
+   ================================================ */
+.admin-menu-title {
+    padding: 10px 13px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* ================================================
+   可展开菜单分组（父级 + 子级）
+   ================================================ */
+.admin-menu-group {
+    margin-bottom: 2px;
+}
+
+/* 父级菜单（展开/折叠的触发器） */
+.admin-menu-group__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    border-radius: 10px;
+    color: #9ca3af;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s ease, color .15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.admin-menu-group__header > i:first-child {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    color: #9ca3af;
+}
+
+.admin-menu-group__header > span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 1.5px;
+}
+
+.admin-menu-group__header > i.fa-angle-right {
+    width: 16px;
+    text-align: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #9ca3af;
+    transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+}
+
+.admin-menu-group__header.is-open > i.fa-angle-right {
+    transform: rotate(90deg);
+}
+
+.admin-menu-group__header:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-menu-group__header:hover > i,
+.admin-menu-group__header.is-active > i {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-menu-group__header.is-active {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* 子菜单容器（由 jQuery slideDown/slideUp 控制平滑动画） */
+.admin-menu-group__body {
+    overflow: hidden;
+    display: none;
+    padding-left: 10px;
+}
+
+/* 子菜单项 */
+.admin-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px 8px 31px;
+    border-radius: 8px;
+    color: #9ca3af;
+    font-size: 13px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color .15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    letter-spacing: 1.5px;
+}
+
+.admin-menu-item:hover {
+    color: rgba(255, 255, 255, 1);
+}
+
+.admin-menu-item.is-active {
+    color: #ffffff;
+}
+
+/* 顶级菜单项（直接在侧栏内、不在子菜单中的独立项，如"控制台""插件管理"） */
+.admin-sidebar__body > .admin-menu-item {
+    padding: 12px 12px;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.admin-menu-item > i {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    color: #9ca3af;
+}
+
+.admin-menu-item:hover > i,
+.admin-menu-item.is-active > i {
+    color: inherit;
+}
+
+/* ================================================
+   右侧区域
+   ================================================ */
+.admin-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 右下内容区 */
+.admin-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    position: relative;
+}
+
+/* Pjax loading 效果 */
+.admin-content.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(244, 245, 243, 0.6);
+    z-index: 10;
+}
+
+.admin-content.is-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 30%;
+    height: 2px;
+    background: linear-gradient(90deg, #4f46e5, #6366f1);
+    z-index: 11;
+    animation: pjaxProgress 1.5s ease-in-out infinite;
+}
+
+@keyframes pjaxProgress {
+    0%   { left: -30%; width: 30%; }
+    50%  { width: 50%; }
+    100% { left: 100%; width: 30%; }
+}
+
+/* ================================================
+   右上工具栏
+   ================================================ */
+.admin-toolbar {
+    padding: 0 20px;
+    height: 64px;
+    border-radius: 0 16px 0 0;
+    background: #ffffff;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.admin-toolbar__left,
+.admin-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-toolbar__toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #f4f5f3;
+    border: none;
+    color: #4f46e5;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s ease;
+}
+
+.admin-toolbar__toggle:hover {
+    background: #ede9fe;
+    color: #4338ca;
+}
+
+.admin-toolbar__page-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.admin-toolbar__ghost {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: #f4f5f3;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-toolbar__ghost:hover {
+    background: #ede9fe;
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
+/* ================================================
+   用户菜单
+   ================================================ */
+.admin-user-menu {
+    position: relative;
+}
+
+.admin-user-menu__trigger {
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 12px;
+    background: transparent;
+    transition: all .15s ease;
+}
+
+.admin-user-menu__trigger:hover {
+    background: #f4f5f3;
+}
+
+.admin-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.admin-user-menu__meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+}
+
+.admin-user-menu__meta strong {
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-user-menu__meta small {
+    color: #9ca3af;
+    font-size: 12px;
+    text-align: left;
+}
+
+.admin-user-menu__arrow {
+    color: #9ca3af;
+    font-size: 12px;
+    transition: transform .2s ease;
+}
+
+.admin-user-menu.is-open .admin-user-menu__arrow {
+    transform: rotate(180deg);
+}
+
+.admin-user-menu__dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 190px;
+    padding: 6px;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border: 1px solid #f3f4f6;
+    display: none;
+    animation: dropdownFadeIn .15s ease;
+    z-index: 200;
+}
+
+@keyframes dropdownFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-user-menu.is-open .admin-user-menu__dropdown {
+    display: block;
+}
+
+.admin-dropdown-link {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #374151;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background .1s ease, color .1s ease;
+}
+
+.admin-dropdown-link:hover {
+    background: #f4f5f3;
+    color: #4f46e5;
+}
+
+.admin-dropdown-link--danger {
+    color: #dc2626;
+}
+
+.admin-dropdown-link--danger:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* ================================================
+   语言切换
+   ================================================ */
+.admin-lang-switch {
+    position: relative;
+    display: inline-block;
+}
+
+.admin-lang-switch__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    transition: all .15s ease;
+}
+
+.admin-lang-switch__trigger i.fa-angle-down {
+    font-size: 11px;
+    margin-left: 2px;
+    transition: transform .2s ease;
+}
+
+.admin-lang-switch.is-open .admin-lang-switch__trigger i.fa-angle-down {
+    transform: rotate(180deg);
+}
+
+.admin-lang-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    width: 180px;
+    padding: 6px;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    border: 1px solid #f3f4f6;
+    animation: dropdownFadeIn .15s ease;
+    z-index: 200;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.admin-lang-switch.is-open .admin-lang-dropdown {
+    display: block;
+}
+
+.admin-lang-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .1s ease, color .1s ease;
+    font-size: 13px;
+    color: #374151;
+    user-select: none;
+}
+
+.admin-lang-option:hover {
+    background: #f4f5f3;
+    color: #4f46e5;
+}
+
+.admin-lang-option.is-active {
+    background: #ede9fe;
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+.admin-lang-option img {
+    width: 30px;
+    height: 20px;
+    border-radius: 3px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* ================================================
+   右下内容区 — 可滚动
+   ================================================ */
+.admin-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.admin-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.admin-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+}
+
+/* ================================================
+   内容页面
+   ================================================ */
+.admin-page {
+    background: #ffffff;
+    border-radius: 5px;
+    animation: pageIn .2s ease;
+}
+
+@keyframes pageIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+
+.admin-page__title {
+    display: none;
+}
+
+/* 列表页选项卡（商品/博客等通用） */
+.goods-tab-bar {
+    display: inline-flex;
+    position: relative;
+    background: #f6f6f6;
+    border-radius: 6px;
+    padding: 3px;
+    margin: 12px;
+}
+.goods-tab-slider {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: calc(100% - 6px);
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    transition: left .25s cubic-bezier(.4,0,.2,1), width .25s cubic-bezier(.4,0,.2,1);
+    z-index: 0;
+    pointer-events: none;
+}
+.goods-tab {
+    position: relative;
+    z-index: 1;
+    padding: 5px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #888;
+    border-radius: 4px;
+    transition: color .2s;
+    user-select: none;
+}
+.goods-tab:hover { color: #333; }
+.goods-tab.active { color: #333; font-weight: 600; }
+.goods-tab-count {
+    font-style: normal; font-size: 11px; color: #999;
+    background: #f2f2f2; border-radius: 9px;
+    padding: 1px 6px; margin-left: 4px;
+    display: inline-block; min-width: 18px; text-align: center;
+    line-height: 16px; vertical-align: middle;
+}
+
+/* 推荐/置顶小标签 */
+.goods-recommend-tag {
+    display: inline-block;
+    padding: 0 4px;
+    margin-right: 4px;
+    font-size: 11px;
+    line-height: 18px;
+    color: #fff;
+    background: linear-gradient(135deg, #ff9a2e, #ff6034);
+    border-radius: 3px;
+    vertical-align: middle;
+}
+
+/* 内容网格 */
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.admin-grid--four {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* 统计卡片 */
+.admin-card--stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-card__stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+}
+
+.admin-card__stat-icon--purple { background: rgba(79, 70, 229, 0.08); color: #4f46e5; }
+.admin-card__stat-icon--pink   { background: rgba(236, 72, 153, 0.08); color: #db2777; }
+.admin-card__stat-icon--blue   { background: rgba(59, 130, 246, 0.08); color: #2563eb; }
+.admin-card__stat-icon--green  { background: rgba(16, 185, 129, 0.08); color: #059669; }
+
+.admin-card__stat-label {
+    color: #9ca3af;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.admin-card__stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Layui 表格 */
+.layui-table-view {
+    border-radius: 14px !important;
+    border-color: #f3f4f6 !important;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+    overflow: hidden;
+}
+
+.layui-table th {
+    background: #f9fafb !important;
+    color: #374151 !important;
+    height: 50px !important;
+}
+
+.layui-table td, .layui-table th {
+    border-color: #f3f4f6 !important;
+}
+
+.layui-table tr:hover td {
+    background: #f9fafb !important;
+}
+
+/* 管理员搜索折叠面板 */
+.admin-search-collapse {
+    margin-bottom: 15px;
+}
+.admin-search-collapse .layui-colla-content {
+    padding: 12px 16px;
+}
+.admin-search-collapse .layui-input {
+    height: 32px;
+    line-height: 32px;
+}
+.layui-form-select dl{
+    top: 58px;
+}
+
+
+/* 文字颜色工具类 */
+.text-success { color: #52c41a !important; }
+.text-muted { color: #bfbfbf !important; }
+
+/* 状态切换图标 */
+.layui-table-view .fa-toggle-on { color: #52c41a; }
+.layui-table-view .fa-toggle-off { color: #bfbfbf; }
+
+/* ================================================
+   移动端遮罩
+   ================================================ */
+.admin-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 90;
+    animation: overlayFade .2s ease;
+}
+
+.admin-overlay.is-visible {
+    display: block;
+}
+
+@keyframes overlayFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* 桌面端：语言切换在 toolbar 显示，下拉菜单里的移动端版本隐藏
+   （"清除缓存"原本是移动端专用，现改为全端可见，移出本规则） */
+.admin-user-menu__lang {
+    display: none;
+}
+
+
+/* ================================================
+   响应式 — 平板及以下
+   ================================================ */
+@media (max-width: 1024px) {
+    .admin-container {
+        padding: 0;
+        position: relative;
+    }
+
+    .admin-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 260px;
+        border-radius: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+        transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .admin-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .admin-sidebar.is-collapsed {
+        width: 60px;
+    }
+
+    .admin-sidebar.is-collapsed .admin-sidebar__site-name {
+        font-size: 0;
+    }
+
+    .admin-sidebar.is-collapsed .admin-menu-title,
+    .admin-sidebar.is-collapsed .admin-menu-group__header > span,
+    .admin-sidebar.is-collapsed .admin-menu-group__header > i.fa-angle-down,
+    .admin-sidebar.is-collapsed .admin-menu-group__header > i.fa-angle-right,
+    .admin-sidebar.is-collapsed .admin-menu-group__body,
+    .admin-sidebar.is-collapsed .admin-menu-item > span {
+        display: none;
+    }
+
+    .admin-sidebar.is-collapsed .admin-menu-group__header {
+        justify-content: center;
+        padding: 10px 6px;
+    }
+
+    .admin-sidebar.is-collapsed .admin-menu-item {
+        justify-content: center;
+        padding: 10px 6px;
+    }
+
+    .admin-content {
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-toolbar {
+        padding: 0 14px;
+    }
+
+    .admin-toolbar__page-title {
+        display: none;
+    }
+
+    /* 移动端：隐藏顶栏的语言切换和清除缓存 */
+    .admin-lang-switch,
+    #adminClearCache {
+        display: none !important;
+    }
+
+    /* 移动端：显示用户下拉菜单中的移动端专用按钮 */
+    .admin-user-menu__lang,
+    #mobileDropdownClearCache {
+        display: block;
+    }
+
+    /* 移动端：用户下拉菜单中的语言切换样式 */
+    .admin-user-menu__lang {
+        position: relative;
+    }
+
+    .admin-user-menu__lang > .admin-dropdown-link {
+        justify-content: flex-start;
+    }
+
+    .admin-user-menu__lang .admin-lang-dropdown {
+        position: absolute;
+        left: 0;
+        right: auto;
+        top: calc(100% + 4px);
+        width: 180px;
+        max-height: 260px;
+        overflow-y: auto;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+        border: 1px solid #f3f4f6;
+        padding: 6px;
+        display: none;
+        z-index: 210;
+        animation: dropdownFadeIn .15s ease;
+    }
+
+    .admin-user-menu__lang.is-open .admin-lang-dropdown {
+        display: block;
+    }
+
+    .admin-user-menu__lang .admin-dropdown-link--lang {
+        color: #374151;
+        font-size: 13px;
+    }
+
+    .admin-user-menu__lang .admin-dropdown-link--lang i:first-child {
+        color: #4f46e5;
+    }
+
+    .admin-page__title {
+        font-size: 20px;
+    }
+
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-grid--four {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+/* ================================================
+   个人信息页
+   ================================================ */
+.admin-profile {
+    max-width: 640px;
+}
+
+.admin-profile__section {
+    padding: 24px 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.admin-profile__section:last-child {
+    border-bottom: none;
+}
+
+.admin-profile__section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 18px;
+}
+
+/* 头像输入框组 */
+.admin-profile__avatar-input-group {
+    display: flex;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    height: 48px;
+    max-width: 560px;
+}
+
+.admin-profile__avatar-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+    margin: 2px 8px 2px 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+.admin-profile__avatar-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.admin-profile__avatar-url {
+    flex: 1;
+    font-size: 13px;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 8px;
+}
+
+
+
+.admin-profile__avatar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.admin-profile__avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 5px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    position: relative;
+}
+
+.admin-profile__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.admin-profile__avatar-letter {
+    color: #fff;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.admin-profile__avatar-tip {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ================================================
+   通用后台表单
+   ================================================ */
+.admin-form__group {
+    margin-bottom: 18px;
+}
+
+.admin-form__label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.admin-form__input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px 0 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1f2937;
+    background: #fff;
+    outline: none;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+}
+
+.admin-form__input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.admin-form__input:disabled {
+    background: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.admin-form__help {
+    margin: 5px 0 0;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.admin-form__actions {
+    padding-top: 6px;
+}
+
+/* ================================================
+   头像上传区域（与弹窗页面保持一致）
+   ================================================ */
+.admin-profile__avatar-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    border: 1.5px dashed #c0c4cc;
+    border-radius: 6px;
+    padding: 5px 8px;
+    background: #fafbfc;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    cursor: text;
+}
+
+.admin-profile__avatar-field:hover {
+    border-color: #409eff;
+    background: #ecf5ff;
+}
+
+.admin-profile__avatar-field:focus-within {
+    border-color: #409eff;
+    border-style: solid;
+    background: #ecf5ff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12);
+}
+
+.admin-profile__avatar-field > img {
+    width: 36px;
+    height: 36px;
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    object-fit: cover;
+    border-radius: 4px;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.admin-profile__avatar-url {
+    flex: 1;
+    min-width: 0;
+    padding-left: 45px;
+    padding-right: 120px;
+    height: 36px !important;
+    line-height: 36px !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 13px;
+    color: #1f2937;
+    outline: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.admin-profile__avatar-url::placeholder {
+    color: #9ca3af;
+}
+
+.admin-profile__avatar-btns {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.admin-profile__avatar-btns .layui-btn {
+    margin: 0;
+    padding: 0 6px;
+    height: 32px;
+    width: 32px;
+}
+
+/* ================================================
+   通用后台按钮
+   ================================================ */
+.admin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: all .15s ease;
+    white-space: nowrap;
+}
+
+.admin-btn--primary {
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+
+.admin-btn--primary:hover {
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    transform: translateY(-1px);
+}
+
+.admin-btn--primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.admin-btn--outline {
+    background: #fff;
+    color: #4f46e5;
+    border: 1px solid #e5e7eb;
+}
+
+.admin-btn--outline:hover {
+    border-color: #c7d2fe;
+    background: #ede9fe;
+}
+
+.admin-btn--outline:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ================================================
+   系统设置页
+   ================================================ */
+.admin-settings__layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 500px;
+}
+
+/* 设置页选项卡样式已迁移到 style.css 的 .em-tabs / .em-tabs__item */
+
+.admin-settings__panel {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 28px;
+}
+
+.admin-settings__form-wrap {
+    max-width: 640px;
+}
+
+.admin-form__section {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    padding: 18px 0 10px;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 16px;
+}
+
+.admin-form__section:first-child {
+    padding-top: 0;
+}
+
+.admin-form__input-group {
+    display: flex;
+    align-items: center;
+}
+
+.admin-form__input-group .admin-form__input {
+    border-radius: 10px 0 0 10px;
+    flex: 1;
+}
+
+.admin-form__input-addon {
+    height: 40px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-left: none;
+    border-radius: 0 10px 10px 0;
+    font-size: 13px;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.admin-form__input[rows] {
+    height: auto;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.6;
+    background-image: none;
+}
+
+@media (max-width: 768px) {
+    .admin-settings__layout {
+        flex-direction: column;
+    }
+    .admin-settings__panel {
+        padding: 16px;
+    }
+}
+
+.layui-table-tool-temp{
+    padding-right: 0;
+}
+
+.layui-colla-icon{
+    right: 15px;
+    left: unset;
+}
+.layui-colla-content{
+    background: #fff;
+}
+.layui-collapse{
+    margin-bottom: 12px;
+}
+.layui-form-label{
+    width: auto;
+    padding: 0 0 6px 0;
+    text-align: left;
+    font-size: 13px;
+    color: #333;
+    position: unset;
+    float: unset;
+}
+
+.layui-input-block{
+    margin-left: 0;
+}
+.search-btn-group{
+    text-align: right;
+    margin-bottom: 0;
+    padding: 0 12px 5px 0;
+}
+.layui-input {
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    padding: 6px 11px;
+    font-size: 14px;
+    transition: all 0.2s;
+    height: 34px;
+}
+
+
+/* 开关 loading 旋转动画 */
+@keyframes admin-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.admin-spin {
+    display: inline-block !important;
+    animation: admin-spin 0.8s linear infinite;
+}
+
+/* ================================================
+   插件管理页面
+   ================================================ */
+
+
+
+/* ================================================
+   统计卡片行
+   ================================================ */
+.admin-stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.admin-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    background: #fff;
+    border: 1px solid #f3f4f6;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-stat-card__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.admin-stat-card__icon--blue   { background: rgba(59, 130, 246, 0.10); color: #2563eb; }
+.admin-stat-card__icon--green  { background: rgba(16, 185, 129, 0.10); color: #059669; }
+.admin-stat-card__icon--purple  { background: rgba(79, 70, 229, 0.10); color: #4f46e5; }
+.admin-stat-card__icon--orange  { background: rgba(217, 119, 6, 0.10); color: #d97706; }
+.admin-stat-card__icon--red     { background: rgba(220, 38, 38, 0.10); color: #dc2626; }
+
+.admin-stat-card__body {
+    min-width: 0;
+}
+
+.admin-stat-card__num {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.2;
+}
+
+.admin-stat-card__label {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .admin-stats-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-stats-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ================================================
+   橙色按钮
+   ================================================ */
