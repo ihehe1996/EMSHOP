@@ -160,12 +160,30 @@ window.EMSHOP_CURRENCY = {
             </div>
             <div class="mobile-nav-sub">
                 <?php foreach ($item['children'] as $child): ?>
-                <a href="<?= htmlspecialchars($child['url']) ?>" data-pjax class="mobile-nav-sub-item"><?= htmlspecialchars($child['text']) ?></a>
+                <?php
+                    $_cp = '/';
+                    $_cip = parse_url((string) ($child['url'] ?? ''), PHP_URL_PATH);
+                    if (is_string($_cip) && $_cip !== '') {
+                        $_cp = $_cip;
+                    }
+                    $_cp = '/' . trim($_cp, '/');
+                    $_childNavPathAttr = ($_cp !== '/') ? ' data-nav-path="' . htmlspecialchars($_cp, ENT_QUOTES, 'UTF-8') . '"' : '';
+                ?>
+                <a href="<?= htmlspecialchars($child['url']) ?>" data-pjax class="mobile-nav-sub-item"<?= $_childNavPathAttr ?>><?= htmlspecialchars($child['text']) ?></a>
                 <?php endforeach; ?>
             </div>
         </div>
         <?php else: ?>
-        <a href="<?= htmlspecialchars($item['url']) ?>" data-pjax class="mobile-nav-item<?= $active ?>">
+        <?php
+            $_ip = '/';
+            $_p = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH);
+            if (is_string($_p) && $_p !== '') {
+                $_ip = $_p;
+            }
+            $_ip = '/' . trim($_ip, '/');
+            $_itemNavPathAttr = ($_ip !== '/') ? ' data-nav-path="' . htmlspecialchars($_ip, ENT_QUOTES, 'UTF-8') . '"' : '';
+        ?>
+        <a href="<?= htmlspecialchars($item['url']) ?>" data-pjax class="mobile-nav-item<?= $active ?>"<?= $_itemNavPathAttr ?>>
             <i class="fa <?= $icon ?>"></i><span><?= htmlspecialchars($item['text']) ?></span>
         </a>
         <?php endif; ?>
@@ -213,4 +231,4 @@ window.EMSHOP_CURRENCY = {
 </div>
 
 <!-- 主内容区域（PJAX 容器） · data-nav-id 让 JS 在 PJAX 切换后同步刷新顶部导航高亮 -->
-<div id="main" data-nav-id="<?= htmlspecialchars($nav_id ?? '') ?>">
+<div id="main" data-nav-id="<?= htmlspecialchars($nav_id ?? '') ?>" data-nav-current-path="<?= htmlspecialchars($nav_current_path ?? '', ENT_QUOTES, 'UTF-8') ?>">

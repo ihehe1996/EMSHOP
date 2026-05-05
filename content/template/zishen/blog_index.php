@@ -2,11 +2,9 @@
 defined('EM_ROOT') || exit('access denied!');
 ?>
 <!-- 博客首页 · BlogController::_index() -->
-
-<!-- Hero 轮播（博客场景） -->
+<div class="page-body zs-blog-home-body">
 <?php $_hero_scene = 'blog'; include __DIR__ . '/hero.php'; ?>
 
-<div class="page-body">
     <div class="blog-layout">
 
         <!-- 主内容 -->

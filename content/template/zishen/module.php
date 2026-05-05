@@ -133,21 +133,34 @@ foreach ($navItems as $item) {
 
     $hasChildren = !empty($item['children']);
     $targetAttr = ($item['target'] === '_blank') ? ' target="_blank"' : '';
+    $itemNavPathAttr = ($itemPath !== '/')
+        ? (' data-nav-path="' . htmlspecialchars($itemPath, ENT_QUOTES, 'UTF-8') . '"')
+        : '';
 
     if ($hasChildren) {
         $navHtml .= '<div class="nav-dropdown" data-nav="' . $item['id'] . '">';
-        $navHtml .= '<a href="' . htmlspecialchars($item['url']) . '" data-pjax data-nav="' . $item['id'] . '" class="' . trim($active) . '"' . $targetAttr . '>'
+        $navHtml .= '<a href="' . htmlspecialchars($item['url']) . '" data-pjax data-nav="' . $item['id'] . '" class="' . trim($active) . '"' . $itemNavPathAttr . $targetAttr . '>'
                   . htmlspecialchars($item['text'])
                   . '<svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
                   . '</a>';
+        $navHtml .= '<div class="nav-dropdown-panel">';
         $navHtml .= '<div class="nav-dropdown-menu">';
         foreach ($item['children'] as $child) {
+            $childPath = '/';
+            $cip = parse_url((string) ($child['url'] ?? ''), PHP_URL_PATH);
+            if (is_string($cip) && $cip !== '') {
+                $childPath = $cip;
+            }
+            $childPath = '/' . trim($childPath, '/');
+            $childNavPathAttr = ($childPath !== '/')
+                ? (' data-nav-path="' . htmlspecialchars($childPath, ENT_QUOTES, 'UTF-8') . '"')
+                : '';
             $childTarget = ($child['target'] === '_blank') ? ' target="_blank"' : '';
-            $navHtml .= '<a href="' . htmlspecialchars($child['url']) . '" data-pjax' . $childTarget . '>' . htmlspecialchars($child['text']) . '</a>';
+            $navHtml .= '<a href="' . htmlspecialchars($child['url']) . '" data-pjax' . $childNavPathAttr . $childTarget . '>' . htmlspecialchars($child['text']) . '</a>';
         }
-        $navHtml .= '</div></div>';
+        $navHtml .= '</div></div></div>';
     } else {
-        $navHtml .= '<a href="' . htmlspecialchars($item['url']) . '" data-pjax data-nav="' . $item['id'] . '" class="' . trim($active) . '"' . $targetAttr . '>' . htmlspecialchars($item['text']) . '</a>';
+        $navHtml .= '<a href="' . htmlspecialchars($item['url']) . '" data-pjax data-nav="' . $item['id'] . '" class="' . trim($active) . '"' . $itemNavPathAttr . $targetAttr . '>' . htmlspecialchars($item['text']) . '</a>';
     }
 }
 
@@ -204,6 +217,7 @@ $this->assign([
     'nav_html'              => $navHtml,
     'nav_items'             => $navItems,
     'nav_footer_html'       => $navFooterHtml,
+    'nav_current_path'      => $currentPath,
     'nav_id'                => $navId,
     'nav_goods_url'         => $navGoodsUrl,
     'nav_blog_url'          => $navBlogUrl,

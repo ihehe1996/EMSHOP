@@ -28,6 +28,7 @@ function template_setting_view() {
     if ($themeAccent === '') $themeAccent = '#4e6ef2';
 ?>
 
+<div class="page-body zs-setting-page">
 <div class="popup-inner">
 <form class="layui-form" id="testTemplateForm" lay-filter="testTemplateForm">
     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars((string) Csrf::token(), ENT_QUOTES, 'UTF-8'); ?>">
@@ -96,7 +97,7 @@ function template_setting_view() {
     <button type="button" class="popup-btn popup-btn--default" id="testTemplateCancelBtn">取消</button>
     <button type="button" class="popup-btn popup-btn--primary" id="testTemplateSubmitBtn"><i class="layui-icon layui-icon-ok"></i> 保存配置</button>
 </div>
-
+</div>
 
 <style>
 /* 选项卡样式（与商品编辑页一致） */

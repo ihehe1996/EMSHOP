@@ -3,7 +3,7 @@
 Template Name:子神
 Version:1.0.0
 Template Url:
-Description:二次元风格独立布局 · 霓虹夜与魔法渐变
+Description:二次元风格独立布局 · 马卡龙浅彩主题
 Author:EMSHOP
 Author Url:
 */
@@ -78,7 +78,7 @@ window.EMSHOP_CURRENCY = {
                     <?php else: ?>
                     <span class="site-logo-text zs-logo-text"><?= htmlspecialchars($site_name ?? 'EMSHOP') ?></span>
                     <?php endif; ?>
-                    <span class="zs-logo-badge">SHOP</span>
+                    <span class="zs-logo-badge">店铺</span>
                 </a>
             </div>
 
@@ -112,6 +112,7 @@ window.EMSHOP_CURRENCY = {
                             <span class="header-user-money"><?= htmlspecialchars($displayMoney) ?></span>
                         </span>
                     </a>
+                    <div class="header-user-dropdown-panel">
                     <div class="header-user-menu zs-user-menu">
                         <a href="/user/order.php" class="header-user-menu-item"><i class="fa fa-file-text-o"></i>我的订单</a>
                         <a href="/user/wallet.php" class="header-user-menu-item"><i class="fa fa-credit-card"></i>我的钱包</a>
@@ -122,13 +123,16 @@ window.EMSHOP_CURRENCY = {
                         <div class="header-user-menu-divider"></div>
                         <a href="?c=login&a=logout" class="header-user-menu-item header-user-menu-item--danger"><i class="fa fa-sign-out"></i>退出登录</a>
                     </div>
+                    </div>
                     <?php else: ?>
                     <button type="button" class="header-user zs-user-trigger">
                         <span class="header-user-avatar header-user-avatar--default"><i class="fa fa-user"></i></span>
                     </button>
+                    <div class="header-user-dropdown-panel">
                     <div class="header-user-menu zs-user-menu">
                         <a href="?c=login" data-pjax class="header-user-menu-item"><i class="fa fa-sign-in"></i>登录</a>
                         <a href="?c=register" data-pjax class="header-user-menu-item"><i class="fa fa-user-plus"></i>注册</a>
+                    </div>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -162,12 +166,30 @@ window.EMSHOP_CURRENCY = {
                 </div>
                 <div class="mobile-nav-sub">
                     <?php foreach ($item['children'] as $child): ?>
-                    <a href="<?= htmlspecialchars($child['url']) ?>" data-pjax class="mobile-nav-sub-item"><?= htmlspecialchars($child['text']) ?></a>
+                    <?php
+                        $_cp = '/';
+                        $_cip = parse_url((string) ($child['url'] ?? ''), PHP_URL_PATH);
+                        if (is_string($_cip) && $_cip !== '') {
+                            $_cp = $_cip;
+                        }
+                        $_cp = '/' . trim($_cp, '/');
+                        $_childNavPathAttr = ($_cp !== '/') ? ' data-nav-path="' . htmlspecialchars($_cp, ENT_QUOTES, 'UTF-8') . '"' : '';
+                    ?>
+                    <a href="<?= htmlspecialchars($child['url']) ?>" data-pjax class="mobile-nav-sub-item"<?= $_childNavPathAttr ?>><?= htmlspecialchars($child['text']) ?></a>
                     <?php endforeach; ?>
                 </div>
             </div>
             <?php else: ?>
-            <a href="<?= htmlspecialchars($item['url']) ?>" data-pjax class="mobile-nav-item<?= $active ?>">
+            <?php
+                $_ip = '/';
+                $_p = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH);
+                if (is_string($_p) && $_p !== '') {
+                    $_ip = $_p;
+                }
+                $_ip = '/' . trim($_ip, '/');
+                $_itemNavPathAttr = ($_ip !== '/') ? ' data-nav-path="' . htmlspecialchars($_ip, ENT_QUOTES, 'UTF-8') . '"' : '';
+            ?>
+            <a href="<?= htmlspecialchars($item['url']) ?>" data-pjax class="mobile-nav-item<?= $active ?>"<?= $_itemNavPathAttr ?>>
                 <i class="fa <?= $icon ?>"></i><span><?= htmlspecialchars($item['text']) ?></span>
             </a>
             <?php endif; ?>
@@ -213,4 +235,4 @@ window.EMSHOP_CURRENCY = {
     </div>
 </div>
 
-<div id="main" data-nav-id="<?= htmlspecialchars($nav_id ?? '') ?>">
+<div id="main" data-nav-id="<?= htmlspecialchars($nav_id ?? '') ?>" data-nav-current-path="<?= htmlspecialchars($nav_current_path ?? '', ENT_QUOTES, 'UTF-8') ?>">

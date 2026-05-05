@@ -6,12 +6,13 @@ $current_category = isset($current_category) ? (int) $current_category : (int) (
 ?>
 <!-- 商品列表 · GoodsController::_list() -->
 
+<div class="page-body">
+
 <?php
 // 店铺公告 —— 当前 scope 已设公告且勾选了"商品列表页"展示位置时输出
 $_announce = $announcement ?? null;
 if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list', $_announce['positions'] ?? [], true)):
 ?>
-<div class="wrapper">
     <div class="site-announcement">
         <div class="site-announcement__head">
             <span class="site-announcement__icon"><i class="fa fa-bullhorn"></i></span>
@@ -20,10 +21,7 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
         </div>
         <div class="site-announcement__body"><?= $_announce['html'] ?></div>
     </div>
-</div>
 <?php endif; ?>
-
-<div class="page-body">
 
     <!-- 面包屑 -->
     <div class="breadcrumb">

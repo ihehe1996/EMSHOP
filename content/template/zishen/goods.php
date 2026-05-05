@@ -2,7 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 ?>
 <!-- 商品详情 · GoodsController::_detail() -->
-<div class="page-body">
+<div class="page-body zs-detail-page">
 
     <!-- 面包屑 -->
     <div class="breadcrumb">
@@ -71,9 +71,9 @@ defined('EM_ROOT') || exit('access denied!');
             <div class="detail-info">
                 <div class="detail-name"><?= htmlspecialchars($goods['name']) ?></div>
                 <?php if (($goods['delivery_type'] ?? '') === 'auto'): ?>
-                <div style="margin-top:6px;"><span class="goods-badge goods-badge--auto">自动发货</span></div>
+                <div class="detail-delivery"><span class="goods-badge goods-badge--auto">自动发货</span></div>
                 <?php elseif (($goods['delivery_type'] ?? '') === 'manual'): ?>
-                <div style="margin-top:6px;"><span class="goods-badge goods-badge--manual">人工发货</span></div>
+                <div class="detail-delivery"><span class="goods-badge goods-badge--manual">人工发货</span></div>
                 <?php endif; ?>
 
                 <?php if (!empty($goods['description'])): ?>
@@ -328,14 +328,14 @@ defined('EM_ROOT') || exit('access denied!');
 
     <?php if (!empty($goods['content'])): ?>
     <!-- 商品详情内容 -->
-    <div class="article-detail" style="margin-top:16px;">
+    <div class="article-detail zs-detail-content-wrap">
         <div class="detail-body"><?= $goods['content'] ?></div>
     </div>
     <?php endif; ?>
 
     <?php if (!empty($goods['tags'])): ?>
     <!-- 商品标签 -->
-    <div class="detail-tags goods-detail-tags" style="margin-top:16px; background:#fff; border-radius:8px; border:1px solid #ebeef5; padding:20px 40px;">
+    <div class="detail-tags goods-detail-tags zs-detail-tags-wrap">
         <?php foreach ($goods['tags'] as $tag): ?>
         <a href="<?= url_goods_tag((int) $tag['id']) ?>" class="article-tag" data-pjax><?= htmlspecialchars($tag['name']) ?></a>
         <?php endforeach; ?>
@@ -360,7 +360,7 @@ defined('EM_ROOT') || exit('access denied!');
         }
         GoodsDetail.init({
             specs: <?= $specs_json ?? '[]' ?>,
-            currencySymbol: <?= json_encode($currency_symbol) ?>,
+            currencySymbol: <?= json_encode($currency_symbol ?? '¥') ?>,
             goodsUnit: <?= json_encode($goods['unit'] ?? '件') ?>,
             // 满减规则（商品静态配置；已按门槛升序，JS 直接在数量变化时匹配最大适用门槛减免）
             discountRules: <?= json_encode(array_map(static function ($r) {

@@ -6,43 +6,73 @@ if (!in_array($search_type, ['all', 'goods', 'article'])) {
     $search_type = 'all';
 }
 ?>
-<!-- 搜索结果 · SearchController::_index() -->
-<div class="page-body">
+<!-- 搜索结果 · SearchController::_index() · 子神布局 -->
+<div class="page-body zs-search-page">
 
-    <div class="page-title">搜索结果</div>
+    <header class="zs-search-hero">
+        <h1 class="zs-search-hero__title">搜索结果</h1>
+        <p class="zs-search-hero__hint">在站内查找商品与文章</p>
+    </header>
 
-    <!-- 搜索表单（结果页内也可再次搜索） -->
-    <form class="search-box" method="get" data-pjax>
+    <form class="zs-search-toolbar" method="get" data-pjax>
         <input type="hidden" name="c" value="search">
         <input type="hidden" name="type" value="<?= htmlspecialchars($search_type) ?>">
-        <input type="text" name="q" class="search-input" placeholder="输入关键词搜索..." value="<?= htmlspecialchars($keyword ?? '') ?>">
-        <button type="submit" class="btn btn-primary">搜索</button>
+        <div class="zs-search-toolbar__inner">
+            <span class="zs-search-toolbar__icon" aria-hidden="true"><i class="fa fa-search"></i></span>
+            <input type="text" name="q" class="zs-search-input" placeholder="输入关键词…" value="<?= htmlspecialchars($keyword ?? '') ?>" autocomplete="off">
+            <button type="submit" class="btn btn-primary zs-search-submit">搜索</button>
+        </div>
     </form>
 
-    <!-- 类型切换 Tab -->
     <?php if (!empty($keyword)): ?>
-    <div class="search-type-tabs">
+    <nav class="zs-search-tabs" aria-label="结果类型">
         <a href="<?= url_search($keyword) ?>&type=all" data-pjax
-           class="search-type-tab<?= $search_type === 'all' ? ' active' : '' ?>">全部</a>
+           class="zs-search-tab<?= $search_type === 'all' ? ' is-active' : '' ?>">全部</a>
         <a href="<?= url_search($keyword) ?>&type=goods" data-pjax
-           class="search-type-tab<?= $search_type === 'goods' ? ' active' : '' ?>">商品</a>
+           class="zs-search-tab<?= $search_type === 'goods' ? ' is-active' : '' ?>">商品</a>
         <a href="<?= url_search($keyword) ?>&type=article" data-pjax
-           class="search-type-tab<?= $search_type === 'article' ? ' active' : '' ?>">文章</a>
-    </div>
-
-    <div class="search-hint" style="margin-bottom:16px;">
-        找到 <?= (int) ($result_count ?? 0) ?> 个与 "<?= htmlspecialchars($keyword) ?>" 相关的结果
-    </div>
+           class="zs-search-tab<?= $search_type === 'article' ? ' is-active' : '' ?>">文章</a>
+    </nav>
+    <p class="zs-search-summary">
+        找到 <strong><?= (int) ($result_count ?? 0) ?></strong> 条与「<?= htmlspecialchars($keyword) ?>」相关的结果
+    </p>
     <?php endif; ?>
 
-    <!-- 商品结果（type=all 或 type=goods 时显示） -->
     <?php if ($search_type !== 'article' && !empty($results)): ?>
     <?php if ($search_type === 'all'): ?>
-    <div class="section-header" style="margin-bottom:12px;">
-        <div class="section-title" style="font-size:15px;">商品</div>
-    </div>
-    <?php endif; ?>
-    <div class="goods-grid" style="margin-bottom:32px;">
+    <section class="zs-search-section">
+        <h2 class="zs-search-section__title">商品</h2>
+        <div class="goods-grid zs-search-goods-grid">
+            <?php foreach ($results as $item): ?>
+            <a <?= goods_card_href_attrs($item) ?> class="card goods-card">
+                <div class="card-img">
+                    <?php if (trim((string) ($item['image'] ?? '')) !== ''): ?>
+                    <img src="<?= htmlspecialchars($item['image']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+                    <?php else: ?>
+                    <div class="goods-no-image" aria-hidden="true"></div>
+                    <?php endif; ?>
+                    <?php if (($item['delivery_type'] ?? '') === 'auto'): ?>
+                    <span class="goods-badge goods-badge--auto">自动发货</span>
+                    <?php elseif (($item['delivery_type'] ?? '') === 'manual'): ?>
+                    <span class="goods-badge goods-badge--manual">人工发货</span>
+                    <?php endif; ?>
+                </div>
+                <div class="card-body">
+                    <div class="card-title"><?= htmlspecialchars($item['name']) ?></div>
+                    <div class="card-stats">
+                        <span>库存 <?= htmlspecialchars((string) ($item['stock_text'] ?? '0')) ?></span>
+                        <span>销量 <?= (int) ($item['sold'] ?? 0) ?></span>
+                    </div>
+                    <div class="card-bottom">
+                        <span class="price"><?= Currency::displayMain((float) $item['price']) ?></span>
+                    </div>
+                </div>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php else: ?>
+    <div class="goods-grid zs-search-goods-grid">
         <?php foreach ($results as $item): ?>
         <a <?= goods_card_href_attrs($item) ?> class="card goods-card">
             <div class="card-img">
@@ -71,41 +101,70 @@ if (!in_array($search_type, ['all', 'goods', 'article'])) {
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
 
-    <!-- 文章结果（type=all 或 type=article 时显示） -->
     <?php if ($search_type !== 'goods' && !empty($article_results)): ?>
     <?php if ($search_type === 'all'): ?>
-    <div class="section-header" style="margin-bottom:12px;">
-        <div class="section-title" style="font-size:15px;">文章</div>
-    </div>
-    <?php endif; ?>
-    <div class="article-list" style="margin-bottom:32px;">
+    <section class="zs-search-section zs-search-section--articles">
+        <h2 class="zs-search-section__title">文章</h2>
+        <div class="zs-search-article-list">
+            <?php foreach ($article_results as $a): ?>
+            <a href="<?= url_blog((int) $a['id']) ?>" class="zs-search-article-card" data-pjax>
+                <div class="zs-search-article-card__body">
+                    <div class="zs-search-article-card__title"><?= htmlspecialchars($a['title']) ?></div>
+                    <div class="zs-search-article-card__excerpt"><?= htmlspecialchars($a['excerpt']) ?></div>
+                    <div class="zs-search-article-card__meta">
+                        <span><i class="fa fa-calendar-o"></i> <?= htmlspecialchars($a['date']) ?></span>
+                        <span><i class="fa fa-user-o"></i> <?= htmlspecialchars($a['author'] ?? '管理员') ?></span>
+                    </div>
+                </div>
+                <span class="zs-search-article-card__arrow" aria-hidden="true"><i class="fa fa-angle-right"></i></span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php else: ?>
+    <div class="zs-search-article-list">
         <?php foreach ($article_results as $a): ?>
-        <a href="<?= url_blog((int) $a['id']) ?>" class="card article-card">
-            <div class="card-content">
-                <div class="card-title"><?= htmlspecialchars($a['title']) ?></div>
-                <div class="card-excerpt"><?= htmlspecialchars($a['excerpt']) ?></div>
-                <div class="card-meta">
-                    <span><?= htmlspecialchars($a['date']) ?></span>
-                    <span><?= htmlspecialchars($a['author'] ?? '管理员') ?></span>
+        <a href="<?= url_blog((int) $a['id']) ?>" class="zs-search-article-card" data-pjax>
+            <div class="zs-search-article-card__body">
+                <div class="zs-search-article-card__title"><?= htmlspecialchars($a['title']) ?></div>
+                <div class="zs-search-article-card__excerpt"><?= htmlspecialchars($a['excerpt']) ?></div>
+                <div class="zs-search-article-card__meta">
+                    <span><i class="fa fa-calendar-o"></i> <?= htmlspecialchars($a['date']) ?></span>
+                    <span><i class="fa fa-user-o"></i> <?= htmlspecialchars($a['author'] ?? '管理员') ?></span>
                 </div>
             </div>
+            <span class="zs-search-article-card__arrow" aria-hidden="true"><i class="fa fa-angle-right"></i></span>
         </a>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
 
-    <!-- 无结果 -->
     <?php if (empty($keyword)): ?>
-    <div class="card empty-state">
-        <div class="empty-icon">&#128269;</div>
-        <h3>输入关键词搜索</h3>
+    <div class="zs-search-empty">
+        <div class="zs-search-empty__icon" aria-hidden="true"><i class="fa fa-search"></i></div>
+        <h3 class="zs-search-empty__title">输入关键词开始搜索</h3>
+        <p class="zs-search-empty__text">支持商品名、文章标题等</p>
     </div>
     <?php elseif (empty($results) && $search_type === 'goods'): ?>
-    <div class="card empty-state">
-        <div class="empty-icon">&#128269;</div>
-        <h3>未找到相关商品</h3>
-        <p>尝试使用其他关键词搜索</p>
+    <div class="zs-search-empty">
+        <div class="zs-search-empty__icon" aria-hidden="true"><i class="fa fa-inbox"></i></div>
+        <h3 class="zs-search-empty__title">未找到相关商品</h3>
+        <p class="zs-search-empty__text">试试其它关键词或切换到「全部」</p>
+    </div>
+    <?php elseif ($search_type === 'article' && !empty($keyword) && empty($article_results)): ?>
+    <div class="zs-search-empty">
+        <div class="zs-search-empty__icon" aria-hidden="true"><i class="fa fa-file-text-o"></i></div>
+        <h3 class="zs-search-empty__title">未找到相关文章</h3>
+        <p class="zs-search-empty__text">换个说法试试，或切换到「商品」</p>
+    </div>
+    <?php elseif ($search_type === 'all' && !empty($keyword) && empty($results) && empty($article_results)): ?>
+    <div class="zs-search-empty">
+        <div class="zs-search-empty__icon" aria-hidden="true"><i class="fa fa-search"></i></div>
+        <h3 class="zs-search-empty__title">暂无匹配结果</h3>
+        <p class="zs-search-empty__text">未找到相关商品与文章，可缩短关键词或换词重试</p>
     </div>
     <?php endif; ?>
 

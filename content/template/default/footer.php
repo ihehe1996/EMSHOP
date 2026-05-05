@@ -36,62 +36,170 @@ if (!empty($site_statistical_code) && MerchantContext::isMaster()) {
 
 <script>
 /**
- * 根据当前 URL 更新导航 active 高亮。
- *
- * 策略（和 test/module.php 初始渲染保持一致）：
- *   1) 主匹配：当前 URL path 与 nav 项的 href path 精确一致（覆盖 CMS 页面、商品分类导航、自定义链接等）
- *   2) 兜底：对系统导航（首页 / 商城 / 博客），按 $('#main')[data-nav-id] 做名称匹配
- *      （让商品详情、博客详情这种子页仍然高亮其父级导航）
+ * PJAX 后同步移动端侧栏导航高亮（整页刷新由 PHP 输出 active，PJAX 只换 #main 故需 JS 同步）。
  */
-function updateNavActive(url) {
-    var $nav = $('.main-nav');
-    if (!$nav.length) return;
+function syncMobileNavActive(currentFull, navId) {
+    var $mob = $('#mobileNav');
+    if (!$mob.length) return;
 
-    // --- 规范化当前路径 ---
-    var currentPath = '/';
-    try {
-        // url 可能是绝对地址（http://…/p/about）或相对（/p/about）
-        var a = document.createElement('a');
-        a.href = url || window.location.href;
-        currentPath = a.pathname || '/';
-    } catch (e) {
-        currentPath = String(url || '/').split('?')[0].split('#')[0];
+    $mob.find('.mobile-nav-item, .mobile-nav-toggle, .mobile-nav-sub-item').removeClass('active');
+
+    var currentNavPath = ($('#main').attr('data-nav-current-path') || '').trim();
+    if (!currentNavPath && currentFull) {
+        try {
+            var nx = document.createElement('a');
+            nx.href = currentFull;
+            currentNavPath = '/' + String(nx.pathname || '/').replace(/^\/+|\/+$/g, '');
+        } catch (e0) {
+            currentNavPath = '';
+        }
     }
-    currentPath = '/' + currentPath.replace(/^\/+|\/+$/g, '');
+    if (currentNavPath && currentNavPath !== '/') {
+        var mPathHits = [];
+        $mob.find('a[data-nav-path]').each(function () {
+            if (($(this).attr('data-nav-path') || '').trim() === currentNavPath) {
+                mPathHits.push(this);
+            }
+        });
+        if (mPathHits.length === 1) {
+            $(mPathHits[0]).addClass('active');
+            return;
+        }
+    }
 
-    // 服务端按当前控制器塞入的 nav_id（page 控制器为空）
-    var navId = $('#main').attr('data-nav-id') || '';
-
-    $nav.find('a').removeClass('active');
-
-    // 1) 先 URL path 精确匹配（首页除外，'/' 和任何页都不精确等于）
-    var matched = false;
-    $nav.find('a[href]').each(function () {
-        var href = $(this).attr('href') || '';
-        var itemPath = '/';
+    var subHits = [];
+    $mob.find('a.mobile-nav-sub-item[href]').each(function () {
         try {
             var b = document.createElement('a');
-            b.href = href;
-            itemPath = b.pathname || '/';
+            b.href = $(this).attr('href') || '';
+            if (b.href.split('#')[0] === currentFull) {
+                subHits.push(this);
+            }
         } catch (e) {}
-        itemPath = '/' + itemPath.replace(/^\/+|\/+$/g, '');
-        if (itemPath !== '/' && itemPath === currentPath) {
-            $(this).addClass('active');
-            matched = true;
+    });
+    if (subHits.length === 1) {
+        $(subHits[0]).addClass('active');
+        return;
+    }
+
+    var labelMap = { home: '首页', goods: '商城', blog: '博客' };
+    var want = labelMap[navId] || '';
+    if (!want) return;
+
+    $mob.find('.mobile-nav-toggle, a.mobile-nav-item[href]').each(function () {
+        var $el = $(this);
+        if ($el.hasClass('mobile-nav-sub-item')) return;
+        var label = $el.find('> span').first().text().trim();
+        if (label === want) {
+            $el.addClass('active');
         }
     });
-    if (matched) return;
+}
 
-    // 2) 兜底：按系统名称匹配
-    if (navId) {
-        $nav.find('a').filter(function () {
-            var text = $(this).text().trim();
-            if (navId === 'home' && text === '首页') return true;
-            if (navId === 'goods' && text === '商城') return true;
-            if (navId === 'blog' && text === '博客') return true;
-            return false;
-        }).addClass('active');
+/**
+ * 根据当前 URL + #main[data-nav-id] 更新主导航 active（与 module.php 初次渲染一致）。
+ */
+function updateNavActive(url) {
+    var effective = (url && String(url).trim()) ? String(url).trim() : window.location.href;
+    var currentFull = '';
+    try {
+        var ca = document.createElement('a');
+        ca.href = effective;
+        currentFull = ca.href.split('#')[0];
+    } catch (e) {
+        currentFull = String(effective).split('#')[0];
     }
+
+    var navId = ($('#main').attr('data-nav-id') || '').trim();
+
+    var currentNavPath = ($('#main').attr('data-nav-current-path') || '').trim();
+    if (!currentNavPath) {
+        try {
+            var ap0 = document.createElement('a');
+            ap0.href = effective;
+            currentNavPath = '/' + String(ap0.pathname || '/').replace(/^\/+|\/+$/g, '');
+        } catch (e0) {
+            currentNavPath = '/';
+        }
+    }
+
+    var $nav = $('.main-nav');
+    if ($nav.length) {
+        $nav.find('a').removeClass('active');
+
+        if (navId === 'home' || navId === 'goods' || navId === 'blog') {
+            var want = navId === 'home' ? '首页' : (navId === 'goods' ? '商城' : '博客');
+            $nav.find('> a[href], > .nav-dropdown > a[href]').each(function () {
+                if ($(this).text().trim() === want) {
+                    $(this).addClass('active');
+                }
+            });
+            syncMobileNavActive(currentFull, navId);
+            return;
+        }
+
+        if (currentNavPath && currentNavPath !== '/') {
+            var navPathHits = [];
+            $nav.find('a[data-nav-path]').each(function () {
+                var dp = ($(this).attr('data-nav-path') || '').trim();
+                if (dp && dp === currentNavPath) {
+                    navPathHits.push(this);
+                }
+            });
+            if (navPathHits.length === 1) {
+                $(navPathHits[0]).addClass('active');
+                syncMobileNavActive(currentFull, navId);
+                return;
+            }
+        }
+
+        var exactHits = [];
+        $nav.find('a[href]').each(function () {
+            var href = $(this).attr('href') || '';
+            try {
+                var b = document.createElement('a');
+                b.href = href;
+                if (b.href.split('#')[0] === currentFull) {
+                    exactHits.push(this);
+                }
+            } catch (e2) {}
+        });
+        if (exactHits.length === 1) {
+            $(exactHits[0]).addClass('active');
+            syncMobileNavActive(currentFull, navId);
+            return;
+        }
+
+        var currentPath = '/';
+        try {
+            var ap = document.createElement('a');
+            ap.href = effective;
+            currentPath = ap.pathname || '/';
+        } catch (e3) {
+            currentPath = String(effective).split('?')[0].split('#')[0];
+        }
+        currentPath = '/' + currentPath.replace(/^\/+|\/+$/g, '');
+
+        var pathHits = [];
+        $nav.find('a[href]').each(function () {
+            var href = $(this).attr('href') || '';
+            var itemPath = '/';
+            try {
+                var bp = document.createElement('a');
+                bp.href = href;
+                itemPath = bp.pathname || '/';
+            } catch (e4) {}
+            itemPath = '/' + itemPath.replace(/^\/+|\/+$/g, '');
+            if (itemPath !== '/' && itemPath === currentPath) {
+                pathHits.push(this);
+            }
+        });
+        if (pathHits.length === 1) {
+            $(pathHits[0]).addClass('active');
+        }
+    }
+
+    syncMobileNavActive(currentFull, navId);
 }
 
 // ============================================================
@@ -155,11 +263,22 @@ function updateNavActive(url) {
         }
         // PJAX 不会替换 #main 自身的属性，需要从响应头同步 data-nav-id
         var navIdHeader = xhr.getResponseHeader('X-PJAX-Nav-Id');
-        if (navIdHeader !== null) {
+        if (navIdHeader === null || navIdHeader === '') {
+            navIdHeader = xhr.getResponseHeader('x-pjax-nav-id');
+        }
+        if (navIdHeader !== null && navIdHeader !== undefined) {
             try { navIdHeader = decodeURIComponent(navIdHeader); } catch (e) {}
             $('#main').attr('data-nav-id', navIdHeader || '');
         }
-        updateNavActive(options.url);
+        var navPathHeader = xhr.getResponseHeader('X-PJAX-Current-Path');
+        if (navPathHeader === null || navPathHeader === '') {
+            navPathHeader = xhr.getResponseHeader('x-pjax-current-path');
+        }
+        if (navPathHeader !== null && navPathHeader !== undefined) {
+            try { navPathHeader = decodeURIComponent(navPathHeader); } catch (e) {}
+            $('#main').attr('data-nav-current-path', navPathHeader || '');
+        }
+        updateNavActive(window.location.href || options.url);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 

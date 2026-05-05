@@ -232,6 +232,8 @@ final class View
             // PJAX 只替换 #main 的 innerHTML，不会更新容器自身的属性；
             // 把 nav_id 通过响应头送到前端，让 JS 同步写回 #main[data-nav-id]。
             header('X-PJAX-Nav-Id: ' . rawurlencode((string) ($data['nav_id'] ?? '')));
+            // 与 module.php 中 $currentPath 一致，供 PJAX 后按 data-nav-path 点亮「页面 / 伪静态」类导航
+            header('X-PJAX-Current-Path: ' . rawurlencode((string) ($data['nav_current_path'] ?? '')));
             header('Content-Type: text/html; charset=utf-8');
         }
 

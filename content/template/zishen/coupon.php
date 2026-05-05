@@ -8,28 +8,29 @@ $typeLabel = [
     'free_shipping' => '免邮券',
 ];
 ?>
-<div class="page-body">
+<div class="page-body zs-coupon-page">
 
-    <div class="page-title">领券中心</div>
-    <p class="coupon-intro">
-        <i class="fa fa-info-circle"></i>
-        领取后可在"个人中心 / 我的优惠券"查看；下单时也可直接输入券码使用
-    </p>
+    <header class="zs-coupon-hero">
+        <div class="zs-coupon-hero__badge" aria-hidden="true"><i class="fa fa-ticket"></i></div>
+        <div class="zs-coupon-hero__text">
+            <h1 class="zs-coupon-hero__title">领券中心</h1>
+            <p class="zs-coupon-hero__desc">领取后可在「个人中心 / 我的优惠券」查看；下单时也可直接输入券码使用</p>
+        </div>
+    </header>
 
     <?php if (empty($coupons)): ?>
-    <div class="card empty-state">
-        <div class="empty-icon">🎫</div>
-        <h3>暂无可领优惠券</h3>
-        <p>请稍后再来看看</p>
+    <div class="zs-coupon-empty">
+        <div class="zs-coupon-empty__icon" aria-hidden="true">🎫</div>
+        <h3 class="zs-coupon-empty__title">暂无可领优惠券</h3>
+        <p class="zs-coupon-empty__text">请稍后再来看看</p>
     </div>
     <?php else: ?>
-    <div class="coupon-grid">
+    <div class="zs-coupon-grid">
         <?php foreach ($coupons as $c): ?>
         <?php
             $id = (int) $c['id'];
             $alreadyClaimed = in_array($id, $claimed_ids, true);
 
-            // 主值文字（按访客币种展示券面额 / 门槛；折扣券的"折"无关币种，不换算）
             if ($c['type'] === 'fixed_amount') {
                 $valueBig = Currency::displayMain((float) $c['value']);
                 $valueCaption = '满 ' . Currency::displayMain((float) $c['min_amount']) . ' 可用';
@@ -44,39 +45,38 @@ $typeLabel = [
                     ? '满 ' . Currency::displayMain((float) $c['min_amount']) . ' 可用'
                     : '无门槛';
             }
+            $typeKey = (string) ($c['type'] ?? '');
         ?>
-        <div class="coupon-card" data-coupon-id="<?= $id ?>" data-coupon-code="<?= htmlspecialchars((string) $c['code']) ?>">
-            <div class="coupon-card__left">
-                <div class="coupon-card__value"><?= htmlspecialchars($valueBig) ?></div>
-                <div class="coupon-card__caption"><?= htmlspecialchars($valueCaption) ?></div>
+        <article class="coupon-card zs-coupon-card zs-coupon-card--<?= htmlspecialchars($typeKey) ?>" data-coupon-id="<?= $id ?>" data-coupon-code="<?= htmlspecialchars((string) $c['code']) ?>">
+            <div class="zs-coupon-card__ribbon">
+                <span class="zs-coupon-card__value"><?= htmlspecialchars($valueBig) ?></span>
+                <span class="zs-coupon-card__caption"><?= htmlspecialchars($valueCaption) ?></span>
             </div>
-            <div class="coupon-card__right">
-                <div class="coupon-card__title"><?= htmlspecialchars($c['title'] ?: $c['name']) ?></div>
+            <div class="zs-coupon-card__main">
+                <span class="zs-coupon-card__kind"><?= htmlspecialchars($typeLabel[$typeKey] ?? $typeKey) ?></span>
+                <h2 class="zs-coupon-card__name"><?= htmlspecialchars($c['title'] ?: $c['name']) ?></h2>
                 <?php if (!empty($c['description'])): ?>
-                <div class="coupon-card__desc"><?= htmlspecialchars($c['description']) ?></div>
+                <p class="zs-coupon-card__desc"><?= htmlspecialchars($c['description']) ?></p>
                 <?php endif; ?>
-                <div class="coupon-card__meta">
-                    <span class="coupon-card__tag"><?= htmlspecialchars($typeLabel[$c['type']] ?? $c['type']) ?></span>
-                    <?php if (!empty($c['end_at'])): ?>
-                    <span class="coupon-card__valid">至 <?= htmlspecialchars(substr((string) $c['end_at'], 0, 16)) ?></span>
-                    <?php endif; ?>
+                <?php if (!empty($c['end_at'])): ?>
+                <p class="zs-coupon-card__valid"><i class="fa fa-clock-o"></i> 有效期至 <?= htmlspecialchars(substr((string) $c['end_at'], 0, 16)) ?></p>
+                <?php endif; ?>
+                <div class="zs-coupon-card__code-row">
+                    <span class="zs-coupon-card__code-label">券码</span>
+                    <code class="zs-coupon-card__code"><?= htmlspecialchars((string) $c['code']) ?></code>
                 </div>
-                <div class="coupon-card__code">
-                    券码：<span class="coupon-card__code-val"><?= htmlspecialchars((string) $c['code']) ?></span>
-                </div>
-                <div class="coupon-card__actions">
-                    <button type="button" class="coupon-btn coupon-btn-ghost js-coupon-copy">复制码</button>
+                <div class="zs-coupon-card__actions">
+                    <button type="button" class="coupon-btn coupon-btn-ghost zs-coupon-btn zs-coupon-btn--ghost js-coupon-copy">复制券码</button>
                     <?php if (!$is_logged_in): ?>
-                        <!-- 游客：禁用，hover 提示 -->
-                        <button type="button" class="coupon-btn coupon-btn-primary is-disabled js-coupon-tip">领取</button>
+                    <button type="button" class="coupon-btn coupon-btn-primary is-disabled zs-coupon-btn zs-coupon-btn--primary js-coupon-tip">领取</button>
                     <?php elseif ($alreadyClaimed): ?>
-                        <button type="button" class="coupon-btn coupon-btn-primary is-disabled" disabled>已领取</button>
+                    <button type="button" class="coupon-btn coupon-btn-primary is-disabled zs-coupon-btn zs-coupon-btn--primary" disabled>已领取</button>
                     <?php else: ?>
-                        <button type="button" class="coupon-btn coupon-btn-primary js-coupon-receive">领取</button>
+                    <button type="button" class="coupon-btn coupon-btn-primary zs-coupon-btn zs-coupon-btn--primary js-coupon-receive">立即领取</button>
                     <?php endif; ?>
                 </div>
             </div>
-        </div>
+        </article>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
@@ -85,14 +85,21 @@ $typeLabel = [
     (function () {
         $(document).off('.emCoupon');
 
-        // 复制券码
+        function zsMsg(text) {
+            if (window.layui && typeof layui.msg === 'function') {
+                layui.msg(text);
+            } else {
+                alert(text);
+            }
+        }
+
         $(document).on('click.emCoupon', '.js-coupon-copy', function () {
             var code = $(this).closest('.coupon-card').data('coupon-code');
             if (!code) return;
             var txt = String(code);
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(txt).then(
-                    function () { layer.msg('已复制：' + txt); },
+                    function () { zsMsg('已复制：' + txt); },
                     function () { fallbackCopy(txt); }
                 );
             } else {
@@ -101,16 +108,15 @@ $typeLabel = [
         });
         function fallbackCopy(txt) {
             var $i = $('<input style="position:fixed;top:-100px;">').val(txt).appendTo('body').select();
-            try { document.execCommand('copy'); layer.msg('已复制：' + txt); }
-            catch (e) { layer.msg('复制失败，请手动选择'); }
+            try { document.execCommand('copy'); zsMsg('已复制：' + txt); }
+            catch (e) { zsMsg('复制失败，请手动选择'); }
             $i.remove();
         }
 
         $(document).on('click.emCoupon', '.js-coupon-tip', function () {
-            layer.msg('登录后可领取');
+            zsMsg('登录后可领取');
         });
 
-        // 登录用户领取
         $(document).on('click.emCoupon', '.js-coupon-receive', function () {
             var $btn = $(this);
             var $card = $btn.closest('.coupon-card');
@@ -118,15 +124,15 @@ $typeLabel = [
             $btn.prop('disabled', true).text('领取中...');
             $.post('?c=coupon&a=receive', { coupon_id: couponId }, function (res) {
                 if (res.code === 200) {
-                    layer.msg('领取成功');
+                    zsMsg('领取成功');
                     $btn.removeClass('js-coupon-receive').addClass('is-disabled').prop('disabled', true).text('已领取');
                 } else {
-                    $btn.prop('disabled', false).text('领取');
-                    layer.msg(res.msg || '领取失败');
+                    $btn.prop('disabled', false).text('立即领取');
+                    zsMsg(res.msg || '领取失败');
                 }
             }, 'json').fail(function () {
-                $btn.prop('disabled', false).text('领取');
-                layer.msg('网络异常');
+                $btn.prop('disabled', false).text('立即领取');
+                zsMsg('网络异常');
             });
         });
     })();

@@ -3,6 +3,7 @@
  * 测试模板 - 注册页
  */
 ?>
+<div class="page-body zs-auth-page">
 <div class="auth-page">
     <div class="auth-card">
         <div class="auth-header">
@@ -55,6 +56,7 @@
             <a href="?c=login" data-pjax>立即登录</a>
         </div>
     </div>
+</div>
 </div>
 
 <script>

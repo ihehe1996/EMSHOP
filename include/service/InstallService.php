@@ -42,7 +42,7 @@ final class InstallService
             ['config_name' => 'shop_withdraw_max', 'config_value' => '2000000000', 'description' => '最高提现额'],
             ['config_name' => 'shop_order_expire_minutes', 'config_value' => '10', 'description' => '订单超时时间（分钟）'],
             ['config_name' => 'shop_enable_coupon', 'config_value' => '1', 'description' => '启用优惠券'],
-            ['config_name' => 'shop_announcement', 'config_value' => '<p><span style="color: rgb(207, 19, 34);">这里是系统自带的默认公告。如需修改，请前往后台管理面板 - 基础设置 - 商城设置页面处更改</span></p><p><span style="color: rgb(56, 158, 13);">注意本系统遵循</span><span style="color: rgb(56, 158, 13); background-color: rgb(255, 255, 255); font-size: 13px;">GPLv3开源协议发布，使用者造成的一切法律后果与作者无关</span></p>', 'description' => '商城公告内容'],
+            ['config_name' => 'shop_announcement', 'config_value' => '<p><span style="color: rgb(207, 19, 34);">这里是系统自带的默认公告。如需修改，请前往后台管理面板 - 基础设置 - 商城设置页面处更改</span></p><p><span style="color: rgb(56, 158, 13);">注意本系统遵循GPLv3开源协议发布，使用者造成的一切法律后果与作者无关</span></p>', 'description' => '商城公告内容'],
             ['config_name' => 'shop_announcement_positions', 'config_value' => 'home,goods_list', 'description' => '商城公告显示位置'],
             ['config_name' => 'guest_find_contact_enabled', 'config_value' => '0', 'description' => '联系方式查单开关'],
             ['config_name' => 'guest_find_contact_type', 'config_value' => 'any', 'description' => '联系方式查单类型'],

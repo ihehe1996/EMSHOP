@@ -2,6 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 ?>
 <!-- 商城首页 · GoodsController::_index() -->
+<div class="page-body zs-home-body">
 
 <?php include __DIR__ . '/hero.php'; ?>
 
@@ -10,7 +11,6 @@ defined('EM_ROOT') || exit('access denied!');
 $_announce = $announcement ?? null;
 if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_announce['positions'] ?? [], true)):
 ?>
-<div class="wrapper">
     <div class="site-announcement">
         <div class="site-announcement__head">
             <span class="site-announcement__icon"><i class="fa fa-bullhorn"></i></span>
@@ -19,112 +19,92 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
         </div>
         <div class="site-announcement__body"><?= $_announce['html'] ?></div>
     </div>
-</div>
 <?php endif; ?>
 
-<div class="page-body">
-    <div class="blog-layout">
-
-        <!-- 主内容 -->
-        <div class="blog-main">
-
-            <!-- 推荐商品 -->
-            <div class="section">
-                <div class="section-header">
-                    <div class="section-title">推荐商品</div>
-                    <a href="<?= url_goods_list() ?>" data-pjax class="section-more">查看更多 &rarr;</a>
-                </div>
+    <div class="wrapper zs-home-shell">
+        <div class="zs-home-main">
+            <section class="zs-home-panel zs-home-panel--goods">
+                <header class="zs-home-panel-head">
+                    <div class="zs-home-panel-title-wrap">
+                        <div class="zs-home-panel-kicker">PICKS</div>
+                        <h2 class="zs-home-panel-title">推荐商品</h2>
+                    </div>
+                    <a href="<?= url_goods_list() ?>" data-pjax class="zs-home-panel-link">查看全部</a>
+                </header>
                 <?php if (!empty($recommended_goods)): ?>
-                <div class="goods-grid">
+                <div class="zs-home-goods-grid">
                     <?php foreach ($recommended_goods as $g): ?>
-                    <a <?= goods_card_href_attrs($g) ?> class="card goods-card">
-                        <div class="card-img">
+                    <article class="zs-home-goods-item">
+                        <a <?= goods_card_href_attrs($g) ?> class="zs-home-goods-cover">
                             <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                             <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
                             <?php else: ?>
-                            <div class="goods-no-image" aria-hidden="true"></div>
+                            <span class="zs-home-goods-cover-empty" aria-hidden="true"></span>
                             <?php endif; ?>
                             <?php if (($g['delivery_type'] ?? '') === 'auto'): ?>
-                            <span class="goods-badge goods-badge--auto">自动发货</span>
+                            <span class="zs-home-badge zs-home-badge--auto">自动</span>
                             <?php elseif (($g['delivery_type'] ?? '') === 'manual'): ?>
-                            <span class="goods-badge goods-badge--manual">人工发货</span>
+                            <span class="zs-home-badge zs-home-badge--manual">人工</span>
+                            <?php endif; ?>
+                        </a>
+                        <a <?= goods_card_href_attrs($g) ?> class="zs-home-goods-name"><?= htmlspecialchars($g['name']) ?></a>
+                        <div class="zs-home-goods-meta">
+                            <span>库存 <?= htmlspecialchars((string) ($g['stock_text'] ?? '0')) ?></span>
+                            <span>销量 <?= (int) ($g['sold'] ?? 0) ?></span>
+                        </div>
+                        <div class="zs-home-goods-price">
+                            <span class="zs-home-price-main"><?= Currency::displayMain((float) $g['price']) ?></span>
+                            <?php if (!empty($g['original_price'])): ?>
+                            <span class="zs-home-price-old"><?= Currency::displayMain((float) $g['original_price']) ?></span>
                             <?php endif; ?>
                         </div>
-                        <div class="card-body">
-                            <div class="card-title"><?= htmlspecialchars($g['name']) ?></div>
-                            <div class="card-stats">
-                                <span>库存 <?= htmlspecialchars((string) ($g['stock_text'] ?? '0')) ?></span>
-                                <span>销量 <?= (int) ($g['sold'] ?? 0) ?></span>
-                            </div>
-                            <div class="card-bottom">
-                                <span class="price"><?= Currency::displayMain((float) $g['price']) ?></span>
-                                <?php if (!empty($g['original_price'])): ?>
-                                <span class="price-original"><?= Currency::displayMain((float) $g['original_price']) ?></span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </a>
+                    </article>
                     <?php endforeach; ?>
                 </div>
                 <?php else: ?>
-                <div class="card empty-state empty-state--rich">
-                    <div class="empty-decor">
-                        <span class="empty-decor__dot empty-decor__dot--1"></span>
-                        <span class="empty-decor__dot empty-decor__dot--2"></span>
-                        <span class="empty-decor__dot empty-decor__dot--3"></span>
-                        <span class="empty-decor__ring"></span>
-                    </div>
-                    <div class="empty-icon empty-icon--glow"><i class="fa fa-shopping-bag"></i></div>
-                    <h3>商品正在精心挑选中</h3>
-                    <p>店主正在为你筛选最值得入手的好物，稍后再来看看吧～</p>
+                <div class="zs-home-empty">
+                    <i class="fa fa-shopping-bag"></i>
+                    <p>商品正在准备中，稍后再来看看。</p>
                 </div>
                 <?php endif; ?>
-            </div>
+            </section>
 
-            <!-- 最新文章 -->
-            <div class="section">
-                <div class="section-header">
-                    <div class="section-title">最新文章</div>
-                    <a href="<?= $nav_blog_url ?? '?c=blog_list' ?>" data-pjax class="section-more">查看更多 &rarr;</a>
-                </div>
+            <section class="zs-home-panel zs-home-panel--article">
+                <header class="zs-home-panel-head">
+                    <div class="zs-home-panel-title-wrap">
+                        <div class="zs-home-panel-kicker">NEWS</div>
+                        <h2 class="zs-home-panel-title">最新文章</h2>
+                    </div>
+                    <a href="<?= $nav_blog_url ?? '?c=blog_list' ?>" data-pjax class="zs-home-panel-link">查看全部</a>
+                </header>
                 <?php if (!empty($recent_articles)): ?>
-                <div class="article-grid">
+                <div class="zs-home-article-list">
                     <?php foreach ($recent_articles as $a): ?>
-                    <a href="<?= url_blog((int) $a['id']) ?>" class="card article-grid-card">
+                    <a href="<?= url_blog((int) $a['id']) ?>" class="zs-home-article-item">
                         <?php if (!empty($a['image'])): ?>
-                        <div class="article-grid-img"><img src="<?= htmlspecialchars($a['image']) ?>" alt="<?= htmlspecialchars($a['title']) ?>"></div>
+                        <span class="zs-home-article-thumb"><img src="<?= htmlspecialchars($a['image']) ?>" alt="<?= htmlspecialchars($a['title']) ?>"></span>
+                        <?php else: ?>
+                        <span class="zs-home-article-thumb zs-home-article-thumb--empty"></span>
                         <?php endif; ?>
-                        <div class="article-grid-body">
-                            <div class="card-title"><?= htmlspecialchars($a['title']) ?></div>
-                            <div class="card-excerpt"><?= htmlspecialchars(truncate($a['excerpt'], 60)) ?></div>
-                            <div class="card-meta">
-                                <span><?= htmlspecialchars($a['date']) ?></span>
-                                <span>&middot;</span>
-                                <span><?= (int) $a['views'] ?> 阅读</span>
-                            </div>
-                        </div>
+                        <span class="zs-home-article-body">
+                            <span class="zs-home-article-title"><?= htmlspecialchars($a['title']) ?></span>
+                            <span class="zs-home-article-excerpt"><?= htmlspecialchars(truncate($a['excerpt'], 60)) ?></span>
+                            <span class="zs-home-article-meta"><?= htmlspecialchars($a['date']) ?> · <?= (int) $a['views'] ?> 阅读</span>
+                        </span>
                     </a>
                     <?php endforeach; ?>
                 </div>
                 <?php else: ?>
-                <div class="card empty-state empty-state--rich">
-                    <div class="empty-decor">
-                        <span class="empty-decor__dot empty-decor__dot--1"></span>
-                        <span class="empty-decor__dot empty-decor__dot--2"></span>
-                        <span class="empty-decor__dot empty-decor__dot--3"></span>
-                        <span class="empty-decor__ring"></span>
-                    </div>
-                    <div class="empty-icon empty-icon--glow"><i class="fa fa-pencil-square-o"></i></div>
-                    <h3>博客频道建设中</h3>
-                    <p>站长正在打磨第一批精选内容，敬请期待。</p>
+                <div class="zs-home-empty">
+                    <i class="fa fa-pencil-square-o"></i>
+                    <p>还没有文章，后续将持续更新内容。</p>
                 </div>
                 <?php endif; ?>
-            </div>
-
+            </section>
         </div>
 
-        <!-- 侧边栏 -->
-        <?php include __DIR__ . '/goods_side.php'; ?>
-
+        <aside class="zs-home-aside">
+            <?php include __DIR__ . '/goods_side.php'; ?>
+        </aside>
     </div>
 </div>
