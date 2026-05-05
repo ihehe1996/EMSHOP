@@ -1,0 +1,302 @@
+/* ========== layui 按钮基础三态 ========== */
+.layui-btn {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    white-space: nowrap;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.layui-btn i{
+    height: 32px;
+    line-height: 33px;
+}
+/* 常规态：白灰底 + 轻阴影 */
+.layui-btn {
+    background: #f3f4f6;
+    color: #374151;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+/* 悬浮态：微上浮 + 加深阴影 + 文字加深 */
+.layui-btn:hover {
+    filter: brightness(0.95);
+    color: #1f2937;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+/* 按下态：下沉 + 收阴影 */
+.layui-btn:active {
+    filter: brightness(0.9);
+    color: #111827;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
+}
+/* 禁用态 */
+.layui-btn[disabled],
+.layui-btn.layui-btn-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+}
+/* ---- 色系按钮：只设底色+文字色，悬浮/按下由基础层 brightness 处理 ---- */
+/* 白色按钮（hover/active 文字色跟随基础层，不覆盖） */
+.layui-btn-primary {
+    background: #fff !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+/* 蓝色（浅蓝底+蓝字，与 green/danger 同风格） */
+.layui-btn-blue {
+    background: rgba(59, 130, 246, 0.08) !important;
+    color: #2563eb !important;
+    border: 1px solid rgba(59, 130, 246, 0.15) !important;
+}
+.layui-btn-blue:hover {
+    filter: none !important;
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #1d4ed8 !important;
+}
+.layui-btn-blue:active {
+    filter: none !important;
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #1e40af !important;
+}
+
+/* 绿色（翡翠绿，与 blue 同 rgba 体系） */
+.layui-btn-green {
+    background: rgba(16, 185, 129, 0.08) !important;
+    color: #059669 !important;
+    border: 1px solid rgba(16, 185, 129, 0.15) !important;
+}
+.layui-btn-green:hover {
+    filter: none !important;
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #047857 !important;
+}
+.layui-btn-green:active {
+    filter: none !important;
+    background: rgba(16, 185, 129, 0.22) !important;
+    color: #065f46 !important;
+}
+
+/* 黄色 */
+.layui-btn-yellow {
+    background: #ca8a04 !important;
+    color: #fff !important;
+}
+.layui-btn-yellow:hover,
+.layui-btn-yellow:active { color: #fff !important; }
+
+/* 紫色（与 blue/green 同 rgba 体系） */
+.layui-btn-purple {
+    background: rgba(139, 92, 246, 0.08) !important;
+    color: #7c3aed !important;
+    border: 1px solid rgba(139, 92, 246, 0.15) !important;
+}
+.layui-btn-purple:hover {
+    filter: none !important;
+    background: rgba(139, 92, 246, 0.15) !important;
+    color: #6d28d9 !important;
+}
+.layui-btn-purple:active {
+    filter: none !important;
+    background: rgba(139, 92, 246, 0.22) !important;
+    color: #5b21b6 !important;
+}
+
+/* 红色 */
+.layui-btn-red {
+    background: #dc2626 !important;
+    color: #fff !important;
+}
+.layui-btn-red:hover,
+.layui-btn-red:active { color: #fff !important; }
+
+/* 橙色 */
+.layui-btn-orange {
+    background: #d97706 !important;
+    color: #fff !important;
+}
+.layui-btn-orange:hover,
+.layui-btn-orange:active { color: #fff !important; }
+
+/* 危险（浅红底+红字，区别于 red 的实心红） */
+.layui-btn-danger {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1px solid rgba(220, 38, 38, 0.15) !important;
+}
+.layui-btn-danger:hover {
+    filter: none !important;
+    background: rgba(220, 38, 38, 0.12) !important;
+    color: #b91c1c !important;
+}
+.layui-btn-danger:active {
+    filter: none !important;
+    background: rgba(220, 38, 38, 0.2) !important;
+    color: #991b1b !important;
+}
+
+/* 默认（同基础灰，显式声明） */
+.layui-btn-default {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+}
+
+/* ---- 禁用态：统一用 layui-btn-disabled 类 ---- */
+.layui-btn-disabled,
+.layui-btn-disabled:hover,
+.layui-btn-disabled:active {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+}
+
+/* 表格项 */
+.layui-table th{
+    font-weight: 500;
+}
+
+.layui-table-checked{
+    background-color: #ececec;
+}
+.layui-table-checked.layui-table-click,.layui-table-checked.layui-table-hover,.layui-table[lay-even] tbody tr:nth-child(even).layui-table-checked {
+    background-color: #ececec
+}
+
+
+/* ========== 下拉菜单优化 ========== */
+.layui-dropdown {
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1),
+                0 4px 12px rgba(0, 0, 0, 0.06),
+                0 0 0 1px rgba(0, 0, 0, 0.04);
+    border: none;
+    overflow: hidden;
+    padding: 0;
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.layui-dropdown-menu {
+    padding: 5px;
+}
+
+/* 菜单项 */
+.layui-dropdown-menu > li {
+    border-radius: 7px;
+    margin: 1px 0;
+    transition: background-color 0.35s ease, transform 0.2s ease;
+    position: relative;
+}
+.layui-dropdown-menu > li:hover {
+    background-color: #f0f1f5;
+}
+.layui-dropdown-menu > li:active {
+    background-color: #e5e7eb;
+    transition: background-color 0.08s ease;
+}
+
+/* 菜单项文字 */
+.layui-dropdown-menu .layui-menu-body-title {
+    padding: 9px 14px;
+    font-size: 13px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+}
+.layui-dropdown-menu .layui-menu-body-title i {
+    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.layui-dropdown-menu > li:hover .layui-menu-body-title i {
+    color: #4f46e5;
+    background: #eef2ff;
+}
+
+/* 删除项（危险操作）hover 特殊样式 */
+.layui-dropdown-menu > li:has(.layui-menu-body-title i[style*="FF5722"]):hover {
+    background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+}
+.layui-dropdown-menu > li:hover .layui-menu-body-title i[style*="FF5722"] {
+    color: #dc2626 !important;
+    background: #fee2e2 !important;
+}
+.layui-dropdown-menu > li:hover .layui-menu-body-title span[style*="FF5722"] {
+    color: #dc2626 !important;
+}
+
+/* 分隔线 */
+.layui-dropdown-menu > li + li:has(.layui-menu-body-title i[style*="FF5722"]) {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* 弹出动画 */
+.layui-anim-downbit {
+    animation: dropdownSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes dropdownSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+/* 表单项 */
+.layui-form-mid{
+    font-size: 12px;
+    float: unset;
+}
+
+.layui-form-checkbox[lay-skin=primary]:hover>i {
+    border-color: #6366f1;
+    color: #fff
+}
+
+.layui-form-checked[lay-skin=primary]>i {
+    border-color: #6366f1!important;
+    background-color: #6366f1;
+    color: #fff
+}
+
+.layui-input:focus, .layui-textarea:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1) !important;
+    outline: none;
+}
+.layui-table-click{
+    background: unset;
+}

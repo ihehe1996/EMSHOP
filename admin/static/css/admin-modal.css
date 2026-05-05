@@ -1,0 +1,15 @@
+/* ================================================
+   Layui 弹窗美化 — admin-modal 皮肤
+   ================================================ */
+
+
+/* 弹窗主体 */
+.layui-layer.admin-modal {
+    border-radius: 12px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* iframe 内容 — 底部圆角 */
+.layui-layer.admin-modal .layui-layer-content iframe {
+    border-radius: 0 0 12px 12px !important;
+}

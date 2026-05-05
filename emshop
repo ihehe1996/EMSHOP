@@ -1,0 +1,372 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "This command can only run in CLI.\n");
+    exit(1);
+}
+
+$root = __DIR__;
+$lockFile = $root . '/install/install.lock';
+$configFile = $root . '/config.php';
+$passwordHashFile = $root . '/include/lib/PasswordHash.php';
+
+if (!is_file($lockFile)) {
+    fwrite(STDERR, "当前站点尚未安装，缺少 install/install.lock。\n");
+    exit(1);
+}
+
+if (!is_file($configFile) || !is_file($passwordHashFile)) {
+    fwrite(STDERR, "缺少必要文件：config.php 或 include/lib/PasswordHash.php。\n");
+    exit(1);
+}
+
+$config = require $configFile;
+require_once $passwordHashFile;
+$command = $argv[1] ?? '';
+
+if (!is_array($config) || empty($config['db']) || !is_array($config['db'])) {
+    fwrite(STDERR, "config.php 中缺少数据库配置。\n");
+    exit(1);
+}
+
+final class EmshopCliDb
+{
+    /** @var array<string, mixed> */
+    private $config;
+
+    /** @var PDO|mysqli */
+    private $connection;
+
+    /** @var string */
+    private $driver;
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    public function __construct(array $config)
+    {
+        $this->config = $config;
+        $this->connect();
+    }
+
+    private function connect(): void
+    {
+        $host = (string) ($this->config['host'] ?? '127.0.0.1');
+        $port = (int) ($this->config['port'] ?? 3306);
+        $dbname = (string) ($this->config['dbname'] ?? '');
+        $username = (string) ($this->config['username'] ?? '');
+        $password = (string) ($this->config['password'] ?? '');
+        $charset = (string) ($this->config['charset'] ?? 'utf8mb4');
+
+        if ($dbname === '') {
+            throw new RuntimeException('数据库名不能为空');
+        }
+
+        if (extension_loaded('pdo_mysql')) {
+            $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $dbname, $charset);
+            $this->connection = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+            $this->driver = 'pdo';
+            return;
+        }
+
+        if (!extension_loaded('mysqli')) {
+            throw new RuntimeException('当前 PHP CLI 未启用 pdo_mysql 或 mysqli 扩展，无法连接数据库');
+        }
+
+        mysqli_report(MYSQLI_REPORT_OFF);
+        $mysqli = @new mysqli($host, $username, $password, $dbname, $port);
+        if ($mysqli->connect_errno) {
+            throw new RuntimeException('数据库连接失败：' . $mysqli->connect_error);
+        }
+        $mysqli->set_charset($charset);
+        $this->connection = $mysqli;
+        $this->driver = 'mysqli';
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     * @return array<int, array<string, mixed>>
+     */
+    public function query(string $sql, array $params = []): array
+    {
+        if ($this->driver === 'pdo') {
+            /** @var PDO $pdo */
+            $pdo = $this->connection;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll();
+            return is_array($rows) ? $rows : [];
+        }
+
+        /** @var mysqli $mysqli */
+        $mysqli = $this->connection;
+        $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            throw new RuntimeException('SQL 预处理失败：' . $mysqli->error);
+        }
+        $this->bindMysqliParams($stmt, $params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+        return $rows;
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     */
+    public function execute(string $sql, array $params = []): int
+    {
+        if ($this->driver === 'pdo') {
+            /** @var PDO $pdo */
+            $pdo = $this->connection;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            return (int) $stmt->rowCount();
+        }
+
+        /** @var mysqli $mysqli */
+        $mysqli = $this->connection;
+        $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            throw new RuntimeException('SQL 预处理失败：' . $mysqli->error);
+        }
+        $this->bindMysqliParams($stmt, $params);
+        $stmt->execute();
+        $affected = $stmt->affected_rows;
+        $stmt->close();
+        return $affected;
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     */
+    private function bindMysqliParams(mysqli_stmt $stmt, array $params): void
+    {
+        if ($params === []) {
+            return;
+        }
+
+        $types = '';
+        foreach ($params as $param) {
+            $types .= is_int($param) ? 'i' : (is_float($param) ? 'd' : 's');
+        }
+
+        $refs = [];
+        $refs[] = &$types;
+        foreach ($params as $key => $value) {
+            $refs[] = &$params[$key];
+        }
+        call_user_func_array([$stmt, 'bind_param'], $refs);
+    }
+}
+
+function emshop_table_name(array $dbConfig, string $name): string
+{
+    $prefix = (string) ($dbConfig['prefix'] ?? 'em_');
+    $table = $prefix . $name;
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+        throw new RuntimeException('数据库表前缀包含非法字符');
+    }
+    return '`' . $table . '`';
+}
+
+function emshop_prompt(string $label, string $default = ''): string
+{
+    $suffix = $default === '' ? '' : ' [' . $default . ']';
+    if (function_exists('readline')) {
+        $value = readline($label . $suffix . '：');
+    } else {
+        echo $label . $suffix . '：';
+        $value = fgets(STDIN);
+    }
+
+    $value = trim((string) $value);
+    return $value === '' ? $default : $value;
+}
+
+function emshop_prompt_password(string $label): string
+{
+    echo $label . '：';
+    $sttyMode = trim((string) shell_exec('stty -g 2>/dev/null'));
+    
+
+    $value = rtrim((string) fgets(STDIN), "\r\n");
+
+    if ($sttyMode !== '') {
+        system('stty ' . escapeshellarg($sttyMode));
+    }
+    echo PHP_EOL;
+
+    return $value;
+}
+
+/**
+ * @return array<int, array<string, mixed>>
+ */
+function emshop_admins(EmshopCliDb $db, string $userTable): array
+{
+    return $db->query(
+        'SELECT `id`, `username`, `email`, `mobile`, `nickname`, `status`, `last_login_ip`, `last_login_at`, `created_at`, `updated_at`
+         FROM ' . $userTable . ' WHERE `role` = ? ORDER BY `id` ASC',
+        ['admin']
+    );
+}
+
+function emshop_show_admins(EmshopCliDb $db, string $userTable): void
+{
+    $admins = emshop_admins($db, $userTable);
+    if ($admins === []) {
+        echo "未找到管理员账号。\n";
+        return;
+    }
+
+    echo "\n管理员账号：\n";
+    foreach ($admins as $admin) {
+        echo "----------------------------------------\n";
+        echo 'ID：' . (int) $admin['id'] . "\n";
+        echo '账号：' . (string) $admin['username'] . "\n";
+        echo '昵称：' . ((string) $admin['nickname'] !== '' ? (string) $admin['nickname'] : '-') . "\n";
+        echo '邮箱：' . ((string) $admin['email'] !== '' ? (string) $admin['email'] : '-') . "\n";
+        echo '手机：' . ((string) $admin['mobile'] !== '' ? (string) $admin['mobile'] : '-') . "\n";
+        echo '状态：' . ((int) $admin['status'] === 1 ? '正常' : '禁用') . "\n";
+        echo '最后登录IP：' . ((string) $admin['last_login_ip'] !== '' ? (string) $admin['last_login_ip'] : '-') . "\n";
+        echo '最后登录时间：' . ((string) $admin['last_login_at'] !== '' ? (string) $admin['last_login_at'] : '-') . "\n";
+        echo '创建时间：' . ((string) $admin['created_at'] !== '' ? (string) $admin['created_at'] : '-') . "\n";
+        echo '更新时间：' . ((string) $admin['updated_at'] !== '' ? (string) $admin['updated_at'] : '-') . "\n";
+    }
+    echo "----------------------------------------\n";
+}
+
+function emshop_find_admin_for_password(EmshopCliDb $db, string $userTable): ?array
+{
+    $admins = emshop_admins($db, $userTable);
+    if ($admins === []) {
+        echo "未找到管理员账号。\n";
+        return null;
+    }
+
+    emshop_show_admins($db, $userTable);
+    while (true) {
+        $input = emshop_prompt('请输入要修改密码的管理员 ID');
+        if ($input === '') {
+            echo "请选择要修改密码的管理员 ID。\n";
+            continue;
+        }
+
+        foreach ($admins as $admin) {
+            if ((string) $admin['id'] === $input) {
+                return $admin;
+            }
+        }
+
+        echo "未找到 ID 为 {$input} 的管理员，请重新输入。\n";
+    }
+}
+
+function emshop_change_admin_password(EmshopCliDb $db, string $userTable): void
+{
+    $admin = emshop_find_admin_for_password($db, $userTable);
+    if ($admin === null) {
+        return;
+    }
+
+    $password = emshop_prompt_password('请输入新密码');
+    $confirmPassword = emshop_prompt_password('请再次输入新密码');
+
+    if ($password === '') {
+        echo "密码不能为空。\n";
+        return;
+    }
+    if (strlen($password) < 6) {
+        echo "密码长度不能少于 6 位。\n";
+        return;
+    }
+    if ($password !== $confirmPassword) {
+        echo "两次输入的密码不一致。\n";
+        return;
+    }
+
+    $hasher = new PasswordHash(8, true);
+    $hash = $hasher->HashPassword($password);
+    if (!is_string($hash) || $hash === '*' || $hash === '') {
+        throw new RuntimeException('密码加密失败');
+    }
+
+    $db->execute(
+        'UPDATE ' . $userTable . ' SET `password` = ?, `remember_token` = NULL, `updated_at` = NOW() WHERE `id` = ? AND `role` = ? LIMIT 1',
+        [$hash, (int) $admin['id'], 'admin']
+    );
+
+    echo "管理员「" . (string) $admin['username'] . "」密码已修改。\n";
+}
+
+function emshop_help(): void
+{
+    echo "EMSHOP CLI\n";
+    echo "用法：\n";
+    echo "  emshop                 打开交互菜单\n";
+    echo "  emshop admin:list      查看管理员账号\n";
+    echo "  emshop admin:password  修改管理员密码\n";
+    echo "  emshop help            查看帮助\n";
+}
+
+try {
+    if ($command === 'help' || $command === '--help' || $command === '-h') {
+        emshop_help();
+        exit(0);
+    }
+    if ($command !== '' && !in_array($command, ['admin:list', 'admin:password'], true)) {
+        fwrite(STDERR, "未知命令：{$command}\n\n");
+        emshop_help();
+        exit(1);
+    }
+
+    $db = new EmshopCliDb($config['db']);
+    $userTable = emshop_table_name($config['db'], 'user');
+
+    if ($command === 'admin:list') {
+        emshop_show_admins($db, $userTable);
+        exit(0);
+    }
+    if ($command === 'admin:password') {
+        emshop_change_admin_password($db, $userTable);
+        exit(0);
+    }
+    while (true) {
+        echo "\nEMSHOP 管理工具\n";
+        echo "1. 查看管理员账号\n";
+        echo "2. 修改管理员密码\n";
+        echo "0. 退出\n";
+        $choice = emshop_prompt('请选择');
+        if ($choice === '') {
+            echo "请输入选项。\n";
+            continue;
+        }
+
+        if ($choice === '1') {
+            emshop_show_admins($db, $userTable);
+            continue;
+        }
+        if ($choice === '2') {
+            emshop_change_admin_password($db, $userTable);
+            continue;
+        }
+        if ($choice === '0' || strtolower($choice) === 'q' || strtolower($choice) === 'exit') {
+            echo "已退出。\n";
+            exit(0);
+        }
+
+        echo "无效选项，请重新选择。\n";
+    }
+} catch (Throwable $e) {
+    fwrite(STDERR, "执行失败：" . $e->getMessage() . "\n");
+    exit(1);
+}

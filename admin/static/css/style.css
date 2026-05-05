@@ -1,0 +1,526 @@
+/* ============================================================
+ * 后台通用样式（跨页面复用的小组件放这里，避免塞进 admin.css）
+ * 引入：admin/view/index.php 头部
+ * ============================================================ */
+
+/* ============================================================
+ * em-btn：通用按钮基类（尺寸 / 布局 / 交互动效 / 禁用态）
+ * 色系通过变体类覆盖：em-save-btn / em-green-btn / em-reset-btn
+ * 用法：<button class="em-btn em-save-btn"><i class="fa fa-check mr-5"></i>保存设置</button>
+ * Loading 态只切图标不动文字：
+ *   $btn.find('i').attr('class', 'fa fa-refresh admin-spin mr-5');
+ *   $btn.addClass('is-loading').prop('disabled', true);
+ * ============================================================ */
+.em-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 14px;
+    gap: 7px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-right: 6px;
+}
+
+/* icon 宽度固定 14px，避免切换 fa-check/fa-refresh 时按钮宽度抖动 */
+.em-btn .fa {
+    width: 14px;
+    height: 32px;
+    line-height: 33px;
+    text-align: center;
+}
+
+/* ---------- 尺寸变体：em-sm-btn（小号，用于表格行内操作） ----------
+ * 用法：<a class="em-btn em-sm-btn em-save-btn">…</a>
+ * 继承 em-btn 的所有颜色 / 交互动效，只覆盖尺寸相关属性
+ */
+.em-btn.em-sm-btn {
+    height: 30px;
+    line-height: 30px;
+    padding: 0 11px;
+    gap: 6px;
+    font-size: 12px;
+}
+.em-btn.em-sm-btn .fa {
+    height: 30px;
+    line-height: 31px;
+    width: 12px;
+}
+
+/* 悬浮：微上浮 + 加深阴影（所有变体共有） */
+.em-btn:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+/* 按下：下沉 + 收阴影 */
+.em-btn:active {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.1s;
+}
+
+/* 禁用 / loading
+ * 三种触发方式：
+ *   1) <button disabled>              —— 表单按钮原生 disabled 属性
+ *   2) class="em-btn em-disabled-btn" —— <a>/<div> 等非表单元素用这个 class
+ *   3) class="em-btn is-loading"      —— 请求进行中，语义上更强（配合 spinner 用）
+ */
+.em-btn:disabled,
+.em-btn.em-disabled-btn,
+.em-btn.is-loading {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+    transform: none;
+    filter: none;
+}
+
+/* ---------- 变体：em-save-btn（蓝底白字，主操作） ---------- */
+.em-save-btn {
+    background: #1e9fff;
+    color: #fff;
+}
+
+/* ---------- 变体：em-green-btn（绿底白字，辅助主操作） ---------- */
+.em-green-btn {
+    background: #10b981;
+    color: #fff;
+}
+
+/* ---------- 变体：em-red-btn（红底白字，危险/破坏性操作如"批量删除"） ---------- */
+.em-red-btn {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* ---------- 变体：em-purple-btn（紫底白字，资源管理类次要操作如"库存/附件"） ---------- */
+.em-purple-btn {
+    background: #8b5cf6;
+    color: #fff;
+}
+
+/* 蓝/绿/红/紫按钮的 hover/active 都用亮度滤镜：只改底色深浅，不用分别写 hover 色 */
+.em-save-btn:hover,
+.em-green-btn:hover,
+.em-red-btn:hover,
+.em-purple-btn:hover {
+    filter: brightness(0.95);
+    color: #fff;
+}
+.em-save-btn:active,
+.em-green-btn:active,
+.em-red-btn:active,
+.em-purple-btn:active {
+    filter: brightness(0.9);
+    color: #fff;
+}
+
+/* ---------- 变体：em-reset-btn（白底灰边，次操作） ---------- */
+.em-reset-btn {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #374151;
+}
+.em-reset-btn:hover {
+    filter: brightness(0.97);
+    color: #1f2937;
+    border-color: #d1d5db;
+}
+.em-reset-btn:active {
+    filter: brightness(0.93);
+    color: #111827;
+    border-color: #9ca3af;
+}
+
+/* ============================================================
+ * em-tabs：通用选项卡（白底卡片外壳 + 圆角按钮，参考商户商品管理页同款）
+ * 用法：
+ *   <div class="em-tabs">
+ *     <a class="em-tabs__item is-active"><i class="fa fa-xxx"></i><span>tab1</span></a>
+ *     <a class="em-tabs__item"><i class="fa fa-xxx"></i><span>tab2</span></a>
+ *   </div>
+ * is-active 表示当前选中；<a> / <button> / <div> 都能用
+ * ============================================================ */
+.em-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px;
+    margin-bottom: 14px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.em-tabs__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #555;
+    font-size: 13px;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.em-tabs__item > i {
+    width: 16px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.em-tabs__item:hover {
+    background: #f5f7fa;
+    color: #333;
+}
+
+.em-tabs__item.is-active {
+    background: #eef2ff;
+    color: #4e6ef2;
+    font-weight: 500;
+}
+
+/* ---------- 计数徽章（放在 em-tabs__item 内显示数量） ---------- */
+/* 用 <em class="em-tabs__count">123</em> 即可；数字没到位前元素为空，
+   靠 :empty 自动隐藏，避免出现空占位 pill。 */
+.em-tabs__count {
+    display: inline-block;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 7px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+    vertical-align: middle;
+    transition: background .15s ease, color .15s ease;
+}
+
+.em-tabs__count:empty {
+    display: none;
+}
+
+/* 激活态下徽章反色：白底 + 主色文字，和紫色 tab 背景形成强对比 */
+.em-tabs__item.is-active .em-tabs__count {
+    background: #fff;
+    color: #4e6ef2;
+    box-shadow: 0 1px 2px rgba(79, 110, 242, 0.12);
+}
+
+/* ============================================================
+ * em-filter：通用搜索条件面板（列表页用）
+ * 用法：
+ *   <div class="em-filter" id="xxxFilter">
+ *     <div class="em-filter__head" id="xxxFilterHead">
+ *       <span class="em-filter__title"><i class="fa fa-filter"></i>搜索条件</span>
+ *       <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
+ *     </div>
+ *     <div class="em-filter__body">
+ *       <div class="em-filter__grid">
+ *         <div class="em-filter__field"><label>xxx</label><input ...></div>
+ *       </div>
+ *       <div class="em-filter__actions">
+ *         <button class="em-btn em-reset-btn">重置</button>
+ *         <button class="em-btn em-save-btn">搜索</button>
+ *       </div>
+ *     </div>
+ *   </div>
+ * 展开/收起用 JS 切 .is-open 类，并用 localStorage 记忆状态
+ * ============================================================ */
+.em-filter {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+.em-filter__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.em-filter__head:hover { background: #fafbff; }
+.em-filter.is-open .em-filter__head { border-bottom-color: #f0f2f7; }
+
+.em-filter__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.em-filter__title i { color: #6366f1; font-size: 14px; }
+
+.em-filter__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #6b7280;
+    font-size: 12px;
+}
+.em-filter__toggle i { transition: transform 0.2s ease; font-size: 12px; }
+.em-filter.is-open .em-filter__toggle i { transform: rotate(180deg); }
+
+.em-filter__body { display: none; padding: 16px; }
+.em-filter.is-open .em-filter__body { display: block; }
+
+/* 字段网格：桌面 4 列、平板 2 列、手机 1 列 */
+.em-filter__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px 16px;
+    margin-bottom: 14px;
+}
+@media (max-width: 1024px) { .em-filter__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .em-filter__grid { grid-template-columns: 1fr; } }
+
+.em-filter__field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+.em-filter__field label {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 500;
+}
+.em-filter__field input,
+.em-filter__field select {
+    height: 34px;
+    padding: 0 11px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 13px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+}
+.em-filter__field input:focus,
+.em-filter__field select:focus {
+    border-color: #4f46e5;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* 底部按钮右对齐 */
+.em-filter__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+/* ============================================================
+ * em-quick-search：列表页表格工具栏右上角的快捷搜索
+ * 绝对定位到 .admin-page 右上角，不随 table.reload 重建
+ * 用法：
+ *   <div class="admin-page">
+ *     <div class="em-quick-search" id="xxxQuickSearchBox">
+ *       <i class="fa fa-search em-quick-search__ico"></i>
+ *       <input type="text" id="xxxQuickSearch" placeholder="..." autocomplete="off">
+ *       <button type="button" class="em-quick-search__clear" id="xxxQuickClear" title="清空">
+ *         <i class="fa fa-times"></i>
+ *       </button>
+ *     </div>
+ *     <table id="xxxTable"></table>
+ *   </div>
+ * 清空按钮用 :placeholder-shown 纯 CSS 判空；JS 只管回车触发 + 点击清空
+ * ============================================================ */
+/* 让 .admin-page 做定位锚，quick-search 才能浮在右上角 */
+.admin-page { position: relative; }
+
+.em-quick-search {
+    position: absolute;
+    top: 14px;
+    right: 15px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+}
+.em-quick-search__ico {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 12px;
+    pointer-events: none;
+}
+.em-quick-search input {
+    width: 240px;
+    height: 32px;
+    padding: 0 28px 0 30px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 13px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.em-quick-search input:focus {
+    border-color: #4f46e5;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.em-quick-search input::placeholder {
+    color: #9ca3af;
+    font-size: 12.5px;
+}
+
+/* 清空按钮：仅在输入框有值时显示（:placeholder-shown 纯 CSS 判空） */
+.em-quick-search__clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #e5e7eb;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 10px;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.em-quick-search__clear:hover {
+    background: #ef4444;
+    color: #fff;
+}
+.em-quick-search input:not(:placeholder-shown) ~ .em-quick-search__clear {
+    display: inline-flex;
+}
+
+/* 表格工具栏右侧留出快捷搜索的空间，避免按钮被挤到搜索框后面 */
+.admin-page .layui-table-tool { padding-right: 270px; }
+
+/* ============================================================
+ * em-tag：表格单元格内的小标签（比 layui-badge 克制，适合表示状态/开关/分类）
+ * 用法：
+ *   <span class="em-tag em-tag--on">二级域名</span>
+ *   <span class="em-tag em-tag--off">自定义域名</span>
+ *   <span class="em-tag em-tag--muted">未设置</span>
+ * 多个标签并排时会自动留间距（em-tag + em-tag）。
+ * ============================================================ */
+.em-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 5px 9px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+    vertical-align: middle;
+}
+.em-tag + .em-tag { margin-left: 4px; }
+
+/* em-tag__dot：圆点状态指示器，放在胶囊最左，取当前 em-tag 的文字色
+ * 用法：<span class="em-tag em-tag--on"><span class="em-tag__dot"></span>上架中</span> */
+.em-tag__dot {
+    display: inline-block;
+    width: 6px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 3px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+/* 未设置 / 禁用 / 未开启 —— 浅灰柔和 */
+.em-tag--muted,
+.em-tag--off {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+}
+/* 开启 / 正常 / 成功 —— 薄荷绿 */
+.em-tag--on {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+}
+/* 信息 / 主色提示 —— 蓝调 */
+.em-tag--blue {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
+}
+/* 权限 / 扩展 —— 紫调 */
+.em-tag--purple {
+    background: #f5f3ff;
+    color: #7c3aed;
+    border-color: #ddd6fe;
+}
+/* 金额 / 警示 —— 琥珀 */
+.em-tag--amber {
+    background: #fffbeb;
+    color: #d97706;
+    border-color: #fde68a;
+}
+/* 危险 / 错误 —— 柔红 */
+.em-tag--red {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+/* 可点击切换态：鼠标手型 + hover 微弹 + 点击反馈；配合 JS 切换变体 class */
+.em-tag--clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+}
+.em-tag--clickable:hover {
+    transform: translateY(-1px);
+    filter: brightness(0.96);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+.em-tag--clickable:active {
+    transform: translateY(0) scale(0.97);
+    filter: brightness(0.92);
+}
+/* 切换请求中：半透明 + 禁止点击 */
+.em-tag--clickable.is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+}

@@ -1,0 +1,366 @@
+@charset "UTF-8";
+/*******/
+.cityAreaSelect-group {
+  margin: 0 -1em;
+}
+
+.cityAreaSelect-item {
+  padding: 0 1em;
+}
+
+.cityAreaSelect-select {
+  width: 100%;
+  height: 48px;
+  display: block;
+  border: solid 1px #cdcccc;
+  font-size: 16px;
+  line-height: 1em;
+  padding: 0 1.25em;
+  color: #333;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.cityAreaSelect-select.isnull {
+  color: #666666;
+}
+
+@media (min-width: 992px) {
+  .cityAreaSelect-select {
+    background: url("../../img/static/chevron-down-gray.svg") no-repeat right 1.25em center transparent;
+    background-size: 1em auto;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
+@media (max-width: 991.98px) {
+  .cityAreaSelect-select {
+    font-size: .28rem;
+    padding: 0 0.3rem;
+    height: .9rem;
+  }
+}
+/* 自定义省市区 */
+.cityAreaSelect-text {
+  width: 100%;
+  height: 48px;
+  display: block;
+  border: solid 1px #cdcccc;
+  font-size: 16px;
+  line-height: 46px;
+  padding: 0 3.5em 0 1.25em;
+  color: #333;
+  cursor: pointer;
+  border-radius: 4px;
+  position: relative;
+  background-color: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cityAreaSelect-text::after {
+  content: '';
+  width: 3.5em;
+  display: block;
+  pointer-events: none;
+  height: 100%;
+  background: url("../../img/static/chevron-down-gray.svg") no-repeat center center #fff;
+  background-size: 1em auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 10;
+}
+.cityAreaSelect-text.isnull {
+  color: #666666;
+}
+
+.cityAreaSelect-custom-box {
+  position: relative;
+}
+.cityAreaSelect-custom-box.is-open {
+  z-index: 50;
+}
+.cityAreaSelect-custom-box.is-open .cityAreaSelect-text::after {
+  background-image: url("../../img/static/chevron-up-gray.svg");
+}
+
+.cityAreaSelect-dropdown {
+  min-width: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: #fff;
+  border: solid 1px #cdcccc;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 10px);
+  z-index: 20;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 3.125em;
+  color: #666;
+  padding: 0.625em 0.5em 0.625em 0;
+  display: none;
+}
+
+.cityAreaSelect-list {
+  width: 100%;
+  max-height: 22em;
+  overflow: hidden;
+  overflow-y: auto;
+}
+.cityAreaSelect-list::-webkit-scrollbar {
+  width: 4px;
+}
+.cityAreaSelect-list::-webkit-scrollbar-track {
+  background: #ededed;
+}
+.cityAreaSelect-list::-webkit-scrollbar-thumb {
+  background: #c9c9c9;
+}
+.cityAreaSelect-list li {
+  cursor: pointer;
+  padding: 0 2.5em;
+}
+.cityAreaSelect-list li.selected {
+  background-color: #f8f8f8;
+  color: #e1251b;
+  font-weight: bold;
+}
+
+@media (min-width: 992px) {
+  .cityAreaSelect-list li:hover {
+    background-color: #f8f8f8;
+    color: #e1251b;
+    font-weight: bold;
+  }
+}
+@media (max-width: 991.98px) {
+  .cityAreaSelect-item {
+    margin-bottom: .3rem;
+  }
+  .cityAreaSelect-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .cityAreaSelect-text {
+    font-size: .28rem;
+    padding: 0 0.9rem 0 0.3rem;
+    height: calc(.88rem + 2px);
+    line-height: .88rem;
+  }
+  .cityAreaSelect-text::after {
+    width: .9rem;
+    background-size: .3rem auto;
+  }
+
+  .cityAreaSelect-dropdown {
+    width: 100%;
+    font-size: .28rem;
+    line-height: .8rem;
+    top: calc(100% + 0.1rem);
+    padding: .08rem .1rem .13rem 0;
+  }
+
+  .cityAreaSelect-list {
+    max-height: 5.6rem;
+  }
+  .cityAreaSelect-list li {
+    padding: 0 0.4rem;
+  }
+}
+/* 自定义省市区-合并显示 */
+.cityAreaSelect-merge-box {
+  position: relative;
+}
+.cityAreaSelect-merge-box .cityAreaSelect-dropdown {
+  padding: 0;
+}
+.cityAreaSelect-merge-box.is-open {
+  z-index: 50;
+}
+.cityAreaSelect-merge-box.is-open .cityAreaSelect-text::after {
+  background-image: url("../../img/static/chevron-up-gray.svg");
+}
+
+.cityAreaSelect-merge-flex {
+  width: 100%;
+  padding: 1.6em 1.875em 1.75em;
+}
+
+.cityAreaSelect-merge-head {
+  width: 100%;
+  border-bottom: solid 1px #d4d4d4;
+}
+
+.cityAreaSelect-merge-tablist {
+  display: flex;
+  white-space: nowrap;
+}
+
+.cityAreaSelect-merge-tabitem {
+  display: none;
+  height: 2.5em;
+  align-items: center;
+  justify-content: center;
+  color: #e1251b;
+  margin: 0 0.625em 0 0;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  cursor: pointer;
+  padding: 0 1.25em;
+  min-width: 5.625em;
+}
+.cityAreaSelect-merge-tabitem > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  white-space: nowrap;
+  text-align: center;
+}
+.cityAreaSelect-merge-tabitem:last-child {
+  margin: 0;
+}
+.cityAreaSelect-merge-tabitem.active {
+  background-color: #e1251b;
+  color: #fff;
+}
+.cityAreaSelect-merge-tabitem.show {
+  display: flex;
+}
+
+.cityAreaSelect-merge-body .cityAreaSelect-list {
+  display: flex;
+  flex-wrap: wrap;
+  max-height: none;
+  width: auto;
+  margin: 0 -0.625em;
+}
+.cityAreaSelect-merge-body .cityAreaSelect-list li {
+  flex: 0 0 25%;
+  max-width: 25%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.625em;
+  background-color: transparent !important;
+}
+
+.modal-cityAreaSelect {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.5);
+}
+.modal-cityAreaSelect .modal-dialog {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  transform: none;
+  -webkit-transform: none;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+.modal-cityAreaSelect .modal-content {
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background-color: #fff;
+  border-radius: 0px;
+  border-top-left-radius: .24rem;
+  border-top-right-radius: .24rem;
+  border: none;
+  transform: translate(0, 100%);
+  -webkit-transform: translate(0, 100%);
+  transition: transform 0.3s ease-out, -webkit-transform 0.3s ease-out;
+  -webkit-transition: transform 0.3s ease-out, -webkit-transform 0.3s ease-out;
+  transform-origin: center bottom !important;
+}
+.modal-cityAreaSelect .modal-head {
+  width: 100%;
+  height: 1.12rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  position: relative;
+}
+.modal-cityAreaSelect .modal-title {
+  font-size: .32rem;
+  line-height: 1em;
+  color: #333333;
+}
+.modal-cityAreaSelect .modal-close {
+  margin: 0;
+  padding: 0 0.5rem;
+  height: 100%;
+  background: url("../../img/static/close-gray.svg") no-repeat center center;
+  background-size: .28rem;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.modal-cityAreaSelect .modal-body {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  font-size: .28rem;
+  padding: 0;
+}
+.modal-cityAreaSelect.fade .modal-dialog {
+  transform: none;
+  -webkit-transform: none;
+  transition: none;
+  -webkit-transition: none;
+}
+.modal-cityAreaSelect.show {
+  opacity: 1;
+}
+.modal-cityAreaSelect.show .modal-content {
+  transform: none;
+  -webkit-transform: none;
+  transition-delay: .3s;
+}
+
+@media (max-width: 991.98px) {
+  .cityAreaSelect-merge-flex {
+    padding: 0 0.5rem;
+  }
+
+  .cityAreaSelect-merge-tabitem {
+    height: .6rem;
+    margin: 0;
+    padding: 0 0.3rem;
+    min-width: 1.55rem;
+    max-width: 40%;
+  }
+
+  .cityAreaSelect-merge-head {
+    margin-bottom: .2rem;
+  }
+
+  .cityAreaSelect-merge-body {
+    padding: 0;
+    overflow: hidden;
+    overflow-y: auto;
+    height: 4.94rem;
+  }
+  .cityAreaSelect-merge-body .cityAreaSelect-list {
+    width: 100%;
+    display: block;
+    margin: 0;
+    font-size: 1em;
+    line-height: .8rem;
+  }
+  .cityAreaSelect-merge-body .cityAreaSelect-list li {
+    flex: none;
+    max-width: none;
+    padding: 0 0.55rem;
+  }
+}

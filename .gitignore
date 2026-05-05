@@ -1,79 +1,22 @@
-# ================================================================
-# EMSHOP .gitignore
-# 原则：只提交源代码 + 脚本 + 默认配置模板；运行时生成物 / 敏感凭证绝不入库。
-# ================================================================
+.idea/
+.vscode/
 
-# ---------------- 敏感配置 ----------------
-# .env 里有数据库密码、授权线路地址等，绝对不能公开
-.env
-.env.*
-!.env.example
+.cursor/
+.claude/
 
-# 本地覆盖配置（如 include/config/local.php）
-**/config/local*.php
-
-# 安装锁
-/install.lock
-
-
-# ---------------- 主机面板 / 服务器自动生成 ----------------
-# 宝塔 / cPanel 等面板会给每个站点生成这两个文件（含服务器特定路径 / SSL 验证）
+/install/install.lock
+/install/migrations/
 .user.ini
 .well-known/
-
-
-# ---------------- 运行时生成 ----------------
-# 缓存 / 临时文件 / 用户上传内容
 /content/cache/*
 /content/tmp/*
 /content/uploads/*
-# 保留目录本身，方便新机器 clone 后不用手建
 !/content/cache/.gitkeep
 !/content/tmp/.gitkeep
 !/content/uploads/.gitkeep
-
-# Swoole 进程 pid / 日志 / 心跳
 /swoole/*.pid
 /swoole/*.log
 /swoole/*.heartbeat
 /swoole/logs/
-
-# 通用日志
 *.log
 /logs/
-
-
-# ---------------- 编辑器 / IDE / 系统 ----------------
-.idea/
-.vscode/
-*.sublime-project
-*.sublime-workspace
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-desktop.ini
-
-
-# ---------------- Claude Code 本地会话 ----------------
-.claude/
-
-
-# ---------------- 依赖与构建产物 ----------------
-/vendor/
-composer.phar
-composer.lock
-node_modules/
-npm-debug.log*
-yarn-error.log
-
-
-# ---------------- 备份 / 压缩包 ----------------
-*.bak
-*.orig
-backup-*.sql
-*-backup.sql
-*.tar.gz
-*.zip
-*.rar

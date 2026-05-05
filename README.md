@@ -41,11 +41,8 @@ git clone -b develop https://github.com/<your-user>/em_cc.git
 cd em_cc
 
 # 准备环境配置
-cp .env.example .env
-# 编辑 .env 填入数据库连接
-
 # 安装（首次）
-# 访问 http://your-domain/install.php 跟随引导完成
+# 访问 http://your-domain/install/ 跟随引导完成（会生成/写入 config.php 与安装锁）
 
 # 启动 Swoole
 php swoole/server.php start

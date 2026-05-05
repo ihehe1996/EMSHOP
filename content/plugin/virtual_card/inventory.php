@@ -1,0 +1,596 @@
+<?php
+/**
+ * 虚拟商品（自动发货）— 卡密库存管理界面
+ *
+ * 由 goods_type_virtual_card_stock_form 钩子加载（auto_delivery 模式）。
+ * 也由 card_manager action 在独立弹窗中加载。
+ *
+ * 可用变量：
+ *   $goods, $specs, $goodsId, $csrfToken
+ *   $totalCards, $availableCards, $soldCards
+ *   $specMap       — spec_id => name
+ *   $specStockMap  — spec_id => available count
+ */
+if (!defined('EM_ROOT')) {
+    exit('Access Denied');
+}
+?>
+
+<style>
+/* ===== 规格库存概览：卡片栅格 ===== */
+.va-spec-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+.va-spec-item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 8px;
+    text-align: center;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.va-spec-item:hover {
+    border-color: #a5b4fc;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+}
+.va-spec-item__num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #059669;
+    line-height: 1.2;
+    font-family: Menlo, Consolas, monospace;
+}
+.va-spec-item__num.is-zero { color: #dc2626; }
+.va-spec-item__label {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ===== 卡号单元格（等宽字体 + 图标） ===== */
+.card-no-cell {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: #374151;
+}
+
+/* ===== 表格区：去掉 popup-section 内侧边距，让表格贴边 ===== */
+.va-table-wrap {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* ===== 时间列（日期加粗 + 时间浅色等宽，和用户/日志列表一致） ===== */
+.va-time {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.3;
+}
+.va-time__date { color: #374151; font-weight: 500; font-size: 12.5px; }
+.va-time__clock { color: #9ca3af; font-size: 11.5px; font-family: Menlo, Consolas, monospace; }
+</style>
+
+<div class="popup-inner">
+
+    <!-- 规格库存概览 -->
+    <div class="popup-section">
+        <div class="va-spec-stats" id="specStockStats">
+            <?php foreach ($specs as $spec):
+                $sid   = (int)$spec['id'];
+                $avail = $specStockMap[$sid] ?? 0;
+            ?>
+            <div class="va-spec-item" data-spec-id="<?= $sid ?>">
+                <div class="va-spec-item__num<?= $avail === 0 ? ' is-zero' : '' ?>"><?= $avail ?></div>
+                <div class="va-spec-item__label" title="<?= htmlspecialchars($spec['name'], ENT_QUOTES, 'UTF-8') ?>">
+                    <?= htmlspecialchars($spec['name'], ENT_QUOTES, 'UTF-8') ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- 搜索条件（em-filter 风格，两个字段 → 保留可折叠面板） -->
+    <div class="em-filter" id="cardFilter">
+        <div class="em-filter__head" id="cardFilterHead">
+            <span class="em-filter__title"><i class="fa fa-filter"></i>搜索条件</span>
+            <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
+        </div>
+        <div class="em-filter__body">
+            <div class="em-filter__grid">
+                <div class="em-filter__field">
+                    <label>卡号 / 备注</label>
+                    <input type="text" id="cardSearchKeyword" placeholder="搜索卡号或备注" autocomplete="off">
+                </div>
+                <div class="em-filter__field">
+                    <label>所属规格</label>
+                    <select id="cardSearchSpec">
+                        <option value="">全部规格</option>
+                        <?php foreach ($specs as $spec): ?>
+                        <option value="<?= (int) $spec['id'] ?>"><?= htmlspecialchars($spec['name'], ENT_QUOTES, 'UTF-8') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="em-filter__actions">
+                <button type="button" class="em-btn em-reset-btn" id="cardResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
+                <button type="button" class="em-btn em-save-btn" id="cardSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态选项卡（em-tabs 同款，带动态计数） -->
+    <div class="em-tabs" id="cardTabs">
+        <a class="em-tabs__item" data-status=""><i class="fa fa-list"></i>全部<em class="em-tabs__count" id="tabAll"></em></a>
+        <a class="em-tabs__item is-active" data-status="1"><i class="fa fa-cube"></i>未售<em class="em-tabs__count" id="tabAvailable"></em></a>
+        <a class="em-tabs__item" data-status="0"><i class="fa fa-check-circle"></i>已售<em class="em-tabs__count" id="tabSold"></em></a>
+        <a class="em-tabs__item" data-status="2"><i class="fa fa-flag"></i>标记售出<em class="em-tabs__count" id="tabMarked"></em></a>
+    </div>
+
+    <!-- 表格 -->
+    <div class="va-table-wrap" style="margin-bottom: 15px;">
+        <table id="cardTable" lay-filter="cardTable"></table>
+    </div>
+
+</div><!-- /popup-inner -->
+
+<!-- 工具栏模板 -->
+<script type="text/html" id="cardToolbarTpl">
+    <div class="layui-btn-container">
+        <a class="em-btn em-reset-btn" id="cardRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+        <a class="em-btn em-save-btn" lay-event="import"><i class="fa fa-upload"></i>导入卡密</a>
+        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+    </div>
+</script>
+
+<!-- 状态徽章：em-tag + 圆点，和项目其他列表页统一 -->
+<script type="text/html" id="cardStatusTpl">
+    {{# if(d.status == 1){ }}
+    <span class="em-tag em-tag--on"><span class="em-tag__dot"></span>未售</span>
+    {{# } else if(d.status == 0){ }}
+    <span class="em-tag em-tag--muted"><span class="em-tag__dot"></span>已售</span>
+    {{# } else if(d.status == 2){ }}
+    <span class="em-tag em-tag--amber"><span class="em-tag__dot"></span>标记售出</span>
+    {{# } }}
+</script>
+
+<!-- 卡号列模板（含密码图标 + 优先销售图标） -->
+<script type="text/html" id="cardNoTpl">
+    <span class="card-no-cell" title="{{d.card_no}}">{{d.card_no}}</span>
+    {{# if(d.card_pwd){ }}
+    <i class="fa fa-key" style="color:#9ca3af;margin-left:4px;font-size:11px;" title="含密码"></i>
+    {{# } }}
+    {{# if(d.sell_priority > 0){ }}
+    <i class="fa fa-bolt" style="color:#f59e0b;margin-left:4px;font-size:11px;" title="优先销售"></i>
+    {{# } }}
+</script>
+
+<!-- 时间列模板 -->
+<script type="text/html" id="cardTimeTpl">
+    {{# if(d.LAY_TIME_VAL){ var parts = d.LAY_TIME_VAL.replace('T',' ').substring(0,19).split(' '); }}
+    <span class="va-time">
+        <span class="va-time__date">{{parts[0]}}</span>
+        <span class="va-time__clock">{{parts[1] || ''}}</span>
+    </span>
+    {{# } else { }}
+    <span class="em-tag em-tag--muted">—</span>
+    {{# } }}
+</script>
+
+<!-- 操作列（三点下拉菜单） -->
+<script type="text/html" id="cardActionTpl">
+    <a class="em-btn em-reset-btn card-more-btn" data-id="{{d.id}}" data-status="{{d.status}}" style="padding:0 10px;">
+        <i class="fa fa-ellipsis-h"></i>
+    </a>
+</script>
+
+<script>
+var csrfToken      = <?= json_encode($csrfToken) ?>;
+var goodsId        = <?= $goodsId ?>;
+var specMap        = <?= json_encode($specMap, JSON_UNESCAPED_UNICODE) ?>;
+var currentTabStatus = '1';
+
+$(function(){
+    'use strict';
+
+    var table, dropdown, form, layer;
+
+    layui.use(['layer', 'form', 'table', 'dropdown'], function(){
+        layer    = layui.layer;
+        form     = layui.form;
+        table    = layui.table;
+        dropdown = layui.dropdown;
+
+        form.render('select');
+
+        // em-filter 展开/收起（和其他页一致，localStorage 记忆）
+        var $filter = $('#cardFilter');
+        var filterOpenKey = 'virtual_card_inventory_filter_open';
+        function setFilterOpen(open) {
+            $filter.toggleClass('is-open', open);
+            $('.em-filter__toggle-text', $filter).text(open ? '收起' : '展开');
+            localStorage.setItem(filterOpenKey, open ? 'y' : 'n');
+        }
+        setFilterOpen(localStorage.getItem(filterOpenKey) === 'y');
+        $('#cardFilterHead').on('click', function () { setFilterOpen(!$filter.hasClass('is-open')); });
+
+        // ============================================================
+        //  列定义（根据当前选项卡动态生成）
+        // ============================================================
+        var specTplFn = function(d){ return specMap[d.spec_id] || '<span style="color:#9ca3af;">-</span>'; };
+        var orderTplFn = function(d){ return d.order_id > 0 ? '<span style="color:#2563eb;font-family:Menlo,Consolas,monospace;">#'+d.order_id+'</span>' : '<span style="color:#9ca3af;">-</span>'; };
+        // 用 LAY_TIME_VAL 字段名转交给 cardTimeTpl 模板（layui templet 里没法直接写变量名参数）
+        var makeTimeTpl = function(field) {
+            return function(d){
+                var v = d[field];
+                if (!v) return '<span class="em-tag em-tag--muted">—</span>';
+                var parts = String(v).replace('T',' ').substring(0,19).split(' ');
+                return '<span class="va-time"><span class="va-time__date">'+parts[0]+'</span><span class="va-time__clock">'+(parts[1]||'')+'</span></span>';
+            };
+        };
+
+        function getTableCols(){
+            var cols = [
+                {type:'checkbox', width:50},
+                {field:'card_no', title:'卡号', minWidth:200, templet:'#cardNoTpl'},
+                {field:'spec_id', title:'规格', width:150, templet: specTplFn},
+                {field:'status', title:'状态', width:110, align:'center', templet:'#cardStatusTpl'}
+            ];
+            // 非"未售" tab 显示订单列
+            if (currentTabStatus !== '1') {
+                cols.push({field:'order_id', title:'订单', width:90, align:'center', templet: orderTplFn});
+            }
+            // 已售 / 标记售出 / 全部 显示售出时间列
+            if (currentTabStatus === '0' || currentTabStatus === '2' || currentTabStatus === '') {
+                cols.push({field:'sold_at', title:'售出时间', width:130, align:'center', templet: makeTimeTpl('sold_at')});
+            }
+            cols.push({field:'created_at', title:'入库时间', width:130, align:'center', templet: makeTimeTpl('created_at')});
+            cols.push({title:'操作', width:80, align:'center', fixed:'right', toolbar:'#cardActionTpl'});
+            return [cols];
+        }
+
+        // ============================================================
+        //  表格
+        // ============================================================
+        table.render({
+            elem: '#cardTable',
+            id: 'cardTableId',
+            url: '/admin/index.php?_action=card_list',
+            method: 'POST',
+            where: { goods_id: goodsId, status: '1' },
+            toolbar: '#cardToolbarTpl',
+            defaultToolbar: [],
+            page: true,
+            limit: 10,
+            limits: [10, 20, 50, 100],
+            lineStyle: 'height: 55px;',
+            cellMinWidth: 60,
+            cols: getTableCols(),
+            done: function(res){
+                if (res.csrf_token) csrfToken = res.csrf_token;
+                if (res.stats) updateStats(res.stats);
+                initRowDropdowns();
+            }
+        });
+
+        // 勾选联动：批量删除按钮启用/禁用
+        table.on('checkbox(cardTable)', function () {
+            var checked = table.checkStatus('cardTableId').data.length > 0;
+            $('[lay-event="batchDelete"]').toggleClass('em-disabled-btn', !checked);
+        });
+
+        // ============================================================
+        //  统计数据（选项卡计数 + 规格库存卡片）
+        // ============================================================
+        function updateStats(stats){
+            $('#tabAll').text(stats.total || '');
+            $('#tabAvailable').text(stats.available || '');
+            $('#tabSold').text(stats.sold || '');
+            $('#tabMarked').text(stats.marked || '');
+            if (stats.specs) {
+                stats.specs.forEach(function(s){
+                    var $item = $('#specStockStats .va-spec-item[data-spec-id="'+s.id+'"]');
+                    if ($item.length) {
+                        var $num = $item.find('.va-spec-item__num');
+                        $num.text(s.available);
+                        $num.toggleClass('is-zero', s.available === 0);
+                    }
+                });
+            }
+        }
+
+        // ============================================================
+        //  em-tabs 切换
+        // ============================================================
+        $('#cardTabs').on('click', '.em-tabs__item', function(){
+            var $item = $(this);
+            if ($item.hasClass('is-active')) return;
+            $item.addClass('is-active').siblings().removeClass('is-active');
+            currentTabStatus = String($item.data('status') == null ? '' : $item.data('status'));
+            reloadTable();
+        });
+
+        // ============================================================
+        //  搜索 & 重置
+        // ============================================================
+        $(document).on('click', '#cardSearchBtn', function(){ reloadTable(); });
+        $(document).on('click', '#cardResetBtn', function(){
+            $('#cardSearchKeyword').val('');
+            $('#cardSearchSpec').val('');
+            form.render('select');
+            reloadTable();
+        });
+        $('#cardSearchKeyword').on('keydown', function(e){ if(e.keyCode === 13) reloadTable(); });
+
+        function reloadTable(){
+            table.reload('cardTableId', {
+                cols: getTableCols(),
+                where: {
+                    goods_id: goodsId,
+                    status:   currentTabStatus,
+                    keyword:  $('#cardSearchKeyword').val() || '',
+                    spec_id:  $('#cardSearchSpec').val() || ''
+                },
+                page: {curr: 1}
+            });
+        }
+
+        // ============================================================
+        //  工具栏事件
+        // ============================================================
+        $(document).on('click', '#cardRefreshBtn', function(){ table.reload('cardTableId'); });
+
+        table.on('toolbar(cardTable)', function(obj){
+            var data = table.checkStatus('cardTableId').data;
+            switch(obj.event){
+                case 'batchDelete':
+                    if ($('[lay-event="batchDelete"]').hasClass('em-disabled-btn')) return;
+                    if(!data.length){ layer.msg('请选择卡密'); return; }
+                    var ids = data.map(function(d){ return d.id; });
+                    layer.confirm('确定删除选中的 <strong>' + ids.length + '</strong> 条卡密吗？', function(idx){
+                        layer.close(idx);
+                        doDelete(ids);
+                    });
+                    break;
+                case 'import':
+                    openImport();
+                    break;
+            }
+        });
+
+        // ============================================================
+        //  行内三点下拉菜单
+        // ============================================================
+        function initRowDropdowns(){
+            $('.card-more-btn').each(function(){
+                var $btn   = $(this);
+                var cardId = $btn.data('id');
+                var status = parseInt($btn.data('status'));
+
+                var items = [
+                    {title:'复制',   id:'copy', templet:'<i class="fa fa-clipboard"></i> {{= d.title }}'},
+                    {title:'查看',   id:'view', templet:'<i class="fa fa-eye"></i> {{= d.title }}'}
+                ];
+
+                if (status === 1) {
+                    items.push(
+                        {type:'-'},
+                        {title:'编辑',     id:'edit',     templet:'<i class="fa fa-pencil"></i> {{= d.title }}'},
+                        {title:'优先销售', id:'priority', templet:'<i class="fa fa-bolt" style="color:#f59e0b;"></i> {{= d.title }}'},
+                        {title:'标记售出', id:'markSold', templet:'<i class="fa fa-check" style="color:#10b981;"></i> {{= d.title }}'}
+                    );
+                }
+
+                items.push(
+                    {type:'-'},
+                    {title:'删除', id:'delete', templet:'<i class="fa fa-trash" style="color:#dc2626;"></i> <span style="color:#dc2626;">{{= d.title }}</span>'}
+                );
+
+                dropdown.render({
+                    elem: this,
+                    data: items,
+                    align: 'right',
+                    click: function(obj){ handleAction(obj.id, cardId); }
+                });
+            });
+        }
+
+        // ============================================================
+        //  操作处理
+        // ============================================================
+        function getCard(id){
+            var rows = table.cache['cardTableId'] || [];
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].id == id) return rows[i];
+            }
+            return null;
+        }
+
+        function handleAction(action, cardId){
+            var card = getCard(cardId);
+            if (!card) { layer.msg('数据异常'); return; }
+
+            switch(action){
+                case 'copy':
+                    var text = card.card_no;
+                    if (card.card_pwd) text += ':' + card.card_pwd;
+                    copyText(text);
+                    layer.msg('已复制');
+                    break;
+                case 'view':    showDetail(card);  break;
+                case 'edit':    showEdit(card);    break;
+                case 'priority':
+                    ajaxAction('card_priority', {id: cardId}, card.sell_priority > 0 ? '已取消优先销售' : '已设为优先销售');
+                    break;
+                case 'markSold':
+                    layer.confirm('确定将该卡密标记为已售出吗？', function(idx){
+                        layer.close(idx);
+                        ajaxAction('card_mark_sold', {id: cardId}, '标记成功');
+                    });
+                    break;
+                case 'delete':
+                    layer.confirm('确定删除该卡密吗？', function(idx){
+                        layer.close(idx);
+                        doDelete([cardId]);
+                    });
+                    break;
+            }
+        }
+
+        // ============================================================
+        //  查看详情（em-tag 胶囊风格）
+        // ============================================================
+        function showDetail(card){
+            var specName = specMap[card.spec_id] || '-';
+            var statusBadge = {
+                1: '<span class="em-tag em-tag--on"><span class="em-tag__dot"></span>未售</span>',
+                0: '<span class="em-tag em-tag--muted"><span class="em-tag__dot"></span>已售</span>',
+                2: '<span class="em-tag em-tag--amber"><span class="em-tag__dot"></span>标记售出</span>'
+            };
+            var row = function(label, val){
+                return '<tr><td style="padding:9px 12px;color:#6b7280;white-space:nowrap;width:80px;font-size:13px;">' + label
+                     + '</td><td style="padding:9px 12px;font-size:13px;">' + val + '</td></tr>';
+            };
+            var html = '<div style="padding:16px 20px;">'
+                // 卡号高亮区
+                + '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:16px;">'
+                + '<div style="font-size:12px;color:#9ca3af;margin-bottom:4px;">卡号</div>'
+                + '<div style="font-family:Menlo,Consolas,monospace;font-size:15px;word-break:break-all;color:#111827;">' + esc(card.card_no) + '</div>'
+                + (card.card_pwd
+                    ? '<div style="font-size:12px;color:#9ca3af;margin-top:10px;">密码</div><div style="font-family:Menlo,Consolas,monospace;font-size:15px;word-break:break-all;color:#111827;">' + esc(card.card_pwd) + '</div>'
+                    : '')
+                + '</div>'
+                + '<table style="width:100%;border-collapse:collapse;">'
+                + row('状态', (statusBadge[card.status] || '未知')
+                    + (card.sell_priority > 0 ? ' <i class="fa fa-bolt" style="color:#f59e0b;margin-left:6px;" title="优先销售"></i>' : ''))
+                + row('规格', esc(specName))
+                + (card.order_id > 0 ? row('订单', '<span style="color:#2563eb;font-family:Menlo,Consolas,monospace;">#' + card.order_id + '</span>') : '')
+                + row('入库时间', card.created_at || '-')
+                + (card.sold_at ? row('售出时间', card.sold_at) : '')
+                + (card.remark ? row('备注', esc(card.remark)) : '')
+                + '</table></div>';
+            layer.open({
+                type: 1,
+                title: '卡密详情',
+                skin: 'admin-modal',
+                area: ['460px', 'auto'],
+                content: html,
+                shadeClose: true
+            });
+        }
+
+        // ============================================================
+        //  编辑卡密
+        // ============================================================
+        function showEdit(card){
+            var specOpts = '<option value="">请选择规格</option>';
+            for (var sid in specMap) {
+                specOpts += '<option value="' + sid + '"' + (card.spec_id == sid ? ' selected' : '') + '>' + esc(specMap[sid]) + '</option>';
+            }
+            var lbl = 'display:block;font-size:13px;color:#6b7280;margin-bottom:4px;';
+            var html = '<div style="padding:20px;">'
+                + '<div style="margin-bottom:14px;"><label style="' + lbl + '">卡号</label>'
+                + '<input type="text" class="layui-input" id="editCardNo" value="' + escAttr(card.card_no) + '"></div>'
+                + '<div style="margin-bottom:14px;"><label style="' + lbl + '">密码</label>'
+                + '<input type="text" class="layui-input" id="editCardPwd" value="' + escAttr(card.card_pwd || '') + '" placeholder="无密码可留空"></div>'
+                + '<div style="margin-bottom:14px;"><label style="' + lbl + '">规格</label>'
+                + '<select class="layui-input" id="editSpecId" style="height:38px;">' + specOpts + '</select></div>'
+                + '<div style="margin-bottom:0;"><label style="' + lbl + '">备注</label>'
+                + '<input type="text" class="layui-input" id="editRemark" value="' + escAttr(card.remark || '') + '" placeholder="选填"></div>'
+                + '</div>';
+            layer.open({
+                type: 1,
+                title: '编辑卡密',
+                skin: 'admin-modal',
+                area: ['420px', 'auto'],
+                content: html,
+                btn: ['保存', '取消'],
+                yes: function(idx){
+                    var cardNo = $.trim($('#editCardNo').val());
+                    if (!cardNo) { layer.msg('卡号不能为空'); return; }
+                    $.post('/admin/index.php?_action=card_save', {
+                        csrf_token: csrfToken,
+                        id: card.id,
+                        goods_id: goodsId,
+                        card_no:  cardNo,
+                        card_pwd: $('#editCardPwd').val(),
+                        spec_id:  $('#editSpecId').val(),
+                        remark:   $('#editRemark').val()
+                    }, function(res){
+                        if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                        if (res.code === 200) {
+                            layer.close(idx);
+                            layer.msg('保存成功');
+                            table.reload('cardTableId');
+                        } else {
+                            layer.msg(res.msg || '保存失败');
+                        }
+                    }, 'json');
+                }
+            });
+        }
+
+        // ============================================================
+        //  通用 AJAX（优先销售 / 标记售出等）
+        // ============================================================
+        function ajaxAction(action, data, successMsg){
+            data.csrf_token = csrfToken;
+            data.goods_id   = goodsId;
+            $.post('/admin/index.php?_action=' + action, data, function(res){
+                if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                layer.msg(res.msg || (res.code === 200 ? successMsg : '操作失败'));
+                if (res.code === 200) table.reload('cardTableId');
+            }, 'json');
+        }
+
+        function doDelete(ids){
+            $.post('/admin/index.php?_action=card_delete', {
+                csrf_token: csrfToken, ids: ids
+            }, function(res){
+                if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                layer.msg(res.msg || (res.code === 200 ? '删除成功' : '删除失败'));
+                if (res.code === 200) table.reload('cardTableId');
+            }, 'json');
+        }
+
+        // ============================================================
+        //  导入弹窗
+        // ============================================================
+        function openImport(){
+            layer.open({
+                type: 2,
+                title: '<i class="fa fa-upload"></i> 导入卡密',
+                skin: 'admin-modal',
+                area: ['560px', '520px'],
+                content: '/admin/index.php?_action=card_import_page&goods_id=' + goodsId,
+                end: function(){ table.reload('cardTableId'); }
+            });
+        }
+
+        // ============================================================
+        //  工具函数
+        // ============================================================
+        function esc(s){ return s ? $('<i>').text(s).html() : ''; }
+        function escAttr(s){
+            return s ? String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+        }
+        function copyText(text){
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            } else {
+                var $t = $('<input>').val(text).appendTo('body').select();
+                document.execCommand('copy');
+                $t.remove();
+            }
+        }
+    });
+});
+</script>
