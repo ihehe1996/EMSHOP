@@ -4,8 +4,6 @@
 .cursor/
 .claude/
 
-*.zip
-
 /install/install.lock
 /install/migrations/
 .user.ini
@@ -22,10 +20,3 @@
 /swoole/logs/
 *.log
 /logs/
-
-*.sublime-project
-*.sublime-workspace
-*.swp
-*.swo
-*~
-
