@@ -668,8 +668,8 @@ function formRadio(string $name, array $options, string $selected = ''): string 
             </div>
 
             <!-- WangEditor 资源 + 初始化（仅 shop tab 用到；PJAX 切换时浏览器会复用已缓存的资源） -->
-            <link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">
-            <script src="/content/static/lib/wangeditor/index.min.js"></script>
+            <link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">
+            <script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
             <script>
             (function () {
                 'use strict';
