@@ -104,17 +104,24 @@ class GoodsController extends BaseController
             $where['category_source'] = $categorySource;
         }
         $page = max(1, (int) $this->getArg('page', 1));
-        $result = $this->queryGoodsListPaginated($where, $page, 20, 'g.sort ASC, g.id DESC');
+        $sort = trim((string) $this->getArg('sort', 'default'));
+        if (!in_array($sort, ['default', 'hot', 'sold', 'price_asc', 'price_desc'], true)) {
+            $sort = 'default';
+        }
+        $orderBy = $this->resolveGoodsListOrderBy($sort);
+        $result = $this->queryGoodsListPaginated($where, $page, 20, $orderBy);
         $result['list'] = applyFilter('index_goods_list', $result['list'], 'list');
 
         $this->view->setTitle($title);
         $this->view->setData([
-            'goods_list'       => $result['list'],
-            'goods_categories' => $categories,
-            'current_category' => $categoryId,
-            'current_tag'      => $tagId,
-            'pagination'       => $result,
-            'announcement'     => $this->getCurrentAnnouncement(),
+            'goods_list'               => $result['list'],
+            'goods_categories'         => $categories,
+            'current_category'         => $categoryId,
+            'current_category_source'  => $categorySource,
+            'current_tag'              => $tagId,
+            'goods_sort'               => $sort,
+            'pagination'               => $result,
+            'announcement'             => $this->getCurrentAnnouncement(),
         ]);
         $this->view->render('goods_list');
     }

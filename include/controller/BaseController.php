@@ -305,6 +305,26 @@ abstract class BaseController
     }
 
     /**
+     * 商品列表 ORDER BY 片段（白名单，禁止拼接用户原始字符串）。
+     */
+    protected function resolveGoodsListOrderBy(string $sort): string
+    {
+        switch ($sort) {
+            case 'hot':
+                return 'g.views_count DESC, g.id DESC';
+            case 'sold':
+                return 'total_sold DESC, g.id DESC';
+            case 'price_asc':
+                return 'g.min_price ASC, g.id DESC';
+            case 'price_desc':
+                return 'g.min_price DESC, g.id DESC';
+            case 'default':
+            default:
+                return 'g.sort ASC, g.id DESC';
+        }
+    }
+
+    /**
      * 分页查询前台商品列表。
      *
      * @param array  $where   筛选条件；可选 require_api_enabled=true 仅保留 api_enabled 为 1 或 NULL 的商品

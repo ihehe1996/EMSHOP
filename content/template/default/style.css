@@ -1238,6 +1238,18 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .category-tabs--sub .category-tab { font-size: 12px; padding: 5px 12px; background: #f8f9fa; border-color: #ebeef5; border-radius: 6px; }
 .category-tabs--sub .category-tab.active { background: #4e6ef2; color: #fff; border-color: #4e6ef2; }
 
+.goods-sort-bar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 0 0 18px;
+}
+.goods-sort-link {
+    display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 13px;
+    border: 1px solid #e5e7eb; color: #666; background: #fff; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.goods-sort-link:hover { border-color: #4e6ef2; color: #4e6ef2; }
+.goods-sort-link.active { background: #4e6ef2; color: #fff; border-color: #4e6ef2; }
+
 /* --- Blog Article Grid (blog_index 2-column layout) --- */
 .blog-article-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;

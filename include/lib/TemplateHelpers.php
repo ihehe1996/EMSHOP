@@ -154,20 +154,22 @@ function url_goods_list(array $params = []): string
  *
  * 商户自建分类（source=merchant）会在 URL 上加 category_source=merchant，
  * 让 GoodsController._list 区分主站分类与商户分类（id 在两套表里可能撞号）。
+ *
+ * @param array<string,mixed> $extra 合并进列表 URL 的查询参数（如 sort、tag_id）
  */
-function url_goods_category(array $cat): string
+function url_goods_category(array $cat, array $extra = []): string
 {
     $isMerchantCat = (string) ($cat['source'] ?? 'main') === 'merchant';
     $slug = trim((string) ($cat['slug'] ?? ''));
     // 商户自建分类没有 slug —— 永远走 category_id 路径，并带上 source 参数
     if ($isMerchantCat) {
-        return url_goods_list([
+        return url_goods_list(array_merge([
             'category_id'     => (int) $cat['id'],
             'category_source' => 'merchant',
-        ]);
+        ], $extra));
     }
-    if ($slug !== '') return url_goods_list(['slug' => $slug]);
-    return url_goods_list(['category_id' => (int) $cat['id']]);
+    if ($slug !== '') return url_goods_list(array_merge(['slug' => $slug], $extra));
+    return url_goods_list(array_merge(['category_id' => (int) $cat['id']], $extra));
 }
 
 /**

@@ -41,35 +41,9 @@ defined('EM_ROOT') || exit('access denied!');
     <?php endif; ?>
 
     <?php if (!empty($goods_list)): ?>
-    <div class="goods-grid zs-gtag-grid">
+    <div class="zs-home-goods-grid zs-home-goods-grid--list zs-gtag-grid">
         <?php foreach ($goods_list as $g): ?>
-        <a <?= goods_card_href_attrs($g) ?> class="card goods-card">
-            <div class="card-img">
-                <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
-                <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
-                <?php else: ?>
-                <div class="goods-no-image" aria-hidden="true"></div>
-                <?php endif; ?>
-                <?php if (($g['delivery_type'] ?? '') === 'auto'): ?>
-                <span class="goods-badge goods-badge--auto">自动发货</span>
-                <?php elseif (($g['delivery_type'] ?? '') === 'manual'): ?>
-                <span class="goods-badge goods-badge--manual">人工发货</span>
-                <?php endif; ?>
-            </div>
-            <div class="card-body">
-                <div class="card-title"><?= htmlspecialchars($g['name']) ?></div>
-                <div class="card-stats">
-                    <span>库存 <?= htmlspecialchars((string) ($g['stock_text'] ?? '0')) ?></span>
-                    <span>销量 <?= (int) ($g['sold'] ?? 0) ?></span>
-                </div>
-                <div class="card-bottom">
-                    <span class="price"><?= Currency::displayMain((float) $g['price']) ?></span>
-                    <?php if (!empty($g['original_price'])): ?>
-                    <span class="price-original"><?= Currency::displayMain((float) $g['original_price']) ?></span>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </a>
+        <?php include __DIR__ . '/partials/goods_card_item.php'; ?>
         <?php endforeach; ?>
     </div>
 

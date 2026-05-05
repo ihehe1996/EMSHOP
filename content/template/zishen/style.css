@@ -487,6 +487,7 @@ html { scroll-behavior: smooth; }
     box-shadow: var(--zs-shadow);
 }
 .theme-zishen .site-announcement__title { color: var(--zs-pink); font-weight: 700; }
+.theme-zishen .site-announcement__body { padding-top: 10px; }
 
 /* ----- 分类标签 ----- */
 .theme-zishen .category-tabs {
@@ -535,6 +536,35 @@ html { scroll-behavior: smooth; }
     background: rgba(232, 72, 154, 0.1);
     padding: 2px 8px;
     border-radius: 999px;
+}
+
+/* ----- 商品列表排序 ----- */
+.theme-zishen .goods-sort-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 20px;
+}
+.theme-zishen .goods-sort-link {
+    display: inline-block;
+    padding: 7px 13px;
+    border-radius: 12px;
+    font-size: 13px;
+    border: 1px solid var(--zs-border-soft);
+    color: var(--zs-text);
+    background: var(--zs-panel-2);
+    text-decoration: none;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.theme-zishen .goods-sort-link:hover {
+    border-color: var(--zs-pink);
+    transform: translateY(-1px);
+}
+.theme-zishen .goods-sort-link.active {
+    border-color: transparent;
+    background: linear-gradient(135deg, rgba(255, 110, 180, 0.35), rgba(94, 231, 223, 0.2));
+    box-shadow: var(--zs-glow);
 }
 
 /* ----- 商品网格 ----- */
@@ -625,8 +655,7 @@ html { scroll-behavior: smooth; }
     background: linear-gradient(135deg, #fb7185 0%, #e879f9 55%, #a78bfa 100%) !important;
     border-color: rgba(254, 202, 202, 0.55);
 }
-.theme-zishen .goods-card .card-img > .goods-badge,
-.theme-zishen .zs-search-goods-grid .goods-card .card-img > .goods-badge {
+.theme-zishen .goods-card .card-img > .goods-badge {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -1881,13 +1910,12 @@ html { scroll-behavior: smooth; }
     padding-left: 4px;
     border-left: 4px solid var(--zs-pink);
 }
-.theme-zishen .zs-search-goods-grid {
-    display: grid;
+.theme-zishen .zs-home-goods-grid.zs-search-goods-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
 }
 @media (max-width: 520px) {
-    .theme-zishen .zs-search-goods-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .theme-zishen .zs-home-goods-grid.zs-search-goods-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 }
 .theme-zishen .zs-search-article-list {
     display: flex;
@@ -2500,6 +2528,11 @@ html { scroll-behavior: smooth; }
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
+}
+/* 列表/标签等宽容器：与旧 .goods-grid 一致的自适应列数，卡片 DOM 仍用首页 .zs-home-goods-item */
+.theme-zishen .zs-home-goods-grid--list {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
 }
 .theme-zishen .zs-home-goods-item {
     border-radius: 14px;

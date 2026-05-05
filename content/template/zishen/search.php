@@ -42,62 +42,16 @@ if (!in_array($search_type, ['all', 'goods', 'article'])) {
     <?php if ($search_type === 'all'): ?>
     <section class="zs-search-section">
         <h2 class="zs-search-section__title">商品</h2>
-        <div class="goods-grid zs-search-goods-grid">
+        <div class="zs-home-goods-grid zs-search-goods-grid">
             <?php foreach ($results as $item): ?>
-            <a <?= goods_card_href_attrs($item) ?> class="card goods-card">
-                <div class="card-img">
-                    <?php if (trim((string) ($item['image'] ?? '')) !== ''): ?>
-                    <img src="<?= htmlspecialchars($item['image']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
-                    <?php else: ?>
-                    <div class="goods-no-image" aria-hidden="true"></div>
-                    <?php endif; ?>
-                    <?php if (($item['delivery_type'] ?? '') === 'auto'): ?>
-                    <span class="goods-badge goods-badge--auto">自动发货</span>
-                    <?php elseif (($item['delivery_type'] ?? '') === 'manual'): ?>
-                    <span class="goods-badge goods-badge--manual">人工发货</span>
-                    <?php endif; ?>
-                </div>
-                <div class="card-body">
-                    <div class="card-title"><?= htmlspecialchars($item['name']) ?></div>
-                    <div class="card-stats">
-                        <span>库存 <?= htmlspecialchars((string) ($item['stock_text'] ?? '0')) ?></span>
-                        <span>销量 <?= (int) ($item['sold'] ?? 0) ?></span>
-                    </div>
-                    <div class="card-bottom">
-                        <span class="price"><?= Currency::displayMain((float) $item['price']) ?></span>
-                    </div>
-                </div>
-            </a>
+            <?php $g = $item; include __DIR__ . '/partials/goods_card_item.php'; ?>
             <?php endforeach; ?>
         </div>
     </section>
     <?php else: ?>
-    <div class="goods-grid zs-search-goods-grid">
+    <div class="zs-home-goods-grid zs-search-goods-grid">
         <?php foreach ($results as $item): ?>
-        <a <?= goods_card_href_attrs($item) ?> class="card goods-card">
-            <div class="card-img">
-                <?php if (trim((string) ($item['image'] ?? '')) !== ''): ?>
-                <img src="<?= htmlspecialchars($item['image']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
-                <?php else: ?>
-                <div class="goods-no-image" aria-hidden="true"></div>
-                <?php endif; ?>
-                <?php if (($item['delivery_type'] ?? '') === 'auto'): ?>
-                <span class="goods-badge goods-badge--auto">自动发货</span>
-                <?php elseif (($item['delivery_type'] ?? '') === 'manual'): ?>
-                <span class="goods-badge goods-badge--manual">人工发货</span>
-                <?php endif; ?>
-            </div>
-            <div class="card-body">
-                <div class="card-title"><?= htmlspecialchars($item['name']) ?></div>
-                <div class="card-stats">
-                    <span>库存 <?= htmlspecialchars((string) ($item['stock_text'] ?? '0')) ?></span>
-                    <span>销量 <?= (int) ($item['sold'] ?? 0) ?></span>
-                </div>
-                <div class="card-bottom">
-                    <span class="price"><?= Currency::displayMain((float) $item['price']) ?></span>
-                </div>
-            </div>
-        </a>
+        <?php $g = $item; include __DIR__ . '/partials/goods_card_item.php'; ?>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>

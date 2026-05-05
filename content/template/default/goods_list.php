@@ -3,6 +3,22 @@ defined('EM_ROOT') || exit('access denied!');
 
 // $current_category 由 GoodsController 设置：category_id 或 slug 解析后的 id
 $current_category = isset($current_category) ? (int) $current_category : (int) ($_GET['category_id'] ?? 0);
+$current_category_source = isset($current_category_source) ? (string) $current_category_source : (string) ($_GET['category_source'] ?? '');
+$goods_sort = isset($goods_sort) ? (string) $goods_sort : 'default';
+if (!in_array($goods_sort, ['default', 'hot', 'sold', 'price_asc', 'price_desc'], true)) {
+    $goods_sort = 'default';
+}
+$_goods_sort_extra = ($goods_sort !== 'default') ? ['sort' => $goods_sort] : [];
+$goods_list_base_params = [];
+if ($current_category > 0) {
+    $goods_list_base_params['category_id'] = $current_category;
+    if ($current_category_source === 'merchant') {
+        $goods_list_base_params['category_source'] = 'merchant';
+    }
+}
+if (isset($current_tag) && (int) $current_tag > 0) {
+    $goods_list_base_params['tag_id'] = (int) $current_tag;
+}
 ?>
 <!-- 商品列表 · GoodsController::_list() -->
 
@@ -55,7 +71,7 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
     }
     ?>
     <div class="category-tabs">
-        <a href="<?= url_goods_list() ?>"
+        <a href="<?= url_goods_list($_goods_sort_extra) ?>"
            class="category-tab<?= $current_category === 0 ? ' active' : '' ?>"
            data-pjax>
             <span class="category-tab-icon" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;background:#eef2ff;color:#4e6ef2;font-size:14px;">
@@ -70,7 +86,7 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
         $catCount = (int) $cat['goods_count'];
         foreach ($cat['children'] ?? [] as $_ch) { $catCount += (int) $_ch['goods_count']; }
         ?>
-        <a href="<?= url_goods_category($cat) ?>"
+        <a href="<?= url_goods_category($cat, $_goods_sort_extra) ?>"
            class="category-tab<?= (int) $cat['id'] === $current_category || ((int) $cat['id'] === $activeParentId && (int) $cat['id'] !== $current_category) ? ' active' : '' ?>"
            data-pjax>
             <?php $catImg = $cat['cover_image'] ?: ($cat['icon'] ?? ''); ?>
@@ -98,13 +114,13 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
             if ((int) $_c['id'] === $activeParentId) { $activeParentRow = $_c; break; }
         }
         ?>
-        <a href="<?= url_goods_category($activeParentRow) ?>"
+        <a href="<?= url_goods_category($activeParentRow, $_goods_sort_extra) ?>"
            class="category-tab<?= $current_category === $activeParentId ? ' active' : '' ?>"
            data-pjax>
             <span class="category-tab-name">全部</span>
         </a>
         <?php foreach ($activeChildren as $child): ?>
-        <a href="<?= url_goods_category($child) ?>"
+        <a href="<?= url_goods_category($child, $_goods_sort_extra) ?>"
            class="category-tab<?= (int) $child['id'] === $current_category ? ' active' : '' ?>"
            data-pjax>
             <span class="category-tab-name"><?= htmlspecialchars($child['name']) ?></span>
@@ -115,6 +131,29 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
     <?php endif; ?>
     <?php endif; ?>
     <?php endif; ?>
+
+    <?php
+    $_goods_sort_opts = [
+        'default'    => '默认排序',
+        'hot'        => '热度优先',
+        'sold'       => '销量优先',
+        'price_asc'  => '价格升序',
+        'price_desc' => '价格降序',
+    ];
+    ?>
+    <div class="goods-sort-bar" role="toolbar" aria-label="商品排序">
+        <?php foreach ($_goods_sort_opts as $_sk => $_sl): ?>
+        <?php
+        $_hrefParams = $goods_list_base_params;
+        if ($_sk !== 'default') {
+            $_hrefParams['sort'] = $_sk;
+        }
+        ?>
+        <a href="<?= htmlspecialchars(url_goods_list($_hrefParams), ENT_QUOTES, 'UTF-8') ?>"
+           class="goods-sort-link<?= $goods_sort === $_sk ? ' active' : '' ?>"
+           data-pjax><?= htmlspecialchars($_sl) ?></a>
+        <?php endforeach; ?>
+    </div>
 
     <!-- 商品网格 -->
     <?php if (!empty($goods_list)): ?>
@@ -153,9 +192,10 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
     <?php if (!empty($pagination) && $pagination['total_pages'] > 1): ?>
     <?php
     $pg = $pagination;
-    $pgParams = [];
-    if ($current_category > 0) $pgParams['category_id'] = $current_category;
-    if (!empty($current_tag)) $pgParams['tag_id'] = $current_tag;
+    $pgParams = $goods_list_base_params;
+    if ($goods_sort !== 'default') {
+        $pgParams['sort'] = $goods_sort;
+    }
     ?>
     <div class="pagination">
         <?php if ($pg['page'] > 1): ?>
