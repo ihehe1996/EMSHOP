@@ -22,6 +22,7 @@ final class TemplateModel
     /** 主站启用模板 config key */
     private const MAIN_ACTIVE_PC_KEY     = 'active_template_pc';
     private const MAIN_ACTIVE_MOBILE_KEY = 'active_template_mobile';
+    private const COOKIE_PREFIX          = 'em_front_template_';
 
     private string $templateRoot;
     private string $merchantTable;
@@ -193,6 +194,88 @@ final class TemplateModel
     }
 
     /**
+     * 获取当前请求最终应使用的模板。
+     *
+     * 优先级：Cookie 指定模板 > 后台启用模板。
+     * Cookie 命中但模板不存在 / 当前 scope 未安装时，自动忽略并回退后台设置。
+     */
+    public function getEffectiveTheme(string $client, string $scope): string
+    {
+        $cookieTheme = $this->getCookieOverrideTheme($client, $scope);
+        if ($cookieTheme !== '') {
+            return $cookieTheme;
+        }
+        return $this->getActiveTheme($client, $scope);
+    }
+
+    /**
+     * 读取当前 scope + 终端的前台模板覆盖 Cookie。
+     */
+    public function getCookieOverrideTheme(string $client, string $scope): string
+    {
+        $cookieName = self::buildCookieName($client, $scope);
+        $name = trim((string) ($_COOKIE[$cookieName] ?? ''));
+        if (!$this->isCookieThemeAllowed($name, $scope)) {
+            return '';
+        }
+        return $name;
+    }
+
+    /**
+     * 写入前台模板覆盖 Cookie。
+     */
+    public function setCookieOverrideTheme(string $client, string $scope, string $name, int $ttl = 31536000): bool
+    {
+        $name = trim($name);
+        if (!$this->isCookieThemeAllowed($name, $scope)) {
+            return false;
+        }
+
+        $cookieName = self::buildCookieName($client, $scope);
+        $expires = time() + max(60, $ttl);
+        $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+
+        if (PHP_VERSION_ID >= 70300) {
+            setcookie($cookieName, $name, [
+                'expires'  => $expires,
+                'path'     => '/',
+                'secure'   => $secure,
+                'httponly' => false,
+                'samesite' => 'Lax',
+            ]);
+        } else {
+            setcookie($cookieName, $name, $expires, '/');
+        }
+
+        $_COOKIE[$cookieName] = $name;
+        return true;
+    }
+
+    /**
+     * 清除前台模板覆盖 Cookie，回退到后台启用模板。
+     */
+    public function clearCookieOverrideTheme(string $client, string $scope): void
+    {
+        $cookieName = self::buildCookieName($client, $scope);
+        $expires = time() - 3600;
+        $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+
+        if (PHP_VERSION_ID >= 70300) {
+            setcookie($cookieName, '', [
+                'expires'  => $expires,
+                'path'     => '/',
+                'secure'   => $secure,
+                'httponly' => false,
+                'samesite' => 'Lax',
+            ]);
+        } else {
+            setcookie($cookieName, '', $expires, '/');
+        }
+
+        unset($_COOKIE[$cookieName]);
+    }
+
+    /**
      * 把模板设为该 scope + 终端的当前启用模板。同终端只允许一个启用,赋值即覆盖。
      */
     public function setActiveTheme(string $client, string $name, string $scope): bool
@@ -259,6 +342,35 @@ final class TemplateModel
             : '';
     }
 
+    /**
+     * 根据当前请求识别终端类型。
+     */
+    public static function detectClientFromRequest(): string
+    {
+        $device = trim((string) ($_GET['device'] ?? ''));
+        if ($device === 'mobile' || $device === 'pc') {
+            return $device;
+        }
+
+        $agent = strtolower((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+        foreach (['mobile', 'android', 'iphone', 'ipad', 'ipod', 'windows phone'] as $keyword) {
+            if ($agent !== '' && strpos($agent, $keyword) !== false) {
+                return 'mobile';
+            }
+        }
+
+        return 'pc';
+    }
+
+    /**
+     * 构建当前 scope + 终端的模板覆盖 Cookie 名。
+     */
+    public static function buildCookieName(string $client, string $scope): string
+    {
+        $scope = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $scope) ?: 'main';
+        return self::COOKIE_PREFIX . $scope . '_' . $client;
+    }
+
     // -----------------------------------------------------------------
     // 内部辅助
     // -----------------------------------------------------------------
@@ -291,5 +403,19 @@ final class TemplateModel
         if ($client === 'pc')     return 'active_template_pc';
         if ($client === 'mobile') return 'active_template_mobile';
         throw new RuntimeException('未知终端类型: ' . $client);
+    }
+
+    /**
+     * Cookie 覆盖模板必须是合法名字、磁盘存在，且在当前 scope 下已安装。
+     */
+    private function isCookieThemeAllowed(string $name, string $scope): bool
+    {
+        if ($name === '' || !preg_match('/^[A-Za-z0-9_\-]+$/', $name)) {
+            return false;
+        }
+        if (!$this->existsOnDisk($name)) {
+            return false;
+        }
+        return $this->isInstalled($name, $scope);
     }
 }

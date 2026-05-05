@@ -69,12 +69,12 @@
                 if (res.code === 200) {
                     location.href = '?';
                 } else {
-                    layer.msg(res.msg || '登录失败');
+                    layui.msg(res.msg || '登录失败');
                     $btn.removeClass('is-loading').text('登 录');
                 }
             },
             error: function () {
-                layer.msg('网络异常，请稍后重试');
+                layui.msg('网络异常，请稍后重试');
                 $btn.removeClass('is-loading').text('登 录');
             }
         });

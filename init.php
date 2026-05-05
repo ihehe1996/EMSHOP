@@ -129,8 +129,8 @@ try {
 try {
     $templateModel = new TemplateModel();
     $activeTemplates = array_filter([
-        $templateModel->getActiveTheme('pc', $emCurrentScope),
-        $templateModel->getActiveTheme('mobile', $emCurrentScope),
+        $templateModel->getEffectiveTheme('pc', $emCurrentScope),
+        $templateModel->getEffectiveTheme('mobile', $emCurrentScope),
     ]);
 
     foreach (array_unique($activeTemplates) as $templateName) {

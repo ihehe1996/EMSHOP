@@ -84,11 +84,11 @@
         var password = $('input[name="password"]').val();
         var confirm = $('input[name="password_confirm"]').val();
         if (password.length < 6) {
-            layer.msg('密码长度不能少于 6 位');
+            layui.msg('密码长度不能少于 6 位');
             return;
         }
         if (password !== confirm) {
-            layer.msg('两次输入的密码不一致');
+            layui.msg('两次输入的密码不一致');
             return;
         }
 
@@ -103,12 +103,12 @@
                 if (res.code === 200) {
                     location.href = '?';
                 } else {
-                    layer.msg(res.msg || '注册失败');
+                    layui.msg(res.msg || '注册失败');
                     $btn.removeClass('is-loading').text('注 册');
                 }
             },
             error: function () {
-                layer.msg('网络异常，请稍后重试');
+                layui.msg('网络异常，请稍后重试');
                 $btn.removeClass('is-loading').text('注 册');
             }
         });

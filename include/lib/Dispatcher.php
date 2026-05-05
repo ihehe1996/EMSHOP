@@ -710,7 +710,7 @@ final class Dispatcher
                 ? 'merchant_' . MerchantContext::currentId()
                 : 'main';
             $templateModel = new TemplateModel();
-            return (string) ($templateModel->getActiveTheme($deviceType, $scope) ?? '');
+            return (string) ($templateModel->getEffectiveTheme($deviceType, $scope) ?? '');
         } catch (Throwable $e) {
             return '';
         }
@@ -721,18 +721,7 @@ final class Dispatcher
      */
     private function detectDeviceType(): string
     {
-        $device = trim(Input::get('device', ''));
-        if ($device === 'mobile' || $device === 'pc') {
-            return $device;
-        }
-        $agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-        $mobileKeywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'windows phone'];
-        foreach ($mobileKeywords as $keyword) {
-            if (stripos($agent, $keyword) !== false) {
-                return 'mobile';
-            }
-        }
-        return 'pc';
+        return TemplateModel::detectClientFromRequest();
     }
 
     /**

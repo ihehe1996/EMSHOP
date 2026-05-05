@@ -207,10 +207,16 @@ final class View
         // 1. 渲染头部布局
         $this->renderLayout('header', $data);
 
-        // 2. 渲染 body 内容
+        // 2. 头部后置挂载点：适合插入全站浮层、全局脚本等
+        doAction('front_header');
+
+        // 3. 渲染 body 内容
         $this->renderBody($bodyTemplate, $data);
 
-        // 3. 渲染底部布局
+        // 4. 底部前挂载点：适合插入悬浮按钮、统计脚本等
+        doAction('front_footer');
+
+        // 5. 渲染底部布局
         $this->renderLayout('footer', $data);
     }
 
@@ -238,6 +244,9 @@ final class View
         }
 
         echo '<div id="main">';
+        // PJAX 只替换 #main 的 innerHTML：需要随片段一起下发的内容（例如演示工具条）挂到这里，
+        // 避免整页运行时输出在 #main 外、PJAX 后丢失或导致样式注入顺序漂移。
+        doAction('front_pjax_main_inner');
         $this->renderBody($bodyTemplate, $data);
         echo '</div>';
     }

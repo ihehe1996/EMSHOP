@@ -68,7 +68,11 @@ html { scroll-behavior: smooth; }
 
 .theme-zishen {
     margin: 0;
+    /* 粘性页脚：短页面时#main 伸长，footer 贴视口底 */
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
+    min-height: 100dvh;
     font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", sans-serif;
     font-size: 15px;
     line-height: 1.6;
@@ -153,6 +157,7 @@ html { scroll-behavior: smooth; }
     position: sticky;
     top: 0;
     z-index: 1000;
+    flex-shrink: 0;
     padding: 14px 0 10px;
     transition: background 0.3s, box-shadow 0.3s;
 }
@@ -418,10 +423,13 @@ html { scroll-behavior: smooth; }
 .theme-zishen .search-modal-hint { color: var(--zs-muted) !important; }
 
 /* ----- 主内容区：#main 不放横向内边距，统一由 .page-body 承担 ----- */
+/* z-index 需高于页脚：#main 内的 fixed（如模板切换插件）同属本层叠上下文，
+   若与 .zs-footer 同级且相等，DOM 靠后的页脚会整层盖住插件按钮 */
 .theme-zishen #main {
     position: relative;
-    z-index: 2;
-    min-height: 48vh;
+    z-index: 3;
+    flex: 1 0 auto;
+    width: 100%;
     padding-bottom: 0;
 }
 
@@ -1181,13 +1189,28 @@ html { scroll-behavior: smooth; }
     .theme-zishen .comment-section { padding: 20px 16px; }
 }
 
-/* ----- 登录注册 ----- */
-.theme-zishen .auth-page {
-    min-height: 52vh;
+/* ----- 登录注册（与 default 结构对齐，避免缺 flex/高度导致错乱） ----- */
+.theme-zishen .page-body.zs-auth-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+    min-height: min(640px, calc(100dvh - 120px));
+    padding-top: 28px;
+    padding-bottom: 40px;
+    box-sizing: border-box;
+}
+.theme-zishen .page-body.zs-auth-page .auth-page {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 32px 0;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.theme-zishen .auth-page {
+    min-height: 0;
 }
 .theme-zishen .auth-card {
     width: 100%;
@@ -1197,6 +1220,11 @@ html { scroll-behavior: smooth; }
     background: var(--zs-panel);
     border: 1px solid var(--zs-line);
     box-shadow: var(--zs-shadow), var(--zs-glow);
+    box-sizing: border-box;
+}
+.theme-zishen .auth-header {
+    text-align: center;
+    margin-bottom: 28px;
 }
 .theme-zishen .auth-title {
     font-size: 1.5rem;
@@ -1204,32 +1232,152 @@ html { scroll-behavior: smooth; }
     color: var(--zs-heading);
     margin: 0 0 6px;
 }
-.theme-zishen .auth-subtitle { color: var(--zs-muted); margin: 0 0 22px; }
-.theme-zishen .auth-label { color: var(--zs-muted); }
+.theme-zishen .auth-subtitle {
+    color: var(--zs-muted);
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.theme-zishen .auth-form {
+    margin: 0;
+    padding: 0;
+}
+.theme-zishen .auth-field {
+    margin-bottom: 18px;
+}
+.theme-zishen .auth-field:last-of-type {
+    margin-bottom: 0;
+}
+.theme-zishen .auth-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--zs-muted);
+    margin-bottom: 8px;
+}
 .theme-zishen .auth-input-wrap {
-    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 14px;
+    box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.92);
     border: 1px solid var(--zs-border-soft);
     border-radius: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.theme-zishen .auth-input-wrap:focus-within {
+    border-color: rgba(192, 132, 252, 0.65);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 0 0 3px rgba(192, 132, 252, 0.2);
+}
+.theme-zishen .auth-input-wrap > i.fa {
+    color: rgba(148, 122, 168, 0.85);
+    font-size: 15px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.theme-zishen .auth-input-wrap:focus-within > i.fa {
+    color: var(--zs-violet);
 }
 .theme-zishen .auth-input-wrap input {
-    color: var(--zs-text);
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 44px;
+    border: none;
+    outline: none;
     background: transparent;
+    font-size: 14px;
+    color: var(--zs-text);
+    line-height: 1.4;
+}
+.theme-zishen .auth-input-wrap input::placeholder {
+    color: rgba(100, 80, 120, 0.45);
+}
+.theme-zishen .auth-eye {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px;
+    margin-right: -4px;
+    color: rgba(148, 122, 168, 0.85);
+    font-size: 15px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.theme-zishen .auth-eye:hover {
+    color: var(--zs-heading);
 }
 .theme-zishen .auth-submit {
+    display: block;
     width: 100%;
-    margin-top: 8px;
-    padding: 12px;
+    margin-top: 22px;
+    padding: 12px 16px;
     border: none;
     border-radius: 14px;
     font-weight: 800;
     font-size: 16px;
     cursor: pointer;
-    color: var(--zs-ink);
+    color: #fff;
+    letter-spacing: 0.12em;
     background: linear-gradient(120deg, var(--zs-pink), var(--zs-violet));
     box-shadow: var(--zs-glow);
+    transition: opacity 0.2s, transform 0.15s;
+    box-sizing: border-box;
 }
-.theme-zishen .auth-footer { color: var(--zs-muted); }
-.theme-zishen .auth-footer a { color: var(--zs-cyan); font-weight: 700; }
+.theme-zishen .auth-submit:hover {
+    opacity: 0.95;
+}
+.theme-zishen .auth-submit:active {
+    transform: scale(0.98);
+}
+.theme-zishen .auth-submit.is-loading {
+    opacity: 0.72;
+    pointer-events: none;
+}
+.theme-zishen .auth-footer {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: var(--zs-muted);
+}
+.theme-zishen .auth-footer a {
+    color: var(--zs-cyan);
+    font-weight: 700;
+    text-decoration: none;
+    margin-left: 4px;
+}
+.theme-zishen .auth-footer a:hover {
+    text-decoration: underline;
+}
+@media (max-width: 480px) {
+    .theme-zishen .page-body.zs-auth-page {
+        padding-top: 16px;
+        min-height: min(560px, calc(100dvh - 100px));
+    }
+    .theme-zishen .auth-card {
+        padding: 24px 18px 22px;
+    }
+    .theme-zishen .auth-title {
+        font-size: 1.35rem;
+    }
+    .theme-zishen .auth-input-wrap {
+        min-height: 44px;
+        padding: 0 12px;
+    }
+    .theme-zishen .auth-input-wrap input {
+        height: 42px;
+        font-size: 16px; /* iOS 避免缩放 */
+    }
+    .theme-zishen .auth-submit {
+        margin-top: 18px;
+        padding: 11px 14px;
+        font-size: 15px;
+    }
+}
 
 /* ----- 订单结果 / 空状态 ----- */
 .theme-zishen .order-result-card,
@@ -1288,7 +1436,8 @@ html { scroll-behavior: smooth; }
 /* ----- 页脚 ----- */
 .theme-zishen .zs-footer {
     position: relative;
-    z-index: 2;
+    z-index: 1;
+    flex-shrink: 0;
     margin-top: 40px;
     padding: 48px 0 32px;
     background: linear-gradient(180deg, transparent, rgba(255, 250, 252, 0.95));
@@ -2550,7 +2699,7 @@ html { scroll-behavior: smooth; }
     .theme-zishen #mainNav.zs-nav { display: none !important; }
     .theme-zishen #siteHeader .zs-menu-btn { display: inline-flex !important; }
     .theme-zishen #siteHeader .header-user-dropdown { display: none; }
-    .theme-zishen #siteHeader .zs-order-link { display: none; }
+    /* 查单保留在页头，与搜索、汉堡并排，不占侧滑菜单 */
 
     .theme-zishen .mobile-nav-backdrop {
         display: none;
