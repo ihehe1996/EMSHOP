@@ -154,7 +154,6 @@ html { scroll-behavior: smooth; }
     top: 0;
     z-index: 1000;
     padding: 14px 0 10px;
-    border-bottom: 1px solid var(--zs-border-soft);
     transition: background 0.3s, box-shadow 0.3s;
 }
 .theme-zishen .zs-header.scrolled {
@@ -375,11 +374,7 @@ html { scroll-behavior: smooth; }
 }
 .theme-zishen .zs-menu-btn .hamburger-line { background: var(--zs-text); }
 
-/* 移动端导航 */
-.theme-zishen .zs-mobile-nav {
-    background: rgba(255, 255, 255, 0.97) !important;
-    border-bottom: 1px solid var(--zs-border-soft);
-}
+/* 移动端侧滑导航条目色（抽屉壳体布局见 @media max-width 1024px） */
 .theme-zishen .mobile-nav-item,
 .theme-zishen .mobile-nav-sub-item {
     color: var(--zs-text) !important;
@@ -572,6 +567,12 @@ html { scroll-behavior: smooth; }
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 18px;
+}
+@media (max-width: 768px) {
+    .theme-zishen .goods-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 12px;
+    }
 }
 .theme-zishen .goods-card {
     border-radius: var(--zs-radius);
@@ -1482,11 +1483,13 @@ html { scroll-behavior: smooth; }
     border-radius: 2px;
 }
 
+.theme-zishen .mobile-nav-backdrop {
+    display: none;
+}
+/* 桌面端抽屉不占 DOM 流；小屏由 media 设为 fixed + .mobile-nav--shown 才显示 */
 .theme-zishen .mobile-nav {
     display: none;
-    border-top: 1px solid var(--zs-border-soft);
 }
-.theme-zishen .mobile-nav.open { display: block; }
 .theme-zishen .mobile-nav-inner {
     padding: 12px;
 }
@@ -1517,54 +1520,107 @@ html { scroll-behavior: smooth; }
     background: var(--zs-border-soft);
 }
 
+/* 搜索层：与 default 同款 stage 结构，避免小屏横向溢出；z-index 高于顶栏/侧滑 */
 .theme-zishen .search-modal {
-    position: fixed;
-    inset: 0;
     display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1200;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    z-index: 50000;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
-.theme-zishen .search-modal.active { display: flex; }
+.theme-zishen .search-modal.active {
+    display: flex;
+    flex-direction: column;
+}
 .theme-zishen .search-modal-mask {
     position: absolute;
-    inset: 0;
-    background: rgba(30, 21, 48, 0.35);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(30, 21, 48, 0.45);
+    backdrop-filter: blur(3px);
+}
+.theme-zishen .search-modal-stage {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 16px 20px;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .theme-zishen .search-modal-body {
     position: relative;
-    width: min(92vw, 640px);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: min(92vw, 640px);
+    margin: min(16vh, 120px) 0 0;
     padding: 18px;
 }
 .theme-zishen .search-modal-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 12px;
+    justify-content: center;
 }
 .theme-zishen .search-modal-tab {
     border: 0;
     padding: 8px 14px;
     cursor: pointer;
 }
-.theme-zishen .search-modal-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px;
+.theme-zishen #searchModal .search-modal-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
 }
-.theme-zishen .search-modal-bar input {
-    flex: 1;
+.theme-zishen #searchModal .search-modal-bar input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 0;
     outline: 0;
-    min-width: 0;
-    font-size: 14px;
-    padding: 8px;
+    font-size: 16px;
+    padding: 14px 12px;
 }
-.theme-zishen .search-modal-bar button {
-    width: 40px;
-    height: 40px;
+.theme-zishen #searchModal .search-modal-bar button {
+    padding: 12px 16px;
     border: 0;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.theme-zishen .search-modal-hint {
+    text-align: center;
+    margin-top: 12px;
 }
 
 .theme-zishen .card {
@@ -2348,10 +2404,9 @@ html { scroll-behavior: smooth; }
 .theme-zishen #siteHeader.zs-header {
     position: sticky;
     top: 0;
-    z-index: 1200;
+    z-index: 10060;
     padding: 14px 0 10px;
     background: transparent;
-    border-bottom: 1px solid var(--zs-border-soft);
 }
 
 /* 覆盖 default 的 .site-header .wrapper 固定高度，避免头部挤压错位 */
@@ -2436,22 +2491,147 @@ html { scroll-behavior: smooth; }
     min-width: 170px;
 }
 
-/* 移动端规则：只在小屏隐藏主导航并显示汉堡按钮 */
+/* 移动端规则：只在小屏隐藏主导航并显示汉堡；侧滑在 footer，不占 header 流 */
 @media (min-width: 1025px) {
     .theme-zishen #siteHeader .zs-menu-btn { display: none !important; }
-    .theme-zishen #siteHeader .zs-mobile-nav { display: none !important; }
+    .theme-zishen .mobile-nav-backdrop,
+    .theme-zishen #mobileNav.zs-mobile-nav { display: none !important; }
 }
 @media (max-width: 1024px) {
+    /* 侧滑 top：顶栏上下留白 + 面板垂直 padding + min-height（与下方数值一致） */
+    /* 顶栏无外边距时，侧滑/遮罩 top ≈ 面板高度（panel 上下 padding 8+8 + min-height 52） */
+    body.theme-zishen {
+        --zs-drawer-top: 70px;
+    }
+    .theme-zishen #siteHeader.zs-header {
+        padding: 0;
+    }
+    /* wrapper 左右零 padding：面板贴齐屏幕，避免 default .wrapper 12px 把顶栏挤爆 */
+    .theme-zishen #siteHeader .wrapper.zs-header__wrap {
+        max-width: none;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+        box-sizing: border-box;
+    }
     .theme-zishen #siteHeader .zs-header__panel {
-        min-height: 56px;
-        padding: 10px 12px;
-        gap: 10px;
+        min-height: 52px;
+        width: 100%;
+        max-width: none;
+        gap: 8px;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        /* 仅保留刘海安全区内边距，其余贴边 */
+        padding: 8px max(8px, env(safe-area-inset-left, 0px)) 8px max(8px, env(safe-area-inset-right, 0px));
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        box-shadow: 0 1px 0 rgba(124, 58, 237, 0.08);
+    }
+    /* logo 区可收缩，长站名省略，避免与搜索/汉堡重叠 */
+    .theme-zishen #siteHeader .zs-header__left {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .theme-zishen #siteHeader .zs-logo {
+        min-width: 0;
+        max-width: 100%;
+    }
+    .theme-zishen #siteHeader .zs-logo-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .theme-zishen #siteHeader .zs-actions {
+        flex-shrink: 0;
     }
     .theme-zishen #mainNav.zs-nav { display: none !important; }
     .theme-zishen #siteHeader .zs-menu-btn { display: inline-flex !important; }
     .theme-zishen #siteHeader .header-user-dropdown { display: none; }
     .theme-zishen #siteHeader .zs-order-link { display: none; }
-    .theme-zishen #siteHeader .zs-mobile-nav { display: block; }
+
+    .theme-zishen .mobile-nav-backdrop {
+        display: none;
+        position: fixed;
+        top: var(--zs-drawer-top);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: auto;
+        z-index: 10040;
+        background: rgba(30, 21, 48, 0.42);
+    }
+    .theme-zishen .mobile-nav-backdrop.mobile-nav--shown {
+        display: block;
+        opacity: 0;
+        transition: opacity 0.28s ease;
+    }
+    .theme-zishen .mobile-nav-backdrop.mobile-nav--shown.is-open {
+        opacity: 1;
+    }
+
+    .theme-zishen .mobile-nav.zs-mobile-nav {
+        display: none;
+        position: fixed;
+        top: var(--zs-drawer-top);
+        right: 0;
+        bottom: 0;
+        width: min(82vw, 280px);
+        height: auto;
+        max-height: none;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        border: none;
+        border-left: 1px solid var(--zs-border-soft);
+        border-radius: 0;
+        background: rgba(255, 255, 255, 0.98) !important;
+        box-shadow: -12px 0 36px rgba(124, 58, 237, 0.12);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 10050;
+        transform: translateX(105%);
+        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .theme-zishen .mobile-nav.zs-mobile-nav.mobile-nav--shown {
+        display: block;
+    }
+    .theme-zishen .mobile-nav.zs-mobile-nav.mobile-nav--shown.open {
+        transform: translateX(0);
+    }
+    .theme-zishen .mobile-nav.zs-mobile-nav .mobile-nav-inner {
+        padding: 12px 16px 28px;
+    }
+
+    .theme-zishen #searchModal .search-modal-stage {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    .theme-zishen #searchModal .search-modal-body {
+        margin-top: max(12px, 8vh);
+    }
+}
+
+body.mobile-nav-drawer-open,
+body.search-modal-open {
+    overflow: hidden;
+    touch-action: none;
+}
+
+@media (max-width: 400px) {
+    .theme-zishen #searchModal .search-modal-bar {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    .theme-zishen #searchModal .search-modal-bar input {
+        border-bottom: 1px solid var(--zs-border-soft);
+    }
+    .theme-zishen #searchModal .search-modal-bar button {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 16px;
+    }
 }
 
 /* =============================================================================
@@ -3013,11 +3193,17 @@ html { scroll-behavior: smooth; }
         top: auto;
     }
 }
+@media (max-width: 768px) {
+    .theme-zishen .zs-home-goods-grid--list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+}
 @media (max-width: 640px) {
     .theme-zishen .page-body.zs-home-body,
     .theme-zishen .page-body.zs-blog-home-body { padding-top: 14px; }
     .theme-zishen .zs-home-panel { padding: 14px; }
-    .theme-zishen .zs-home-goods-grid { grid-template-columns: 1fr; }
+    .theme-zishen .zs-home-goods-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .theme-zishen .zs-home-article-item {
         grid-template-columns: 1fr;
     }
@@ -3484,6 +3670,17 @@ html { scroll-behavior: smooth; }
     .theme-zishen .zs-detail-page .detail-layout {
         grid-template-columns: 1fr;
         gap: 16px;
+    }
+    /* 主图相对满宽缩小 40%（剩余 60%），居中 */
+    .theme-zishen .zs-detail-page .detail-gallery {
+        align-items: center;
+    }
+    .theme-zishen .zs-detail-page .detail-img {
+        width: 60%;
+        max-width: 60%;
+        margin-left: auto;
+        margin-right: auto;
+        box-sizing: border-box;
     }
     .theme-zishen .zs-detail-page .detail-name { font-size: 22px; }
     .theme-zishen .zs-detail-page .detail-price { font-size: 26px; }

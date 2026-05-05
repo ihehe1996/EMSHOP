@@ -21,9 +21,6 @@ $siteName = Config::get('sitename', 'EMSHOP');
 
 if (Request::isPost()) {
     try {
-        if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
-            Response::error('请求已失效，请刷新页面后重试');
-        }
         $action = (string) Input::post('_action', '');
 
         switch ($action) {

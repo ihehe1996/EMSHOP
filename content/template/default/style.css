@@ -304,13 +304,11 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .header-menu-btn.active .hamburger-line:nth-child(2) { opacity: 0; }
 .header-menu-btn.active .hamburger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-/* Mobile navigation panel */
-.mobile-nav {
-    display: none; border-top: 1px solid #f0f0f0;
-    background: #fff; overflow: hidden; max-height: 0;
-    transition: max-height 0.35s ease;
-}
-.mobile-nav.open { max-height: 400px; }
+/* 移动端侧滑菜单遮罩（桌面不展示） */
+.mobile-nav-backdrop { display: none; }
+
+/* 移动端导航：桌面隐藏；≤768px 由下方媒体查询改为右侧抽屉 */
+.mobile-nav { display: none; }
 .mobile-nav-inner { padding: 8px 20px 16px; }
 .mobile-nav-item {
     display: flex; align-items: center; gap: 12px;
@@ -1331,26 +1329,77 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .blog-layout .goods-grid { grid-template-columns: repeat(4, 1fr); }
 .blog-layout .article-grid { grid-template-columns: repeat(2, 1fr); }
 
-/* --- Search Modal Overlay --- */
+/* --- Search Modal Overlay ---
+ * 移动端 WebKit 上「position:fixed + 子元素 width:100%/百分比」易出现横向溢出或参照宽度异常。
+ * 做法：fixed 外层只用 top/left/right/bottom 钉满视口 + overflow:hidden 裁剪；真正放表单的是 .search-modal-stage（非 fixed），
+ * 其宽度恒为外层内容盒，百分比与 grid 的 minmax(0,1fr) 都相对这一层，可稳定自适应。 */
 .search-modal {
-    display: none; position: fixed; inset: 0; z-index: 200;
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    /* 高于顶栏/侧滑菜单(≈10060)，且置于 body 末尾，避免层叠上下文被 header 内 transform 影响 */
+    z-index: 50000;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.search-modal.active {
+    display: flex;
     flex-direction: column;
 }
-.search-modal.active { display: flex; }
 .search-modal-mask {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
+}
+.search-modal-stage {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 16px 20px;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .search-modal-body {
-    position: relative; max-width: 560px; width: 100%;
-    margin: 16vh auto 0; padding: 0 20px;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 560px;
+    margin: min(16vh, 120px) 0 0;
+    padding: 0;
     animation: searchSlideIn 0.2s ease-out;
 }
 @keyframes searchSlideIn {
     from { opacity: 0; transform: translateY(-16px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.search-modal-tabs { display: flex; gap: 8px; margin-bottom: 14px; justify-content: center; }
+.search-modal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    justify-content: center;
+}
 .search-modal-tab {
     padding: 5px 18px; border: none;
     background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6);
@@ -1359,22 +1408,54 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .search-modal-tab:hover { background: rgba(255,255,255,0.22); color: #fff; }
 .search-modal-tab.active { background: #fff; color: #4e6ef2; }
 .search-modal-bar {
-    display: flex; background: #fff; border-radius: 12px; overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
     box-shadow: 0 8px 40px rgba(0,0,0,0.25);
 }
 .search-modal-bar input {
-    flex: 1; padding: 16px 20px; border: none; outline: none;
-    font-size: 16px; background: transparent;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 16px 14px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: transparent;
 }
 .search-modal-bar button {
-    padding: 14px 20px; border: none; background: none;
-    color: #4e6ef2; cursor: pointer; display: flex; align-items: center;
+    padding: 14px 16px;
+    border: none;
+    background: none;
+    color: #4e6ef2;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     transition: color 0.2s;
 }
 .search-modal-bar button:hover { color: #3d5bd9; }
 .search-modal-hint {
     text-align: center; margin-top: 14px;
     font-size: 12px; color: rgba(255,255,255,0.35);
+}
+
+/* 弹层内表单：抵消 UA / 其它样式对 form 的 min-width:auto */
+#searchModal .search-modal-bar {
+    min-width: 0;
+}
+#searchModal .search-modal-bar input {
+    min-width: 0 !important;
+    max-width: 100% !important;
 }
 
 /* --- Search Result Page Tabs --- */
@@ -1428,6 +1509,10 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
     .blog-article-img { width: 92px; min-height: 72px; }
 }
 @media (max-width: 768px) {
+    /* 顶栏高度：侧滑已移出 header，须挂在 :root 上，#mobileNav / 遮罩才能用到 var(--header-bar-h) */
+    :root {
+        --header-bar-h: 56px;
+    }
     .goods-grid { grid-template-columns: repeat(2, 1fr); }
     .article-grid { grid-template-columns: 1fr; }
     .detail-layout { grid-template-columns: 1fr; }
@@ -1435,25 +1520,153 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
     .blog-sidebar { position: static; }
     .blog-article-grid { grid-template-columns: 1fr; }
     .blog-article-grid.blog-article-grid--3col { grid-template-columns: repeat(2, 1fr); }
-    /* 移动端页头 */
-    .site-header .wrapper { height: 56px; }
+    /* 移动端页头：整宽贴边，左 logo 右功能区（避免 flex-start 导致右侧大块留白） */
+    .site-header {
+        z-index: 10060;
+    }
+    .site-header .wrapper {
+        height: var(--header-bar-h);
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        max-width: none;
+        width: 100%;
+        padding-left: 14px;
+        padding-right: 14px;
+        box-sizing: border-box;
+    }
+    .site-logo { min-width: 0; flex-shrink: 1; }
+    .site-logo-text { font-size: 17px; letter-spacing: 1px; }
+    .site-logo-img { max-width: 132px; height: 32px; }
+    .header-actions { flex-shrink: 0; margin-left: auto; }
     .main-nav { display: none; }
     .header-menu-btn { display: flex; }
-    .mobile-nav { display: block; }
     .header-user-dropdown { display: none; }
+
+    /* 侧滑遮罩：关闭 display:none 不占任何盒；打开才显示（与 #mobileNav 由 JS 同步 .mobile-nav--shown） */
+    .mobile-nav-backdrop {
+        display: none;
+        position: fixed;
+        top: var(--header-bar-h);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: auto;
+        z-index: 10040;
+        background: rgba(15, 23, 42, 0.45);
+    }
+    .mobile-nav-backdrop.mobile-nav--shown {
+        display: block;
+        opacity: 0;
+        transition: opacity 0.28s ease;
+    }
+    .mobile-nav-backdrop.mobile-nav--shown.is-open {
+        opacity: 1;
+    }
+
+    /* 侧滑菜单：默认 display:none；.mobile-nav--shown 才生成盒 + 屏外；.open 滑入（避免隐藏时仍为 display:block 参与滚动宽度） */
+    .mobile-nav {
+        display: none;
+        position: fixed;
+        top: var(--header-bar-h);
+        right: 0;
+        bottom: 0;
+        width: min(80vw, 250px);
+        height: auto;
+        max-height: none;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        border: none;
+        border-left: 1px solid #e8ecf7;
+        border-radius: 0;
+        background: #fff;
+        box-shadow: -12px 0 36px rgba(15, 23, 42, 0.14);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 10050;
+        transform: translateX(105%);
+        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .mobile-nav.mobile-nav--shown {
+        display: block;
+    }
+    .mobile-nav.mobile-nav--shown.open {
+        transform: translateX(0);
+    }
+    .mobile-nav-inner { padding: 12px 16px 28px; }
+
     .hero-slide { padding: 40px 16px; }
     .hero-title { font-size: 24px; }
     .hero-carousel { margin-top: 12px; border-radius: 8px; }
     .detail-card { padding: 20px; }
     .article-detail { padding: 24px; }
-    .search-modal-body { margin-top: 10vh; }
+
+    /* 搜索弹窗：小屏略抬高 + 再收紧内边距（宽度仍由全局 max-width: min(...) 控制） */
+    #searchModal .search-modal-stage {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    #searchModal .search-modal-body {
+        margin-top: max(12px, 8vh);
+    }
+    #searchModal .search-modal-tab {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+    #searchModal .search-modal-bar input {
+        padding: 14px 12px;
+    }
+    #searchModal .search-modal-bar button {
+        padding: 12px 14px;
+    }
+    #searchModal .search-modal-hint { margin-top: 10px; }
+
+    /* 商品详情：主图与缩略图约为原视觉的一半（仅详情页 .detail-*，列表卡片区保持默认） */
+    .detail-gallery {
+        align-items: center;
+    }
+    .detail-img {
+        width: 50%;
+        max-width: 50%;
+        margin-left: auto;
+        margin-right: auto;
+        box-sizing: border-box;
+    }
+    .detail-thumb {
+        width: 32px;
+        height: 32px;
+    }
+}
+body.mobile-nav-drawer-open {
+    overflow: hidden;
+    touch-action: none;
+}
+/* 搜索打开时锁滚动（与侧滑菜单一致；弹层在 footer 后，避免被顶栏子树层叠盖住） */
+body.search-modal-open {
+    overflow: hidden;
+    touch-action: none;
 }
 @media (max-width: 480px) {
     .goods-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .goods-card .card-img { aspect-ratio: 1; }
     .goods-card .card-body { padding: 10px; }
     .goods-card .price { font-size: 16px; }
     .hero-carousel { margin-left: 12px; margin-right: 12px; }
+}
+
+/* 极窄屏：搜索栏两行 grid（与桌面同一套 grid，只改列定义） */
+@media (max-width: 400px) {
+    #searchModal .search-modal-bar {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+    #searchModal .search-modal-bar input {
+        border-bottom: 1px solid #eef0f4;
+    }
+    #searchModal .search-modal-bar button {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 16px;
+    }
 }
 
 /* ============================================================

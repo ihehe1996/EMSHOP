@@ -31,6 +31,103 @@
     </div>
 </footer>
 
+<!-- 搜索弹窗：放在 body 末尾，避免与顶栏 transform/层叠 冲突；结构含 stage 便于小屏自适应与点击遮罩关闭 -->
+<div class="search-modal zs-search" id="searchModal">
+    <div class="search-modal-mask"></div>
+    <div class="search-modal-stage">
+        <div class="search-modal-body zs-search-body">
+            <div class="search-modal-tabs zs-search-tabs">
+                <button type="button" class="search-modal-tab active" data-type="all">全部</button>
+                <button type="button" class="search-modal-tab" data-type="goods">商品</button>
+                <button type="button" class="search-modal-tab" data-type="article">文章</button>
+            </div>
+            <form id="searchModalForm" class="search-modal-bar zs-search-bar">
+                <input type="text" id="searchModalInput" placeholder="输入魔法咒语… 啊不，关键词搜索" autocomplete="off">
+                <button type="submit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+            </form>
+            <div class="search-modal-hint">按 ESC 关闭传送门</div>
+        </div>
+    </div>
+</div>
+
+<!-- 移动端侧滑：移出 header；关闭 display:none，打开由 JS 加 .mobile-nav--shown 再滑入 -->
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop" aria-hidden="true"></div>
+<div class="mobile-nav zs-mobile-nav" id="mobileNav">
+    <div class="mobile-nav-inner zs-mobile-inner">
+        <?php
+        if (empty($nav_items) || !is_array($nav_items)) {
+            $nav_items = [];
+        }
+        $mobileIcons = ['首页' => 'fa-home', '商城' => 'fa-shopping-bag', '博客' => 'fa-pencil'];
+        foreach ($nav_items as $item):
+            $isActive = ($item['text'] === '首页' && $nav_id === 'home')
+                     || ($item['text'] === '商城' && $nav_id === 'goods')
+                     || ($item['text'] === '博客' && $nav_id === 'blog');
+            $active = $isActive ? ' active' : '';
+            $icon = $mobileIcons[$item['text']] ?? 'fa-link';
+            $hasChildren = !empty($item['children']);
+        ?>
+        <?php if ($hasChildren): ?>
+        <div class="mobile-nav-group">
+            <div class="mobile-nav-item mobile-nav-toggle<?= $active ?>">
+                <i class="fa <?= $icon ?>"></i>
+                <span><?= htmlspecialchars($item['text']) ?></span>
+                <i class="fa fa-chevron-down mobile-nav-arrow"></i>
+            </div>
+            <div class="mobile-nav-sub">
+                <?php foreach ($item['children'] as $child): ?>
+                <?php
+                    $_cp = '/';
+                    $_cip = parse_url((string) ($child['url'] ?? ''), PHP_URL_PATH);
+                    if (is_string($_cip) && $_cip !== '') {
+                        $_cp = $_cip;
+                    }
+                    $_cp = '/' . trim($_cp, '/');
+                    $_childNavPathAttr = ($_cp !== '/') ? ' data-nav-path="' . htmlspecialchars($_cp, ENT_QUOTES, 'UTF-8') . '"' : '';
+                ?>
+                <a href="<?= htmlspecialchars($child['url']) ?>" data-pjax class="mobile-nav-sub-item"<?= $_childNavPathAttr ?>><?= htmlspecialchars($child['text']) ?></a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php else: ?>
+        <?php
+            $_ip = '/';
+            $_p = parse_url((string) ($item['url'] ?? ''), PHP_URL_PATH);
+            if (is_string($_p) && $_p !== '') {
+                $_ip = $_p;
+            }
+            $_ip = '/' . trim($_ip, '/');
+            $_itemNavPathAttr = ($_ip !== '/') ? ' data-nav-path="' . htmlspecialchars($_ip, ENT_QUOTES, 'UTF-8') . '"' : '';
+        ?>
+        <a href="<?= htmlspecialchars($item['url']) ?>" data-pjax class="mobile-nav-item<?= $active ?>"<?= $_itemNavPathAttr ?>>
+            <i class="fa <?= $icon ?>"></i><span><?= htmlspecialchars($item['text']) ?></span>
+        </a>
+        <?php endif; ?>
+        <?php endforeach; ?>
+        <div class="mobile-nav-divider"></div>
+        <?php if (!empty($front_user)): ?>
+        <a href="/user/" class="mobile-nav-item">
+            <i class="fa fa-user"></i><span>个人中心</span>
+        </a>
+        <a href="/user/order.php" class="mobile-nav-item">
+            <i class="fa fa-file-text-o"></i><span>我的订单</span>
+        </a>
+        <a href="?c=login&a=logout" class="mobile-nav-item mobile-nav-logout">
+            <i class="fa fa-sign-out"></i><span>退出登录</span>
+        </a>
+        <?php else: ?>
+        <a href="?c=login" data-pjax class="mobile-nav-item">
+            <i class="fa fa-sign-in"></i><span>登录</span>
+        </a>
+        <a href="?c=register" data-pjax class="mobile-nav-item">
+            <i class="fa fa-user-plus"></i><span>注册</span>
+        </a>
+        <?php endif; ?>
+    </div>
+</div>
+
 <?php
 // 第三方统计代码（百度统计 / Google Analytics / 自定义脚本）
 // 直接 raw 输出（管理员粘贴的 <script> 片段不做转义）；商户站不注入主站统计，避免混淆数据归属
@@ -253,8 +350,59 @@ function updateNavActive(url) {
         $.pjax.submit(e, { container: '#main', fragment: '#main', timeout: 10000 });
     });
 
+    var pjaxBarHideTimer = null;
+    var pjaxBarOnTransEnd = null;
+
+    function clearPjaxBarHideSchedule() {
+        if (pjaxBarHideTimer) {
+            clearTimeout(pjaxBarHideTimer);
+            pjaxBarHideTimer = null;
+        }
+        var el = $bar[0];
+        if (el && pjaxBarOnTransEnd) {
+            el.removeEventListener('transitionend', pjaxBarOnTransEnd);
+            pjaxBarOnTransEnd = null;
+        }
+    }
+
+    /** 进度条瞬时归零（避免去掉 .done/.running 后 width 从 100% 过渡回 0 的「回退」感） */
+    function resetPjaxBarInstant() {
+        var el = $bar[0];
+        if (!el) return;
+        el.style.transition = 'none';
+        $bar.removeClass('running done');
+        void el.offsetWidth;
+        el.style.transition = '';
+    }
+
+    /** 等拉到 100%（.done 的 width 过渡结束）后再隐藏 */
+    function schedulePjaxBarHideAfterFull() {
+        clearPjaxBarHideSchedule();
+        var el = $bar[0];
+        if (!el) return;
+        if (!$bar.hasClass('done')) {
+            resetPjaxBarInstant();
+            return;
+        }
+        var settled = false;
+        function settle() {
+            if (settled) return;
+            settled = true;
+            clearPjaxBarHideSchedule();
+            resetPjaxBarInstant();
+        }
+        pjaxBarOnTransEnd = function (e) {
+            if (e.target !== el) return;
+            if (e.propertyName !== 'width') return;
+            settle();
+        };
+        el.addEventListener('transitionend', pjaxBarOnTransEnd);
+        pjaxBarHideTimer = setTimeout(settle, 480);
+    }
+
     // 进度条：开始
     $(document).on('pjax:send', function () {
+        clearPjaxBarHideSchedule();
         $bar.removeClass('done').addClass('running');
     });
 
@@ -294,7 +442,8 @@ function updateNavActive(url) {
 
     // 错误/超时回退
     $(document).on('pjax:error', function (xhr, textStatus, error, options) {
-        $bar.removeClass('running');
+        clearPjaxBarHideSchedule();
+        resetPjaxBarInstant();
         if (textStatus === 'timeout') {
             var msg = document.createElement('div');
             msg.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:99999;';
@@ -308,11 +457,9 @@ function updateNavActive(url) {
         return false;
     });
 
-    // 清理进度条
+    // 清理进度条：先让 .done 过渡到 100%，再瞬时隐藏（无回退动画）
     $(document).on('pjax:end', function () {
-        setTimeout(function () {
-            $bar.removeClass('running done');
-        }, 200);
+        schedulePjaxBarHideAfterFull();
     });
 
     // 退出登录（直接跳转，刷新整页以更新页头状态）
@@ -358,13 +505,25 @@ function updateNavActive(url) {
     // 打开弹窗
     $('#searchToggle').on('click', function (e) {
         e.preventDefault();
+        if ($('#menuToggle').hasClass('active')) {
+            $('#menuToggle').trigger('click');
+        }
         $modal.addClass('active');
+        $('body').addClass('search-modal-open');
         setTimeout(function () { $input.focus(); }, 100);
     });
 
     // 关闭弹窗
-    function closeModal() { $modal.removeClass('active'); }
-    $modal.find('.search-modal-mask').on('click', closeModal);
+    function closeModal() {
+        $modal.removeClass('active');
+        $('body').removeClass('search-modal-open');
+    }
+    // 点在 .search-modal-body 外（含 stage 留白区）关闭；mask 单独一层时 click 可能收不到
+    $modal.on('click', function (e) {
+        if (!$(e.target).closest('.search-modal-body').length) {
+            closeModal();
+        }
+    });
     $(document).on('keydown', function (e) {
         if (e.key === 'Escape' && $modal.hasClass('active')) closeModal();
     });
@@ -419,12 +578,64 @@ function updateNavActive(url) {
 })();
 
 // ============================================================
-// 页头：滚动阴影 + 移动端菜单
+// 页头：滚动阴影 + 移动端侧滑菜单
 // ============================================================
 (function () {
     var $header = $('#siteHeader');
     var $menuBtn = $('#menuToggle');
     var $mobileNav = $('#mobileNav');
+    var $backdrop = $('#mobileNavBackdrop');
+
+    var mobileNavCloseTimer = null;
+    var MOBILE_NAV_DRAWER_MS = 340;
+
+    /** @param {boolean} open @param {boolean} [instant] PJAX 等场景立即收起 */
+    function setMobileDrawerOpen(open, instant) {
+        if (!open && instant) {
+            if (mobileNavCloseTimer) {
+                clearTimeout(mobileNavCloseTimer);
+                mobileNavCloseTimer = null;
+            }
+            $menuBtn.removeClass('active');
+            $mobileNav.removeClass('open mobile-nav--shown');
+            $backdrop.removeClass('is-open mobile-nav--shown').attr('aria-hidden', 'true');
+            $('body').removeClass('mobile-nav-drawer-open');
+            return;
+        }
+        $menuBtn.toggleClass('active', open);
+        if (open) {
+            $('body').addClass('mobile-nav-drawer-open');
+            $backdrop.addClass('mobile-nav--shown');
+            $mobileNav.addClass('mobile-nav--shown');
+            if ($backdrop.length) {
+                $backdrop.attr('aria-hidden', 'false');
+            }
+            if ($backdrop[0]) {
+                $backdrop[0].offsetHeight;
+            }
+            if ($mobileNav[0]) {
+                $mobileNav[0].offsetHeight;
+            }
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    $mobileNav.addClass('open');
+                    $backdrop.addClass('is-open');
+                });
+            });
+        } else {
+            $mobileNav.removeClass('open');
+            $backdrop.removeClass('is-open').attr('aria-hidden', 'true');
+            $('body').removeClass('mobile-nav-drawer-open');
+            if (mobileNavCloseTimer) {
+                clearTimeout(mobileNavCloseTimer);
+            }
+            mobileNavCloseTimer = setTimeout(function () {
+                mobileNavCloseTimer = null;
+                $backdrop.removeClass('mobile-nav--shown');
+                $mobileNav.removeClass('mobile-nav--shown');
+            }, MOBILE_NAV_DRAWER_MS);
+        }
+    }
 
     // 滚动超过 10px 后为页头添加阴影
     var ticking = false;
@@ -438,11 +649,23 @@ function updateNavActive(url) {
         }
     });
 
-    // 移动端菜单开关
     $menuBtn.on('click', function () {
         var isOpen = $menuBtn.hasClass('active');
-        $menuBtn.toggleClass('active', !isOpen);
-        $mobileNav.toggleClass('open', !isOpen);
+        if (!isOpen) {
+            $('#searchModal').removeClass('active');
+            $('body').removeClass('search-modal-open');
+        }
+        setMobileDrawerOpen(!isOpen);
+    });
+
+    $backdrop.on('click', function () {
+        setMobileDrawerOpen(false);
+    });
+
+    $(document).on('keydown', function (e) {
+        if ((e.key === 'Escape' || e.keyCode === 27) && $menuBtn.hasClass('active')) {
+            setMobileDrawerOpen(false);
+        }
     });
 
     // 移动端二级菜单折叠
@@ -450,17 +673,14 @@ function updateNavActive(url) {
         var $this = $(this);
         var $sub = $this.next('.mobile-nav-sub');
         var isOpen = $this.hasClass('open');
-        // 先收起其他已展开的
         $('.mobile-nav-toggle.open').not($this).removeClass('open')
             .next('.mobile-nav-sub').removeClass('open');
         $this.toggleClass('open', !isOpen);
         $sub.toggleClass('open', !isOpen);
     });
 
-    // PJAX 跳转时收起移动端菜单
     $(document).on('pjax:start', function () {
-        $menuBtn.removeClass('active');
-        $mobileNav.removeClass('open');
+        setMobileDrawerOpen(false, true);
     });
 })();
 </script>
