@@ -34,6 +34,118 @@ final class Database
     private static $transactionDepth = 0;
 
     /**
+     * 记录最近一次执行的 SQL 上下文（用于安装器定位）。
+     *
+     * @var array<string, mixed>
+     */
+    private static $lastSqlContext = [];
+
+    /**
+     * 安装器/调试模式下：把 SQL 上下文附加到异常信息里，方便定位失败语句。
+     */
+    private static function shouldAttachSqlToError(): bool
+    {
+        if (defined('EM_INSTALLER_DEBUG') && EM_INSTALLER_DEBUG) {
+            return true;
+        }
+
+        // 兜底：只要当前脚本在 /install/ 下，就认为处于安装器调试环境
+        // 避免某些部署/常量覆盖导致开关失效，从而无法定位建表 SQL。
+        $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+        $phpSelf = (string) ($_SERVER['PHP_SELF'] ?? '');
+        return strpos($script, '/install/') !== false || strpos($phpSelf, '/install/') !== false;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private static function maskParams(array $params): array
+    {
+        $out = [];
+        foreach ($params as $k => $v) {
+            $key = is_string($k) ? strtolower($k) : (string) $k;
+            if (strpos($key, 'password') !== false || strpos($key, 'pwd') !== false) {
+                $out[$k] = '***';
+                continue;
+            }
+            $out[$k] = $v;
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private static function buildSqlDebug(string $sql, array $params = []): array
+    {
+        // 避免返回超大 payload（比如长文本/HTML）
+        $maxLen = 2000;
+        $sqlTrim = (string) preg_replace('/\s+/', ' ', trim($sql));
+        if (strlen($sqlTrim) > $maxLen) {
+            $sqlTrim = substr($sqlTrim, 0, $maxLen) . '...';
+        }
+
+        $paramsMasked = self::maskParams($params);
+        // 也对单个参数做简单截断
+        foreach ($paramsMasked as $k => $v) {
+            if (is_string($v) && strlen($v) > 300) {
+                $paramsMasked[$k] = substr($v, 0, 300) . '...';
+            }
+        }
+
+        $ctx = [
+            'driver' => self::$driver ?? 'unknown',
+            'sql' => $sqlTrim,
+            'params' => $paramsMasked,
+        ];
+        self::$lastSqlContext = $ctx;
+        return $ctx;
+    }
+
+    /**
+     * 返回最近一次执行的 SQL 上下文（用于安装器输出）。
+     *
+     * @return array<string, mixed>
+     */
+    public static function lastSqlContext(): array
+    {
+        return self::$lastSqlContext;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private static function throwSqlContextException(string $operation, Throwable $e, string $sql, array $params = []): void
+    {
+        if (!self::shouldAttachSqlToError()) {
+            throw $e;
+        }
+
+        $debug = self::buildSqlDebug($sql, $params);
+        $extra = '';
+
+        // PDOException 的 errorInfo 更贴近真实原因
+        if ($e instanceof PDOException && property_exists($e, 'errorInfo') && is_array($e->errorInfo)) {
+            $sqlState = (string) ($e->errorInfo[0] ?? '');
+            $driverErrno = (string) ($e->errorInfo[1] ?? '');
+            $driverMsg = (string) ($e->errorInfo[2] ?? '');
+            $extra = " | PDO errorInfo: [{$sqlState}, {$driverErrno}, {$driverMsg}]";
+        }
+
+        $msg = sprintf(
+            '%s 失败：%s%s | driver=%s | SQL=%s | params=%s',
+            $operation,
+            $e->getMessage(),
+            $extra,
+            (string) ($debug['driver'] ?? 'unknown'),
+            (string) ($debug['sql'] ?? ''),
+            json_encode($debug['params'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
+        throw new RuntimeException($msg, (int) $e->getCode(), $e);
+    }
+
+    /**
      * 返回数据库配置。
      *
      * @return array<string, mixed>
@@ -147,29 +259,35 @@ final class Database
      */
     public static function query(string $sql, array $params = []): array
     {
-        return self::withReconnectRetry(function () use ($sql, $params) {
-            if (self::driver() === 'mysqli') {
-                $stmt = self::prepareMysqli($sql, $params);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $rows = [];
+        self::buildSqlDebug($sql, $params);
+        try {
+            return self::withReconnectRetry(function () use ($sql, $params) {
+                if (self::driver() === 'mysqli') {
+                    $stmt = self::prepareMysqli($sql, $params);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    $rows = [];
 
-                if ($result !== false) {
-                    $rows = $result->fetch_all(MYSQLI_ASSOC);
-                    $result->free();
+                    if ($result !== false) {
+                        $rows = $result->fetch_all(MYSQLI_ASSOC);
+                        $result->free();
+                    }
+
+                    $stmt->close();
+                    return $rows;
                 }
 
-                $stmt->close();
-                return $rows;
-            }
-
-            /** @var PDO $pdo */
-            $pdo = self::connect();
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            return is_array($rows) ? $rows : [];
-        });
+                /** @var PDO $pdo */
+                $pdo = self::connect();
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                return is_array($rows) ? $rows : [];
+            });
+        } catch (Throwable $e) {
+            self::throwSqlContextException('query()', $e, $sql, $params);
+            return [];
+        }
     }
 
     /**
@@ -179,21 +297,27 @@ final class Database
      */
     public static function execute(string $sql, array $params = []): int
     {
-        return self::withReconnectRetry(function () use ($sql, $params) {
-            if (self::driver() === 'mysqli') {
-                $stmt = self::prepareMysqli($sql, $params);
-                $stmt->execute();
-                $affected = $stmt->affected_rows;
-                $stmt->close();
-                return $affected;
-            }
+        self::buildSqlDebug($sql, $params);
+        try {
+            return self::withReconnectRetry(function () use ($sql, $params) {
+                if (self::driver() === 'mysqli') {
+                    $stmt = self::prepareMysqli($sql, $params);
+                    $stmt->execute();
+                    $affected = $stmt->affected_rows;
+                    $stmt->close();
+                    return $affected;
+                }
 
-            /** @var PDO $pdo */
-            $pdo = self::connect();
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            return (int) $stmt->rowCount();
-        });
+                /** @var PDO $pdo */
+                $pdo = self::connect();
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                return (int) $stmt->rowCount();
+            });
+        } catch (Throwable $e) {
+            self::throwSqlContextException('execute()', $e, $sql, $params);
+            return 0;
+        }
     }
 
     /**
@@ -201,20 +325,31 @@ final class Database
      */
     public static function statement(string $sql, bool $withoutDatabase = false): bool
     {
+        self::buildSqlDebug($sql, []);
         // $withoutDatabase 时连的是临时无库连接，没必要走重连逻辑
         if ($withoutDatabase) {
-            if (self::driver() === 'mysqli') {
-                return (bool) self::connect(true)->query($sql);
+            try {
+                if (self::driver() === 'mysqli') {
+                    return (bool) self::connect(true)->query($sql);
+                }
+                return self::connect(true)->exec($sql) !== false;
+            } catch (Throwable $e) {
+                self::throwSqlContextException('statement(withoutDatabase)', $e, $sql, []);
+                return false;
             }
-            return self::connect(true)->exec($sql) !== false;
         }
 
-        return self::withReconnectRetry(function () use ($sql) {
-            if (self::driver() === 'mysqli') {
-                return (bool) self::connect()->query($sql);
-            }
-            return self::connect()->exec($sql) !== false;
-        });
+        try {
+            return self::withReconnectRetry(function () use ($sql) {
+                if (self::driver() === 'mysqli') {
+                    return (bool) self::connect()->query($sql);
+                }
+                return self::connect()->exec($sql) !== false;
+            });
+        } catch (Throwable $e) {
+            self::throwSqlContextException('statement()', $e, $sql, []);
+            return false;
+        }
     }
 
     /**
@@ -243,36 +378,42 @@ final class Database
         );
 
         // INSERT 返回 lastInsertId，UPDATE/DELETE 返回 affected rows
-        return self::withReconnectRetry(function () use ($sql, $values) {
-            if (self::driver() === 'mysqli') {
-                /** @var mysqli $conn */
-                $conn = self::connect();
-                $types = '';
-                foreach ($values as $v) {
-                    $types .= is_int($v) ? 'i' : (is_float($v) ? 'd' : 's');
+        self::buildSqlDebug($sql, ['__values' => $values]);
+        try {
+            return self::withReconnectRetry(function () use ($sql, $values) {
+                if (self::driver() === 'mysqli') {
+                    /** @var mysqli $conn */
+                    $conn = self::connect();
+                    $types = '';
+                    foreach ($values as $v) {
+                        $types .= is_int($v) ? 'i' : (is_float($v) ? 'd' : 's');
+                    }
+                    $refs = [];
+                    $refs[] = &$types;
+                    $localValues = $values;          // 副本：保证 retry 时 references 仍指向有效变量
+                    foreach ($localValues as $i => $v) {
+                        $refs[] = &$localValues[$i];
+                    }
+                    $stmt = $conn->prepare($sql);
+                    if (count($refs) > 1) {
+                        call_user_func_array([$stmt, 'bind_param'], $refs);
+                    }
+                    $stmt->execute();
+                    $id = (int) $stmt->insert_id;
+                    $stmt->close();
+                    return $id;
                 }
-                $refs = [];
-                $refs[] = &$types;
-                $localValues = $values;          // 副本：保证 retry 时 references 仍指向有效变量
-                foreach ($localValues as $i => $v) {
-                    $refs[] = &$localValues[$i];
-                }
-                $stmt = $conn->prepare($sql);
-                if (count($refs) > 1) {
-                    call_user_func_array([$stmt, 'bind_param'], $refs);
-                }
-                $stmt->execute();
-                $id = (int) $stmt->insert_id;
-                $stmt->close();
-                return $id;
-            }
 
-            /** @var PDO $pdo */
-            $pdo = self::connect();
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($values);
-            return (int) $pdo->lastInsertId();
-        });
+                /** @var PDO $pdo */
+                $pdo = self::connect();
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($values);
+                return (int) $pdo->lastInsertId();
+            });
+        } catch (Throwable $e) {
+            self::throwSqlContextException('insert()', $e, $sql, ['__values' => $values]);
+            return 0;
+        }
     }
 
     /**

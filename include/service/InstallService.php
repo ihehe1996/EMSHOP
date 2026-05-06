@@ -448,7 +448,7 @@ final class InstallService
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'创建时间\',
                 `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT \'更新时间\',
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `uniq_lang_translate` (`lang_id`, `translate`),
+                UNIQUE KEY `uniq_lang_translate` (`lang_id`, `translate`(191)),
                 KEY `idx_lang_id` (`lang_id`),
                 CONSTRAINT `fk_lang_id` FOREIGN KEY (`lang_id`) REFERENCES `%s`(`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'翻译词条表\'',
@@ -614,7 +614,7 @@ final class InstallService
                 `total_quota` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'累计采购次数\',
                 `consumed_quota` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'已售出次数\',
                 `is_listed` TINYINT NOT NULL DEFAULT 1 COMMENT \'是否对分站可见 1=上架 0=下架\',
-                `remote_payload` JSON DEFAULT NULL COMMENT \'服务端返回的完整应用元数据快照\',
+                `remote_payload` LONGTEXT DEFAULT NULL COMMENT \'服务端返回的完整应用元数据快照\',
                 `last_purchased_at` DATETIME DEFAULT NULL COMMENT \'主站最近一次采购时间\',
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -786,7 +786,7 @@ final class InstallService
                 `applied_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'执行时间\',
                 `checksum` CHAR(64) NOT NULL DEFAULT \'\' COMMENT \'文件校验\',
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_filename` (`filename`),
+                UNIQUE KEY `uk_filename` (`filename`(191)),
                 KEY `idx_batch` (`batch`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'数据库迁移追踪表\'',
             $prefix . 'migrations'
@@ -1113,7 +1113,7 @@ final class InstallService
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uk_user_id` (`user_id`),
                 UNIQUE KEY `uk_subdomain` (`subdomain`),
-                UNIQUE KEY `uk_custom_domain` (`custom_domain`),
+                UNIQUE KEY `uk_custom_domain` (`custom_domain`(191)),
                 KEY `idx_parent` (`parent_id`),
                 KEY `idx_level` (`level_id`),
                 KEY `idx_status` (`status`)

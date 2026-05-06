@@ -963,6 +963,8 @@ if (!$snapshotBefore['ok']) {
 }
 
 // 切换到项目 Database：用内存 EM_CONFIG 启动 InstallService
+// 安装调试开关：让 Database 在异常信息里附带 SQL/参数上下文（便于定位建表/建索引失败点）
+define('EM_INSTALLER_DEBUG', true);
 define('EM_CONFIG', [
     'db' => [
         'host' => $dbClean['host'],
@@ -985,7 +987,33 @@ try {
         ],
     ]);
 } catch (Throwable $e) {
+    // 这里的 $e->getMessage() 可能已包含 SQL/params（来自 Database 的安装调试增强）
     $messages[] = ['type' => 'bad', 'text' => '安装执行失败：' . $e->getMessage()];
+
+    // AJAX 下额外返回调试信息（不影响页面模式）
+    $debug = [
+        'exception' => get_class($e),
+        'code' => (int) $e->getCode(),
+    ];
+    if ($e->getPrevious() instanceof Throwable) {
+        $debug['previous_exception'] = get_class($e->getPrevious());
+        $debug['previous_message'] = $e->getPrevious()->getMessage();
+    }
+    $trace = $e->getTraceAsString();
+    if (is_string($trace) && $trace !== '') {
+        // 避免返回过大
+        $debug['trace'] = substr($trace, 0, 6000);
+    }
+
+    // 附加最近一次执行的 SQL 上下文（用于精准定位哪条建表/建索引失败）
+    try {
+        if (class_exists('Database') && method_exists('Database', 'lastSqlContext')) {
+            $debug['sql_context'] = Database::lastSqlContext();
+        }
+    } catch (Throwable $ignored) {
+        // ignore
+    }
+
     $snapshotAfter = installer_fetch_tables($dbClean);
     if ($snapshotAfter['ok']) {
         $beforeMap = [];
@@ -1015,6 +1043,12 @@ try {
         }
     } else {
         $messages[] = ['type' => 'warn', 'text' => '安装失败后无法读取表快照，请手动检查并清理本次新建表'];
+    }
+    if ($action === 'install' && installer_is_ajax_request()) {
+        Response::error(installer_messages_text($messages), [
+            'messages' => $messages,
+            'debug' => $debug,
+        ]);
     }
     installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
 }
