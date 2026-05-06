@@ -62,27 +62,28 @@ final class LicenseService
 
     /**
      * 当前生效的授权记录。未激活返 null。
-     *
-     * 返回形状（和老版本保持大致兼容）：
-     *   [
-     *     'license_code' => string, 'level' => string, 'level_label' => string,
-     *     'bound_domain' => string,   // 即主授权域名
-     *     'alias_hosts'  => string[], // 额外别名
-     *   ]
-     *
      * @return array<string, mixed>|null
      */
     public static function currentLicense(): ?array
     {
-        $mainHost = (string) Config::get('license_main_host', '');
-        if ($mainHost === '') {
+        $mainHostRaw = (string) Config::get('license_main_host', '');
+        if ($mainHostRaw === '') {
             return null; // 未激活
+        }
+        $mainHost = self::normalizeHost($mainHostRaw);
+        if ($mainHost === '') {
+            return null; // 配置异常：解析不到有效 host
         }
         // 如果当前请求域名既不是主也不在别名里，则不认可"本次访问是授权通过的"
         // 允许访问：main OR alias
-        $req = self::currentDomain();
-        $aliases = self::aliasHosts();
-        $allow = ($req === '' || $req === 'localhost' || $req === $mainHost || in_array($req, $aliases, true));
+        $req = self::normalizeHost(self::currentDomain());
+        $aliases = array_values(array_filter(array_map([self::class, 'normalizeHost'], self::aliasHosts()), static fn(string $v): bool => $v !== ''));
+        $allow = (
+            $req === '' ||
+            $req === 'localhost' ||
+            self::hostMatches($req, $mainHost) ||
+            self::inHostList($req, $aliases)
+        );
         if (!$allow) {
             return null;
         }
@@ -322,5 +323,60 @@ final class LicenseService
         if ($host === '') return 'localhost';
         $p = strpos($host, ':');
         return strtolower($p === false ? $host : substr($host, 0, $p));
+    }
+
+    /** 归一化输入为 host（小写、去协议/路径/端口/首尾点）。 */
+    private static function normalizeHost(string $input): string
+    {
+        $s = strtolower(trim($input));
+        if ($s === '') return '';
+
+        // 兼容用户误填：example.com/xxx 或 https://example.com:443
+        if (strpos($s, '://') !== false) {
+            $h = (string) (parse_url($s, PHP_URL_HOST) ?? '');
+        } else {
+            $s2 = preg_replace('/[\/?#].*$/', '', $s) ?? $s; // 去路径/查询/片段
+            $p = strpos($s2, ':');                           // 去端口
+            $h = $p === false ? $s2 : substr($s2, 0, $p);
+        }
+
+        $h = trim($h, ". \t\n\r\0\x0B");
+        return $h;
+    }
+
+    /**
+     * 判断请求域名是否命中授权域名：
+     * - 完全相等
+     * - 或者是其子域（以 ".{$licensed}" 结尾）
+     */
+    private static function hostMatches(string $req, string $licensed): bool
+    {
+        if ($req === '' || $licensed === '') return false;
+        if ($req === $licensed) return true;
+
+        // IP 场景不做子域匹配
+        if (filter_var($req, FILTER_VALIDATE_IP) || filter_var($licensed, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        return self::endsWith($req, '.' . $licensed);
+    }
+
+    /** @param array<int, string> $list */
+    private static function inHostList(string $req, array $list): bool
+    {
+        foreach ($list as $licensed) {
+            if (self::hostMatches($req, $licensed)) return true;
+        }
+        return false;
+    }
+
+    private static function endsWith(string $haystack, string $needle): bool
+    {
+        if ($needle === '') return true;
+        $hl = strlen($haystack);
+        $nl = strlen($needle);
+        if ($nl > $hl) return false;
+        return substr($haystack, $hl - $nl) === $needle;
     }
 }
