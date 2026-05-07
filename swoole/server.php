@@ -80,6 +80,8 @@ $server->set([
     'pid_file'        => SW_PID_FILE,
     'log_file'        => SW_LOG_FILE,
     'log_level'       => SWOOLE_LOG_INFO,
+    'reload_async'    => true,
+    'max_wait_time'   => 20,
 ]);
 
 $startTime = time();
@@ -138,31 +140,47 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
 
     // 每分钟执行主定时任务（订单超时 + 订单轮询）并检查代码版本
     Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use (&$stats, $server, $bootCodeVersion) {
+        $startedAt = microtime(true);
+        error_log('[Timer][main] tick start');
         try {
             Config::reload();
             if (runSwooleFileVersionReloadCheck($server)) {
+                $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+                error_log("[Timer][main] tick end by file-version reload, elapsed={$elapsedMs}ms");
                 return;
             }
             $current = (string) (Config::get('swoole_code_version') ?? '');
             if ($current !== '' && $current !== $bootCodeVersion) {
                 error_log("[Swoole] code version changed ({$bootCodeVersion} -> {$current}), reloading workers");
                 $server->reload();
+                $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+                error_log("[Timer][main] tick end by code-version reload, elapsed={$elapsedMs}ms");
                 return;
             }
             runOrderTimeoutChecks($stats);
             runOrderPollingTasks($stats);
             $stats['timers_run']++;
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+            error_log("[Timer][main] tick end, elapsed={$elapsedMs}ms");
         } catch (Throwable $e) {
             error_log("[Timer Error] " . $e->getMessage());
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+            error_log("[Timer][main] tick failed, elapsed={$elapsedMs}ms");
         }
     });
 
     // 商品同步任务独立定时器，避免与其它任务串行阻塞
     Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use (&$stats) {
+        $startedAt = microtime(true);
+        error_log('[Timer][goods_sync] tick start');
         try {
             runGoodsSyncTasks($stats);
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+            error_log("[Timer][goods_sync] tick end, elapsed={$elapsedMs}ms");
         } catch (Throwable $e) {
             error_log("[Goods Sync Timer Error] " . $e->getMessage());
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+            error_log("[Timer][goods_sync] tick failed, elapsed={$elapsedMs}ms");
         }
     });
 
@@ -171,6 +189,10 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
     });
 
     echo "Worker #{$workerId} timers started\n";
+});
+
+$server->on('workerExit', function (Swoole\Http\Server $server, int $workerId) {
+    error_log("[Swoole] worker #{$workerId} exit (master_pid={$server->master_pid})");
 });
 
 // 监控 API（供后台页面调用）
@@ -514,9 +536,13 @@ function runSwooleFileVersionReloadCheck($server): bool
     }
 
     if (@version_compare($new, $local, '>')) {
-        Config::set('local_swoole_file_version', $new);
         error_log("[Swoole] file version upgrade {$local} -> {$new}, reloading workers");
-        $server->reload();
+        $reloaded = $server->reload();
+        if (!$reloaded) {
+            error_log("[Swoole] reload failed for file version upgrade {$local} -> {$new}");
+            return false;
+        }
+        Config::set('local_swoole_file_version', $new);
         return true;
     }
     return false;

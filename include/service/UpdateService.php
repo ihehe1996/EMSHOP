@@ -45,8 +45,6 @@ final class UpdateService
     private const PRESERVE_PATHS = [
         'content/uploads',     // 用户上传的图片/视频
         'content/cache',       // 运行时缓存
-        'content/plugin',      // 用户安装的插件（来自应用商店）
-        'content/template',    // 用户安装的模板
         'content/tmp',         // 升级流水线自己的临时目录（避免自覆盖）
         'tmp',                 // 项目根可能还有其它旧临时目录，一起保护
         '.env',                // 环境变量
