@@ -549,7 +549,7 @@ if ($action === 'order_export_cards') {
 
     // 只取该订单里 virtual_card 类型的商品；goods_type 是 order_goods 的快照字段，不用 JOIN goods
     $rows = Database::query(
-        "SELECT goods_title, spec_name, delivery_content
+        "SELECT id, goods_title, spec_name, delivery_content
          FROM " . Database::prefix() . "order_goods
          WHERE order_id = ? AND goods_type = 'virtual_card'
          ORDER BY id",
@@ -559,7 +559,7 @@ if ($action === 'order_export_cards') {
     // 组装 txt 内容：每个商品前加标题注释行，商品之间空行分隔
     $chunks = [];
     foreach ($rows as $row) {
-        $content = trim((string) ($row['delivery_content'] ?? ''));
+        $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
         if ($content === '') continue;
         $header = '# ' . (string) $row['goods_title'];
         if (!empty($row['spec_name'])) {

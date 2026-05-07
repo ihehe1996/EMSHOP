@@ -52,7 +52,7 @@ if ($action === 'export_order_cards') {
 
     // 取出该订单所有 virtual_card 行（goods_type 是 order_goods 的快照字段）
     $rows = Database::query(
-        "SELECT goods_title, spec_name, delivery_content
+        "SELECT id, goods_title, spec_name, delivery_content
          FROM {$prefix}order_goods
          WHERE order_id = ? AND goods_type = 'virtual_card'
          ORDER BY id",
@@ -62,7 +62,7 @@ if ($action === 'export_order_cards') {
     // 组装 txt：每商品前 # 注释行 + 内容，商品之间空行
     $chunks = [];
     foreach ($rows as $row) {
-        $content = trim((string) ($row['delivery_content'] ?? ''));
+        $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
         if ($content === '') continue;
         $header = '# ' . (string) $row['goods_title'];
         if (!empty($row['spec_name'])) {

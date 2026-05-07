@@ -60,12 +60,7 @@ $sanitizeOrder = function (array $row) use ($orderWhiteList, $prefix): array {
     $out['_disp_rate'] = $dispRate;
 
     // 关联的订单商品（商品字段对外安全，保持原样即可）
-    $out['order_goods'] = Database::query(
-        "SELECT id, order_id, goods_id, spec_id, goods_title, spec_name, cover_image,
-                price, quantity, goods_type, delivery_content, delivery_at, created_at
-         FROM {$prefix}order_goods WHERE order_id = ?",
-        [(int) ($row['id'] ?? 0)]
-    );
+    $out['order_goods'] = OrderModel::getOrderGoods((int) ($row['id'] ?? 0));
     return $out;
 };
 

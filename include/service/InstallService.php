@@ -357,7 +357,7 @@ final class InstallService
                 `quantity` INT UNSIGNED NOT NULL DEFAULT 1 COMMENT \'购买数量\',
                 `goods_type` VARCHAR(64) NOT NULL DEFAULT \'\' COMMENT \'商品类型（快照）\',
                 `plugin_data` TEXT COMMENT \'插件私有数据\',
-                `delivery_content` TEXT COMMENT \'发货内容\',
+                `delivery_content` TEXT COMMENT \'发货内容（兼容摘要）\',
                 `delivery_at` DATETIME DEFAULT NULL COMMENT \'发货时间\',
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'创建时间\',
                 `goods_owner_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'商品 owner_id 快照；0=主站货\',
@@ -368,6 +368,20 @@ final class InstallService
                 KEY `idx_goods` (`goods_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'订单商品表\'',
             $prefix . 'order_goods'
+        ));
+
+        // 订单商品发货明细表（支持海量发货内容按行存储）
+        Database::statement(sprintf(
+            'CREATE TABLE IF NOT EXISTS `%s` (
+                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
+                `order_goods_id` BIGINT UNSIGNED NOT NULL COMMENT \'订单商品ID\',
+                `content` TEXT NOT NULL COMMENT \'单条发货内容\',
+                `sort` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'排序\',
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'创建时间\',
+                PRIMARY KEY (`id`),
+                KEY `idx_order_goods_sort` (`order_goods_id`, `sort`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'订单商品发货明细表\'',
+            $prefix . 'order_goods_delivery_item'
         ));
 
         // 订单支付记录表

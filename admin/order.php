@@ -296,7 +296,7 @@ if (Request::isPost()) {
                     [$ogId]
                 );
                 if (!$ogRow) Response::error('订单商品不存在');
-                if (!empty($ogRow['delivery_content'])) Response::error('该商品已发货');
+                if (OrderModel::hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) Response::error('该商品已发货');
 
                 $goodsType = (string) ($ogRow['goods_type'] ?? '');
                 if ($goodsType === '') Response::error('商品类型缺失，无法发货');
@@ -394,7 +394,7 @@ if ((string) Input::get('_popup', '') === 'ship') {
     // 列出未发货的 order_goods（已发货的不再出现在发货页）
     $shippableGoods = array_values(array_filter(
         OrderModel::getOrderGoods($orderId),
-        static fn($og) => empty($og['delivery_content'])
+        static fn($og) => !OrderModel::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
     ));
 
     $pageTitle = '发货 - ' . $order['order_no'];

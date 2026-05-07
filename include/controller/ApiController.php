@@ -1044,7 +1044,7 @@ class ApiController extends BaseController
         }
 
         // 幂等：已写过发货内容直接返回成功
-        if (!empty($og['delivery_content'])) {
+        if (OrderModel::hasDeliveryContent($localOrderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
             $this->writeSystemLog('info', '发货回调重复通知', '发货回调重复到达，按幂等返回成功', [
                 'local_order_goods_id' => $localOrderGoodsId,
                 'order_id' => (int) ($og['order_id'] ?? 0),
@@ -1056,12 +1056,18 @@ class ApiController extends BaseController
         $em['upstream_order_no'] = trim((string) ($params['order_no'] ?? ($em['upstream_order_no'] ?? '')));
         $pd['emshop_remote'] = $em;
 
+        $stored = OrderModel::persistDeliveryContent($localOrderGoodsId, $deliveryContent);
+        if (!$stored) {
+            $this->writeSystemLog('error', '发货回调写入失败', '发货内容写入明细表失败', [
+                'local_order_goods_id' => $localOrderGoodsId,
+            ]);
+            Response::error('发货内容写入失败，请先执行升级迁移');
+        }
         Database::execute(
             "UPDATE `{$prefix}order_goods`
-             SET `delivery_content` = ?, `delivery_at` = NOW(), `plugin_data` = ?
+             SET `delivery_at` = NOW(), `plugin_data` = ?
              WHERE `id` = ?",
             [
-                $deliveryContent,
                 json_encode($pd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 $localOrderGoodsId,
             ]

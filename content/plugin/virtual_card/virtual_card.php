@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 虚拟卡密商品类型
-Version: 1.0.0
+Version: 1.0.1
 Plugin URL:
 Description: 虚拟商品插件，支持卡密 / 账号 / 邮箱等。既可一键发货（从卡密库自动提取），也可切换为人工发货（管理员手动填写）。
 Author: EMSHOP
@@ -321,10 +321,14 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
         }
         $deliveryContent = implode("\n", $deliveryLines);
 
-        // 写入发货内容
+        // 写入发货内容（仅明细表）
+        $stored = OrderModel::persistDeliveryContent((int) $orderGoodsId, $deliveryContent);
+        if (!$stored) {
+            throw new RuntimeException('[virtual_card] 发货内容写入明细表失败，请先执行升级迁移');
+        }
         Database::execute(
-            "UPDATE {$prefix}order_goods SET delivery_content = ?, delivery_at = NOW() WHERE id = ?",
-            [$deliveryContent, $orderGoodsId]
+            "UPDATE {$prefix}order_goods SET delivery_at = NOW() WHERE id = ?",
+            [$orderGoodsId]
         );
 
         // 同步卡密库存到规格的 stock 字段
@@ -358,7 +362,7 @@ addAction('goods_type_virtual_card_admin_order_detail', function ($orderId) {
     }
 
     $og = $orderGoods[0];
-    $deliveryContent = $og['delivery_content'] ?? '';
+    $deliveryContent = OrderModel::getDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''));
     $pluginDataJson = $og['plugin_data'] ?? '{}';
     $pluginData = json_decode($pluginDataJson, true) ?: [];
     ?>

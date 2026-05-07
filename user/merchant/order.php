@@ -73,8 +73,7 @@ if (Request::isPost()) {
                                u.username, u.nickname,
                                (SELECT SUM(og.cost_amount) FROM `' . $orderGoodsTable . '` og WHERE og.order_id = o.id) AS total_cost,
                                (SELECT SUM(og.fee_amount)  FROM `' . $orderGoodsTable . '` og WHERE og.order_id = o.id) AS total_fee,
-                               (SELECT COUNT(*)            FROM `' . $orderGoodsTable . '` og WHERE og.order_id = o.id) AS items_count,
-                               (SELECT COUNT(*)            FROM `' . $orderGoodsTable . '` og WHERE og.order_id = o.id AND (og.delivery_content IS NULL OR og.delivery_content = "")) AS pending_ship_count
+                               (SELECT COUNT(*)            FROM `' . $orderGoodsTable . '` og WHERE og.order_id = o.id) AS items_count
                           FROM `' . $orderTable . '` o
                           LEFT JOIN `' . $userTable . '` u ON u.id = o.user_id ' . $whereSql . '
                          ORDER BY o.created_at DESC
@@ -87,19 +86,23 @@ if (Request::isPost()) {
                 if ($orderIds) {
                     $ph = implode(',', array_fill(0, count($orderIds), '?'));
                     $goodsRows = Database::query(
-                        "SELECT order_id, goods_title, spec_name, quantity, cover_image, delivery_content
+                        "SELECT id, order_id, goods_title, spec_name, quantity, cover_image, delivery_content
                            FROM `{$orderGoodsTable}`
                           WHERE order_id IN ({$ph})
                           ORDER BY id",
                         $orderIds
                     );
                     foreach ($goodsRows as $g) {
+                        $shipped = OrderModel::hasDeliveryContent(
+                            (int) ($g['id'] ?? 0),
+                            (string) ($g['delivery_content'] ?? '')
+                        );
                         $goodsByOrder[(int) $g['order_id']][] = [
                             'title'       => (string) $g['goods_title'],
                             'spec'        => (string) $g['spec_name'],
                             'quantity'    => (int) $g['quantity'],
                             'cover'       => (string) $g['cover_image'],
-                            'shipped'     => !empty($g['delivery_content']),
+                            'shipped'     => $shipped,
                         ];
                     }
                 }
@@ -121,7 +124,11 @@ if (Request::isPost()) {
                         : ('游客 ' . substr((string) ($r['guest_token'] ?? ''), 0, 8));
                     $r['is_guest'] = (int) $r['user_id'] === 0;
                     $r['status_name'] = OrderModel::statusName((string) $r['status']);
-                    $r['pending_ship_count'] = (int) ($r['pending_ship_count'] ?? 0);
+                    $pendingShipCount = 0;
+                    foreach (($goodsByOrder[(int) $r['id']] ?? []) as $gi) {
+                        if (empty($gi['shipped'])) $pendingShipCount++;
+                    }
+                    $r['pending_ship_count'] = $pendingShipCount;
                     // 是否允许在该状态下手动发货（与 admin 同款）
                     $r['can_ship'] = in_array((string) $r['status'], ['paid', 'delivering', 'delivery_failed'], true)
                         && $r['pending_ship_count'] > 0;
@@ -164,10 +171,7 @@ if (Request::isPost()) {
                 if ($order === null) {
                     Response::error('订单不存在');
                 }
-                $items = Database::query(
-                    'SELECT * FROM `' . $orderGoodsTable . '` WHERE `order_id` = ? ORDER BY `id` ASC',
-                    [$id]
-                );
+                $items = OrderModel::getOrderGoods((int) $id);
                 // 订单详情所有金额都按下单时快照币种展示
                 $dispCode = (string) ($order['display_currency_code'] ?? '');
                 $dispRate = (int) ($order['display_rate'] ?? 0);
@@ -214,7 +218,7 @@ if (Request::isPost()) {
                 if ((int) ($ogRow['order_merchant_id'] ?? 0) !== $merchantId) {
                     Response::error('无权操作其它店铺的订单');
                 }
-                if (!empty($ogRow['delivery_content'])) Response::error('该商品已发货');
+                if (OrderModel::hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) Response::error('该商品已发货');
 
                 $goodsType = (string) ($ogRow['goods_type'] ?? '');
                 if ($goodsType === '') Response::error('商品类型缺失，无法发货');
@@ -273,10 +277,7 @@ if ((string) Input::get('_popup', '') === 'detail') {
     }
     $order['status_name'] = OrderModel::statusName((string) $order['status']);
 
-    $items = Database::query(
-        "SELECT * FROM `{$orderGoodsTable}` WHERE order_id = ? ORDER BY id",
-        [$orderId]
-    );
+    $items = OrderModel::getOrderGoods((int) $orderId);
     // 金额按下单快照币种展示
     $dispCode = (string) ($order['display_currency_code'] ?? '');
     $dispRate = (int) ($order['display_rate'] ?? 0);
@@ -340,7 +341,7 @@ if ((string) Input::get('_popup', '') === 'ship') {
 
     $shippableGoods = array_values(array_filter(
         OrderModel::getOrderGoods($orderId),
-        static fn($og) => empty($og['delivery_content'])
+        static fn($og) => !OrderModel::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
     ));
 
     $csrfToken = Csrf::token();

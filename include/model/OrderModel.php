@@ -12,6 +12,7 @@ class OrderModel
 {
     private static string $orderTable = '';
     private static string $orderGoodsTable = '';
+    private static string $orderGoodsDeliveryItemTable = '';
     private static string $paymentTable = '';
 
     /**
@@ -38,6 +39,7 @@ class OrderModel
             $prefix = Database::prefix();
             self::$orderTable = $prefix . 'order';
             self::$orderGoodsTable = $prefix . 'order_goods';
+            self::$orderGoodsDeliveryItemTable = $prefix . 'order_goods_delivery_item';
             self::$paymentTable = $prefix . 'order_payment';
         }
     }
@@ -633,7 +635,7 @@ class OrderModel
         if (!$og) {
             throw new RuntimeException('订单商品不存在');
         }
-        if (!empty($og['delivery_content'])) {
+        if (self::hasDeliveryContent($orderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
             throw new RuntimeException('该商品已发货，不能重复发货');
         }
         if ($deliveryContent === '') {
@@ -650,11 +652,14 @@ class OrderModel
             $mergedPluginData = array_merge($mergedPluginData, $pluginData);
         }
 
+        $stored = self::persistDeliveryContent($orderGoodsId, $deliveryContent);
+        if (!$stored) {
+            throw new RuntimeException('发货明细写入失败，请先完成系统升级迁移');
+        }
         $now = date('Y-m-d H:i:s');
         Database::execute(
-            "UPDATE {$prefix}order_goods SET delivery_content = ?, delivery_at = ?, plugin_data = ? WHERE id = ?",
+            "UPDATE {$prefix}order_goods SET delivery_at = ?, plugin_data = ? WHERE id = ?",
             [
-                $deliveryContent,
                 $now,
                 $mergedPluginData ? json_encode($mergedPluginData, JSON_UNESCAPED_UNICODE) : null,
                 $orderGoodsId,
@@ -666,11 +671,14 @@ class OrderModel
 
         // 检查同订单其他行是否也都已发货，齐了就整单流转 delivered → completed
         $orderId = (int) $og['order_id'];
-        $remaining = Database::fetchOne(
-            "SELECT COUNT(*) AS cnt FROM {$prefix}order_goods WHERE order_id = ? AND (delivery_content IS NULL OR delivery_content = '')",
-            [$orderId]
-        );
-        if ((int) ($remaining['cnt'] ?? 0) === 0) {
+        $remaining = false;
+        foreach (self::getOrderGoods($orderId) as $row) {
+            if (!self::hasDeliveryContent((int) $row['id'], (string) ($row['delivery_content'] ?? ''))) {
+                $remaining = true;
+                break;
+            }
+        }
+        if (!$remaining) {
             // 所有行都发完了 → delivered → completed（changeStatus 会拒绝非法流转，自动跳过）
             try { self::changeStatus($orderId, 'delivered'); } catch (Throwable $e) {}
             try { self::changeStatus($orderId, 'completed'); } catch (Throwable $e) {}
@@ -682,10 +690,10 @@ class OrderModel
      * 由 Swoole 队列消费者在每个任务完成后调用。
      *
      * 逻辑：
-     * - 自动发货的商品（delivery_content 非空）才算已发货
-     * - 人工发货的商品（delivery_content 为空但队列任务已 success）也算处理完毕
-     * - 如果所有商品都有 delivery_content → delivered → completed
-     * - 如果有人工发货的商品还没 delivery_content → 只保持 delivering，等管理员手动发货
+     * - 自动发货写入了发货内容（明细表）才算已发货
+     * - 人工发货的商品（内容为空但队列任务已 success）也算处理完毕
+     * - 如果所有商品都有发货内容 → delivered → completed
+     * - 如果有人工发货商品还没内容 → 只保持 delivering，等管理员手动发货
      */
     public static function checkDeliveryComplete(int $orderId): void
     {
@@ -697,10 +705,10 @@ class OrderModel
         $hasManual = false;
 
         foreach ($orderGoods as $og) {
-            if (!empty($og['delivery_content'])) {
+            if (self::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))) {
                 continue; // 已发货
             }
-            // 检查队列任务是否已完成（人工发货场景：队列 success 但 delivery_content 为空）
+            // 检查队列任务是否已完成（人工发货场景：队列 success 但发货内容为空）
             $task = Database::fetchOne(
                 "SELECT status FROM {$prefix}delivery_queue WHERE order_goods_id = ? ORDER BY id DESC LIMIT 1",
                 [(int) $og['id']]
@@ -750,7 +758,7 @@ class OrderModel
             return;
         }
         $callbackUrl = trim((string) ($row['delivery_callback_url'] ?? ''));
-        $deliveryContent = (string) ($row['delivery_content'] ?? '');
+        $deliveryContent = self::getDeliveryContent($orderGoodsId, (string) ($row['delivery_content'] ?? ''));
         if ($callbackUrl === '' || $deliveryContent === '') {
             return;
         }
@@ -904,7 +912,143 @@ class OrderModel
     public static function getOrderGoods(int $orderId): array
     {
         self::tables();
-        return Database::query("SELECT * FROM `" . self::$orderGoodsTable . "` WHERE order_id = ? ORDER BY id", [$orderId]);
+        $rows = Database::query("SELECT * FROM `" . self::$orderGoodsTable . "` WHERE order_id = ? ORDER BY id", [$orderId]);
+        if ($rows === []) {
+            return [];
+        }
+        self::hydrateDeliveryContent($rows);
+        return $rows;
+    }
+
+    /**
+     * 是否已存在发货内容（兼容旧字段 + 新明细表）。
+     */
+    public static function hasDeliveryContent(int $orderGoodsId, string $legacyContent = ''): bool
+    {
+        self::tables();
+        if (trim($legacyContent) !== '') {
+            return true;
+        }
+        try {
+            $row = Database::fetchOne(
+                "SELECT 1 FROM `" . self::$orderGoodsDeliveryItemTable . "` WHERE order_goods_id = ? LIMIT 1",
+                [$orderGoodsId]
+            );
+            return (bool) $row;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * 读取某条订单商品的完整发货内容（优先新明细表）。
+     */
+    public static function getDeliveryContent(int $orderGoodsId, string $fallback = ''): string
+    {
+        self::tables();
+        try {
+            $rows = Database::query(
+                "SELECT `content` FROM `" . self::$orderGoodsDeliveryItemTable . "`
+                 WHERE `order_goods_id` = ? ORDER BY `sort` ASC, `id` ASC",
+                [$orderGoodsId]
+            );
+            if ($rows !== []) {
+                $lines = [];
+                foreach ($rows as $r) {
+                    $line = trim((string) ($r['content'] ?? ''));
+                    if ($line !== '') $lines[] = $line;
+                }
+                if ($lines !== []) {
+                    return implode("\n", $lines);
+                }
+            }
+        } catch (Throwable $e) {
+            // 表尚未迁移时回退旧字段
+        }
+        return (string) $fallback;
+    }
+
+    /**
+     * 持久化发货内容到明细表。
+     */
+    public static function persistDeliveryContent(int $orderGoodsId, string $deliveryContent): bool
+    {
+        self::tables();
+        $lines = self::splitDeliveryLines($deliveryContent);
+        if ($lines === []) {
+            return false;
+        }
+        try {
+            Database::execute(
+                "DELETE FROM `" . self::$orderGoodsDeliveryItemTable . "` WHERE `order_goods_id` = ?",
+                [$orderGoodsId]
+            );
+            foreach ($lines as $idx => $line) {
+                Database::insert('order_goods_delivery_item', [
+                    'order_goods_id' => $orderGoodsId,
+                    'content'        => $line,
+                    'sort'           => $idx + 1,
+                ]);
+            }
+        } catch (Throwable $e) {
+            // 迁移尚未执行时由调用方兜底报错
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 批量给 order_goods 行补全完整发货内容。
+     *
+     * @param array<int, array<string, mixed>> $rows
+     */
+    private static function hydrateDeliveryContent(array &$rows): void
+    {
+        $ids = [];
+        foreach ($rows as $r) {
+            $id = (int) ($r['id'] ?? 0);
+            if ($id > 0) $ids[] = $id;
+        }
+        if ($ids === []) return;
+
+        $map = [];
+        try {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $items = Database::query(
+                "SELECT `order_goods_id`, `content`
+                   FROM `" . self::$orderGoodsDeliveryItemTable . "`
+                  WHERE `order_goods_id` IN ({$placeholders})
+                  ORDER BY `order_goods_id` ASC, `sort` ASC, `id` ASC",
+                $ids
+            );
+            foreach ($items as $it) {
+                $id = (int) ($it['order_goods_id'] ?? 0);
+                $line = trim((string) ($it['content'] ?? ''));
+                if ($id <= 0 || $line === '') continue;
+                $map[$id][] = $line;
+            }
+        } catch (Throwable $e) {
+            return;
+        }
+
+        foreach ($rows as &$r) {
+            $id = (int) ($r['id'] ?? 0);
+            if ($id > 0 && !empty($map[$id])) {
+                $r['delivery_content'] = implode("\n", $map[$id]);
+            }
+        }
+        unset($r);
+    }
+
+    /**
+     * @return string[]
+     */
+    private static function splitDeliveryLines(string $deliveryContent): array
+    {
+        $lines = preg_split("/\r\n|\r|\n/", $deliveryContent);
+        if (!is_array($lines)) return [];
+        $lines = array_values(array_filter(array_map(static fn($v) => trim((string) $v), $lines), static fn($v) => $v !== ''));
+        return $lines;
     }
 
     /**
