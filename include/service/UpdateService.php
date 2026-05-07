@@ -14,10 +14,9 @@ declare(strict_types=1);
  *   6. migrate         —— 扫 install/migrations/ 与 em_migrations 表求差集，跑新增 SQL
  *   7. finalize        —— 成功后清理临时文件；失败时由 rollback 善后
  *
- * 两级回滚：
+ * 回滚策略：
  *   - apply 过程中任意拷贝失败 → 依 manifest 自动还原文件（用户无感）
- *   - migrate 中途失败 → 不自动回滚 DDL（MySQL 不可靠），前端弹窗请用户决策
- *     用户选择回滚时，从文件 backup + DB dump 同时还原
+ *   - migrate 中途失败 → 不自动回滚数据库，仅提供文件回滚入口
  *
  * 所有路径均使用 /（UNIX 风格），PHP 在 Windows 下也接受。
  */
@@ -31,8 +30,6 @@ final class UpdateService
     private const EXTRACT_DIR   = '/content/tmp/update/extract';
     /** 文件备份根（每次升级一个子目录） */
     private const BACKUP_DIR    = '/content/tmp/update/backup';
-    /** DB dump 存放处 */
-    private const DB_BACKUP_DIR = '/content/tmp/update/db_backup';
     /** 锁文件（升级进行中 = 存在） */
     private const LOCK_FILE     = '/content/tmp/update/lock';
     /** 当前批次的 apply 文件清单（回滚时用） */
@@ -371,9 +368,9 @@ final class UpdateService
 
     /**
      * 扫 install/migrations/ 与 em_migrations 表求差集，按文件名顺序执行。
-     * 执行前先 dump 数据库到 tmp/update/db_backup/，任一 SQL 失败停止后续。
+     * 任一 SQL 失败立即停止后续。
      *
-     * @return array{ok:bool, applied:string[], pending:string[], batch:int, db_dump:string, error?:string}
+     * @return array{ok:bool, applied:string[], pending:string[], batch:int, error?:string}
      */
     public static function migrate(): array
     {
@@ -382,7 +379,7 @@ final class UpdateService
 
         $dir = EM_ROOT . '/install/migrations';
         if (!is_dir($dir)) {
-            return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0, 'db_dump' => ''];
+            return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0];
         }
 
         $allFiles = glob($dir . '/*.sql') ?: [];
@@ -399,12 +396,8 @@ final class UpdateService
         }
 
         if ($pending === []) {
-            return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0, 'db_dump' => ''];
+            return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0];
         }
-
-        // 跑之前先 dump 数据库（只备份结构 + 本次会动到的表的数据，太多全库备份太慢）
-        // 为保守起见，这里只备份表结构，数据让 SQL 脚本自己用 `CREATE TABLE IF NOT EXISTS` 兜底
-        $dumpPath = self::dumpSchema();
 
         $batchRow = Database::fetchOne('SELECT COALESCE(MAX(`batch`),0)+1 AS `n` FROM `' . $prefix . 'migrations`');
         $batch = (int) ($batchRow['n'] ?? 1);
@@ -436,13 +429,12 @@ final class UpdateService
                     'applied' => $applied,
                     'pending' => array_map('basename', array_slice($pending, count($applied))),
                     'batch'   => $batch,
-                    'db_dump' => $dumpPath,
                     'error'   => '迁移失败：' . $name . ' —— ' . $e->getMessage(),
                 ];
             }
         }
 
-        return ['ok' => true, 'applied' => $applied, 'pending' => [], 'batch' => $batch, 'db_dump' => $dumpPath];
+        return ['ok' => true, 'applied' => $applied, 'pending' => [], 'batch' => $batch];
     }
 
     // ================================================================
@@ -451,17 +443,16 @@ final class UpdateService
 
     /**
      * 收尾：清理临时文件，记录 last_update_at。
-     * backup 目录保留最近 3 份，db_dump 同样保留 3 份。
+     * backup 目录保留最近 3 份。
      */
     public static function finalize(): array
     {
-        // 清解压目录、cache 里的 zip（backup/db_backup 保留）
+        // 清解压目录、cache 里的 zip（backup 保留）
         self::removeDir(EM_ROOT . self::EXTRACT_DIR);
         self::cleanDir(EM_ROOT . self::CACHE_DIR);
 
         // backup 只保留最近 3 份
         self::keepRecentDirs(EM_ROOT . self::BACKUP_DIR, 3);
-        self::keepRecentFiles(EM_ROOT . self::DB_BACKUP_DIR, 3);
 
         // 清 manifest
         @unlink(EM_ROOT . self::MANIFEST_FILE);
@@ -481,11 +472,11 @@ final class UpdateService
     // ================================================================
 
     /**
-     * 从 manifest 还原文件 + 从 db_dump 还原数据库。
+     * 从 manifest 还原文件。
      *
-     * @return array{ok:bool, restored_files:int, restored_db:bool, error?:string}
+     * @return array{ok:bool, restored_files:int, error?:string}
      */
-    public static function rollback(bool $restoreDb = false, string $dbDumpPath = ''): array
+    public static function rollback(): array
     {
         $manifestPath = EM_ROOT . self::MANIFEST_FILE;
         $restored = 0;
@@ -494,13 +485,8 @@ final class UpdateService
             $restored = self::rollbackFromManifest($manifest);
         }
 
-        $dbOk = false;
-        if ($restoreDb && $dbDumpPath !== '' && is_file($dbDumpPath)) {
-            $dbOk = self::restoreDump($dbDumpPath);
-        }
-
         self::releaseLock();
-        return ['ok' => true, 'restored_files' => $restored, 'restored_db' => $dbOk];
+        return ['ok' => true, 'restored_files' => $restored];
     }
 
     // ================================================================
@@ -659,91 +645,6 @@ final class UpdateService
         return $out;
     }
 
-    /**
-     * Dump 数据库（结构 + 数据）到 tmp/update/db_backup/。
-     * 仅导出项目前缀的表；跳过表名不以 prefix 开头的"外部表"。
-     *
-     * 写入流程：DROP TABLE → CREATE TABLE → INSERT...（分批，避免单条 SQL 过大）
-     * 用于 migrate 失败时的回滚：完整还原到 migrate 开始前的数据库状态。
-     * 注意：只适合小-中型数据库（十万级行以内）；大型生产环境建议走 mysqldump。
-     */
-    private static function dumpSchema(): string
-    {
-        self::ensureDir(self::DB_BACKUP_DIR);
-        $file = EM_ROOT . self::DB_BACKUP_DIR . '/dump_' . date('YmdHis') . '.sql';
-        $prefix = Database::prefix();
-
-        $fp = fopen($file, 'wb');
-        if ($fp === false) return '';
-
-        fwrite($fp, "-- Database dump before migration\n");
-        fwrite($fp, "-- generated: " . date('c') . "\n");
-        fwrite($fp, "SET FOREIGN_KEY_CHECKS = 0;\n\n");
-
-        $rows = Database::query('SHOW TABLES');
-        foreach ($rows as $r) {
-            $tableName = (string) reset($r);
-            // 只备份带项目前缀的表，外部表不碰
-            if ($prefix !== '' && strpos($tableName, $prefix) !== 0) continue;
-
-            $create = Database::fetchOne('SHOW CREATE TABLE `' . $tableName . '`');
-            $createSql = $create['Create Table'] ?? ($create['Create View'] ?? '');
-            if ($createSql === '') continue;
-
-            fwrite($fp, "-- ==================== {$tableName} ====================\n");
-            fwrite($fp, "DROP TABLE IF EXISTS `{$tableName}`;\n");
-            fwrite($fp, $createSql . ";\n\n");
-
-            // 导出数据：每 500 行一批 INSERT，避免单语句过长
-            $offset = 0;
-            $batchSize = 500;
-            while (true) {
-                $data = Database::query('SELECT * FROM `' . $tableName . '` LIMIT ' . $batchSize . ' OFFSET ' . $offset);
-                if ($data === []) break;
-
-                $columns = array_keys($data[0]);
-                $cols = '`' . implode('`, `', $columns) . '`';
-                $values = [];
-                foreach ($data as $row) {
-                    $cells = [];
-                    foreach ($row as $v) {
-                        if ($v === null) { $cells[] = 'NULL'; continue; }
-                        if (is_int($v) || is_float($v)) { $cells[] = (string) $v; continue; }
-                        // 字符串转义：用 addslashes 而不是 real_escape_string（后者依赖连接）
-                        $cells[] = "'" . addslashes((string) $v) . "'";
-                    }
-                    $values[] = '(' . implode(', ', $cells) . ')';
-                }
-                fwrite($fp, "INSERT INTO `{$tableName}` ({$cols}) VALUES\n" . implode(",\n", $values) . ";\n");
-
-                if (count($data) < $batchSize) break;
-                $offset += $batchSize;
-            }
-            fwrite($fp, "\n");
-        }
-
-        fwrite($fp, "SET FOREIGN_KEY_CHECKS = 1;\n");
-        fclose($fp);
-        return $file;
-    }
-
-    /**
-     * 从 DDL dump 还原（重建空表）。注意：不会恢复表数据！
-     */
-    private static function restoreDump(string $dumpPath): bool
-    {
-        if (!is_file($dumpPath)) return false;
-        $sql = (string) file_get_contents($dumpPath);
-        try {
-            foreach (self::splitSqlStatements($sql) as $s) {
-                Database::statement($s);
-            }
-            return true;
-        } catch (Throwable $e) {
-            return false;
-        }
-    }
-
     // ---------- 目录/文件工具 ----------
 
     private static function ensureDir(string $relPath): void
@@ -787,15 +688,6 @@ final class UpdateService
         if (count($dirs) <= $keep) return;
         rsort($dirs, SORT_STRING);
         foreach (array_slice($dirs, $keep) as $d) self::removeDir($d);
-    }
-
-    private static function keepRecentFiles(string $parentAbs, int $keep): void
-    {
-        if (!is_dir($parentAbs)) return;
-        $files = array_filter(glob($parentAbs . '/*') ?: [], 'is_file');
-        if (count($files) <= $keep) return;
-        rsort($files, SORT_STRING);
-        foreach (array_slice($files, $keep) as $f) @unlink($f);
     }
 
     private static function writeLock(): void

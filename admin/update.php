@@ -11,7 +11,7 @@ require __DIR__ . '/global.php';
  *   → apply → migrate → finalize 的顺序调度；任一步失败均可调 rollback 收尾。
  *
  * 每步独立返回 JSON，后端不记状态——让前端持有"当前到哪一步"的数据（zip path /
- * extract path / backup path / db dump path），避免会话依赖。
+ * extract path / backup path），避免会话依赖。
  *
  * 动作（_action）：
  *   preflight   —— 预检环境
@@ -19,7 +19,7 @@ require __DIR__ . '/global.php';
  *   extract     —— 解压（返回 extract_path）
  *   backup      —— 备份将被替换的文件（返回 backup_path）
  *   apply       —— 覆盖文件（返回 manifest_file；失败自动回滚）
- *   migrate     —— 跑 install/migrations 新增 SQL（失败返回 db_dump 路径供回滚）
+ *   migrate     —— 跑 install/migrations 新增 SQL
  *   finalize    —— 成功收尾，清临时文件
  *   rollback    —— 手动回滚（用户在 migrate 失败时触发）
  */
@@ -110,9 +110,7 @@ try {
 
         // ------------------------------------------------------------
         case 'rollback': {
-            $restoreDb = (string) Input::post('restore_db', '0') === '1';
-            $dbDump    = (string) Input::post('db_dump', '');
-            $res = UpdateService::rollback($restoreDb, $dbDump);
+            $res = UpdateService::rollback();
             Response::success('回滚完成', $res + ['csrf_token' => Csrf::refresh()]);
         }
 

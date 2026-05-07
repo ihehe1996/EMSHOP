@@ -1500,7 +1500,7 @@ $(function () {
         ];
 
         // 各步之间需要传递的路径，保存在前端，服务端不记状态
-        var state = { zip_path: '', extract_path: '', backup_path: '', manifest_file: '', db_dump: '' };
+        var state = { zip_path: '', extract_path: '', backup_path: '', manifest_file: '' };
 
         function formatBytes(bytes) {
             if (!bytes) return '-';
@@ -1632,11 +1632,8 @@ $(function () {
                 setStep('migrate', 'running', '运行数据库迁移…');
                 return callStep('migrate').then(function (res) {
                     if (res.code !== 200) {
-                        // migrate 失败：服务端会返回 db_dump 路径
-                        if (res.data && res.data.db_dump) state.db_dump = res.data.db_dump;
                         throw new Error(res.msg || '数据库迁移失败');
                     }
-                    if (res.data.db_dump) state.db_dump = res.data.db_dump;
                     if (res.data.applied && res.data.applied.length > 0) {
                         setStep('migrate', 'done', '执行 ' + res.data.applied.length + ' 个脚本');
                         res.data.applied.forEach(function (f) { log('  ✓ ' + f, 'ok'); });
@@ -1690,18 +1687,12 @@ $(function () {
         });
         $(document).on('click.dashWizard', '#dashWizardRollback', function () {
             var $btn = $(this);
-            var needDb = !!state.db_dump;
             layui.layer.confirm(
-                needDb
-                    ? '确定回滚到升级前的状态吗？将同时恢复文件和数据库表结构。'
-                    : '确定回滚文件到升级前的状态吗？',
+                '确定回滚文件到升级前的状态吗？',
                 function (cidx) {
                     layui.layer.close(cidx);
                     $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 回滚中');
-                    callStep('rollback', {
-                        restore_db: needDb ? '1' : '0',
-                        db_dump: state.db_dump || ''
-                    }).then(function (res) {
+                    callStep('rollback').then(function (res) {
                         if (res.data && res.data.csrf_token) window.adminCsrfToken = res.data.csrf_token;
                         log('已回滚到升级前状态', 'ok');
                         $btn.hide();
