@@ -270,25 +270,44 @@ class GoodsModel
     {
         static $cached = null;
         if ($cached !== null) return $cached;
-
-        if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
-            @session_start();
-        }
-        $buyerId = (int) ($_SESSION['em_front_user']['id'] ?? 0);
-        if ($buyerId <= 0) return $cached = 1.0;
-
+        [, $buyerLevelId] = self::resolveBuyerIdentity();
+        if ($buyerLevelId <= 0) return $cached = 1.0;
         $row = Database::fetchOne(
-            'SELECT ul.`discount` AS d
-               FROM `' . Database::prefix() . 'user` u
-          LEFT JOIN `' . Database::prefix() . 'user_levels` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
-              WHERE u.`id` = ? LIMIT 1',
-            [$buyerId]
+            'SELECT `discount` AS d
+               FROM `' . Database::prefix() . 'user_levels`
+              WHERE `id` = ? AND `enabled` = \'y\'
+              LIMIT 1',
+            [$buyerLevelId]
         );
         $raw = (int) ($row['d'] ?? 0);
         if ($raw <= 0) return $cached = 1.0;
         $rate = ($raw / 1000000) / 10;        // 9.5 → 0.95
         if ($rate <= 0 || $rate > 1) $rate = 1.0;
         return $cached = $rate;
+    }
+
+    /**
+     * 当前登录买家身份（user_id + level_id）。
+     *
+     * @return array{0:int,1:int}
+     */
+    public static function resolveBuyerIdentity(): array
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+
+        if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
+            @session_start();
+        }
+        $buyerId = (int) ($_SESSION['em_front_user']['id'] ?? 0);
+        if ($buyerId <= 0) return $cached = [0, 0];
+
+        $row = Database::fetchOne(
+            'SELECT `level_id` FROM `' . Database::prefix() . 'user` WHERE `id` = ? LIMIT 1',
+            [$buyerId]
+        );
+        $levelId = (int) ($row['level_id'] ?? 0);
+        return $cached = [$buyerId, $levelId];
     }
 
     /**
@@ -546,6 +565,35 @@ class GoodsModel
         );
         if ($specs === []) return $specs;
 
+        [$buyerId, $buyerLevelId] = $applyFactor ? self::resolveBuyerIdentity() : [0, 0];
+        $specUserPriceMap = [];
+        $specLevelPriceMap = [];
+        if ($applyFactor && $buyerId > 0) {
+            $specIds = array_values(array_filter(array_map(static fn($s) => (int) ($s['id'] ?? 0), $specs), static fn($v) => $v > 0));
+            if ($specIds !== []) {
+                $placeholders = implode(',', array_fill(0, count($specIds), '?'));
+                $userRows = Database::query(
+                    "SELECT `spec_id`, `price` FROM " . Database::prefix() . "goods_price_user
+                      WHERE `user_id` = ? AND `spec_id` IN ({$placeholders})",
+                    array_merge([$buyerId], $specIds)
+                );
+                foreach ($userRows as $r) {
+                    $specUserPriceMap[(int) $r['spec_id']] = (int) $r['price'];
+                }
+
+                if ($buyerLevelId > 0) {
+                    $levelRows = Database::query(
+                        "SELECT `spec_id`, `price` FROM " . Database::prefix() . "goods_price_level
+                          WHERE `level_id` = ? AND `spec_id` IN ({$placeholders})",
+                        array_merge([$buyerLevelId], $specIds)
+                    );
+                    foreach ($levelRows as $r) {
+                        $specLevelPriceMap[(int) $r['spec_id']] = (int) $r['price'];
+                    }
+                }
+            }
+        }
+
         // 解析价格 factor（详细规则同 getById）
         // applyFactor=false 时直接置 1.0，让 DB 原值穿透返回（后台编辑面板需要这个）。
         $buyerDiscount = $applyFactor ? self::resolveBuyerDiscountRate() : 1.0;
@@ -578,17 +626,35 @@ class GoodsModel
         }
 
         foreach ($specs as &$spec) {
+            $specId = (int) ($spec['id'] ?? 0);
+            $basePriceRaw = (int) $spec['price'];
+            $resolvedPriceRaw = $basePriceRaw;
+            $hasFixedPersonalPrice = false;
+            if ($specId > 0 && isset($specUserPriceMap[$specId])) {
+                $resolvedPriceRaw = (int) $specUserPriceMap[$specId];
+                $hasFixedPersonalPrice = true;
+            } elseif ($specId > 0 && isset($specLevelPriceMap[$specId])) {
+                $resolvedPriceRaw = (int) $specLevelPriceMap[$specId];
+                $hasFixedPersonalPrice = true;
+            }
+
             // _base_price_raw 永远是主站原价（无任何调整），用于下单时算商户拿货 cost
-            $spec['_base_price_raw'] = (int) $spec['price'];
-            // price_raw 是应用 factor 后的成交价，下单时落 order_goods.price
-            $spec['price_raw'] = (int) round((int) $spec['price'] * $factor);
-            if ($factor !== 1.0) {
-                $spec['price'] = (int) round((int) $spec['price'] * $factor);
-                if (isset($spec['cost_price'])) {
-                    $spec['cost_price'] = (int) round((int) $spec['cost_price'] * $factor);
-                }
-                if (isset($spec['market_price'])) {
-                    $spec['market_price'] = (int) round((int) $spec['market_price'] * $factor);
+            $spec['_base_price_raw'] = $basePriceRaw;
+            if ($hasFixedPersonalPrice) {
+                // 用户专属价 / 等级价视为最终成交单价，不叠加折扣或店铺加价因子
+                $spec['price_raw'] = $resolvedPriceRaw;
+                $spec['price'] = $resolvedPriceRaw;
+            } else {
+                // price_raw 是应用 factor 后的成交价，下单时落 order_goods.price
+                $spec['price_raw'] = (int) round($resolvedPriceRaw * $factor);
+                if ($factor !== 1.0) {
+                    $spec['price'] = (int) round($resolvedPriceRaw * $factor);
+                    if (isset($spec['cost_price'])) {
+                        $spec['cost_price'] = (int) round((int) $spec['cost_price'] * $factor);
+                    }
+                    if (isset($spec['market_price'])) {
+                        $spec['market_price'] = (int) round((int) $spec['market_price'] * $factor);
+                    }
                 }
             }
             $spec['_shop_markup_rate'] = $markup;

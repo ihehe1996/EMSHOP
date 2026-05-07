@@ -263,10 +263,14 @@ abstract class BaseController
 
         $rows = Database::query($sql, $params);
         $list = [];
+        [$buyerId] = GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
             $minPrice = (float) GoodsModel::moneyFromDb($row['min_price']);
+            if ($buyerId > 0) {
+                $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
+            }
             $marketPrice = $row['default_market_price']
                 ? (float) GoodsModel::moneyFromDb($row['default_market_price'])
                 : null;
@@ -415,10 +419,14 @@ abstract class BaseController
 
         $rows = Database::query($sql, $params);
         $list = [];
+        [$buyerId] = GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
             $minPrice = (float) GoodsModel::moneyFromDb($row['min_price']);
+            if ($buyerId > 0) {
+                $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
+            }
             $marketPrice = $row['default_market_price']
                 ? (float) GoodsModel::moneyFromDb($row['default_market_price'])
                 : null;
@@ -555,6 +563,33 @@ abstract class BaseController
             [$merchantId]
         );
         return $cache[$merchantId] = (int) ($row['default_markup_rate'] ?? 1000);
+    }
+
+    /**
+     * 登录用户场景下，按规格成交价重算商品卡片展示最低价。
+     */
+    private function resolvePersonalizedMinPrice(int $goodsId, float $fallback): float
+    {
+        static $cache = [];
+        if (isset($cache[$goodsId])) {
+            return $cache[$goodsId];
+        }
+        $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+        if ($specs === []) {
+            return $cache[$goodsId] = $fallback;
+        }
+
+        $min = null;
+        foreach ($specs as $spec) {
+            $specPrice = (float) ($spec['price'] ?? 0);
+            if ($min === null || $specPrice < $min) {
+                $min = $specPrice;
+            }
+        }
+        if ($min === null) {
+            $min = $fallback;
+        }
+        return $cache[$goodsId] = $min;
     }
 
     /**
