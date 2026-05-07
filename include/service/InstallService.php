@@ -25,6 +25,7 @@ final class InstallService
             $prefix . 'config'
         ));
         $siteConfigSql = sprintf('INSERT INTO `%s` (`config_name`, `config_value`, `description`) VALUES (:config_name, :config_value, :description) ON DUPLICATE KEY UPDATE `config_value` = VALUES(`config_value`), `description` = VALUES(`description`)', $prefix . 'config');
+        $swooleVersionTs = (string) time();
         $defaultConfigs = [
             ['config_name' => 'sitename', 'config_value' => 'EMSHOP', 'description' => '站点名称'],
             ['config_name' => 'site_enabled', 'config_value' => '1', 'description' => '站点开启'],
@@ -67,6 +68,8 @@ final class InstallService
             ['config_name' => 'merchant_default_theme', 'config_value' => 'default', 'description' => '分站默认模板'],
             ['config_name' => 'active_template_pc', 'config_value' => 'default', 'description' => '主站 PC 启用模板'],
             ['config_name' => 'active_template_mobile', 'config_value' => 'default', 'description' => '主站手机启用模板'],
+            ['config_name' => 'local_swoole_file_version', 'config_value' => $swooleVersionTs, 'description' => '本地 Swoole 文件版本'],
+            ['config_name' => 'new_swoole_file_version', 'config_value' => $swooleVersionTs, 'description' => '最新 Swoole 文件版本'],
             ['config_name' => 'enabled_plugins', 'config_value' => 'tips,virtual_card', 'description' => '主站默认启用插件'],
         ];
         foreach ($defaultConfigs as $configRow) Database::execute($siteConfigSql, $configRow);
