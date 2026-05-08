@@ -76,7 +76,7 @@ $server = new Swoole\Http\Server(SW_HOST, SW_PORT);
 
 $server->set([
     'worker_num'      => 2,
-    'daemonize'       => true,
+    'daemonize'       => false,
     'pid_file'        => SW_PID_FILE,
     'log_file'        => SW_LOG_FILE,
     'log_level'       => SWOOLE_LOG_INFO,
