@@ -155,15 +155,6 @@ $metrics = [
         'month'     => $__toYuan($__m['revenue']),
     ],
     [
-        // 访问量 → 天蓝（流量）；暂无后端存储，先用测试数据（待接入真实 PV 统计时替换）
-        'key'       => 'visits',   'label' => '访问量',
-        'icon'      => 'fa-eye',    'color' => '#0ea5e9', 'soft' => '#ecfeff',
-        'unit'      => '',          'decimals' => 0,
-        'today'     => 1284,
-        'yesterday' => 1102,
-        'month'     => 28374,
-    ],
-    [
         // 订单量 → 玫红（订单/交易）
         'key'       => 'orders',   'label' => '订单量',
         'icon'      => 'fa-shopping-cart', 'color' => '#ec4899', 'soft' => '#fdf2f8',
