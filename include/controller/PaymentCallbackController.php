@@ -66,7 +66,7 @@ final class PaymentCallbackController
         if ($isLogged) {
             return $orderNo !== ''
                 ? ('/user/order_detail.php?order_no=' . urlencode($orderNo))
-                : '/user/order_detail.php';
+                : '/user/order.php';
         }
 
         return '/user/find_order.php';
