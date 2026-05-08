@@ -399,6 +399,16 @@ class OrderModel
 
         $order = self::getById($orderId);
         if (!$order) {
+            self::writeSystemLog(
+                'warning',
+                '订单状态流转失败',
+                '订单不存在，无法执行状态流转',
+                [
+                    'order_id' => $orderId,
+                    'target_status' => $newStatus,
+                    'reason' => 'order_not_found',
+                ]
+            );
             throw new RuntimeException('订单不存在');
         }
 
@@ -406,6 +416,17 @@ class OrderModel
         $allowed = self::STATUS_TRANSITIONS[$currentStatus] ?? [];
 
         if (!in_array($newStatus, $allowed, true)) {
+            self::writeSystemLog(
+                'warning',
+                '订单状态流转拒绝',
+                '当前状态不允许流转到目标状态',
+                [
+                    'order_id' => $orderId,
+                    'current_status' => $currentStatus,
+                    'target_status' => $newStatus,
+                    'allowed_statuses' => $allowed,
+                ]
+            );
             throw new RuntimeException("状态不允许从 {$currentStatus} 变更为 {$newStatus}");
         }
 
@@ -433,7 +454,8 @@ class OrderModel
         $params[] = $orderId;
 
         $sql = "UPDATE `" . self::$orderTable . "` SET " . implode(', ', $sets) . " WHERE id = ?";
-        $ok = Database::execute($sql, $params) > 0;
+        $affected = Database::execute($sql, $params);
+        $ok = $affected > 0;
 
         // 状态钩子：订单完成 → 触发结算；退款完成 → 倒扣
         // 商户订单走 MerchantLedgerService（并跳过主站推广返佣，见 RebateService::settleOrder）
@@ -457,9 +479,17 @@ class OrderModel
                     }
                 }
             } catch (Throwable $e) {
-                if (function_exists('log_message')) {
-                    log_message('warn', '[ledger] settle/revert fail order=' . $orderId . ' msg=' . $e->getMessage());
-                }
+                self::writeSystemLog(
+                    'warning',
+                    '订单结算/回滚失败',
+                    '状态变更成功，但后置结算或回滚失败',
+                    [
+                        'order_id' => $orderId,
+                        'status' => $newStatus,
+                        'merchant_id' => $merchantId,
+                        'error' => $e->getMessage(),
+                    ]
+                );
             }
         }
         return $ok;
@@ -579,6 +609,17 @@ class OrderModel
         try {
             self::changeStatus($orderId, 'delivering');
         } catch (Throwable $e) {
+            self::writeSystemLog(
+                'warning',
+                '订单进入发货中失败',
+                '触发发货时状态流转失败，订单保持原状态',
+                [
+                    'order_id' => $orderId,
+                    'from_status' => 'paid',
+                    'to_status' => 'delivering',
+                    'error' => $e->getMessage(),
+                ]
+            );
             return;
         }
 
@@ -699,7 +740,6 @@ class OrderModel
     {
         self::tables();
         $prefix = Database::prefix();
-
         $orderGoods = self::getOrderGoods($orderId);
         $allAutoDelivered = true;
         $hasManual = false;
@@ -734,7 +774,16 @@ class OrderModel
             self::changeStatus($orderId, 'delivered');
             self::changeStatus($orderId, 'completed');
         } catch (Throwable $e) {
-            // 忽略
+            self::writeSystemLog(
+                'warning',
+                '订单完结状态流转失败',
+                '发货完成后尝试流转 delivered/completed 失败，订单保持当前状态',
+                [
+                    'order_id' => $orderId,
+                    'target_statuses' => ['delivered', 'completed'],
+                    'error' => $e->getMessage(),
+                ]
+            );
         }
     }
 
