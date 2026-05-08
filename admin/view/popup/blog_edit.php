@@ -6,8 +6,8 @@ $csrfToken = Csrf::token();
 $isEdit = isset($article) && !empty($article);
 $placeholderImg = EM_CONFIG['placeholder_img'] ?? '/content/static/img/placeholder.png';
 $pageTitle = $isEdit ? '编辑文章' : '添加文章';
-$extraHead = '<link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">' . "\n";
-$extraHead .= '<script src="/content/static/lib/wangeditor/index.min.js"></script>';
+$extraHead = '<link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">' . "\n";
+$extraHead .= '<script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
