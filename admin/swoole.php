@@ -31,6 +31,19 @@ if (Request::isPost()) {
             Response::success('', $data);
             break;
 
+        case 'start':
+            if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+                Response::error('CSRF 校验失败');
+            }
+            if (swoolePidRunning()) {
+                Response::success('Swoole 已在运行', ['running' => true, 'csrf_token' => Csrf::refresh()]);
+            }
+            if (!swooleStartServer()) {
+                Response::error('启动失败，请检查权限或 PHP 禁用函数');
+            }
+            Response::success('启动命令已发送', ['running' => swoolePidRunning(), 'csrf_token' => Csrf::refresh()]);
+            break;
+
         case 'queue_recent':
             $result = swooleApiGetAny($swooleApiUrls, '/queue/recent');
             Response::success('', ['list' => $result['data'] ?? []]);
@@ -76,6 +89,37 @@ if ((string) Input::get('_popup', '') !== '') {
 </head>
 <body>
 <div class="swoole-popup-body"><?php include __DIR__ . '/view/swoole.php'; ?></div>
+</body>
+</html>
+    <?php
+    exit;
+}
+
+if ((string) Input::get('_guide', '') !== '') {
+    // 启动引导弹窗（iframe 嵌入）：用于未启动时的可视化教程说明。
+    ?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swoole 启动引导</title>
+    <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
+    <style>
+        html, body { margin: 0; padding: 0; background: #f5f7fb; color: #1f2937; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            line-height: 1.65;
+        }
+        .sw-guide {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 22px 22px 28px;
+        }
+    </style>
+</head>
+<body>
+<div class="sw-guide"><?php include __DIR__ . '/view/swoole_guide.php'; ?></div>
 </body>
 </html>
     <?php
@@ -237,4 +281,72 @@ function swooleReadPid(): int
         return 0;
     }
     return (int) trim((string) @file_get_contents($pidFile));
+}
+
+/**
+ * 启动 Swoole 服务（异步执行 php swoole/server.php start）。
+ */
+function swooleStartServer(): bool
+{
+    $script = EM_ROOT . '/swoole/server.php';
+    if (!is_file($script)) {
+        return false;
+    }
+    $phpBin = defined('PHP_BINARY') && PHP_BINARY !== '' ? PHP_BINARY : 'php';
+    $phpCmd = escapeshellarg($phpBin);
+    $scriptCmd = escapeshellarg($script);
+
+    if (PHP_OS_FAMILY === 'Windows') {
+        $cmd = 'start "" /B ' . $phpCmd . ' ' . $scriptCmd . ' start';
+    } else {
+        $cmd = $phpCmd . ' ' . $scriptCmd . ' start > /dev/null 2>&1 &';
+    }
+    if (!swooleExecBackground($cmd)) {
+        return false;
+    }
+
+    // 等待最多 2 秒让 pid 文件落盘，避免前端立即轮询时仍旧显示"未启动"。
+    for ($i = 0; $i < 10; $i++) {
+        usleep(200000);
+        if (swoolePidRunning()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * 后台执行系统命令（兼容禁用部分函数的环境）。
+ */
+function swooleExecBackground(string $command): bool
+{
+    if (function_exists('popen')) {
+        $handle = @popen($command, 'r');
+        if (is_resource($handle)) {
+            @pclose($handle);
+            return true;
+        }
+    }
+    if (function_exists('proc_open')) {
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $proc = @proc_open($command, $descriptors, $pipes);
+        if (is_resource($proc)) {
+            foreach ($pipes as $pipe) {
+                if (is_resource($pipe)) {
+                    @fclose($pipe);
+                }
+            }
+            @proc_close($proc);
+            return true;
+        }
+    }
+    if (function_exists('shell_exec')) {
+        @shell_exec($command);
+        return true;
+    }
+    return false;
 }

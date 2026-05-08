@@ -282,6 +282,32 @@ $calcRatio = static function (float $today, float $yesterday): array {
             </div>
         </div>
 
+        <!-- Swoole 监控卡：点击查看独立弹窗（iframe 加载 /admin/swoole.php?_popup=1）；大号字段显示服务运行状态 -->
+        <div class="dash-metric dash-metric--action" style="--m-color: #6366f1; --m-soft: #eef2ff;">
+            <div class="dash-metric__head">
+                <span class="dash-metric__icon"><i class="fa fa-tachometer"></i></span>
+                <span class="dash-metric__label">Swoole 监控</span>
+                <span class="dash-metric__official-tag">系统</span>
+            </div>
+            <div class="dash-metric__main">
+                <div class="dash-metric__value-row">
+                    <span class="dash-metric__today-value dash-sw-value" id="dashSwooleStatus">
+                        <i class="fa fa-spinner fa-spin" style="margin-right:6px;font-size:18px;color:#9ca3af;"></i>检测中
+                    </span>
+                    <button type="button" class="dash-sw-refresh is-loading" id="dashSwooleRefresh" title="刷新状态">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+                <div class="dash-metric__yesterday">查看服务状态 / 队列任务 / 定时任务</div>
+            </div>
+            <div class="dash-metric__month">
+                <span class="dash-metric__month-label" id="dashSwooleActionLabel">查看监控</span>
+                <button type="button" class="dash-version-btn" id="dashOpenSwooleBtn">
+                    <i class="fa fa-external-link"></i> 查看
+                </button>
+            </div>
+        </div>
+
         <?php foreach ($metrics as $m): ?>
         <?php
             $isEmpty = isset($m['empty']);
@@ -395,31 +421,6 @@ $calcRatio = static function (float $today, float $yesterday): array {
             </div>
         </div>
 
-        <!-- Swoole 监控卡：点击查看独立弹窗（iframe 加载 /admin/swoole.php?_popup=1）；大号字段显示服务运行状态 -->
-        <div class="dash-metric dash-metric--action" style="--m-color: #6366f1; --m-soft: #eef2ff;">
-            <div class="dash-metric__head">
-                <span class="dash-metric__icon"><i class="fa fa-tachometer"></i></span>
-                <span class="dash-metric__label">Swoole 监控</span>
-                <span class="dash-metric__official-tag">系统</span>
-            </div>
-            <div class="dash-metric__main">
-                <div class="dash-metric__value-row">
-                    <span class="dash-metric__today-value dash-sw-value" id="dashSwooleStatus">
-                        <i class="fa fa-spinner fa-spin" style="margin-right:6px;font-size:18px;color:#9ca3af;"></i>检测中
-                    </span>
-                    <button type="button" class="dash-sw-refresh is-loading" id="dashSwooleRefresh" title="刷新状态">
-                        <i class="fa fa-refresh"></i>
-                    </button>
-                </div>
-                <div class="dash-metric__yesterday">查看服务状态 / 队列任务 / 定时任务</div>
-            </div>
-            <div class="dash-metric__month">
-                <span class="dash-metric__month-label">查看监控</span>
-                <button type="button" class="dash-version-btn" id="dashOpenSwooleBtn">
-                    <i class="fa fa-external-link"></i> 查看
-                </button>
-            </div>
-        </div>
     </section>
 
     <!-- ================================ 官方公告 / 广告推广 ================================ -->
@@ -1796,7 +1797,26 @@ $(function () {
 
     // Swoole 监控卡：iframe 弹窗打开 /admin/swoole.php?_popup=1（在该入口会走精简渲染，不套后台框架）
     //   shadeClose:true → 点击遮罩关闭；keydown(Escape) → 按 Esc 关闭（layer 原生不支持，自己挂监听）
+    var dashSwooleRunning = null;
+    function dashSyncSwooleActionBtn() {
+        var $btn = $('#dashOpenSwooleBtn');
+        var $label = $('#dashSwooleActionLabel');
+        if (!$btn.length) return;
+        if (dashSwooleRunning === false) {
+            $label.text('启动引导');
+            $btn.html('<i class="fa fa-life-ring"></i> 引导');
+            $btn.attr('title', '查看 Swoole 启动教程');
+        } else {
+            $label.text('查看监控');
+            $btn.html('<i class="fa fa-external-link"></i> 查看');
+            $btn.attr('title', '打开 Swoole 监控');
+        }
+    }
     $('#dashOpenSwooleBtn').on('click', function () {
+        if (dashSwooleRunning === false) {
+            dashOpenSwooleGuide();
+            return;
+        }
         if (typeof layui === 'undefined' || !layui.layer) return;
         var layer = layui.layer;
         var idx = layer.open({
@@ -1816,9 +1836,34 @@ $(function () {
             if (e.key === 'Escape' || e.keyCode === 27) { layer.close(idx); }
         });
     });
+    dashSyncSwooleActionBtn();
 
     // Swoole 启动状态：调 /admin/swoole.php?_action=status，根据 running 切换卡片上的大号字段
     // 拉取失败（网络 / 后端报错）显示"检测失败"并着红色，区别于"真的未启动"
+    // 未启动时自动弹启动引导（每次进入页面检测到未启动都提示）。
+    function dashOpenSwooleGuide() {
+        if (typeof layui === 'undefined' || !layui.layer) return;
+        var layer = layui.layer;
+        var idx = layer.open({
+            type: 2,
+            title: '<i class="fa fa-exclamation-triangle" style="margin-right:6px;color:#f59e0b;"></i> Swoole 启动引导',
+            skin: 'admin-modal',
+            maxmin: true,
+            area: [
+                window.innerWidth >= 1280 ? '980px' : '94%',
+                window.innerHeight >= 760 ? '760px' : '90%'
+            ],
+            shadeClose: true,
+            content: '/admin/swoole.php?_guide=1',
+            end: function () { $(document).off('keydown.dashSwooleGuideEsc'); }
+        });
+        $(document).off('keydown.dashSwooleGuideEsc').on('keydown.dashSwooleGuideEsc', function (e) {
+            if (e.key === 'Escape' || e.keyCode === 27) { layer.close(idx); }
+        });
+    }
+    function dashMaybeOpenSwooleGuide() {
+        dashOpenSwooleGuide();
+    }
     function dashFetchSwooleStatus() {
         var $v = $('#dashSwooleStatus');
         var $btn = $('#dashSwooleRefresh');
@@ -1842,12 +1887,19 @@ $(function () {
                 window.adminCsrfToken = res.data.csrf_token;
             }
             var running = !!(res && res.data && res.data.running);
+            dashSwooleRunning = running;
             $v.removeClass('dash-sw-running dash-sw-stopped dash-sw-error')
               .addClass(running ? 'dash-sw-running' : 'dash-sw-stopped')
               .text(running ? '启动中' : '未启动');
+            dashSyncSwooleActionBtn();
+            if (!running) {
+                dashMaybeOpenSwooleGuide();
+            }
         }).fail(function () {
+            dashSwooleRunning = null;
             $v.removeClass('dash-sw-running dash-sw-stopped').addClass('dash-sw-error')
               .html('<i class="fa fa-exclamation-circle" style="margin-right:6px;font-size:18px;"></i>检测失败');
+            dashSyncSwooleActionBtn();
         }).always(function () {
             $btn.prop('disabled', false).removeClass('is-loading');
         });
