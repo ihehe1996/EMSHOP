@@ -1124,7 +1124,7 @@ final class InstallService
                 `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 `deleted_at` DATETIME DEFAULT NULL,
                 `default_markup_rate` INT NOT NULL DEFAULT 1000 COMMENT \'默认加价率（万分位；1000=10%%）\',
-                `enabled_plugins` TEXT NOT NULL,
+                `enabled_plugins` TEXT NULL DEFAULT NULL COMMENT \'商户启用插件 slug（逗号分隔；空/NULL 表示未配置）\',
                 `active_template_pc` VARCHAR(64) NOT NULL DEFAULT \'\',
                 `active_template_mobile` VARCHAR(64) NOT NULL DEFAULT \'\',
                 PRIMARY KEY (`id`),
