@@ -62,25 +62,9 @@ function installer_config_writable(): bool
     return is_writable(EM_ROOT);
 }
 
-/**
- * 生成/读取安装向导 CSRF token。
- */
-function installer_csrf_token(): string
-{
-    if (!isset($_SESSION['__em_installer_csrf']) || !is_string($_SESSION['__em_installer_csrf']) || $_SESSION['__em_installer_csrf'] === '') {
-        $_SESSION['__em_installer_csrf'] = bin2hex(random_bytes(16));
-    }
-    return (string) $_SESSION['__em_installer_csrf'];
-}
 
-function installer_require_csrf(): void
-{
-    $posted = $_POST['csrf'] ?? '';
-    $expected = $_SESSION['__em_installer_csrf'] ?? '';
-    if (!is_string($posted) || !is_string($expected) || $posted === '' || $expected === '' || !hash_equals($expected, $posted)) {
-        Response::error('请求校验失败，请刷新页面重试');
-    }
-}
+
+
 
 function installer_is_ajax_request(): bool
 {
@@ -366,7 +350,7 @@ PHP;
  */
 function installer_render(array $messages, array $defaults): void
 {
-    $csrf = installer_csrf_token();
+
     $phpOk = PHP_VERSION_ID >= 70400;
     $hasMysqli = extension_loaded('mysqli');
     $hasPdo = extension_loaded('pdo_mysql');
@@ -628,7 +612,6 @@ function installer_render(array $messages, array $defaults): void
 
         <div class="card">
             <form id="installForm" method="post" action="?action=install">
-                <input type="hidden" name="csrf" value="<?php echo htmlspecialchars($csrf); ?>">
 
                 <div class="section">
                     <div class="sectionH">
@@ -849,7 +832,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Response::error('非法请求');
 }
 
-installer_require_csrf();
 
 $mode = (string) ($_POST['mode'] ?? 'test');
 $db = $_POST['db'] ?? [];
