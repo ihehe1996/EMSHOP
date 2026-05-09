@@ -264,10 +264,12 @@ function swoolePidRunning(): bool
         return @posix_kill($pid, 0);
     }
 
+
     // 某些 FPM 环境未启用 posix 扩展，Linux 下退化为 /proc 检查。
     if (PHP_OS_FAMILY === 'Linux') {
         return is_dir('/proc/' . $pid);
     }
+
     return false;
 }
 

@@ -33,23 +33,34 @@ define('SW_QUEUE_INTERVAL', 2);
 define('SW_TIMER_INTERVAL', 60);
 define('SW_HEARTBEAT_INTERVAL', 5);
 
+/**
+ * 服务生命周期与异常日志（中文），追加写入 swoole.log。
+ */
+function swooleServiceLog(string $message): void
+{
+    $line = '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
+    @file_put_contents(SW_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
+}
+
 switch ($command) {
     case 'stop':
         $pid = getPid(SW_PID_FILE);
         if ($pid && posix_kill($pid, 0)) {
             posix_kill($pid, SIGTERM);
-            echo "Swoole server stopped (PID: {$pid})\n";
+            swooleServiceLog("停止：已向主进程发送退出信号（PID {$pid}）");
+            echo "已向主进程发送停止信号（PID {$pid}），服务即将退出。\n";
         } else {
-            echo "Swoole server is not running\n";
+            swooleServiceLog('停止：当前没有正在运行的 Swoole 主进程');
+            echo "当前没有正在运行的 Swoole 服务。\n";
         }
         exit(0);
 
     case 'status':
         $pid = getPid(SW_PID_FILE);
         if ($pid && posix_kill($pid, 0)) {
-            echo "Swoole server is running (PID: {$pid})\n";
+            echo "Swoole 服务正在运行（主进程 PID：{$pid}）\n";
         } else {
-            echo "Swoole server is not running\n";
+            echo "Swoole 服务未在运行。\n";
         }
         exit(0);
 
@@ -57,9 +68,11 @@ switch ($command) {
         $pid = getPid(SW_PID_FILE);
         if ($pid && posix_kill($pid, 0)) {
             posix_kill($pid, SIGUSR1);
-            echo "Swoole server reload signal sent (PID: {$pid})\n";
+            swooleServiceLog("重载：已向主进程发送平滑重载信号（SIGUSR1，PID {$pid}）");
+            echo "已发送平滑重载信号（PID {$pid}）。\n";
         } else {
-            echo "Swoole server is not running, cannot reload\n";
+            swooleServiceLog('重载失败：没有正在运行的主进程，无法重载');
+            echo "服务未在运行，无法重载。\n";
             exit(1);
         }
         exit(0);
@@ -68,18 +81,24 @@ switch ($command) {
         break;
 
     default:
-        echo "Usage: php server.php {start|stop|status|reload}\n";
+        echo "用法：php server.php {start|stop|status|reload}\n";
         exit(1);
 }
 
-$server = new Swoole\Http\Server(SW_HOST, SW_PORT);
+try {
+    $server = new Swoole\Http\Server(SW_HOST, SW_PORT);
+} catch (Throwable $e) {
+    swooleServiceLog('启动失败：无法创建监听，' . $e->getMessage());
+    fwrite(STDERR, '启动失败：' . $e->getMessage() . "\n");
+    exit(1);
+}
 
 $server->set([
     'worker_num'      => 2,
     'daemonize'       => false,
     'pid_file'        => SW_PID_FILE,
     'log_file'        => SW_LOG_FILE,
-    'log_level'       => SWOOLE_LOG_INFO,
+    'log_level'       => SWOOLE_LOG_ERROR,
     'reload_async'    => true,
     'max_wait_time'   => 20,
 ]);
@@ -96,9 +115,13 @@ $stats = [
 ];
 
 $server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
-    echo "EMSHOP Swoole Server started at " . SW_HOST . ":" . SW_PORT . "\n";
-    echo "PID: {$server->master_pid}\n";
+    swooleServiceLog("启动：服务已开始监听 " . SW_HOST . ':' . SW_PORT . '，主进程 PID ' . $server->master_pid);
+    echo "Swoole 已启动，监听 " . SW_HOST . ':' . SW_PORT . "，主进程 PID {$server->master_pid}\n";
     $startTime = time();
+});
+
+$server->on('Shutdown', function () {
+    swooleServiceLog('关闭：Swoole 主进程已退出');
 });
 
 $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$stats) {
@@ -127,72 +150,50 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
     try {
         doAction('swoole_worker_start', $server, $workerId);
     } catch (Throwable $e) {
-        error_log('[Swoole Hook] swoole_worker_start: ' . $e->getMessage());
+        swooleServiceLog('异常：Worker 启动钩子 swoole_worker_start 执行失败，' . $e->getMessage());
     }
 
     Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () use (&$stats) {
         try {
             processQueue($stats);
         } catch (Throwable $e) {
-            error_log("[Queue Error] " . $e->getMessage());
+            swooleServiceLog('异常：发货队列处理失败，' . $e->getMessage());
         }
     });
 
     // 每分钟执行主定时任务（订单超时 + 订单轮询）并检查代码版本
     Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use (&$stats, $server, $bootCodeVersion) {
-        $startedAt = microtime(true);
-        error_log('[Timer][main] tick start');
         try {
             Config::reload();
             if (runSwooleFileVersionReloadCheck($server)) {
-                $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-                error_log("[Timer][main] tick end by file-version reload, elapsed={$elapsedMs}ms");
                 return;
             }
             $current = (string) (Config::get('swoole_code_version') ?? '');
             if ($current !== '' && $current !== $bootCodeVersion) {
-                error_log("[Swoole] code version changed ({$bootCodeVersion} -> {$current}), reloading workers");
+                swooleServiceLog("重载：检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），已触发 Worker 平滑重载");
                 $server->reload();
-                $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-                error_log("[Timer][main] tick end by code-version reload, elapsed={$elapsedMs}ms");
                 return;
             }
             runOrderTimeoutChecks($stats);
             runOrderPollingTasks($stats);
             $stats['timers_run']++;
-            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-            error_log("[Timer][main] tick end, elapsed={$elapsedMs}ms");
         } catch (Throwable $e) {
-            error_log("[Timer Error] " . $e->getMessage());
-            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-            error_log("[Timer][main] tick failed, elapsed={$elapsedMs}ms");
+            swooleServiceLog('异常：主定时任务执行失败，' . $e->getMessage());
         }
     });
 
     // 商品同步任务独立定时器，避免与其它任务串行阻塞
     Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use (&$stats) {
-        $startedAt = microtime(true);
-        error_log('[Timer][goods_sync] tick start');
         try {
             runGoodsSyncTasks($stats);
-            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-            error_log("[Timer][goods_sync] tick end, elapsed={$elapsedMs}ms");
         } catch (Throwable $e) {
-            error_log("[Goods Sync Timer Error] " . $e->getMessage());
-            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
-            error_log("[Timer][goods_sync] tick failed, elapsed={$elapsedMs}ms");
+            swooleServiceLog('异常：商品同步定时任务失败，' . $e->getMessage());
         }
     });
 
     Swoole\Timer::tick(SW_HEARTBEAT_INTERVAL * 1000, function () {
         @touch(SW_HEARTBEAT_FILE);
     });
-
-    echo "Worker #{$workerId} timers started\n";
-});
-
-$server->on('workerExit', function (Swoole\Http\Server $server, int $workerId) {
-    error_log("[Swoole] worker #{$workerId} exit (master_pid={$server->master_pid})");
 });
 
 // 监控 API（供后台页面调用）
@@ -264,7 +265,13 @@ $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Respo
     }
 });
 
-$server->start();
+try {
+    $server->start();
+} catch (Throwable $e) {
+    swooleServiceLog('启动失败：服务运行异常退出，' . $e->getMessage());
+    fwrite(STDERR, '启动失败：' . $e->getMessage() . "\n");
+    exit(1);
+}
 
 /**
  * 解析 Swoole 监听地址与端口。
@@ -490,9 +497,6 @@ function runOrderTimeoutChecks(array &$stats): void
         [$expireMinutes]
     );
 
-    if ($expired > 0) {
-        error_log("[Timer] Expired {$expired} orders");
-    }
     $stats['order_timeout_runs']++;
 }
 
@@ -504,7 +508,7 @@ function runGoodsSyncTasks(array &$stats): void
     try {
         doAction('swoole_goods_sync_tick');
     } catch (Throwable $e) {
-        error_log('[Timer Hook][goods_sync] ' . $e->getMessage());
+        swooleServiceLog('异常：商品同步钩子 swoole_goods_sync_tick，' . $e->getMessage());
     }
     $stats['goods_sync_runs']++;
 }
@@ -517,7 +521,7 @@ function runOrderPollingTasks(array &$stats): void
     try {
         doAction('swoole_order_poll_tick');
     } catch (Throwable $e) {
-        error_log('[Timer Hook][order_poll] ' . $e->getMessage());
+        swooleServiceLog('异常：订单轮询钩子 swoole_order_poll_tick，' . $e->getMessage());
     }
     $stats['order_poll_runs']++;
 }
@@ -536,10 +540,10 @@ function runSwooleFileVersionReloadCheck($server): bool
     }
 
     if (@version_compare($new, $local, '>')) {
-        error_log("[Swoole] file version upgrade {$local} -> {$new}, reloading workers");
+        swooleServiceLog("重载：检测到文件版本升级（自 {$local} 变更为 {$new}），正在触发 Worker 平滑重载");
         $reloaded = $server->reload();
         if (!$reloaded) {
-            error_log("[Swoole] reload failed for file version upgrade {$local} -> {$new}");
+            swooleServiceLog("异常：文件版本升级后触发重载失败（自 {$local} 变更为 {$new}）");
             return false;
         }
         Config::set('local_swoole_file_version', $new);
