@@ -144,6 +144,8 @@ function template_setting_view() {
         var form = layui.form;
         var element = layui.element;
         var csrfToken = '<?php echo Csrf::token(); ?>';
+        // 与弹窗 URL ?name= 一致，须为磁盘目录名（勿写死，否则 save_config 会报「磁盘上未找到该模板」）
+        var templateDirName = <?php echo json_encode((string) ($_GET['name'] ?? 'default'), JSON_UNESCAPED_UNICODE); ?>;
 
         // 幻灯片数据（商城 / 博客 分开）
         var slidesData = {
@@ -367,7 +369,7 @@ function template_setting_view() {
             // 追加商城/博客轮播图 JSON
             formData += '&slides_mall_json=' + encodeURIComponent(JSON.stringify(slidesData.mall));
             formData += '&slides_blog_json=' + encodeURIComponent(JSON.stringify(slidesData.blog));
-            formData += '&_action=save_config&name=test';
+            formData += '&_action=save_config&name=' + encodeURIComponent(templateDirName);
 
             // URL 由 popup header 注入到 iframe 自身 window（主站默认 /admin/template.php，商户覆盖为 /user/merchant/template.php）
             var __saveUrl = window.TEMPLATE_SAVE_URL || '/admin/template.php';

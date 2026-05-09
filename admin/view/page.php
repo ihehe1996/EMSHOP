@@ -141,8 +141,8 @@ $(function(){
                 {field: 'views_count', title: '阅读', width: 80, align: 'center'},
                 {field: 'sort', title: '排序', width: 80, align: 'center', sort: true},
                 {field: 'status', title: '状态', width: 110, templet: '#pageStatusTpl', align: 'center', unresize: true},
-                {field: 'updated_at', title: '更新时间', width: 150, templet: '#pageTimeTpl', align: 'center', sort: true},
-                {title: '操作', width: 260, align: 'center', toolbar: '#pageRowActionTpl'}
+                {field: 'updated_at', title: '更新时间', width: 130, templet: '#pageTimeTpl', align: 'center', sort: true},
+                {title: '操作', width: 340, align: 'center', toolbar: '#pageRowActionTpl'}
             ]],
             done: function (res) {
                 if (res.csrf_token) csrfToken = res.csrf_token;

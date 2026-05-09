@@ -514,7 +514,7 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
                 ['csrf_token' => Csrf::refresh(), 'market_id' => $result['market_id'], 'log_id' => $result['log_id']]
             );
         } elseif ($type === 'plugin') {
-            // 磁盘 = 装,不再写 DB 行 —— enable 时会 lazy-create + 触发 callback_init
+            // 磁盘 = 装,不再写 DB 行 —— 插件管理页 enable 时会触发 callback_init
             // 这里只校验磁盘文件就绪
             if (!is_file($targetDir . '/' . $name . '.php')) {
                 Response::error('插件主文件缺失：' . $name . '.php');

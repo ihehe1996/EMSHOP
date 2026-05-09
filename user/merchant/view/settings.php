@@ -294,8 +294,9 @@ $domainVerified = (int) ($currentMerchant['domain_verified'] ?? 0) === 1;
 </style>
 
 <!-- WangEditor 资源（PJAX 切回时浏览器复用缓存）-->
-<link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">
-<script src="/content/static/lib/wangeditor/index.min.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">
+<script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
 
 <script>
 $(function(){

@@ -5,8 +5,8 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $isEdit = isset($pageRow) && !empty($pageRow);
 $pageTitle = $isEdit ? '编辑页面' : '添加页面';
-$extraHead = '<link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">' . "\n";
-$extraHead .= '<script src="/content/static/lib/wangeditor/index.min.js"></script>';
+$extraHead = '<link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">' . "\n";
+$extraHead .= '<script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };

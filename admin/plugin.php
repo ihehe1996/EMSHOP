@@ -28,9 +28,7 @@ $isPopup   = Input::get('_popup', '') === '1';
 // ============================================================
 if (Request::isPost()) {
     try {
-        if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
-            Response::error('请求已失效,请刷新页面后重试');
-        }
+        
 
         $action = (string) Input::post('_action', '');
 
@@ -93,11 +91,18 @@ if (Request::isPost()) {
         }
 
         switch ($action) {
-            // 启用 —— 加入 enabled_plugins 列表
-            // 不再做"首次启用"判断,callback_init 由插件作者保证幂等(CREATE TABLE IF NOT EXISTS 之类)
+            // 启用 —— 每次启用都触发 callback_init，再加入 enabled_plugins 列表
+            // callback_init 由插件作者保证幂等(CREATE TABLE IF NOT EXISTS 之类)
             case 'enable': {
                 if (!$model->existsOnDisk($name)) Response::error('磁盘上未找到该插件');
                 if ($model->isEnabled($name, $scope)) Response::error('该插件已经是启用状态');
+
+                // 触发插件 callback_init 初始化私有数据(建表/资源等)
+                $callbackFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_callback.php';
+                if (is_file($callbackFile)) {
+                    include_once $callbackFile;
+                    if (function_exists('callback_init')) call_user_func('callback_init');
+                }
 
                 $model->enable($name, $scope);
                 Response::success('插件已启用', ['csrf_token' => Csrf::refresh()]);
