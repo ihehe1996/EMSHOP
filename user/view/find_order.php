@@ -140,6 +140,7 @@ $showOrderNoTab = ($contactOn || $passwordOn);
  * 不要把 handler 直接绑到 .find-order-tab 等元素上（DOM 替换后旧绑定会丢失，新元素拿不到事件）
  */
 (function () {
+    window.findOrderCsrfToken = <?= json_encode(Csrf::token(), JSON_UNESCAPED_UNICODE) ?>;
     var currentTab = <?= json_encode($currentTab) ?>;
     var guestToken = <?= json_encode($guestToken ?: '') ?>;
     var currencySymbol = <?= json_encode($currencySymbol) ?>;
@@ -203,7 +204,7 @@ $showOrderNoTab = ($contactOn || $passwordOn);
                 $('#tokenLoading').hide();
                 $('#panelToken .find-order-hint').hide();
                 if (res.code === 200 && res.data && res.data.length > 0) {
-                    GuestFind.renderResults(res.data, { autoScroll: false });
+                    GuestFind.renderResults(res.data, { autoScroll: false, meta: res.meta });
                 } else {
                     $('#panelToken').append(
                         '<div class="find-order-empty">未找到浏览器订单记录<br>'

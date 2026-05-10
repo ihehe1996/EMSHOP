@@ -28,6 +28,7 @@
 var GuestFind = (function () {
     var opts = {};
     var $doc = $(document);
+    var global = typeof window !== 'undefined' ? window : this;
 
     // 订单状态映射
     var STATUS_MAP = {
@@ -64,11 +65,17 @@ var GuestFind = (function () {
         for (var i = 0; i < orders.length; i++) {
             var order = orders[i];
             var statusInfo = STATUS_MAP[order.status] || [order.status, '#999'];
+            var awaitingAsync = order.status === 'paid' || order.status === 'delivering';
+            var statusCls = 'find-order-status' + (awaitingAsync ? ' find-order-status--awaiting' : '');
 
             html += '<div class="find-order-item">';
             html += '<div class="find-order-item-header">';
             html += '<span class="find-order-no">订单号：' + escHtml(order.order_no) + '</span>';
-            html += '<span class="find-order-status" style="background:' + statusInfo[1] + '20;color:' + statusInfo[1] + ';">' + statusInfo[0] + '</span>';
+            html += '<span class="' + statusCls + '" style="background:' + statusInfo[1] + '20;color:' + statusInfo[1] + ';">';
+            if (awaitingAsync) {
+                html += '<i class="fa fa-spinner fa-spin find-order-status__spin" aria-hidden="true"></i> ';
+            }
+            html += statusInfo[0] + '</span>';
             html += '</div>';
 
             if (order.order_goods && order.order_goods.length > 0) {
@@ -117,6 +124,21 @@ var GuestFind = (function () {
             $('html,body').animate({ scrollTop: $('#findOrderResults').offset().top - 20 }, 300);
         }
 
+        if (global.EMSOrderPoll && options.meta && options.meta.pending_delivery_hash
+            && options.meta.pending_delivery_hash !== 'empty'
+            && options.meta.poll_order_nos && options.meta.poll_order_nos.length) {
+            var csrfTok = (typeof global.findOrderCsrfToken === 'string' && global.findOrderCsrfToken)
+                ? global.findOrderCsrfToken : '';
+            if (csrfTok) {
+                global.EMSOrderPoll.stopFindSnapshot();
+                global.EMSOrderPoll.startFindSnapshot({
+                    orderNos: options.meta.poll_order_nos,
+                    csrfToken: csrfTok,
+                    initialHash: options.meta.pending_delivery_hash
+                });
+            }
+        }
+
         // 页面级回调
         if (opts.onQuerySuccess) {
             opts.onQuerySuccess(orders);
@@ -140,9 +162,11 @@ var GuestFind = (function () {
             $btn.prop('disabled', false).html(origHtml);
             if (res.code === 200) {
                 if (opts.onSubmitOrder) {
-                    opts.onSubmitOrder(res.data, renderResults);
+                    opts.onSubmitOrder(res.data, function (data, ropt) {
+                        renderResults(data, ropt || { meta: res.meta });
+                    }, res.meta);
                 } else {
-                    renderResults(res.data);
+                    renderResults(res.data, { meta: res.meta });
                 }
             } else {
                 // onError：让页面有机会在错误时刷新 captcha 等 UI 状态

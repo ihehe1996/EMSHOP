@@ -18,6 +18,8 @@ $siteLogo     = (string) (Config::get('site_logo') ?? '');
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+    <!-- 须在 PJAX 片段内联脚本之前加载：pjax 会延后执行片段中的 script[src]，导致订单列表/详情里 startList/startDetail 抢跑失败 -->
+    <script src="/user/static/js/order_delivery_poll.js"></script>
 </head>
 <body>
 
@@ -214,14 +216,59 @@ window.userCsrfToken = <?= json_encode($csrfToken) ?>;
     var $loading = $('#ucLoading');
     $(document).on('pjax:send', function () {
         $loading.addClass('is-active');
+        if (window.EMSOrderPoll) {
+            window.EMSOrderPoll.stopDetail();
+            window.EMSOrderPoll.stopList();
+            window.EMSOrderPoll.stopFindSnapshot();
+        }
     });
     $(document).on('pjax:complete pjax:error', function () {
         $loading.removeClass('is-active');
     });
 
-    // PJAX 完成后更新侧边栏高亮
+    /**
+     * 订单列表 / 详情轮询：不依赖 PJAX 片段里的内联 script（jQuery .html() 可能不执行其中脚本）。
+     * pjax:send 已 stopDetail/stopList，此处按 #userContent 内 data 标记重新启动。
+     */
+    function syncOrderDeliveryPoll() {
+        if (typeof window.EMSOrderPoll === 'undefined') return;
+        window.EMSOrderPoll.stopDetail();
+        window.EMSOrderPoll.stopList();
+        window.EMSOrderPoll.stopFindSnapshot();
+
+        var $c = $('#userContent');
+        if (!$c.length) return;
+
+        var $detailMeta = $c.find('.uc-ems-poll-root[data-ems-order-detail="1"]');
+        if ($detailMeta.length && $detailMeta.attr('data-awaiting') === '1' && window.userCsrfToken) {
+            window.EMSOrderPoll.startDetail({
+                orderNo: $detailMeta.attr('data-order-no') || '',
+                csrfToken: window.userCsrfToken,
+                initialStatus: $detailMeta.attr('data-order-status') || ''
+            });
+            return;
+        }
+
+        var $listPage = $c.children('.uc-page[data-ems-order-list="1"]');
+        if (!$listPage.length) {
+            $listPage = $c.find('.uc-page[data-ems-order-list="1"]').first();
+        }
+        if ($listPage.length && window.userCsrfToken) {
+            var h = $listPage.attr('data-ems-pending-hash');
+            window.EMSOrderPoll.startList({
+                csrfToken: window.userCsrfToken,
+                initialHash: h !== undefined && h !== '' ? h : 'empty'
+            });
+        }
+    }
+
     $(document).on('pjax:success', function (e, data, status, xhr, options) {
         updateNavActive(options.url);
+        syncOrderDeliveryPoll();
+    });
+
+    $(function () {
+        syncOrderDeliveryPoll();
     });
 
     // 侧边栏高亮

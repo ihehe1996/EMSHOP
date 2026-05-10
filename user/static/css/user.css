@@ -1361,6 +1361,32 @@ a { color: inherit; text-decoration: none; }
 .uc-header-user__item--danger:hover i.fa { color: #e11d48; }
 .uc-header-user__divider { height: 1px; background: #f0f0f0; margin: 4px 6px; }
 
+/* 异步发货（Swoole 队列）：仅列表角标 .uc-order-status，勿与详情 .uc-order-status-card 共用 modifier */
+.uc-order-status.uc-order-status--awaiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.uc-order-status-spin {
+    font-size: 12px;
+    opacity: 0.95;
+}
+.uc-order-status-card.uc-order-status--awaiting .uc-order-status-icon {
+    color: #6366f1;
+}
+.uc-order-status-live {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 8px;
+    color: #22c55e;
+    vertical-align: middle;
+    animation: ucOrderPulse 1.2s ease-in-out infinite;
+}
+@keyframes ucOrderPulse {
+    0%, 100% { opacity: 0.35; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1); }
+}
+
 /* 响应式：小屏隐藏用户名文字，仅留头像 */
 @media (max-width: 640px) {
     .uc-header--v2 .uc-header-title { display: none; }

@@ -17,8 +17,9 @@ $statusColorMap = [
     'refunded'   => ['已退款', '#52c41a', '#f6ffed'],
     'failed'     => ['失败',   '#f5222d', '#fff2f0'],
 ];
+$emsPendingHash = htmlspecialchars($pendingDeliveryHash ?? 'empty', ENT_QUOTES, 'UTF-8');
 ?>
-<div class="uc-page">
+<div class="uc-page" data-ems-order-list="1" data-ems-pending-hash="<?= $emsPendingHash ?>">
     <div class="uc-page-header">
         <h2 class="uc-page-title">我的订单</h2>
         <p class="uc-page-desc">查看您的全部订单记录</p>
@@ -41,6 +42,7 @@ $statusColorMap = [
         <?php
         $orderId = (int) $order['id'];
         $statusInfo = $statusColorMap[$order['status']] ?? [$order['status'], '#999', '#f5f5f5'];
+        $awaitAsyncList = in_array((string) $order['status'], ['paid', 'delivering'], true);
         $goodsItems = $orderGoodsMap[$orderId] ?? [];
         // 订单金额用快照（下单时的币种 + 汇率），历史稳定
         $orderDispCode = (string) ($order['display_currency_code'] ?? '');
@@ -55,7 +57,8 @@ $statusColorMap = [
                     <span class="uc-order-no">订单号：<?= htmlspecialchars($order['order_no']) ?></span>
                     <span class="uc-order-time"><?= htmlspecialchars(substr((string) $order['created_at'], 0, 19)) ?></span>
                 </div>
-                <span class="uc-order-status" style="color:<?= $statusInfo[1] ?>;background:<?= $statusInfo[2] ?>;">
+                <span class="uc-order-status<?= $awaitAsyncList ? ' uc-order-status--awaiting' : '' ?>" style="color:<?= $statusInfo[1] ?>;background:<?= $statusInfo[2] ?>;">
+                    <?php if ($awaitAsyncList): ?><i class="fa fa-spinner fa-spin uc-order-status-spin" aria-hidden="true"></i><?php endif; ?>
                     <?= htmlspecialchars($statusInfo[0]) ?>
                 </span>
             </div>
@@ -135,4 +138,5 @@ $statusColorMap = [
         <p>暂无订单记录</p>
     </div>
     <?php endif; ?>
+
 </div>

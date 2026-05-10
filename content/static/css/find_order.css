@@ -334,6 +334,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     font-size: 12px; font-weight: 500;
     border-radius: 11px;
 }
+.find-order-status--awaiting {
+    gap: 5px;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.18);
+}
+.find-order-status__spin {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.95;
+}
 /* 商品行：每个 goods 自身是一个浅灰小块，多个商品堆叠时
    行间距 + 独立背景能立刻区分出"这是 N 件不同商品"，不再糊成一坨 */
 .find-order-goods {
@@ -565,6 +574,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     word-break: break-all;
     max-height: 240px;
     overflow-y: auto;
+}
+
+/* 异步发货中：状态角标旁转圈 */
+.fo-status-pill--awaiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.fo-status-pill__spin {
+    font-size: 13px;
+    opacity: 0.9;
 }
 
 /* 备注 */

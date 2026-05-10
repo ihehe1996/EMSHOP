@@ -13,11 +13,19 @@ if (!defined('EM_ROOT')) {
     $orderDispRate = (int) ($order['display_rate'] ?? 0);
     ?>
 
+    <?php
+    $awaitAsyncDelivery = in_array((string) $order['status'], ['paid', 'delivering'], true);
+    ?>
+    <div class="uc-ems-poll-root" hidden data-ems-order-detail="1" data-awaiting="<?= $awaitAsyncDelivery ? '1' : '0' ?>"
+         data-order-no="<?= htmlspecialchars((string) $order['order_no'], ENT_QUOTES, 'UTF-8') ?>"
+         data-order-status="<?= htmlspecialchars((string) $order['status'], ENT_QUOTES, 'UTF-8') ?>"></div>
     <!-- 状态卡片 -->
-    <div class="uc-order-status-card <?= $isPaid ? 'uc-order-status--success' : '' ?>">
+    <div class="uc-order-status-card <?= $isPaid ? 'uc-order-status--success' : '' ?><?= $awaitAsyncDelivery ? ' uc-order-status--awaiting' : '' ?>">
         <div class="uc-order-status-icon">
             <?php if ($order['status'] === 'completed'): ?>
             <i class="fa fa-check-circle"></i>
+            <?php elseif ($awaitAsyncDelivery): ?>
+            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
             <?php elseif ($isPaid): ?>
             <i class="fa fa-truck"></i>
             <?php elseif ($order['status'] === 'pending'): ?>
@@ -27,7 +35,12 @@ if (!defined('EM_ROOT')) {
             <?php endif; ?>
         </div>
         <div class="uc-order-status-text">
-            <div class="uc-order-status-title"><?= $statusName ?></div>
+            <div class="uc-order-status-title">
+                <?= $statusName ?>
+                <?php if ($awaitAsyncDelivery): ?>
+                <span class="uc-order-status-live" title="发货处理中，将自动刷新"><i class="fa fa-circle"></i></span>
+                <?php endif; ?>
+            </div>
             <div class="uc-order-status-desc">
                 <?php if ($order['status'] === 'pending'): ?>
                 请尽快完成支付，超时订单将自动关闭
@@ -132,7 +145,7 @@ if (!defined('EM_ROOT')) {
     function copyDelivery(btn) {
         var text = btn.getAttribute('data-content');
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(function () { layui.layer.msg('已复制'); });
+            navigator.clipboard.writeText(text).then(function () { layer.msg('已复制'); });
         } else {
             var ta = document.createElement('textarea');
             ta.value = text;
@@ -141,7 +154,7 @@ if (!defined('EM_ROOT')) {
             ta.select();
             document.execCommand('copy');
             document.body.removeChild(ta);
-            layui.layer.msg('已复制');
+            layer.msg('已复制');
         }
     }
     </script>

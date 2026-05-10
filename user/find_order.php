@@ -220,7 +220,34 @@ if (Request::isPost()) {
         }
         $_SESSION['em_find_order_visible'] = $visible;
 
-        echo json_encode(['code' => 200, 'data' => $result], JSON_UNESCAPED_UNICODE);
+        // 查单结果列表轮询用：与 order_poll.php action=find_pending_snapshot 的 hash 算法一致
+        $pendingPairs = [];
+        $pollOrderNos = [];
+        foreach ($result as $r) {
+            $no = (string) ($r['order_no'] ?? '');
+            if ($no !== '') {
+                $pollOrderNos[] = $no;
+            }
+            $st = (string) ($r['status'] ?? '');
+            if ($no !== '' && in_array($st, ['paid', 'delivering'], true)) {
+                $pendingPairs[] = $no . '|' . $st;
+            }
+        }
+        sort($pendingPairs);
+        $pollOrderNos = array_values(array_unique($pollOrderNos));
+        if (count($pollOrderNos) > 50) {
+            $pollOrderNos = array_slice($pollOrderNos, 0, 50);
+        }
+        $pendingHash = $pendingPairs === [] ? 'empty' : md5(implode("\n", $pendingPairs));
+
+        echo json_encode([
+            'code' => 200,
+            'data' => $result,
+            'meta' => [
+                'pending_delivery_hash' => $pendingHash,
+                'poll_order_nos'        => $pollOrderNos,
+            ],
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     } catch (Throwable $e) {
         // 失败时给 captcha 模式补发一道新题（已 consume，不发新的会让用户误以为还能用旧值）
@@ -314,6 +341,7 @@ $statusMap = [
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+    <script src="/user/static/js/order_delivery_poll.js"></script>
     <script src="<?= $esc(theme_asset_url('guest_find.js', active_theme_name('test'))) ?>"></script>
 </head>
 <body>
@@ -338,6 +366,7 @@ $statusMap = [
 <main id="foContent" class="fo-wrap">
 <?php if ($detailOrder !== null):
     $st = $statusMap[$detailOrder['status']] ?? ['label' => $detailOrder['status'], 'color' => '#6b7280', 'bg' => '#f3f4f6'];
+    $detailAwaitAsync = in_array((string) ($detailOrder['status'] ?? ''), ['paid', 'delivering'], true);
 ?>
     <!-- 订单详情（GET ?order_no=xxx） -->
     <div class="fo-card fo-detail">
@@ -355,7 +384,10 @@ $statusMap = [
             </div>
             <div class="fo-detail__row">
                 <span class="fo-detail__label">订单状态</span>
-                <span class="fo-status-pill" style="color:<?= $st['color'] ?>;background:<?= $st['bg'] ?>;"><?= $esc($st['label']) ?></span>
+                <span class="fo-status-pill<?= $detailAwaitAsync ? ' fo-status-pill--awaiting' : '' ?>" style="color:<?= $st['color'] ?>;background:<?= $st['bg'] ?>;">
+                    <?php if ($detailAwaitAsync): ?><i class="fa fa-spinner fa-spin fo-status-pill__spin" aria-hidden="true"></i><?php endif; ?>
+                    <?= $esc($st['label']) ?>
+                </span>
             </div>
             <div class="fo-detail__row">
                 <span class="fo-detail__label">下单时间</span>
@@ -450,6 +482,18 @@ $statusMap = [
             <div class="fo-detail__remark"><?= $esc((string) $detailOrder['remark']) ?></div>
         </div>
         <?php endif; ?>
+
+        <script>
+        (function () {
+            if (typeof EMSOrderPoll === 'undefined') return;
+            EMSOrderPoll.stopDetail();
+            EMSOrderPoll.startDetail({
+                orderNo: <?= json_encode((string) ($detailOrder['order_no'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+                csrfToken: <?= json_encode(Csrf::token(), JSON_UNESCAPED_UNICODE) ?>,
+                initialStatus: <?= json_encode((string) ($detailOrder['status'] ?? ''), JSON_UNESCAPED_UNICODE) ?>
+            });
+        })();
+        </script>
     </div>
 <?php elseif ($detailDenied): ?>
     <!-- 拒绝直链访问：订单存在性故意不暴露，统一文案引导走查询入口 -->
@@ -497,7 +541,13 @@ $statusMap = [
         fragment: '#foContent', timeout: 8000, scrollTo: 0
     });
     var $loading = $('#foLoading');
-    $(document).on('pjax:send', function(){ $loading.addClass('is-active'); });
+    $(document).on('pjax:send', function () {
+        $loading.addClass('is-active');
+        if (window.EMSOrderPoll) {
+            window.EMSOrderPoll.stopDetail();
+            window.EMSOrderPoll.stopFindSnapshot();
+        }
+    });
     $(document).on('pjax:complete pjax:error', function(){ $loading.removeClass('is-active'); });
 })();
 </script>

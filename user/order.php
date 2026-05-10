@@ -109,6 +109,19 @@ foreach ($rows as $row) {
 }
 $statusCounts['all'] = $totalAll;
 
+// 异步发货轮询：全账号「待队列发货」订单快照（与 order_poll.php pending_snapshot 算法一致）
+$pendingSnapRows = Database::query(
+    "SELECT `order_no`, `status` FROM `{$prefix}order`
+     WHERE `user_id` = ? AND `status` IN ('paid','delivering')
+     ORDER BY `id` ASC",
+    [$userId]
+);
+$pendingSnapPairs = [];
+foreach ($pendingSnapRows as $r) {
+    $pendingSnapPairs[] = (string) ($r['order_no'] ?? '') . '|' . (string) ($r['status'] ?? '');
+}
+$pendingDeliveryHash = $pendingSnapPairs === [] ? 'empty' : md5(implode("\n", $pendingSnapPairs));
+
 if (Request::isPjax()) {
     echo '<div id="userContent" class="uc-content">';
     include __DIR__ . '/view/order.php';
