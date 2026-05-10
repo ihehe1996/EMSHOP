@@ -554,6 +554,8 @@ if (Request::isPost()) {
                     }
                     if (!$result) Response::error('保存失败，请检查是否填写了所有必填项');
 
+                    doAction('goods_save_before_process_specs', $goodsId, $goods_type);
+
                     // 处理规格（逻辑与主站 admin/goods_edit.php 一致）
                     $specsInput = $_POST['specs'] ?? [];
                     $prefix = Database::prefix();
@@ -787,6 +789,10 @@ if (Request::isPost()) {
                     Response::error('规格不存在或无权限');
                 }
                 $gid = (int) $specRow['goods_id'];
+                $blockMsg = applyFilter('goods_spec_before_remove', '', ['spec_id' => $specId, 'goods_id' => $gid]);
+                if (is_string($blockMsg) && $blockMsg !== '') {
+                    Response::error($blockMsg);
+                }
                 Database::execute("DELETE FROM " . Database::prefix() . "goods_spec WHERE id = ?", [$specId]);
                 Database::execute("DELETE FROM " . Database::prefix() . "goods_spec_combo WHERE spec_id = ?", [$specId]);
                 if ($gid > 0) GoodsModel::updatePriceStockCache($gid);

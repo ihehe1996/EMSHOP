@@ -60,6 +60,13 @@ if ($action === 'remove_spec') {
     $specRow = Database::query("SELECT goods_id FROM " . Database::prefix() . "goods_spec WHERE id = ? LIMIT 1", [$specId]);
     $goodsId = !empty($specRow) ? (int)$specRow[0]['goods_id'] : 0;
 
+    if ($goodsId > 0) {
+        $blockMsg = applyFilter('goods_spec_before_remove', '', ['spec_id' => $specId, 'goods_id' => $goodsId]);
+        if (is_string($blockMsg) && $blockMsg !== '') {
+            Response::error($blockMsg);
+        }
+    }
+
     // 物理删除规格，同步清除 combo 映射记录和规格级专属价（等级/用户）
     $result = Database::execute("DELETE FROM " . Database::prefix() . "goods_spec WHERE id = ?", [$specId]);
     Database::execute("DELETE FROM " . Database::prefix() . "goods_spec_combo WHERE spec_id = ?", [$specId]);
@@ -255,6 +262,9 @@ if ($action === 'save') {
         if (!$result) {
             Response::error('保存失败，请检查是否填写了所有必填项');
         }
+
+        // 插件可在处理规格前修正 $_POST（如对接商品强制规格名与库一致）；无挂载时为 no-op
+        doAction('goods_save_before_process_specs', $goodsId, $goods_type);
 
         // 处理规格（统一逻辑：通过"/"分隔自动识别多维规格）
         $specs = $_POST['specs'] ?? [];

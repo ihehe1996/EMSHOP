@@ -110,8 +110,14 @@ if (Request::isPost()) {
             }
 
             // 禁用 —— DB 行不存在 = no-op(本来就是默认禁用态)
+            // 若插件实现 callback_disable，则在禁用时触发（如刷新 Swoole 版本号）
             case 'disable': {
                 if (!$model->isEnabled($name, $scope)) Response::error('该插件已经是禁用状态');
+                $callbackFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_callback.php';
+                if (is_file($callbackFile)) {
+                    include_once $callbackFile;
+                    if (function_exists('callback_disable')) call_user_func('callback_disable');
+                }
                 $model->disable($name, $scope);
                 Response::success('插件已禁用', ['csrf_token' => Csrf::refresh()]);
                 break;

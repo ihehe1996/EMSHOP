@@ -294,6 +294,18 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
 
         if ($type === 'plugin' && !is_file($targetDir . '/' . $name . '.php')) Response::error('更新后插件主文件缺失：' . $name . '.php');
         if ($type === 'template' && !is_file($targetDir . '/header.php')) Response::error('更新后模板 header.php 缺失');
+
+        // 插件更新回调：用于版本升级后的数据迁移/兼容处理。
+        if ($type === 'plugin') {
+            $callbackFile = $targetDir . '/' . $name . '_callback.php';
+            if (is_file($callbackFile)) {
+                include_once $callbackFile;
+                if (function_exists('callback_update')) {
+                    call_user_func('callback_update');
+                }
+            }
+        }
+
         Response::success('更新完成：' . $name . ($version !== '' ? (' v' . $version) : ''), ['csrf_token' => Csrf::refresh()]);
     } catch (Throwable $e) {
         Response::error('更新异常：' . $e->getMessage());
