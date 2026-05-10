@@ -12,6 +12,9 @@ declare(strict_types=1);
  *   - 'merchant_{id}'  → merchant_id = {id}
  * 对插件作者透明 —— 同一份 setting.php 在不同端调用时自动读写对应商户的行。
  *
+ * 读策略：不在进程内做跨调用的持久缓存；每次 getValue()/getAll() 都会重新查询 options 表，
+ * 避免 Swoole 等长驻进程读到后台已更新但内存未失效的旧配置。（单例仍复用实例，仅避免重复建对象。）
+ *
  * @example
  * $storage = Storage::getInstance('tips');
  * $storage->setValue('api_key', 'hello');
@@ -24,7 +27,6 @@ final class Storage
     private string $scope;
     private int    $merchantId;
     private array  $data = [];
-    private bool   $loaded = false;
 
     /** @var array<string, self> */
     private static array $instances = [];
@@ -42,6 +44,41 @@ final class Storage
             self::$instances[$key] = new self($plugin, $scope);
         }
         return self::$instances[$key];
+    }
+
+    /**
+     * 按显式 scope 获取插件存储（不读 $GLOBALS）。
+     * 用于 CLI/Swoole 等无 HTTP 商户上下文、但需要读写指定商户配置的场景。
+     *
+     * @param string $scope 仅允许 main 或 merchant_{正整数}
+     */
+    public static function getInstanceForScope(string $plugin, string $scope): self
+    {
+        if ($plugin === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin)) {
+            throw new InvalidArgumentException('Invalid plugin name');
+        }
+        $scope = trim($scope);
+        if ($scope === '' || $scope === 'main') {
+            $scope = 'main';
+        } elseif (preg_match('/^merchant_(\d+)$/', $scope, $m)) {
+            $mid = (int) ($m[1] ?? 0);
+            $scope = $mid > 0 ? 'merchant_' . $mid : 'main';
+        } else {
+            $scope = 'main';
+        }
+        $key = $plugin . '@' . $scope;
+        if (!isset(self::$instances[$key])) {
+            self::$instances[$key] = new self($plugin, $scope);
+        }
+        return self::$instances[$key];
+    }
+
+    /**
+     * 兼容旧调用：已无跨请求缓存，此方法等价于清空本次内存快照。
+     */
+    public function reload(): void
+    {
+        $this->data = [];
     }
 
     private function __construct(string $plugin, string $scope)
@@ -87,8 +124,6 @@ final class Storage
      */
     public function setValue(string $key, $value): bool
     {
-        $this->ensureLoaded();
-
         if (is_array($value) || is_object($value)) {
             $value = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
@@ -115,7 +150,7 @@ final class Storage
             Database::execute($sql, ['plugin', $this->plugin, $this->merchantId, $key, (string) $value]);
         }
 
-        $this->data[$key] = (string) $value;
+        $this->data = [];
         return true;
     }
 
@@ -130,7 +165,7 @@ final class Storage
             $table
         );
         Database::execute($sql, ['plugin', $this->plugin, $this->merchantId, $key]);
-        unset($this->data[$key]);
+        $this->data = [];
         return true;
     }
 
@@ -164,15 +199,10 @@ final class Storage
     }
 
     /**
-     * 确保配置已加载(按当前 merchant_id 过滤)。
+     * 从数据库加载当前插件在本 scope 下的全部配置到内存快照（仅服务于当前这次读调用链）。
      */
     private function ensureLoaded(): void
     {
-        if ($this->loaded) {
-            return;
-        }
-
-        $this->loaded = true;
         $this->data = [];
 
         try {

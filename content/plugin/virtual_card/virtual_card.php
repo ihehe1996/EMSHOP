@@ -68,6 +68,59 @@ function virtualCardIsAutoDelivery(array $pluginData): bool
     return (string) $pluginData['auto_delivery'] !== '0';
 }
 
+/**
+ * 规范化出卡顺序配置值。
+ *
+ * @param mixed $value
+ */
+function virtualCardNormalizeIssueOrder($value, bool $allowInherit = false): string
+{
+    $order = strtolower(trim((string) $value));
+    if ($allowInherit && ($order === '' || $order === 'inherit')) {
+        return 'inherit';
+    }
+    $map = [
+        'old' => 'old',
+        'asc' => 'old',
+        'new' => 'new',
+        'desc' => 'new',
+        'random' => 'random',
+        'rand' => 'random',
+        'shuffle' => 'random',
+    ];
+    return $map[$order] ?? ($allowInherit ? 'inherit' : 'old');
+}
+
+/**
+ * 读取插件全局默认出卡顺序（插件设置页配置）。
+ *
+ * @param int $merchantId 订单所属商户；0 表示主站。与后台保存插件配置时的 Storage scope 一致。
+ */
+function virtualCardGetGlobalIssueOrder(int $merchantId = 0): string
+{
+    try {
+        $scope = $merchantId > 0 ? ('merchant_' . $merchantId) : 'main';
+        $storage = Storage::getInstanceForScope('virtual_card', $scope);
+        return virtualCardNormalizeIssueOrder($storage->getValue('card_issue_order'));
+    } catch (Throwable $e) {
+        return 'old';
+    }
+}
+
+/**
+ * 解析订单发货实际出卡顺序：商品类型配置优先，其次插件全局配置。
+ *
+ * @param int $merchantId 订单 em_order.merchant_id，用于读取对应 scope 下的插件全局配置
+ */
+function virtualCardResolveIssueOrder(array $pluginData, int $merchantId = 0): string
+{
+    $typeOrder = virtualCardNormalizeIssueOrder($pluginData['card_issue_order'] ?? 'inherit', true);
+    if ($typeOrder !== 'inherit') {
+        return $typeOrder;
+    }
+    return virtualCardGetGlobalIssueOrder($merchantId);
+}
+
 // ================================================================
 // 第一步：注册商品类型
 // ================================================================
@@ -134,6 +187,21 @@ addAction('goods_type_virtual_card_create_form', function ($goods = null) {
             开启后，用户付款成功自动从库存中发放卡密/账号
         </div>
     </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">出卡顺序</label>
+        <div class="layui-input-block">
+            <?php $issueOrder = virtualCardNormalizeIssueOrder($data['card_issue_order'] ?? 'inherit', true); ?>
+            <select name="plugin_data[card_issue_order]">
+                <option value="inherit" <?php echo $issueOrder === 'inherit' ? 'selected' : ''; ?>>继承插件配置（默认）</option>
+                <option value="old" <?php echo $issueOrder === 'old' ? 'selected' : ''; ?>>旧卡优先</option>
+                <option value="new" <?php echo $issueOrder === 'new' ? 'selected' : ''; ?>>新卡优先</option>
+                <option value="random" <?php echo $issueOrder === 'random' ? 'selected' : ''; ?>>随机出卡</option>
+            </select>
+        </div>
+        <div class="layui-form-mid" style="color:#909399;">
+            此处优先级高于插件全局配置；选择“继承插件配置”时，使用插件设置中的默认顺序
+        </div>
+    </div>
     <blockquote class="layui-elem-quote" style="margin:10px 15px;">
         请保存商品后在商品列表操作栏中点击库存按钮进行库存设置
     </blockquote>
@@ -157,6 +225,7 @@ addAction('goods_type_virtual_card_save', function ($goodsId, $postData) {
     $newData = array_merge($oldData, [
         'content_format' => $pluginData['content_format'] ?? 'card',
         'auto_delivery' => !empty($pluginData['auto_delivery']) ? 1 : 0,
+        'card_issue_order' => virtualCardNormalizeIssueOrder($pluginData['card_issue_order'] ?? 'inherit', true),
     ]);
 
     Database::update('goods', [
@@ -289,12 +358,22 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
     $goodsPluginData = json_decode($goods['plugin_data'] ?? '{}', true) ?: [];
     $autoDelivery = virtualCardIsAutoDelivery($goodsPluginData);
 
+    $orderRow = Database::fetchOne("SELECT merchant_id FROM {$prefix}order WHERE id = ? LIMIT 1", [$orderId]);
+    $merchantId = (int) ($orderRow['merchant_id'] ?? 0);
+    $issueOrder = virtualCardResolveIssueOrder($goodsPluginData, $merchantId);
+
     if ($autoDelivery) {
         // ===== 自动发货：从卡密库取卡密 =====
+        $orderBySql = 'id ASC';
+        if ($issueOrder === 'new') {
+            $orderBySql = 'id DESC';
+        } elseif ($issueOrder === 'random') {
+            $orderBySql = 'RAND()';
+        }
         $cards = Database::query(
             "SELECT id, card_no, card_pwd FROM {$prefix}goods_virtual_card
              WHERE goods_id = ? AND spec_id = ? AND status = 1
-             ORDER BY id ASC LIMIT {$qty}",
+             ORDER BY {$orderBySql} LIMIT {$qty}",
             [$goodsId, $specId]
         );
 
@@ -826,6 +905,7 @@ addAction('goods_type_virtual_card_switch_to', function ($goodsId) {
         $defaults = [
             'content_format' => $data['content_format'] ?? 'card',
             'auto_delivery' => $data['auto_delivery'] ?? 1,
+            'card_issue_order' => virtualCardNormalizeIssueOrder($data['card_issue_order'] ?? 'inherit', true),
         ];
         Database::update('goods', [
             'plugin_data' => json_encode($defaults, JSON_UNESCAPED_UNICODE),
