@@ -9,6 +9,8 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 
+require_once __DIR__ . '/inc_export_filename.php';
+
 $action = (string)($_GET['_action'] ?? '');
 
 // ================================================================
@@ -358,6 +360,11 @@ if ($action === 'card_export') {
         exit('商品ID不能为空');
     }
 
+    $goods = GoodsModel::getById($goodsId);
+    if (!$goods) {
+        exit('商品不存在');
+    }
+
     $status = $_GET['status'] ?? '';
     $conditions = ['goods_id = ?'];
     $params = [$goodsId];
@@ -369,27 +376,29 @@ if ($action === 'card_export') {
 
     $whereSql = 'WHERE ' . implode(' AND ', $conditions);
     $cards = Database::query(
-        "SELECT card_no, status, order_id, sold_at FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC",
+        "SELECT card_no, card_pwd FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC",
         $params
     );
 
-    $filename = 'cards_goods' . $goodsId . '_' . date('Ymd_His') . '.txt';
-    header('Content-Type: text/plain; charset=utf-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-    $statusLabels = [1 => '未售', 0 => '已售', 2 => '标记售出'];
-    $exportTime = date('Y-m-d H:i:s');
-    $output = "卡密列表（商品ID:{$goodsId}，导出时间:{$exportTime}）\n";
-    $output .= str_repeat('-', 60) . "\n";
-
+    $lines = [];
     foreach ($cards as $card) {
-        $label = $statusLabels[$card['status']] ?? '未知';
-        $output .= $card['card_no'];
-        if ($card['status'] != 1) {
-            $output .= ' [' . $label . ']';
+        $no = (string) ($card['card_no'] ?? '');
+        if ($no === '') {
+            continue;
         }
-        $output .= "\n";
+        $pwd = isset($card['card_pwd']) && (string) $card['card_pwd'] !== ''
+            ? (string) $card['card_pwd']
+            : '';
+        $lines[] = $pwd !== '' ? $no . ':' . $pwd : $no;
     }
+    $output = implode("\n", $lines);
+    $count = count($lines);
+    $title = (string) ($goods['title'] ?? '');
+    $placeYmd = virtual_card_datetime_to_ymd((string) ($goods['created_at'] ?? ''));
+    $filename = virtual_card_build_export_filename($title, $count, $placeYmd);
+
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Content-Disposition: ' . virtual_card_export_disposition($filename));
 
     echo $output;
     exit;
@@ -572,9 +581,9 @@ if ($action === 'order_export_cards') {
         exit('订单ID不能为空');
     }
 
-    // 订单号用来做文件名；不存在直接 404
+    // 订单号、下单时间（文件名用）
     $order = Database::fetchOne(
-        "SELECT order_no FROM " . Database::prefix() . "order WHERE id = ?",
+        "SELECT order_no, created_at FROM " . Database::prefix() . "order WHERE id = ?",
         [$orderId]
     );
     if (!$order) {
@@ -584,33 +593,47 @@ if ($action === 'order_export_cards') {
 
     // 只取该订单里 virtual_card 类型的商品；goods_type 是 order_goods 的快照字段，不用 JOIN goods
     $rows = Database::query(
-        "SELECT id, goods_title, spec_name, delivery_content
+        "SELECT id, goods_title, delivery_content
          FROM " . Database::prefix() . "order_goods
          WHERE order_id = ? AND goods_type = 'virtual_card'
          ORDER BY id",
         [$orderId]
     );
 
-    // 组装 txt 内容：每个商品前加标题注释行，商品之间空行分隔
-    $chunks = [];
+    // 仅输出卡密行（发货内容原样按行展开，不含商品名 / 规格标题）
+    $lines = [];
+    $titleSet = [];
     foreach ($rows as $row) {
         $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
-        if ($content === '') continue;
-        $header = '# ' . (string) $row['goods_title'];
-        if (!empty($row['spec_name'])) {
-            $header .= ' - ' . $row['spec_name'];
+        if ($content === '') {
+            continue;
         }
-        $chunks[] = $header . "\n" . $content;
+        $gt = trim((string) ($row['goods_title'] ?? ''));
+        if ($gt !== '') {
+            $titleSet[$gt] = true;
+        }
+        foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
+            $line = trim((string) $line);
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
     }
-    $body = implode("\n\n", $chunks);
-
-    $filename = 'order-' . $order['order_no'] . '-cards.txt';
+    $body = implode("\n", $lines);
+    $count = count($lines);
+    if (count($titleSet) === 1) {
+        $nameBase = array_key_first($titleSet);
+    } else {
+        $nameBase = '订单' . (string) $order['order_no'];
+    }
+    $placeYmd = virtual_card_datetime_to_ymd((string) ($order['created_at'] ?? ''));
+    $filename = virtual_card_build_export_filename($nameBase, $count, $placeYmd);
 
     // 清空可能的 output buffer，避免前面 PHP 误输出污染文件
     while (ob_get_level() > 0) { ob_end_clean(); }
 
     header('Content-Type: text/plain; charset=utf-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Disposition: ' . virtual_card_export_disposition($filename));
     header('Content-Length: ' . strlen($body));
     header('Cache-Control: no-store');
     echo $body;

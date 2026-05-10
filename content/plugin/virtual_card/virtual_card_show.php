@@ -15,6 +15,7 @@ defined('EM_ROOT') || exit('access denied!');
  */
 
 require_once __DIR__ . '/../../../user/global_public.php';
+require_once __DIR__ . '/inc_export_filename.php';
 
 $action = (string) Input::get('action', '');
 
@@ -30,7 +31,7 @@ if ($action === 'export_order_cards') {
 
     $prefix = Database::prefix();
     $order = Database::fetchOne(
-        "SELECT id, order_no, user_id, guest_token FROM {$prefix}order WHERE id = ?",
+        "SELECT id, order_no, user_id, guest_token, created_at FROM {$prefix}order WHERE id = ?",
         [$orderId]
     );
     if (!$order) {
@@ -52,33 +53,47 @@ if ($action === 'export_order_cards') {
 
     // 取出该订单所有 virtual_card 行（goods_type 是 order_goods 的快照字段）
     $rows = Database::query(
-        "SELECT id, goods_title, spec_name, delivery_content
+        "SELECT id, goods_title, delivery_content
          FROM {$prefix}order_goods
          WHERE order_id = ? AND goods_type = 'virtual_card'
          ORDER BY id",
         [$orderId]
     );
 
-    // 组装 txt：每商品前 # 注释行 + 内容，商品之间空行
-    $chunks = [];
+    // 仅输出卡密行（不含商品名 / 规格注释）
+    $lines = [];
+    $titleSet = [];
     foreach ($rows as $row) {
         $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
-        if ($content === '') continue;
-        $header = '# ' . (string) $row['goods_title'];
-        if (!empty($row['spec_name'])) {
-            $header .= ' - ' . $row['spec_name'];
+        if ($content === '') {
+            continue;
         }
-        $chunks[] = $header . "\n" . $content;
+        $gt = trim((string) ($row['goods_title'] ?? ''));
+        if ($gt !== '') {
+            $titleSet[$gt] = true;
+        }
+        foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
+            $line = trim((string) $line);
+            if ($line !== '') {
+                $lines[] = $line;
+            }
+        }
     }
-    $body = implode("\n\n", $chunks);
-
-    $filename = 'order-' . (string) $order['order_no'] . '-cards.txt';
+    $body = implode("\n", $lines);
+    $count = count($lines);
+    if (count($titleSet) === 1) {
+        $nameBase = array_key_first($titleSet);
+    } else {
+        $nameBase = '订单' . (string) $order['order_no'];
+    }
+    $placeYmd = virtual_card_datetime_to_ymd((string) ($order['created_at'] ?? ''));
+    $filename = virtual_card_build_export_filename($nameBase, $count, $placeYmd);
 
     // 清空可能的 output buffer 防止污染
     while (ob_get_level() > 0) { ob_end_clean(); }
 
     header('Content-Type: text/plain; charset=utf-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Content-Disposition: ' . virtual_card_export_disposition($filename));
     header('Content-Length: ' . strlen($body));
     header('Cache-Control: no-store');
     echo $body;
