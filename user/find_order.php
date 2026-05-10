@@ -5,14 +5,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/global_public.php';
 
 /**
- * 游客查询订单（独立页面）。
+ * 查单页（独立页面）：游客与登录用户均可使用。
  *
  * 不继承 user 中心模板：自带最简 HTML 框架，仅引入 layui / 站点基础 CSS 与 guest_find.js。
  *
  * 查询模式：
- *   1. token    —— 用浏览器 Cookie 里的 guest_token 列出最近 10 条订单
- *   2. contact  —— 订单编号 + 联系方式
- *   3. password —— 订单编号 + 订单密码（明文比对）
+ *   1. token    —— 用浏览器 Cookie 里的 guest_token 列出最近 10 条订单（含游客单与登录用户在本机下的单）
+ *   2. contact  —— 凭联系方式等查单（与订单密码组合见下方）
+ *   3. password —— 凭订单密码等查单
  *
  * 响应：所有 POST 都返回 JSON（列白名单脱敏，不带 order_password、admin_remark、内部 payment_*）。
  */
@@ -137,10 +137,10 @@ if (Request::isPost()) {
         if ($mode === 'token') {
             // —— tab1：通过浏览器 guest_token 列近 10 单
             if ($guestTokenPost === '') {
-                throw new RuntimeException('缺少游客身份令牌');
+                throw new RuntimeException('缺少浏览器身份令牌');
             }
             $rows = Database::query(
-                "SELECT * FROM {$prefix}order WHERE guest_token = ? AND user_id = 0 ORDER BY id DESC LIMIT 10",
+                "SELECT * FROM {$prefix}order WHERE guest_token = ? ORDER BY id DESC LIMIT 10",
                 [$guestTokenPost]
             );
             if (empty($rows)) {
@@ -163,7 +163,7 @@ if (Request::isPost()) {
 
             // 先用 order_password 精确过滤（如填了）；contact_query 交由 PHP 侧 LIKE 匹配
             // （contact_info 存储可能是 JSON，所以不在 SQL 层做模糊匹配）
-            $where = ['user_id = 0'];
+            $where = [];
             $params = [];
             if ($orderPassword !== '') {
                 $where[] = 'order_password = ?';
