@@ -1,5 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
+$_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
+$_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
 
 $search_type = trim($_GET['type'] ?? 'all');
 if (!in_array($search_type, ['all', 'goods', 'article'])) {
@@ -59,10 +61,16 @@ if (!in_array($search_type, ['all', 'goods', 'article'])) {
             </div>
             <div class="card-body">
                 <div class="card-title"><?= htmlspecialchars($item['name']) ?></div>
+                <?php if ($_shopDispStock || $_shopDispSales): ?>
                 <div class="card-stats">
+                    <?php if ($_shopDispStock): ?>
                     <span>库存 <?= htmlspecialchars((string) ($item['stock_text'] ?? '0')) ?></span>
+                    <?php endif; ?>
+                    <?php if ($_shopDispSales): ?>
                     <span>销量 <?= (int) ($item['sold'] ?? 0) ?></span>
+                    <?php endif; ?>
                 </div>
+                <?php endif; ?>
                 <div class="card-bottom">
                     <span class="price"><?= Currency::displayMain((float) $item['price']) ?></span>
                 </div>

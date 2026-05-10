@@ -1,5 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
+$_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
+$_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
 ?>
 <!-- 商品详情 · GoodsController::_detail() -->
 <div class="page-body">
@@ -80,12 +82,20 @@ defined('EM_ROOT') || exit('access denied!');
                 <div class="detail-intro"><?= nl2br(htmlspecialchars($goods['description'])) ?></div>
                 <?php endif; ?>
 
-                <!-- 销量 / 库存（展示用 stock_text，业务逻辑用 stock） -->
+                <!-- 销量 / 库存（展示用 stock_text，业务逻辑用 stock）；受后台「商城设置 → 库存与销量」开关控制 -->
+                <?php if ($_shopDispStock || $_shopDispSales): ?>
                 <div class="detail-stats-row">
+                    <?php if ($_shopDispSales): ?>
                     <span class="detail-stat-item">销量 <strong id="soldInfo"><?= (int) ($goods['total_sold'] ?? 0) ?></strong></span>
+                    <?php endif; ?>
+                    <?php if ($_shopDispSales && $_shopDispStock): ?>
                     <span class="detail-stat-sep">|</span>
+                    <?php endif; ?>
+                    <?php if ($_shopDispStock): ?>
                     <span class="detail-stat-item">库存 <strong id="stockCount"><?= htmlspecialchars($goods['stock_text'] ?? '0') ?></strong></span>
+                    <?php endif; ?>
                 </div>
+                <?php endif; ?>
 
                 <div class="detail-price-box">
                     <!-- 首屏渲染用 displayMain 自动按访客币种换算；后续 JS renderCurrentPrice 会覆盖（数量×单价-满减） -->
@@ -298,7 +308,7 @@ defined('EM_ROOT') || exit('access denied!');
                             </div>
                             <?php endif; ?>
                             <?php if (empty($specs) || count($specs) <= 1): ?>
-                            <?php if (isset($goods['stock_text'])): ?>
+                            <?php if ($_shopDispStock && isset($goods['stock_text'])): ?>
                             <div class="detail-meta-row">
                                 <span class="detail-meta-label">库存</span>
                                 <span class="detail-meta-value">

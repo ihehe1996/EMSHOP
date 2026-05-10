@@ -159,6 +159,7 @@ if (Request::isPost()) {
                 // ① 开关字段（未勾选时 POST 不传，统一置 '0'）
                 $switchFields = [
                     'shop_balance_enabled', 'shop_guest_balance_enabled', 'shop_enable_coupon',
+                    'shop_display_stock', 'shop_display_sales',
                 ];
                 foreach ($switchFields as $sw) {
                     $val = Input::post($sw, '');

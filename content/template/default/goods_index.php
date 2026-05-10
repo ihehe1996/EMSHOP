@@ -1,5 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
+$_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
+$_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
 ?>
 <!-- 商城首页 · GoodsController::_index() -->
 
@@ -52,10 +54,16 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
                         </div>
                         <div class="card-body">
                             <div class="card-title"><?= htmlspecialchars($g['name']) ?></div>
+                            <?php if ($_shopDispStock || $_shopDispSales): ?>
                             <div class="card-stats">
+                                <?php if ($_shopDispStock): ?>
                                 <span>库存 <?= htmlspecialchars((string) ($g['stock_text'] ?? '0')) ?></span>
+                                <?php endif; ?>
+                                <?php if ($_shopDispSales): ?>
                                 <span>销量 <?= (int) ($g['sold'] ?? 0) ?></span>
+                                <?php endif; ?>
                             </div>
+                            <?php endif; ?>
                             <div class="card-bottom">
                                 <span class="price"><?= Currency::displayMain((float) $g['price']) ?></span>
                                 <?php if (!empty($g['original_price'])): ?>

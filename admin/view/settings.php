@@ -616,6 +616,25 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         </div>
                     </div>
 
+                    <div class="admin-settings__block">
+                        <div class="admin-settings__block-title"><i class="fa fa-cubes"></i>库存与销量</div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">显示库存</label>
+                            <div class="layui-input-block">
+                                <?php echo formSwitch('shop_display_stock', $cfg['shop_display_stock'] ?? '1'); ?>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">关闭后，前台将隐藏商品库存相关展示</div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">显示销量</label>
+                            <div class="layui-input-block">
+                                <?php echo formSwitch('shop_display_sales', $cfg['shop_display_sales'] ?? '1'); ?>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">关闭后，前台将隐藏商品销量相关展示</div>
+                        </div>
+                    </div>
+
                     <!-- 店铺公告（WangEditor 富文本，会显示在前台） -->
                     <div class="admin-settings__block">
                         <div class="admin-settings__block-title"><i class="fa fa-bullhorn"></i>店铺公告</div>
