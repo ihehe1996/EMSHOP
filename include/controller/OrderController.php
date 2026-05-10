@@ -153,6 +153,9 @@ class OrderController extends BaseController
 
             // —— 优惠券（可选）：前端已通过 coupon/check 校验过折扣；此处再次后端校验后一起入创建事务
             $couponCode = trim((string) Input::post('coupon_code', ''));
+            if ($couponCode !== '' && !shop_coupon_enabled()) {
+                Response::error('优惠券功能未启用');
+            }
             if ($couponCode !== '') {
                 $couponService = new CouponService();
                 try {

@@ -125,9 +125,11 @@ $siteLogo     = (string) (Config::get('site_logo') ?? '');
             <a href="/user/balance_log.php" data-pjax="#userContent" class="uc-nav-item">
                 <i class="fa fa-list-alt"></i><span>余额明细</span>
             </a>
+            <?php if (shop_coupon_enabled()): ?>
             <a href="/user/coupon.php" data-pjax="#userContent" class="uc-nav-item">
                 <i class="fa fa-ticket"></i><span>我的优惠券</span>
             </a>
+            <?php endif; ?>
             <?php // 推广 / 返佣只在主站启用；商户子域名下隐藏入口 ?>
             <?php if (MerchantContext::currentId() === 0): ?>
             <a href="/user/rebate.php" data-pjax="#userContent" class="uc-nav-item">

@@ -973,6 +973,9 @@ class ApiController extends BaseController
         }
 
         $estimatedPayRaw = ((int) ($pickedSpec['price_raw'] ?? 0)) * $quantity;
+        if ($couponCode !== '' && !shop_coupon_enabled()) {
+            throw new RuntimeException('优惠券功能未启用');
+        }
         if ($couponCode !== '') {
             $couponService = new CouponService();
             $checkRes = $couponService->check($couponCode, [

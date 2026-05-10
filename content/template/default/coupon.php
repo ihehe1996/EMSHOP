@@ -7,10 +7,18 @@ $typeLabel = [
     'percent'       => '折扣券',
     'free_shipping' => '免邮券',
 ];
+$_couponDisabled = !empty($coupon_feature_disabled);
 ?>
 <div class="page-body">
 
     <div class="page-title">领券中心</div>
+    <?php if ($_couponDisabled): ?>
+    <div class="card empty-state">
+        <div class="empty-icon"><i class="fa fa-ban"></i></div>
+        <h3>优惠券功能未启用</h3>
+        <p>管理员已在商城设置中关闭优惠券，领券与用券入口已隐藏。</p>
+    </div>
+    <?php else: ?>
     <p class="coupon-intro">
         <i class="fa fa-info-circle"></i>
         领取后可在"个人中心 / 我的优惠券"查看；下单时也可直接输入券码使用
@@ -131,4 +139,5 @@ $typeLabel = [
         });
     })();
     </script>
+    <?php endif; ?>
 </div>

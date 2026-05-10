@@ -226,7 +226,8 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                     <?php if ($wrap): ?></div><?php endif; ?>
                 <?php endforeach; ?>
 
-                <!-- 优惠券输入 -->
+                <!-- 优惠券输入（受后台「商城设置 → 启用优惠券」控制） -->
+                <?php if (shop_coupon_enabled()): ?>
                 <?php
                 if (session_status() === PHP_SESSION_NONE) session_start();
                 $isGuestDetail = empty($_SESSION['em_front_user']);
@@ -256,6 +257,7 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                         <span class="detail-coupon-applied-saved"></span>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- 支付方式 —— 控制器预先标好 disabled/selected，视图直接按标记渲染 -->
                 <?php if (!empty($payment_methods)): ?>
@@ -380,7 +382,8 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
             needsAddress: <?= !empty($needs_address) ? 'true' : 'false' ?>,
             isGuest: <?= empty($front_user) ? 'true' : 'false' ?>,
             userAddresses: <?= json_encode($user_addresses ?? [], JSON_UNESCAPED_UNICODE) ?>,
-            defaultAddressId: <?= (int) ($default_address_id ?? 0) ?>
+            defaultAddressId: <?= (int) ($default_address_id ?? 0) ?>,
+            enableCoupon: <?= shop_coupon_enabled() ? 'true' : 'false' ?>
         });
     })();
     </script>

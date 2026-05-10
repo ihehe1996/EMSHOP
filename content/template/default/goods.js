@@ -227,7 +227,7 @@ var GoodsDetail = (function () {
 
         // 数量变化时，若用户已应用优惠券，重新校验 —— 商品总额变了，门槛可能失效 / 折扣金额可能变
         // 调 applyDetailCoupon(code) 即可复用服务端 check 逻辑；失败时 UI 自动提示并保持状态（用户可手动重选）
-        if (typeof detailCouponState !== 'undefined' && detailCouponState && detailCouponState.applied && detailCouponState.code) {
+        if (opts.enableCoupon && typeof detailCouponState !== 'undefined' && detailCouponState && detailCouponState.applied && detailCouponState.code) {
             revalidateCouponIfNeeded();
         }
     }
@@ -443,10 +443,13 @@ var GoodsDetail = (function () {
             $('#' + tab).addClass('active');
         });
 
-        // ======== 优惠券（详情页）========
+        // ======== 优惠券（详情页）；后台关闭时不绑定、不提交券码 ========
         // detailCouponState 已提升到模块顶层（供 renderCurrentPrice 做数量变化后的重校验）
         detailCouponState = { applied: false, code: '' };
 
+        if (!opts.enableCoupon) {
+            applyDetailCoupon = function () {};
+        } else {
         $(document).on('click.goodsDetail', '#detailCouponApplyBtn', function () {
             var $btn = $(this);
             if ($btn.text() === '更换') {
@@ -549,6 +552,8 @@ var GoodsDetail = (function () {
             }, 'json').fail(function () { layer.msg('网络异常'); });
         };
 
+        }
+
         // 立即购买 —— 前端只收集数据不校验，后端统一返回错误信息
         // needs_address 商品在发 POST 前先弹层收集地址（登录选地址簿、游客手填），其它商品保持原流程
         $(document).on('click.goodsDetail', '#buyNowBtn', function () {
@@ -566,7 +571,7 @@ var GoodsDetail = (function () {
                 spec_id: currentSpecId(),
                 quantity: quantity,
                 payment_code: paymentCode,
-                coupon_code: detailCouponState.applied ? detailCouponState.code : ''
+                coupon_code: (opts.enableCoupon && detailCouponState.applied) ? detailCouponState.code : ''
             }, collectExtraFields(), guestFindData);
 
             if (opts.needsAddress) {
@@ -789,6 +794,7 @@ var GoodsDetail = (function () {
     return {
         init: function (options) {
             opts = options || {};
+            opts.enableCoupon = options.enableCoupon !== false;
             specs = opts.specs || [];
             specMap = {};
             for (var i = 0; i < specs.length; i++) specMap[specs[i].id] = specs[i];

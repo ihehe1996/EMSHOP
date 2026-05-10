@@ -178,10 +178,12 @@ $fmtMoney = static fn(int $raw): string => Currency::displayAmount($raw);
                     <span class="uc-quick__icon" style="background:#d1fae5;color:#059669;"><i class="fa fa-exchange"></i></span>
                     <span class="uc-quick__text">余额明细</span>
                 </a>
+                <?php if (shop_coupon_enabled()): ?>
                 <a href="/user/coupon.php" data-pjax class="uc-quick__item">
                     <span class="uc-quick__icon" style="background:#fee2e2;color:#e11d48;"><i class="fa fa-ticket"></i></span>
                     <span class="uc-quick__text">优惠券</span>
                 </a>
+                <?php endif; ?>
                 <?php // 推广 / 返佣只在主站启用；商户子域名下隐藏入口 ?>
                 <?php if (MerchantContext::currentId() === 0): ?>
                 <a href="/user/rebate.php" data-pjax class="uc-quick__item">

@@ -12,6 +12,18 @@ require_once __DIR__ . '/global.php';
  */
 userRequireLogin();
 
+if (!shop_coupon_enabled()) {
+    if (Request::isPjax()) {
+        echo '<div id="userContent" class="uc-content">';
+        include __DIR__ . '/view/coupon_disabled.php';
+        echo '</div>';
+    } else {
+        $userContentView = __DIR__ . '/view/coupon_disabled.php';
+        require __DIR__ . '/index.php';
+    }
+    exit;
+}
+
 $siteName = Config::get('sitename', 'EMSHOP');
 $csrfToken = Csrf::token();
 $displayMoney = '0.00';

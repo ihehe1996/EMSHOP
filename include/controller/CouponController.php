@@ -34,6 +34,18 @@ class CouponController extends BaseController
     {
         $this->view->setTitle('领券中心');
 
+        if (!shop_coupon_enabled()) {
+            $identity = $this->getIdentity();
+            $this->view->setData([
+                'coupons'                 => [],
+                'is_logged_in'            => $identity['user_id'] > 0,
+                'claimed_ids'             => [],
+                'coupon_feature_disabled' => true,
+            ]);
+            $this->view->render('coupon');
+            return;
+        }
+
         $couponModel = new CouponModel();
         $coupons = $couponModel->getPubliclyClaimable(100);
 
@@ -52,9 +64,10 @@ class CouponController extends BaseController
         }
 
         $this->view->setData([
-            'coupons'     => $coupons,
-            'is_logged_in' => $isLoggedIn,
-            'claimed_ids' => $claimedIds,
+            'coupons'       => $coupons,
+            'is_logged_in'  => $isLoggedIn,
+            'claimed_ids'   => $claimedIds,
+            'coupon_feature_disabled' => false,
         ]);
         $this->view->render('coupon');
     }
@@ -65,6 +78,9 @@ class CouponController extends BaseController
     public function receive(): void
     {
         if (!Request::isPost()) Response::error('无效请求');
+        if (!shop_coupon_enabled()) {
+            Response::error('优惠券功能未启用');
+        }
 
         $identity = $this->getIdentity();
         if ($identity['user_id'] <= 0) {
@@ -110,6 +126,9 @@ class CouponController extends BaseController
     public function check(): void
     {
         if (!Request::isPost()) Response::error('无效请求');
+        if (!shop_coupon_enabled()) {
+            Response::error('优惠券功能未启用');
+        }
 
         $code = trim((string) Input::post('code', ''));
         $goodsAmount = trim((string) Input::post('goods_amount', '0'));
@@ -149,6 +168,10 @@ class CouponController extends BaseController
      */
     public function mine(): void
     {
+        if (!shop_coupon_enabled()) {
+            Response::success('', ['coupons' => []]);
+        }
+
         $identity = $this->getIdentity();
         if ($identity['user_id'] <= 0) {
             Response::success('', ['coupons' => []]);

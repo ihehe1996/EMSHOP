@@ -353,6 +353,14 @@ function url_coupon(): string
 }
 
 /**
+ * 是否启用优惠券（后台「商城设置 → 启用优惠券」；配置为 '0' 时关闭）。
+ */
+function shop_coupon_enabled(): bool
+{
+    return (string) Config::get('shop_enable_coupon', '1') !== '0';
+}
+
+/**
  * 格式化价格。
  */
 function format_price(float $price): string

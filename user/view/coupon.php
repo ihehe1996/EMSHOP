@@ -41,7 +41,9 @@ $theme = $viewTheme[$view] ?? $viewTheme['unused'];
     <div class="uc-empty">
         <i class="fa fa-inbox"></i>
         <p>暂无<?= $viewTabs[$view] ?>的优惠券</p>
+        <?php if (shop_coupon_enabled()): ?>
         <a href="/?c=coupon" class="uc-btn uc-btn--primary" style="margin-top:16px;">去领券中心</a>
+        <?php endif; ?>
     </div>
     <?php else: ?>
     <div class="uc-coupon-grid">
