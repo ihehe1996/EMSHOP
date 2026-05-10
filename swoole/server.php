@@ -170,8 +170,12 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
             }
             $current = (string) (Config::get('swoole_code_version') ?? '');
             if ($current !== '' && $current !== $bootCodeVersion) {
-                swooleServiceLog("重载：检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），已触发 Worker 平滑重载");
-                $server->reload();
+                swooleServiceLog("重载：检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），正在触发 Worker 平滑重载");
+                if (!$server->reload()) {
+                    swooleServiceLog("异常：代码版本变更后触发重载失败（自 {$bootCodeVersion} 变更为 {$current}）");
+                    return;
+                }
+                swooleServiceLog("重载：主进程已接受平滑重载请求（代码版本 {$bootCodeVersion}→{$current}），旧 Worker 退出后新 Worker 将接替");
                 return;
             }
             runOrderTimeoutChecks($stats);
@@ -194,6 +198,8 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
     Swoole\Timer::tick(SW_HEARTBEAT_INTERVAL * 1000, function () {
         @touch(SW_HEARTBEAT_FILE);
     });
+
+    swooleServiceLog('运行：Worker#0 初始化完成（PID ' . getmypid() . '），定时器与队列轮询已注册');
 });
 
 // 监控 API（供后台页面调用）
@@ -546,6 +552,7 @@ function runSwooleFileVersionReloadCheck($server): bool
             swooleServiceLog("异常：文件版本升级后触发重载失败（自 {$local} 变更为 {$new}）");
             return false;
         }
+        swooleServiceLog("重载：主进程已接受平滑重载请求（文件版本 {$local}→{$new}），旧 Worker 退出后新 Worker 将接替");
         Config::set('local_swoole_file_version', $new);
         return true;
     }

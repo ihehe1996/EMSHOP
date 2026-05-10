@@ -159,7 +159,7 @@
             <li><strong>运行目录</strong>：选择当前网站根目录。</li>
             <li><strong>启动命令</strong>：执行以下命令。</li>
         </ul>
-        <div class="swg-cmd">php swoole/server.php start</div>
+        <div class="swg-cmd">php /网站根目录/swoole/server.php start</div>
     </article>
 
     <article class="swg-card">
@@ -183,7 +183,7 @@
     <article class="swg-card swg-card--full">
         <h2 class="swg-card__title"><i class="fa fa-terminal"></i> 指定 PHP 版本启动（推荐）</h2>
         <p class="swg-warn">如果不想更改默认的 <code>php</code> 指令版本，可以在守护进程命令中直接指定版本：</p>
-        <div class="swg-cmd">php82 swoole/server.php start</div>
+        <div class="swg-cmd">php82 /网站根目录/swoole/server.php start</div>
     </article>
 </section>
 
