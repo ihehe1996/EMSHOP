@@ -3,7 +3,7 @@
  * 虚拟商品（自动发货）插件 — 卡密库存 AJAX 接口
  *
  * 通过 admin_plugin_action 钩子由插件自行注册路由，不放在核心代码中。
- * 支持的 action：card_list / card_import / card_delete / card_export / card_manager
+ * 支持的 action：card_list / card_import / card_delete / card_clear_available / card_export / card_manager
  */
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
@@ -310,6 +310,41 @@ if ($action === 'card_delete') {
 
     Response::success("已删除 {$result} 条卡密", [
         'deleted' => $result,
+        'csrf_token' => Csrf::token(),
+    ]);
+}
+
+// ================================================================
+// 清空库存：删除本商品全部「未售」卡密（status=1），已售 / 标记售出保留
+// ================================================================
+if ($action === 'card_clear_available') {
+    $csrf = (string) ($_POST['csrf_token'] ?? '');
+    if (!Csrf::validate($csrf)) {
+        Response::error('请求已失效，请刷新页面后重试');
+    }
+    $goodsId = (int) ($_POST['goods_id'] ?? 0);
+    if ($goodsId <= 0) {
+        Response::error('商品ID不能为空');
+    }
+
+    $goods = GoodsModel::getById($goodsId);
+    if (!$goods) {
+        Response::error('商品不存在');
+    }
+    if (($goods['goods_type'] ?? '') !== 'virtual_card') {
+        Response::error('非虚拟卡密商品');
+    }
+
+    $prefix = Database::prefix();
+    $deleted = Database::execute(
+        "DELETE FROM {$prefix}goods_virtual_card WHERE goods_id = ? AND status = 1",
+        [$goodsId]
+    );
+
+    virtualCardSyncCardStock($goodsId);
+
+    Response::success($deleted > 0 ? "已清空 {$deleted} 条未售卡密" : '当前没有未售卡密', [
+        'deleted'  => $deleted,
         'csrf_token' => Csrf::token(),
     ]);
 }

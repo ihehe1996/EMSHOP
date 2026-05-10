@@ -148,6 +148,7 @@ if (!defined('EM_ROOT')) {
         <a class="em-btn em-reset-btn" id="cardRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
         <a class="em-btn em-save-btn" lay-event="import"><i class="fa fa-upload"></i>导入卡密</a>
         <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+        <a class="em-btn em-red-btn" lay-event="clearStock"><i class="fa fa-eraser"></i>清空库存</a>
     </div>
 </script>
 
@@ -362,6 +363,23 @@ $(function(){
                     break;
                 case 'import':
                     openImport();
+                    break;
+                case 'clearStock':
+                    layer.confirm('确定清空本商品全部「未售」卡密？已售与标记售出记录不会被删除。', function (idx) {
+                        layer.close(idx);
+                        $.post('/admin/index.php?_action=card_clear_available', {
+                            csrf_token: csrfToken,
+                            goods_id: goodsId
+                        }, function (res) {
+                            if (res.data && res.data.csrf_token) {
+                                csrfToken = res.data.csrf_token;
+                            }
+                            layer.msg(res.msg || (res.code === 200 ? '操作完成' : '操作失败'));
+                            if (res.code === 200) {
+                                table.reload('cardTableId');
+                            }
+                        }, 'json');
+                    });
                     break;
             }
         });
