@@ -465,6 +465,18 @@ function processQueue(array &$stats): void
 
         OrderModel::notifyDeliveryCallback($orderGoodsId);
 
+        // 统一队列成功钩子：供通知类插件在"发货动作真正完成"后接入
+        // 参数：
+        // 1) order_id
+        // 2) order_goods_id
+        // 3) queue_task_id
+        // 4) 原始队列任务行
+        try {
+            doAction('order_goods_delivery_queued_success', $orderId, $orderGoodsId, $taskId, $task);
+        } catch (Throwable $hookErr) {
+            swooleServiceLog('异常：队列成功后置钩子 order_goods_delivery_queued_success 执行失败，' . $hookErr->getMessage());
+        }
+
         OrderModel::checkDeliveryComplete($orderId);
 
     } catch (Throwable $e) {

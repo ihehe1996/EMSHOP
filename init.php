@@ -30,8 +30,8 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true);
-define('EM_VERSION', '1.2.97');
-define('EM_VERSION_TIMESTAMP', '1297');
+define('EM_VERSION', '1.2.98');
+define('EM_VERSION_TIMESTAMP', '1298');
 
 require EM_ROOT . '/base.php';
 
