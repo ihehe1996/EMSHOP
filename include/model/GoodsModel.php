@@ -327,6 +327,50 @@ class GoodsModel
     }
 
     /**
+     * 后台/商户保存商品时合并 configs：通用表单只提交 extra_fields、满减、返佣、SEO 等，
+     * 若直接整体覆盖 DB 中的 configs，会抹掉对接插件写入的命名空间（如 ycy_shared 的 delivery_way），
+     * 导致误判发货方式、下单校验异常等。
+     *
+     * @param array<string, mixed> $configs 本次由 POST 拼装出的 configs 片段
+     * @return array<string, mixed>
+     */
+    public static function mergeConfigsOnSave(int $goodsId, array $configs): array
+    {
+        if ($goodsId <= 0) {
+            return $configs;
+        }
+        $existing = self::getById($goodsId, false);
+        if ($existing === null) {
+            return $configs;
+        }
+        $old = json_decode((string) ($existing['configs'] ?? '{}'), true);
+        if (!is_array($old) || $old === []) {
+            return $configs;
+        }
+        /** @var list<string> $nsList */
+        $nsList = applyFilter('goods_save_preserve_config_namespaces', ['ycy_shared', 'emshop_import']);
+        if (!is_array($nsList)) {
+            $nsList = ['ycy_shared', 'emshop_import'];
+        }
+        foreach ($nsList as $ns) {
+            $ns = trim((string) $ns);
+            if ($ns === '' || !preg_match('/^[a-zA-Z0-9_]+$/', $ns)) {
+                continue;
+            }
+            if (empty($old[$ns]) || !is_array($old[$ns])) {
+                continue;
+            }
+            if (empty($configs[$ns]) || !is_array($configs[$ns])) {
+                $configs[$ns] = $old[$ns];
+            } else {
+                $configs[$ns] = array_merge($old[$ns], $configs[$ns]);
+            }
+        }
+
+        return $configs;
+    }
+
+    /**
      * 创建商品
      */
     public static function create($data)

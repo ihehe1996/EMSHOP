@@ -492,6 +492,10 @@ if (Request::isPost()) {
                 ];
                 if (array_sum($rebate) > 0) $configs['rebate'] = $rebate;
 
+                if ($id > 0) {
+                    $configs = GoodsModel::mergeConfigsOnSave($id, $configs);
+                }
+
                 // 必填校验
                 if (empty($goods_type))  Response::error('请选择商品类型');
                 // 插件类型自定义校验

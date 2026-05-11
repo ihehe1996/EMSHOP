@@ -204,6 +204,11 @@ if ($action === 'save') {
         $configs['seo'] = $seo;
     }
 
+    // 更新时合并对接类 configs 命名空间（见 GoodsModel::mergeConfigsOnSave）
+    if ($id > 0) {
+        $configs = GoodsModel::mergeConfigsOnSave($id, $configs);
+    }
+
     // 验证必填（按步骤顺序）
     // ① 商品类型
     if (empty($goods_type)) {
