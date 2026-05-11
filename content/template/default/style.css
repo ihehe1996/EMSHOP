@@ -418,6 +418,8 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
     height: 40px; overflow: hidden;
     display: -webkit-box; -webkit-line-clamp: 2;
     -webkit-box-orient: vertical; line-height: 1.45;
+    overflow-wrap: anywhere;
+    word-break: break-all;
 }
 .goods-card:hover .card-title { color: #4e6ef2; }
 .goods-card .card-bottom { display: flex; align-items: baseline; justify-content: space-between; }
@@ -612,7 +614,11 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .detail-thumb:hover { border-color: #ccc; }
 .detail-thumb.active { border-color: #4e6ef2; }
 .detail-info { display: flex; flex-direction: column; }
-.detail-name { font-size: 22px; font-weight: 700; color: #2c3e50; margin-bottom: 16px; line-height: 1.4; }
+.detail-name {
+    font-size: 22px; font-weight: 700; color: #2c3e50; margin-bottom: 16px; line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
 .detail-price-box {
     background: #fef5f5; border-radius: 8px; padding: 16px 20px;
     margin-bottom: 24px; display: flex; align-items: baseline; gap: 12px;
@@ -823,8 +829,22 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .order-goods-img img { width: 100%; height: 100%; object-fit: cover; }
 .order-goods-img-placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #ddd; font-size: 20px; }
 .order-goods-info { flex: 1; min-width: 0; }
-.order-goods-name { font-size: 14px; color: #333; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.order-goods-spec { font-size: 12px; color: #999; margin-top: 2px; }
+.order-goods-name {
+    font-size: 14px; color: #333; font-weight: 500;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+.order-goods-spec {
+    font-size: 12px; color: #999; margin-top: 2px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
 .order-goods-qty { font-size: 14px; color: #999; min-width: 40px; text-align: center; }
 .order-goods-price { font-size: 15px; font-weight: 600; color: #fa5252; min-width: 80px; text-align: right; }
 .order-delivery-content {
@@ -1113,6 +1133,8 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
     font-size: 13px; line-height: 1.4; color: #333;
     display: -webkit-box; -webkit-line-clamp: 2;
     -webkit-box-orient: vertical; overflow: hidden;
+    overflow-wrap: anywhere;
+    word-break: break-all;
     transition: color .2s;
 }
 .sidebar-goods-price { margin-top: 4px; }

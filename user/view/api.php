@@ -104,7 +104,7 @@ if (!defined('EM_ROOT')) {
                     下单接口将<strong>直接扣除对接账号余额</strong>完成支付，不走第三方支付收银台，不需要传 <code>payment_code</code>。
                 </div>
                 <div class="uc-form-hint" style="margin-top:8px;line-height:1.8;">
-                    对接同系统时，可在下单请求中传 <code>delivery_callback_url</code>。上游发货后会向该地址推送 <code>delivery_content</code>（建议带业务令牌参数做鉴权）。
+                    对接同系统时，可在下单请求中传 <code>delivery_callback_url</code>。上游发货后会向该地址 POST JSON，含 <code>delivery_content</code>；若订单行有规格，还会带 <code>spec_remaining_stock</code>（该规格在上游的当前剩余库存，-1 为无限）；并带 <code>goods_total_stock</code>（上游商品总库存，与后台汇总规则一致，-1 表示含无限规格），便于下游对接商品对齐规格与总库存（建议带业务令牌参数做鉴权）。
                 </div>
             </div>
         </div>

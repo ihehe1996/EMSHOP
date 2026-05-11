@@ -9,7 +9,7 @@ declare(strict_types=1);
  *       /?c=api&act=real_order     (POST，真实下单)
  *       /?c=api&act=create_order   (POST，兼容旧调用，等价 real_order)
  *       /?c=api&act=query_order    (GET/POST)
- *       /?c=api&act=delivery_callback (GET/POST，上游发货回调下游)
+ *       /?c=api&act=delivery_callback（GET/POST，上游发货回调下游；JSON 可含 spec_remaining_stock、goods_total_stock 等与上游对齐库存）
  *       /?c=api&act=base_info      (GET/POST)
  *       /?c=api&act=goods_category (GET/POST)
  *       /?c=api&act=goods_list      (GET/POST，不分页；可选 goods_id / goods_ids / category_id / category_ids)
@@ -1003,6 +1003,10 @@ class ApiController extends BaseController
     /**
      * 上游发货异步回调接收（同系统对接）。
      * 通过 callback_token + local_order_goods_id 做鉴权。
+     *
+     * 可选参数 spec_remaining_stock（整数，>= -1）：上游该规格当前剩余库存；-1 表示无限。
+     * 存在且合法时，将本单对应本地规格的 stock 直接更新为该值（与上游 notifyDeliveryCallback 推送的 JSON 字段一致）。
+     * 可选参数 goods_total_stock（整数，>= -1）：上游按规则汇总后的商品总库存（goods.total_stock），便于下游对接商品直接对齐。
      */
     private function deliveryCallback(): void
     {
@@ -1019,7 +1023,7 @@ class ApiController extends BaseController
 
         $prefix = Database::prefix();
         $og = Database::fetchOne(
-            "SELECT `id`, `order_id`, `spec_id`, `quantity`, `delivery_content`, `plugin_data`
+            "SELECT `id`, `order_id`, `goods_id`, `spec_id`, `quantity`, `delivery_content`, `plugin_data`
              FROM `{$prefix}order_goods` WHERE `id` = ? LIMIT 1",
             [$localOrderGoodsId]
         );
@@ -1082,13 +1086,107 @@ class ApiController extends BaseController
             GoodsModel::incrementSoldCount($specId, $qty);
         }
 
+        $remainStock = $this->parseSpecRemainingStockFromCallback($params);
+        $gid = (int) ($og['goods_id'] ?? 0);
+        if ($remainStock !== null && $specId > 0) {
+            Database::execute(
+                "UPDATE `{$prefix}goods_spec` SET `stock` = ? WHERE `id` = ?",
+                [$remainStock, $specId]
+            );
+            if ($gid > 0) {
+                GoodsModel::updatePriceStockCache($gid);
+            }
+        }
+
+        $goodsTotalStock = $this->parseGoodsTotalStockFromCallback($params);
+        if ($goodsTotalStock !== null && $gid > 0) {
+            Database::execute(
+                "UPDATE `{$prefix}goods` SET `total_stock` = ? WHERE `id` = ?",
+                [$goodsTotalStock, $gid]
+            );
+        }
+
         OrderModel::checkDeliveryComplete((int) ($og['order_id'] ?? 0));
         $this->writeSystemLog('info', '发货回调处理成功', '已处理上游发货回调并写入发货内容', [
-            'local_order_goods_id' => $localOrderGoodsId,
-            'order_id' => (int) ($og['order_id'] ?? 0),
-            'upstream_order_no' => (string) ($em['upstream_order_no'] ?? ''),
+            'local_order_goods_id'      => $localOrderGoodsId,
+            'order_id'                  => (int) ($og['order_id'] ?? 0),
+            'upstream_order_no'         => (string) ($em['upstream_order_no'] ?? ''),
+            'upstream_request_method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+            'upstream_query_string'   => (string) ($_SERVER['QUERY_STRING'] ?? ''),
+            'upstream_request_params' => $this->requestParamsForSystemLog($params),
         ]);
         Response::success('ok', ['handled' => true]);
+    }
+
+    /**
+     * 解析回调里的 spec_remaining_stock；未传或非法时返回 null（不改本地库存）。
+     */
+    private function parseSpecRemainingStockFromCallback(array $params): ?int
+    {
+        if (!array_key_exists('spec_remaining_stock', $params)) {
+            return null;
+        }
+        $v = $params['spec_remaining_stock'];
+        if ($v === null || $v === '') {
+            return null;
+        }
+        if (is_bool($v)) {
+            return null;
+        }
+        if (!is_numeric($v)) {
+            return null;
+        }
+        $i = (int) $v;
+
+        return $i >= -1 ? $i : null;
+    }
+
+    /**
+     * 解析回调里的 goods_total_stock；未传或非法时返回 null（不改 em_goods.total_stock）。
+     */
+    private function parseGoodsTotalStockFromCallback(array $params): ?int
+    {
+        if (!array_key_exists('goods_total_stock', $params)) {
+            return null;
+        }
+        $v = $params['goods_total_stock'];
+        if ($v === null || $v === '') {
+            return null;
+        }
+        if (is_bool($v)) {
+            return null;
+        }
+        if (!is_numeric($v)) {
+            return null;
+        }
+        $i = (int) $v;
+
+        return $i >= -1 ? $i : null;
+    }
+
+    /**
+     * 发货回调写入系统日志用：合并后的请求参数，单字段字符串过长时截断，避免 em_system_log.detail 过大。
+     *
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
+     */
+    private function requestParamsForSystemLog(array $params, int $maxStr = 12000): array
+    {
+        $out = [];
+        foreach ($params as $k => $v) {
+            $key = (string) $k;
+            if (is_string($v) && strlen($v) > $maxStr) {
+                $out[$key] = [
+                    '_truncated' => true,
+                    '_length'    => strlen($v),
+                    '_preview'   => mb_substr($v, 0, $maxStr),
+                ];
+            } else {
+                $out[$key] = $v;
+            }
+        }
+
+        return $out;
     }
 
     /**

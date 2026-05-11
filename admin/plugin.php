@@ -218,7 +218,7 @@ if (Request::isPost()) {
     } catch (RuntimeException $e) {
         Response::error($e->getMessage());
     } catch (Throwable $e) {
-        Response::error('系统繁忙,请稍后再试');
+        Response::error($e->getMessage());
     }
 }
 

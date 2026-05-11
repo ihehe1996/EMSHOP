@@ -430,3 +430,20 @@ function theme_asset_url(string $path, ?string $theme = null): string
     $relative = ltrim($path, '/');
     return '/content/template/' . rawurlencode($themeName) . '/' . $relative;
 }
+
+/**
+ * 站点 favicon URL，供 head 中 link rel="icon" 的 href 使用。
+ * 配置为空时使用根路径 /favicon.ico；站内相对路径统一为根路径，避免在子路径下解析错误。
+ */
+function site_favicon_href(): string
+{
+    $raw = trim((string) Config::get('site_favicon', ''));
+    if ($raw === '') {
+        return '/favicon.ico';
+    }
+    if (preg_match('#^(https?:)?//#i', $raw)) {
+        return $raw;
+    }
+
+    return '/' . ltrim(str_replace('\\', '/', $raw), '/');
+}

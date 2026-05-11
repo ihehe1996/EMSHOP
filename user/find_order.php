@@ -334,6 +334,7 @@ $statusMap = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>查询订单 - <?= $esc($siteName) ?></title>
+    <link rel="icon" href="<?= $esc(site_favicon_href()) ?>">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <!-- 独立页专属样式：自给自足，不依赖 user.css / 模板 style.css -->

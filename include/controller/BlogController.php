@@ -29,6 +29,7 @@ class BlogController extends BaseController
             'article_list'    => $result['list'],
             'pagination'      => $result,
             'recent_articles' => $recentArticles,
+            'announcement'    => $this->getCurrentAnnouncement(),
         ], $sidebarData));
         $this->view->render('blog_index');
     }
@@ -82,13 +83,14 @@ class BlogController extends BaseController
         $result = $this->queryArticleListPaginated($where, $page, 20);
 
         $this->view->setTitle($title);
-        $this->view->setData([
+        $this->view->setData(array_merge([
             'article_list'     => $result['list'],
             'blog_categories'  => $categories,
             'current_category' => $categoryId,
             'current_tag'      => $tagId,
             'pagination'       => $result,
-        ]);
+            'announcement'     => $this->getCurrentAnnouncement(),
+        ], $sidebarData));
         $this->view->render('blog_list');
     }
 

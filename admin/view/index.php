@@ -11,6 +11,7 @@ $csrfToken = Csrf::token();
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>后台管理 - <?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></title>
+    <link rel="icon" href="<?php echo htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/cropper.min.css">

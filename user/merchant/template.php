@@ -121,6 +121,8 @@ if (Input::get('_popup', '') === '1') {
     $pageTitle = '模板设置:' . htmlspecialchars((string) ($header['title'] ?? $name), ENT_QUOTES, 'UTF-8');
     // 让模板 setting.php 里的 AJAX 把 save_config 提交到商户路径(对齐重构后的新 URL)
     $popupTemplateSaveUrl = '/user/merchant/template.php';
+    $popupTemplateMediaUrl = '/user/merchant/media.php';
+    $popupTemplateUploadUrl = '/user/merchant/upload.php';
     include __DIR__ . '/../../admin/view/popup/header.php';
 
     include_once $settingFile;

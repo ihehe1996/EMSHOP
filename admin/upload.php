@@ -21,7 +21,11 @@ if (empty($_FILES['file'])) {
 
 $uploader = new UploadService();
 $context = (string) Input::post('context', 'default');
-$result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], $context);
+$allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+if ($context === 'site_favicon') {
+    $allowed[] = 'ico';
+}
+$result = $uploader->upload($_FILES['file'], $allowed, $context);
 
 // 商品图片上传钩子：允许插件接管上传结果（如图床/CDN）
 if ($context === 'goods_image') {

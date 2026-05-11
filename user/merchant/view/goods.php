@@ -162,6 +162,15 @@ $csrfToken = Csrf::token();
     color:#0c4a6e; font-size:12px; line-height:1.7;
 }
 .mc-discount-tip:empty { display:none; }
+
+/* 表格内商品标题：任意位置可断行（含长英文/无空格串），两行视觉由表格行高控制 */
+.mc-goods-title-text {
+    font-weight: 500;
+    line-height: 1.4;
+    text-align: left;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
 </style>
 
 <!-- 行模板 -->
@@ -174,9 +183,7 @@ $csrfToken = Csrf::token();
 </script>
 
 <script type="text/html" id="mcRefTitleTpl">
-    <div style="text-align:left;line-height:1.4;">
-        <div style="font-weight:500;">{{ d.title }}</div>
-    </div>
+    <div class="mc-goods-title-text">{{ d.title }}</div>
 </script>
 
 <script type="text/html" id="mcRefBaseTpl">
@@ -413,8 +420,7 @@ $(function(){
                 cols: [[
                     {type: 'checkbox'},
                     {field: 'title', title: '商品', minWidth: 260, templet: function (d) {
-                        return '<div style="text-align:left;line-height:1.4;">'
-                             + '<div style="font-weight:500;">' + d.title + '</div></div>';
+                        return '<div class="mc-goods-title-text">' + (d.title || '') + '</div>';
                     }},
                     {title: '价格', minWidth: 120, templet: '#mcSelfPriceTpl', align: 'right'},
                     {field: 'type_label', title: '类型', minWidth: 100, align: 'center'},

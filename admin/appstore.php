@@ -14,6 +14,35 @@ $user = $adminUser;
 $siteName = Config::get('sitename', 'EMSHOP');
 $csrfToken = Csrf::token();
 
+/**
+ * 安装/更新前预检：目标路径必须可创建或所在目录可写。
+ * 若不可写则直接返回明确文案，避免 zip/解压/curl 等底层错误难以理解。
+ */
+function appstore_require_writable_path(string $path): void
+{
+    $path = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+    $path = rtrim($path, DIRECTORY_SEPARATOR);
+    if ($path === '') {
+        Response::error('网站目录权限不足，请设置网站目录权限为755');
+    }
+    if (is_file($path)) {
+        $path = dirname($path);
+        $path = rtrim($path, DIRECTORY_SEPARATOR);
+    }
+
+    $probe = $path;
+    for ($i = 0; $i < 128 && $probe !== '' && !is_dir($probe); $i++) {
+        $parent = dirname($probe);
+        if ($parent === $probe) {
+            break;
+        }
+        $probe = $parent;
+    }
+
+    if (!is_dir($probe) || !is_writable($probe)) {
+        Response::error('网站目录权限不足，请设置网站目录权限为755');
+    }
+}
 
 
 
@@ -201,6 +230,10 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         $targetDir = $targetRoot . '/' . $name;
         if (!is_dir($targetDir)) Response::error('应用尚未安装，无法更新');
 
+        $tmpRoot = EM_ROOT . '/content/uploads/.appstore_tmp';
+        appstore_require_writable_path($tmpRoot);
+        appstore_require_writable_path($targetDir);
+
         $lines = LicenseClient::lines();
         if (!$lines) Response::error('未配置授权服务器地址');
         $baseHost = rtrim((string) $lines[0]['url'], '/');
@@ -212,7 +245,6 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
             $downloadUrl = $baseHost . '/' . ltrim($filePath, '/');
         }
 
-        $tmpRoot = EM_ROOT . '/content/uploads/.appstore_tmp';
         if (!is_dir($tmpRoot)) @mkdir($tmpRoot, 0755, true);
         $tmpZip = $tmpRoot . '/zip_u_' . uniqid() . '.zip';
         $fp = fopen($tmpZip, 'wb');
@@ -366,8 +398,11 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
         // 本地快捷安装：目录已存在，跳过下载/解压，直接进入 REGISTER
         // 非快捷场景才执行下载解压
         if (!$localAlreadyExists) {
-        // 下载 zip 到项目内临时目录（避免 Windows 下跨盘 rename 失败）
         $tmpRoot = EM_ROOT . '/content/uploads/.appstore_tmp';
+        appstore_require_writable_path($tmpRoot);
+        appstore_require_writable_path($targetDir);
+
+        // 下载 zip 到项目内临时目录（避免 Windows 下跨盘 rename 失败）
         if (!is_dir($tmpRoot)) @mkdir($tmpRoot, 0755, true);
         $tmpZip = $tmpRoot . '/zip_' . uniqid() . '.zip';
         $fp = fopen($tmpZip, 'wb');

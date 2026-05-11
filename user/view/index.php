@@ -12,6 +12,7 @@ $siteLogo     = (string) (Config::get('site_logo') ?? '');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个人中心 - <?= htmlspecialchars($siteName) ?></title>
+    <link rel="icon" href="<?= htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <link rel="stylesheet" href="/user/static/css/user.css">

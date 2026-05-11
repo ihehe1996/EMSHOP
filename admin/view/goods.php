@@ -131,7 +131,8 @@ $csrfToken = Csrf::token();
 
 <!-- 商品类型模板 -->
 <script type="text/html" id="goodsTypeTpl">
-    {{ goodsTypeMap[d.goods_type] || d.goods_type }}
+    {{# var typeText = goodsTypeMap[d.goods_type] || d.goods_type; }}
+    <span class="em-tag em-tag--purple">{{ typeText }}</span>
 </script>
 
 <!-- 上架状态：点击即切换（左侧小圆点取胶囊文字色，Tailwind 风） -->
@@ -163,6 +164,8 @@ $csrfToken = Csrf::token();
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* 中英文混排：允许在任意字符间断行，避免整段英文按「单词」整块换行 */
+    overflow-wrap: anywhere;
     word-break: break-all;
     line-height: 1.4;
 }
@@ -184,9 +187,9 @@ $csrfToken = Csrf::token();
 <!-- 发货类型模板（delivery_type 由服务端按商品实际配置计算） -->
 <script type="text/html" id="goodsDeliveryTypeTpl">
     {{# if(d.delivery_type === 'auto'){ }}
-        <span style="display:inline-block;padding:0 8px;border-radius:10px;font-size:11px;background:#e6f7ff;color:#1890ff;border:1px solid #91d5ff;"><i class="fa fa-bolt"></i> 自动发货</span>
+        <span class="em-tag em-tag--blue"><i class="fa fa-bolt" style="margin-right:3px;"></i>自动发货</span>
     {{# } else { }}
-        <span style="display:inline-block;padding:0 8px;border-radius:10px;font-size:11px;background:#fff7e6;color:#fa8c16;border:1px solid #ffd591;"><i class="fa fa-user"></i> 人工发货</span>
+        <span class="em-tag em-tag--amber"><i class="fa fa-user" style="margin-right:3px;"></i>人工发货</span>
     {{# } }}
 </script>
 

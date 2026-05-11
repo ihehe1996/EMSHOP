@@ -284,6 +284,25 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             </div>
                         </div>
                         <div class="layui-form-item">
+                            <label class="layui-form-label">网站 ICO</label>
+                            <div class="layui-input-block">
+                                <?php
+                                $faviconVal = (string) ($cfg['site_favicon'] ?? '');
+                                $faviconPreview = $faviconVal !== '' ? $faviconVal : '/favicon.ico';
+                                ?>
+                                <div class="admin-profile__avatar-field" id="faviconField" data-placeholder="/favicon.ico">
+                                    <img src="<?php echo $esc($faviconPreview); ?>" alt="Favicon" id="faviconPreview" width="32" height="32" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:#f1f5f9;border:1px solid #e2e8f0;" layer-src="<?php echo $esc($faviconPreview); ?>" onerror="this.src='<?php echo $esc($placeholderImg ?: '/favicon.ico'); ?>';this.onerror=null;">
+                                    <input type="text" class="admin-profile__avatar-url" id="faviconUrl" name="site_favicon" maxlength="500" placeholder="图标 URL，留空则使用网站根目录 favicon.ico" value="<?php echo $esc($faviconVal); ?>">
+                                    <div class="admin-profile__avatar-btns">
+                                        <button type="button" class="layui-btn layui-btn-xs" id="faviconUploadBtn" title="上传"><i class="fa fa-upload"></i></button>
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-normal" id="faviconPickBtn" title="选择"><i class="fa fa-image"></i></button>
+                                        <button type="button" class="layui-btn layui-btn-xs layui-btn-danger" id="faviconClearBtn" title="清除"><i class="fa fa-times"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">浏览器标签页图标；支持 ICO、PNG 等，建议 32×32；留空使用根路径 /favicon.ico</div>
+                        </div>
+                        <div class="layui-form-item">
                             <label class="layui-form-label">网站 Logo</label>
                             <div class="layui-input-block">
                                 <div class="admin-profile__avatar-field" id="logoField" data-placeholder="<?php echo $esc($placeholderImg); ?>">
@@ -1293,6 +1312,15 @@ function formRadio(string $name, array $options, string $selected = ''): string 
             cropHeight: 60,
             context: 'site_logo'
         };
+        var faviconField = {
+            previewId: 'faviconPreview',
+            urlId: 'faviconUrl',
+            clearBtnId: 'faviconClearBtn',
+            pickBtnId: 'faviconPickBtn',
+            uploadBtnId: 'faviconUploadBtn',
+            fieldId: 'faviconField',
+            context: 'site_favicon'
+        };
 
         function updateFieldPreview(cfg, url) {
             var $preview = $('#' + cfg.previewId);
@@ -1528,6 +1556,107 @@ function formRadio(string $name, array $options, string $selected = ''): string 
 
         $('#' + logoField.uploadBtnId).on('click', function () {
             $fileInput.trigger('click');
+        });
+
+        // ============================================================
+        // 网站 ICO（直传 + 媒体库，不走裁剪）
+        // ============================================================
+        $('#' + faviconField.urlId).on('input', function () {
+            var url = $(this).val();
+            var $preview = $('#' + faviconField.previewId);
+            var placeholder = $(this).closest('.admin-profile__avatar-field').data('placeholder') || '/favicon.ico';
+            var finalUrl = url || placeholder;
+            $preview.attr('src', finalUrl);
+            $preview.attr('layer-src', finalUrl);
+        });
+        $('#' + faviconField.previewId).on('click', function (e) {
+            e.stopPropagation();
+            var src = $(this).attr('layer-src') || $(this).attr('src');
+            if (!src) return;
+            var $container = $('<div style="display:none;"><img src="' + src + '" alt="网站 ICO"></div>');
+            $('body').append($container);
+            var viewer = new Viewer($container[0], {
+                navbar: false,
+                title: false,
+                toolbar: true,
+                hidden: function () {
+                    viewer.destroy();
+                    $container.remove();
+                }
+            });
+            viewer.show();
+        });
+        $('#' + faviconField.clearBtnId).on('click', function () {
+            updateFieldPreview(faviconField, '');
+        });
+        $('#' + faviconField.pickBtnId).on('click', function () {
+            var csrfToken = $('input[name="csrf_token"]').val();
+            layer.open({
+                type: 2,
+                title: '选择图片',
+                skin: 'admin-modal',
+                maxmin: true,
+                area: CROP_AREA_PICK,
+                shadeClose: false,
+                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
+                btn: ['确定', '取消'],
+                yes: function (index, layero) {
+                    var win = layero.find('iframe')[0].contentWindow;
+                    var url = win.selectMedia();
+                    if (!url) {
+                        layer.msg('请先选择一张图片');
+                        return;
+                    }
+                    layer.close(index);
+                    updateFieldPreview(faviconField, url);
+                }
+            });
+        });
+        var $faviconFileInput = $('<input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.ico,image/x-icon" style="display:none;">');
+        $('body').append($faviconFileInput);
+        $faviconFileInput.on('change', function () {
+            var file = this.files[0];
+            if (!file) return;
+            var okExt = /\.(ico|jpe?g|png|gif|webp)$/i.test(file.name);
+            var okMime = /image\/(jpeg|png|gif|webp|x-icon)/i.test(file.type || '');
+            if (!okExt && !okMime) {
+                layer.msg('仅支持 ICO、JPG、PNG、GIF、WebP 格式');
+                $(this).val('');
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                layer.msg('文件大小不能超过 2MB');
+                $(this).val('');
+                return;
+            }
+            var fd = new FormData();
+            fd.append('file', file);
+            fd.append('csrf_token', $('input[name="csrf_token"]').val());
+            fd.append('context', 'site_favicon');
+            $.ajax({
+                url: '/admin/upload.php',
+                type: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function (res) {
+                    if (res.code === 0 || res.code === 200) {
+                        updateFieldPreview(faviconField, res.data.url);
+                        $('input[name="csrf_token"]').val(res.data.csrf_token);
+                        layer.msg('上传成功');
+                    } else {
+                        layer.msg(res.msg || '上传失败');
+                    }
+                },
+                error: function () {
+                    layer.msg('上传失败，请重试');
+                }
+            });
+            $(this).val('');
+        });
+        $('#' + faviconField.uploadBtnId).on('click', function () {
+            $faviconFileInput.trigger('click');
         });
     });
     }); // end $(ready) + layui.use

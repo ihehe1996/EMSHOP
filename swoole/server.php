@@ -32,6 +32,9 @@ define('SW_HEARTBEAT_FILE', EM_ROOT . '/swoole/swoole.heartbeat');
 define('SW_QUEUE_INTERVAL', 2);
 define('SW_TIMER_INTERVAL', 60);
 define('SW_HEARTBEAT_INTERVAL', 5);
+define('SW_GOODS_SYNC_BATCH_SIZE', 30);
+define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
+define('SW_GOODS_SYNC_LOCK_STALE_SECONDS', 1800);
 
 /**
  * 服务生命周期与异常日志（中文），追加写入 swoole.log。
@@ -511,12 +514,278 @@ function runOrderTimeoutChecks(array &$stats): void
  */
 function runGoodsSyncTasks(array &$stats): void
 {
+    $lockToken = swooleGoodsSyncAcquireRunLock();
+    if ($lockToken === '') {
+        swooleServiceLog('跳过：商品同步任务仍在运行，本次 tick 不重复进入');
+        return;
+    }
+
     try {
-        doAction('swoole_goods_sync_tick');
-    } catch (Throwable $e) {
-        swooleServiceLog('异常：商品同步钩子 swoole_goods_sync_tick，' . $e->getMessage());
+        $state = swooleGoodsSyncLoadState();
+        $batchIds = $state['batch_ids'];
+        $batchIndex = $state['batch_index'];
+        $cursorId = $state['cursor_id'];
+
+        if ($batchIds === [] || $batchIndex >= count($batchIds)) {
+            $batchIds = swooleGoodsSyncFetchBatchIds($cursorId, SW_GOODS_SYNC_BATCH_SIZE);
+            if ($batchIds === [] && $cursorId > 0) {
+                $cursorId = 0;
+                $batchIds = swooleGoodsSyncFetchBatchIds($cursorId, SW_GOODS_SYNC_BATCH_SIZE);
+            }
+
+            $state['cursor_id'] = $cursorId;
+            $state['batch_ids'] = $batchIds;
+            $state['batch_index'] = 0;
+            swooleGoodsSyncSaveState($state);
+            $batchIndex = 0;
+        }
+
+        if ($batchIds === []) {
+            $stats['goods_sync_runs']++;
+            return;
+        }
+
+        $batchCount = count($batchIds);
+        for ($i = $batchIndex; $i < $batchCount; $i++) {
+            $goodsId = (int) $batchIds[$i];
+            $goodsRow = swooleGoodsSyncLoadGoodsRow($goodsId);
+
+            if ($goodsRow === null) {
+                // 商品已删除或不存在：仍推进批次，避免阻塞后续轮转。
+            } else {
+                try {
+                    doAction('swoole_goods_sync_one', $goodsRow);
+                } catch (Throwable $e) {
+                    // 单商品失败不阻塞批次，错误由插件内部记录。
+                }
+            }
+
+            $state['cursor_id'] = $goodsId;
+            $state['batch_index'] = $i + 1;
+            swooleGoodsSyncSaveState($state);
+        }
+
+        $state['batch_ids'] = [];
+        $state['batch_index'] = 0;
+        swooleGoodsSyncSaveState($state);
+    } finally {
+        swooleGoodsSyncReleaseRunLock($lockToken);
     }
     $stats['goods_sync_runs']++;
+}
+
+/**
+ * 读取商品轮转同步状态（持久化在 config 表）。
+ *
+ * @return array{cursor_id:int,batch_ids:array<int,int>,batch_index:int,running_lock:string}
+ */
+function swooleGoodsSyncLoadState(): array
+{
+    $raw = trim((string) (Config::get(SW_GOODS_SYNC_STATE_KEY, '') ?? ''));
+    $state = [];
+    if ($raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $state = $decoded;
+        }
+    }
+
+    $cursorId = (int) ($state['cursor_id'] ?? 0);
+    if ($cursorId < 0) {
+        $cursorId = 0;
+    }
+
+    $batchIds = [];
+    $rawBatchIds = $state['batch_ids'] ?? [];
+    if (is_array($rawBatchIds)) {
+        foreach ($rawBatchIds as $id) {
+            $goodsId = (int) $id;
+            if ($goodsId > 0) {
+                $batchIds[] = $goodsId;
+            }
+        }
+    }
+    $batchIds = array_values(array_unique($batchIds));
+
+    $batchIndex = (int) ($state['batch_index'] ?? 0);
+    if ($batchIndex < 0) {
+        $batchIndex = 0;
+    }
+    if ($batchIndex > count($batchIds)) {
+        $batchIndex = count($batchIds);
+    }
+
+    $runningLock = trim((string) ($state['running_lock'] ?? ''));
+
+    return [
+        'cursor_id' => $cursorId,
+        'batch_ids' => $batchIds,
+        'batch_index' => $batchIndex,
+        'running_lock' => $runningLock,
+    ];
+}
+
+/**
+ * 写回商品轮转同步状态。
+ *
+ * @param array{cursor_id:int,batch_ids:array<int,int>,batch_index:int,running_lock:string} $state
+ */
+function swooleGoodsSyncSaveState(array $state): void
+{
+    $payload = [
+        'cursor_id' => max(0, (int) ($state['cursor_id'] ?? 0)),
+        'batch_ids' => array_values(array_map('intval', array_filter((array) ($state['batch_ids'] ?? []), static function ($id): bool {
+            return (int) $id > 0;
+        }))),
+        'batch_index' => max(0, (int) ($state['batch_index'] ?? 0)),
+        'running_lock' => trim((string) ($state['running_lock'] ?? '')),
+    ];
+    if ($payload['batch_index'] > count($payload['batch_ids'])) {
+        $payload['batch_index'] = count($payload['batch_ids']);
+    }
+
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    if (!is_string($json) || $json === '') {
+        $json = '{"cursor_id":0,"batch_ids":[],"batch_index":0,"running_lock":""}';
+    }
+    Config::set(SW_GOODS_SYNC_STATE_KEY, $json);
+}
+
+/**
+ * 获取商品同步全局运行锁，避免重入。
+ */
+function swooleGoodsSyncAcquireRunLock(): string
+{
+    $state = swooleGoodsSyncLoadState();
+    $existingLock = (string) ($state['running_lock'] ?? '');
+    if ($existingLock !== '') {
+        $parts = explode(':', $existingLock, 2);
+        $lockAt = isset($parts[1]) ? (int) $parts[1] : 0;
+        if ($lockAt > 0 && (time() - $lockAt) <= SW_GOODS_SYNC_LOCK_STALE_SECONDS) {
+            return '';
+        }
+        swooleServiceLog('警告：检测到商品同步运行锁过期，已自动回收');
+    }
+
+    try {
+        $token = bin2hex(random_bytes(8));
+    } catch (Throwable $e) {
+        $token = md5(uniqid((string) mt_rand(), true));
+    }
+    $lockToken = $token . ':' . time();
+    $state['running_lock'] = $lockToken;
+    swooleGoodsSyncSaveState($state);
+
+    $verify = swooleGoodsSyncLoadState();
+    return (string) ($verify['running_lock'] ?? '') === $lockToken ? $lockToken : '';
+}
+
+/**
+ * 释放商品同步全局运行锁。
+ */
+function swooleGoodsSyncReleaseRunLock(string $lockToken): void
+{
+    if ($lockToken === '') {
+        return;
+    }
+    $state = swooleGoodsSyncLoadState();
+    if ((string) ($state['running_lock'] ?? '') !== $lockToken) {
+        return;
+    }
+    $state['running_lock'] = '';
+    swooleGoodsSyncSaveState($state);
+}
+
+/**
+ * 按 ID 游标查询下一批可同步商品。
+ *
+ * @return array<int,int>
+ */
+function swooleGoodsSyncFetchBatchIds(int $cursorId, int $limit): array
+{
+    $sourceTypes = swooleGoodsSyncResolveSourceTypes();
+    if ($sourceTypes === []) {
+        return [];
+    }
+
+    $prefix = Database::prefix();
+    $typePlaceholders = implode(',', array_fill(0, count($sourceTypes), '?'));
+    $params = array_merge(
+        $sourceTypes,
+        [max(0, $cursorId), max(1, $limit)]
+    );
+    $rows = Database::query(
+        "SELECT `id`
+         FROM `{$prefix}goods`
+         WHERE `deleted_at` IS NULL
+           AND `source_type` IN ({$typePlaceholders})
+           AND `id` > ?
+         ORDER BY `id` ASC
+         LIMIT ?",
+        $params
+    );
+
+    $ids = [];
+    foreach ($rows as $row) {
+        $goodsId = (int) ($row['id'] ?? 0);
+        if ($goodsId > 0) {
+            $ids[] = $goodsId;
+        }
+    }
+
+    return $ids;
+}
+
+/**
+ * 由插件声明可参与统一轮转的 source_type 列表。
+ *
+ * @return array<int,string>
+ */
+function swooleGoodsSyncResolveSourceTypes(): array
+{
+    $types = applyFilter('swoole_goods_sync_source_types', []);
+    if (!is_array($types)) {
+        return [];
+    }
+
+    $out = [];
+    foreach ($types as $type) {
+        $name = trim((string) $type);
+        if ($name === '') {
+            continue;
+        }
+        if (!preg_match('/^[a-z0-9_]+$/i', $name)) {
+            continue;
+        }
+        $out[$name] = true;
+    }
+
+    return array_keys($out);
+}
+
+/**
+ * 读取单个商品基础信息，供插件按 source_type 路由处理。
+ *
+ * @return array<string,mixed>|null
+ */
+function swooleGoodsSyncLoadGoodsRow(int $goodsId): ?array
+{
+    if ($goodsId <= 0) {
+        return null;
+    }
+
+    $prefix = Database::prefix();
+    $row = Database::fetchOne(
+        "SELECT `id`, `source_type`, `source_id`, `title`, `updated_at`
+         FROM `{$prefix}goods`
+         WHERE `id` = ? AND `deleted_at` IS NULL
+         LIMIT 1",
+        [$goodsId]
+    );
+    if ($row === null || !is_array($row)) {
+        return null;
+    }
+    return $row;
 }
 
 /**

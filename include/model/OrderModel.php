@@ -117,6 +117,18 @@ class OrderModel
                     throw new RuntimeException('商品规格不存在：' . $goods['title']);
                 }
 
+                // 起购 / 限购（goods_spec.min_buy、max_buy；与详情页 goods.js 一致）
+                $minBuyRaw = $spec['min_buy'] ?? null;
+                $minBuy = ($minBuyRaw === null || $minBuyRaw === '') ? 1 : max(1, (int) $minBuyRaw);
+                $maxBuyRaw = $spec['max_buy'] ?? null;
+                $maxBuy = ($maxBuyRaw === null || $maxBuyRaw === '' || (int) $maxBuyRaw <= 0) ? 0 : (int) $maxBuyRaw;
+                if ($quantity < $minBuy) {
+                    throw new RuntimeException('购买数量不能少于 ' . $minBuy);
+                }
+                if ($maxBuy > 0 && $quantity > $maxBuy) {
+                    throw new RuntimeException('购买数量不能超过 ' . $maxBuy);
+                }
+
                 // 库存不足抛专用异常，携带商品名 + 剩余数量，调用方按场景选择消息格式
                 if ((int) $spec['stock'] >= 0 && (int) $spec['stock'] < $quantity) {
                     throw new StockShortageException((string) $goods['title'], (int) $spec['stock']);
@@ -796,7 +808,7 @@ class OrderModel
         self::tables();
         $prefix = Database::prefix();
         $row = Database::fetchOne(
-            "SELECT og.`id` AS order_goods_id, og.`order_id`, og.`delivery_content`, og.`delivery_at`,
+            "SELECT og.`id` AS order_goods_id, og.`order_id`, og.`goods_id`, og.`spec_id`, og.`delivery_content`, og.`delivery_at`,
                     o.`order_no`, o.`delivery_callback_url`
              FROM `{$prefix}order_goods` og
              INNER JOIN `{$prefix}order` o ON o.`id` = og.`order_id`
@@ -813,11 +825,26 @@ class OrderModel
         }
 
         $payload = [
-            'order_no'        => (string) ($row['order_no'] ?? ''),
-            'order_goods_id'  => (int) ($row['order_goods_id'] ?? 0),
-            'delivery_content'=> $deliveryContent,
-            'delivery_at'     => (string) ($row['delivery_at'] ?? ''),
+            'order_no'         => (string) ($row['order_no'] ?? ''),
+            'order_goods_id'   => (int) ($row['order_goods_id'] ?? 0),
+            'delivery_content' => $deliveryContent,
+            'delivery_at'      => (string) ($row['delivery_at'] ?? ''),
         ];
+        $specId = (int) ($row['spec_id'] ?? 0);
+        if ($specId > 0) {
+            $specRow = Database::fetchOne(
+                "SELECT `stock` FROM `{$prefix}goods_spec` WHERE `id` = ? LIMIT 1",
+                [$specId]
+            );
+            if ($specRow !== null && array_key_exists('stock', $specRow)) {
+                $payload['spec_remaining_stock'] = (int) $specRow['stock'];
+            }
+        }
+        $goodsId = (int) ($row['goods_id'] ?? 0);
+        if ($goodsId > 0) {
+            $range = GoodsModel::getPriceAndStockRange($goodsId);
+            $payload['goods_total_stock'] = (int) ($range['total_stock'] ?? 0);
+        }
         $httpCode = 0;
         $responseBody = '';
         $ok = self::postJson($callbackUrl, $payload, $httpCode, $responseBody);

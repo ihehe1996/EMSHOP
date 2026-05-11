@@ -665,25 +665,42 @@ class GoodsModel
     }
 
     /**
-     * 获取商品的最小/最大价格和总库存（返回 DB 原始值，供内部缓存用）
+     * 获取商品的最小/最大价格和总库存（返回 DB 原始值，供内部缓存用）。
+     *
+     * 总库存：各在售规格库存相加；任一格为负数（如 -1 表示无限）时，整商品 total_stock 记为 -1，
+     * 避免 MySQL SUM(-1,10) 等把「无限」当成数字参与求和导致多规格总库存错误。
      */
     public static function getPriceAndStockRange($goodsId)
     {
         $prefix = Database::prefix();
 
         $result = Database::query(
-            "SELECT MIN(price) as min_price, MAX(price) as max_price,
-                    SUM(stock) as total_stock
+            "SELECT MIN(price) as min_price, MAX(price) as max_price
              FROM {$prefix}goods_spec WHERE goods_id = ? AND status = 1",
             [$goodsId]
         );
 
         $row = $result[0] ?? [];
-        $totalStock = max(0, (int) ($row['total_stock'] ?? 0));
+
+        $stockRows = Database::query(
+            "SELECT `stock` FROM `{$prefix}goods_spec` WHERE `goods_id` = ? AND `status` = 1",
+            [$goodsId]
+        );
+        $sumFinite = 0;
+        $hasUnlimited = false;
+        foreach ($stockRows as $sr) {
+            $s = (int) ($sr['stock'] ?? 0);
+            if ($s < 0) {
+                $hasUnlimited = true;
+            } else {
+                $sumFinite += $s;
+            }
+        }
+        $totalStock = $hasUnlimited ? -1 : max(0, $sumFinite);
 
         return [
-            'min_price' => (int)($row['min_price'] ?? 0),
-            'max_price' => (int)($row['max_price'] ?? 0),
+            'min_price' => (int) ($row['min_price'] ?? 0),
+            'max_price' => (int) ($row['max_price'] ?? 0),
             'total_stock' => $totalStock,
         ];
     }

@@ -245,7 +245,11 @@ class GoodsController extends BaseController
                 }
                 $deliveryType = applyFilter('goods_delivery_type', $defaultDeliveryType, $row);
 
-                $stock = $defaultSpec ? (int) $defaultSpec['stock'] : (int) $row['total_stock'];
+                // 多规格：首屏「库存」展示各规格库存之和（与 goods.total_stock 缓存一致）；单规格仍用该行库存
+                $multiSpec = count($rawSpecs) > 1;
+                $stock = $multiSpec
+                    ? (int) ($row['total_stock'] ?? 0)
+                    : ($defaultSpec ? (int) $defaultSpec['stock'] : (int) ($row['total_stock'] ?? 0));
                 $goods = [
                     'id'             => (int) $row['id'],
                     'name'           => $row['title'],

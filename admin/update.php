@@ -105,6 +105,8 @@ try {
         // ------------------------------------------------------------
         case 'finalize': {
             $res = UpdateService::finalize();
+            // 每次系统升级完成后写入新文件版本号，触发 Swoole 定时器检测并热重载。
+            Config::set('new_swoole_file_version', (string) time());
             Response::success('升级完成', $res + ['csrf_token' => Csrf::refresh()]);
         }
 

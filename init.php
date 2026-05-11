@@ -6,6 +6,16 @@ if (defined('EM_INITIALIZED')) {
     return;
 }
 
+
+if (
+    isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+    $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'
+) {
+    $_SERVER['HTTPS'] = 'on';
+}
+
+
+
 /**
  * 系统初始化文件。
  *
@@ -20,8 +30,8 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true);
-define('EM_VERSION', '1.2.93');
-define('EM_VERSION_TIMESTAMP', '1293');
+define('EM_VERSION', '1.2.95');
+define('EM_VERSION_TIMESTAMP', '1295');
 
 require EM_ROOT . '/base.php';
 

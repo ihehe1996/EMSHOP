@@ -22,6 +22,7 @@ $fullTitle      = $pageTitle !== '' ? ($pageTitle . ' - ' . $seoTitle) : $seoTit
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($fullTitle) ?></title>
+<link rel="icon" href="<?= htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8') ?>">
 <?php if ($seoKeywords !== ''): ?>
 <meta name="keywords" content="<?= htmlspecialchars($seoKeywords) ?>">
 <?php endif; ?>

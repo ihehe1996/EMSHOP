@@ -419,6 +419,8 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
             "UPDATE {$prefix}goods_spec SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
             [$qty, $specId]
         );
+        // 与自动发货路径 virtualCardSyncCardStock 一致：刷新 goods 表 total_stock / 价格区间缓存
+        GoodsModel::updatePriceStockCache($goodsId);
     }
 
     // 递增规格已售数量

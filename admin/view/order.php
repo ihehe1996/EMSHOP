@@ -204,14 +204,14 @@ $(function () {
             limits: [10, 20, 50, 100],
             cols: [[
                 {type: 'checkbox'},
-                {field: 'order_no', title: '订单号', width: 200, templet: '#orderNoTpl'},
+                {field: 'order_no', title: '订单号', width: 185, templet: '#orderNoTpl'},
                 {field: 'goods', title: '商品', minWidth: 240, templet: '#orderGoodsTpl'},
                 {field: 'user_id', title: '买家', width: 120, align: 'center', templet: '#orderBuyerTpl'},
                 {field: 'pay_amount', title: '金额', width: 110, align: 'center', templet: '#orderAmountTpl'},
-                {field: 'payment_name', title: '支付方式', width: 110, align: 'center', templet: '#orderPaymentTpl'},
+                {field: 'payment_name', title: '支付方式', width: 120, align: 'center', templet: '#orderPaymentTpl'},
                 {field: 'status', title: '状态', width: 100, align: 'center', templet: '#orderStatusTpl'},
-                {field: 'created_at', title: '下单时间', width: 140, align: 'center', templet: '#orderTimeTpl'},
-                {field: 'pay_time', title: '支付时间', width: 140, align: 'center', templet: '#orderPayTimeTpl'},
+                {field: 'created_at', title: '下单时间', width: 126, align: 'center', templet: '#orderTimeTpl'},
+                {field: 'pay_time', title: '支付时间', width: 126, align: 'center', templet: '#orderPayTimeTpl'},
                 {title: '操作', width: 170, align: 'center', templet: '#orderActionTpl'}
             ]],
             parseData: function (res) {

@@ -110,7 +110,7 @@ if (Request::isPost()) {
                 $fields = [
                     'site_enabled',
                     'sitename', 'site_url', 'site_keywords', 'site_description',
-                    'site_logo', 'site_logo_type', 'site_icp', 'site_statistical_code',
+                    'site_favicon', 'site_logo', 'site_logo_type', 'site_icp', 'site_statistical_code',
                     'site_rewrite', 'site_timezone', 'homepage_mode',
                 ];
                 foreach ($fields as $field) {

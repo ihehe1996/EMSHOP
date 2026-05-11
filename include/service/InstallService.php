@@ -29,6 +29,7 @@ final class InstallService
         $defaultConfigs = [
             ['config_name' => 'sitename', 'config_value' => 'EMSHOP', 'description' => '站点名称'],
             ['config_name' => 'site_enabled', 'config_value' => '1', 'description' => '站点开启'],
+            ['config_name' => 'site_favicon', 'config_value' => '', 'description' => '网站 favicon（留空使用根目录 /favicon.ico）'],
             ['config_name' => 'site_logo_type', 'config_value' => 'text', 'description' => 'Logo 显示方式'],
             ['config_name' => 'homepage_mode', 'config_value' => 'mall', 'description' => '首页入口'],
             ['config_name' => 'site_timezone', 'config_value' => 'Asia/Shanghai', 'description' => '服务器时区'],
