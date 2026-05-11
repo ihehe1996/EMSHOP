@@ -6,6 +6,18 @@ final class InstallService
     {
         $config = Database::config();
         $prefix = Database::prefix();
+        $siteUrl = rtrim(trim((string) ($options['site_url'] ?? '')), '/');
+        if ($siteUrl !== '') {
+            $parts = @parse_url($siteUrl);
+            $scheme = strtolower((string) (is_array($parts) ? ($parts['scheme'] ?? '') : ''));
+            $host = trim((string) (is_array($parts) ? ($parts['host'] ?? '') : ''));
+            $port = (int) (is_array($parts) ? ($parts['port'] ?? 0) : 0);
+            if (($scheme !== 'http' && $scheme !== 'https') || $host === '') {
+                $siteUrl = '';
+            } else {
+                $siteUrl = $scheme . '://' . $host . ($port > 0 ? ':' . $port : '') . '/';
+            }
+        }
 
         Database::statement(sprintf(
             'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
@@ -28,6 +40,7 @@ final class InstallService
         $swooleVersionTs = (string) time();
         $defaultConfigs = [
             ['config_name' => 'sitename', 'config_value' => 'EMSHOP', 'description' => '站点名称'],
+            ['config_name' => 'site_url', 'config_value' => $siteUrl, 'description' => '站点地址（含 http(s)）'],
             ['config_name' => 'site_enabled', 'config_value' => '1', 'description' => '站点开启'],
             ['config_name' => 'site_favicon', 'config_value' => '', 'description' => '网站 favicon（留空使用根目录 /favicon.ico）'],
             ['config_name' => 'site_logo_type', 'config_value' => 'text', 'description' => 'Logo 显示方式'],

@@ -8,6 +8,7 @@ $esc = function (string $str) use (&$esc): string {
 
 // 读取所有配置
 $cfg = Config::load();
+$siteUrlConfigured = trim((string) ($cfg['site_url'] ?? '')) !== '';
 $placeholderImg = defined('EM_CONFIG') && isset(EM_CONFIG['placeholder_img']) ? EM_CONFIG['placeholder_img'] : '';
 $templateModel = class_exists('TemplateModel') ? new TemplateModel() : null;
 $availableThemes = [];
@@ -33,6 +34,7 @@ $tabs = [
     'mail'        => ['label' => '邮箱配置',       'icon' => 'fa fa-envelope'],
     'substation'  => ['label' => '分站配置',       'icon' => 'fa fa-sitemap'],
 ];
+$needSiteUrlTip = (string) Input::get('_need_site_url', '') === '1' && !$siteUrlConfigured;
 
 // 辅助：生成 input/select 控件
 function formInput(string $name, string $value, string $placeholder = '', int $maxlength = 0): string {
@@ -140,6 +142,17 @@ function formRadio(string $name, array $options, string $selected = ''): string 
     font-size: 14px;
     width: 16px;
     text-align: center;
+}
+.admin-settings .site-url-need-attention .layui-form-label {
+    color: #dc2626;
+    font-weight: 700;
+}
+.admin-settings .site-url-need-attention .layui-input {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+.admin-settings .site-url-need-attention .layui-word-aux {
+    color: #b91c1c;
 }
 
 /* 底部操作栏：单独一块，按钮左对齐 */
@@ -281,6 +294,15 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             <label class="layui-form-label">站点名称</label>
                             <div class="layui-input-block">
                                 <?php echo formInput('sitename', $cfg['sitename'] ?? '', '站点名称'); ?>
+                            </div>
+                        </div>
+                        <div class="layui-form-item<?php echo $needSiteUrlTip ? ' site-url-need-attention' : ''; ?>" id="siteUrlFormItem">
+                            <label class="layui-form-label">站点地址</label>
+                            <div class="layui-input-block">
+                                <input type="text" class="layui-input" id="siteUrlInput" name="site_url" value="<?php echo $esc((string) ($cfg['site_url'] ?? '')); ?>" placeholder="如：https://example.com">
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">
+                                请填写可公网访问的主站 URL（必须含 http:// 或 https://），用于回调地址生成等跨站对接场景。
                             </div>
                         </div>
                         <div class="layui-form-item">
@@ -1218,12 +1240,26 @@ function formRadio(string $name, array $options, string $selected = ''): string 
 <script>
     // —— 通用提示（layui 可用时用 layer.msg；否则 fallback 到 alert，避免报错）
     function settingsMsg(text) {
-        if (typeof layui !== 'undefined' && layui.layer && typeof layui.layer.msg === 'function') {
+        if (typeof layer !== 'undefined' && typeof layer.msg === 'function') {
+            layer.msg(text);
+        } else if (typeof layui !== 'undefined' && layui.layer && typeof layui.layer.msg === 'function') {
             layui.layer.msg(text);
         } else {
             alert(text);
         }
     }
+<?php if ($needSiteUrlTip): ?>
+    settingsMsg('请先配置站点地址（site_url）');
+    (function () {
+        var input = document.getElementById('siteUrlInput');
+        if (!input) return;
+        var item = document.getElementById('siteUrlFormItem');
+        if (item && typeof item.scrollIntoView === 'function') {
+            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(function () { input.focus(); }, 150);
+    })();
+<?php endif; ?>
 
     // —— 提交处理器先于 layui 初始化注册，避免 layui 未就绪时表单按默认方式 GET 提交
     // PJAX 反复导航到本页时 .off + .on 保证只绑定一次

@@ -18,6 +18,14 @@ require __DIR__ . '/global.php';
 adminRequireLogin();
 $user = $adminUser;
 $siteName = Config::get('sitename', 'EMSHOP');
+$siteUrl = trim((string) (Config::get('site_url') ?? ''));
+
+if ($siteUrl === '') {
+    if ((string) Input::get('_action', '') !== '') {
+        Response::error('请先在基础设置中配置站点地址（site_url）');
+    }
+    Response::redirect('/admin/settings.php?action=base&_need_site_url=1');
+}
 
 /**
  * AJAX：拉取首页需要的中心服务数据（版本 / 公告 / 广告 / 代理商联系方式）

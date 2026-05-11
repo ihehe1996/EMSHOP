@@ -104,7 +104,7 @@ class ApiController extends BaseController
 
         $orderResult = [];
         try {
-            $orderResult = $this->runWithMerchantScope($scope['merchant_row'], function () use (
+            $orderResult = $this->runWithApiBuyerContext($apiUser, function () use (
                 $scope,
                 $apiUser,
                 $params,
@@ -113,46 +113,56 @@ class ApiController extends BaseController
                 $quantity,
                 $couponCode
             ) {
-            $prepared = $this->prepareApiOrderDraft(
-                $scope,
-                $apiUser,
-                $params,
-                $goodsId,
-                $specId,
-                $quantity,
-                $couponCode
-            );
+                return $this->runWithMerchantScope($scope['merchant_row'], function () use (
+                    $scope,
+                    $apiUser,
+                    $params,
+                    $goodsId,
+                    $specId,
+                    $quantity,
+                    $couponCode
+                ) {
+                    $prepared = $this->prepareApiOrderDraft(
+                        $scope,
+                        $apiUser,
+                        $params,
+                        $goodsId,
+                        $specId,
+                        $quantity,
+                        $couponCode
+                    );
 
-            $result = OrderModel::create($prepared['create_data'], [[
-                'goods_id'  => (int) $prepared['goods_id'],
-                'spec_id'   => (int) $prepared['spec_id'],
-                'quantity'  => $quantity,
-            ]]);
+                    $result = OrderModel::create($prepared['create_data'], [[
+                        'goods_id'  => (int) $prepared['goods_id'],
+                        'spec_id'   => (int) $prepared['spec_id'],
+                        'quantity'  => $quantity,
+                    ]]);
 
-            // 下单后立即扣 API 对接人的余额并支付，不返回支付方式链接
-            if ((int) ($result['pay_amount'] ?? 0) <= 0) {
-                OrderModel::payFreeOrder((int) $result['order_id']);
-            } else {
-                try {
-                    OrderModel::payWithBalance((int) $result['order_id'], (int) $apiUser['id']);
-                } catch (Throwable $payErr) {
-                    // 支付失败的 API 单标记 failed，避免残留 pending 单
-                    try {
-                        OrderModel::changeStatus((int) $result['order_id'], 'failed');
-                    } catch (Throwable $_) {
+                    // 下单后立即扣 API 对接人的余额并支付，不返回支付方式链接
+                    if ((int) ($result['pay_amount'] ?? 0) <= 0) {
+                        OrderModel::payFreeOrder((int) $result['order_id']);
+                    } else {
+                        try {
+                            OrderModel::payWithBalance((int) $result['order_id'], (int) $apiUser['id']);
+                        } catch (Throwable $payErr) {
+                            // 支付失败的 API 单标记 failed，避免残留 pending 单
+                            try {
+                                OrderModel::changeStatus((int) $result['order_id'], 'failed');
+                            } catch (Throwable $_) {
+                            }
+                            throw $payErr;
+                        }
                     }
-                    throw $payErr;
-                }
-            }
 
-            return [
-                'order_id'   => (int) $result['order_id'],
-                'order_no'   => (string) $result['order_no'],
-                'pay_amount' => bcdiv((string) $result['pay_amount'], '1000000', 2),
-                'paid'       => true,
-                'pay_url'    => '',
-                'qrcode'     => '',
-            ];
+                    return [
+                        'order_id'   => (int) $result['order_id'],
+                        'order_no'   => (string) $result['order_no'],
+                        'pay_amount' => bcdiv((string) $result['pay_amount'], '1000000', 2),
+                        'paid'       => true,
+                        'pay_url'    => '',
+                        'qrcode'     => '',
+                    ];
+                });
             });
         } catch (RuntimeException $e) {
             Response::error($e->getMessage());
@@ -185,7 +195,7 @@ class ApiController extends BaseController
 
         $preview = [];
         try {
-            $preview = $this->runWithMerchantScope($scope['merchant_row'], function () use (
+            $preview = $this->runWithApiBuyerContext($apiUser, function () use (
                 $scope,
                 $apiUser,
                 $params,
@@ -194,7 +204,7 @@ class ApiController extends BaseController
                 $quantity,
                 $couponCode
             ) {
-                $prepared = $this->prepareApiOrderDraft(
+                return $this->runWithMerchantScope($scope['merchant_row'], function () use (
                     $scope,
                     $apiUser,
                     $params,
@@ -202,22 +212,32 @@ class ApiController extends BaseController
                     $specId,
                     $quantity,
                     $couponCode
-                );
-                $needRaw = (int) ($prepared['estimated_pay_amount_raw'] ?? 0);
-                $balanceRaw = (int) ($apiUser['money'] ?? 0);
-                if ($needRaw > 0 && $balanceRaw < $needRaw) {
-                    throw new RuntimeException('对接人余额不足');
-                }
-                return [
-                    'can_order'          => true,
-                    'goods_id'           => (int) $prepared['goods_id'],
-                    'spec_id'            => (int) $prepared['spec_id'],
-                    'quantity'           => $quantity,
-                    'estimated_pay'      => bcdiv((string) $needRaw, '1000000', 2),
-                    'balance'            => bcdiv((string) $balanceRaw, '1000000', 2),
-                    'estimated_pay_raw'  => $needRaw,
-                    'balance_raw'        => $balanceRaw,
-                ];
+                ) {
+                    $prepared = $this->prepareApiOrderDraft(
+                        $scope,
+                        $apiUser,
+                        $params,
+                        $goodsId,
+                        $specId,
+                        $quantity,
+                        $couponCode
+                    );
+                    $needRaw = (int) ($prepared['estimated_pay_amount_raw'] ?? 0);
+                    $balanceRaw = (int) ($apiUser['money'] ?? 0);
+                    if ($needRaw > 0 && $balanceRaw < $needRaw) {
+                        throw new RuntimeException('对接人余额不足');
+                    }
+                    return [
+                        'can_order'          => true,
+                        'goods_id'           => (int) $prepared['goods_id'],
+                        'spec_id'            => (int) $prepared['spec_id'],
+                        'quantity'           => $quantity,
+                        'estimated_pay'      => bcdiv((string) $needRaw, '1000000', 2),
+                        'balance'            => bcdiv((string) $balanceRaw, '1000000', 2),
+                        'estimated_pay_raw'  => $needRaw,
+                        'balance_raw'        => $balanceRaw,
+                    ];
+                });
             });
         } catch (RuntimeException $e) {
             Response::success($e->getMessage(), [
@@ -375,7 +395,7 @@ class ApiController extends BaseController
     private function goodsList(): void
     {
         $params = $this->requestParams();
-        $this->authUser($params);
+        $apiUser = $this->authUser($params);
         $scope = $this->resolveGoodsApiHostScope();
 
         $where = [
@@ -406,11 +426,17 @@ class ApiController extends BaseController
             $where['keyword'] = $keyword;
         }
 
-        $rows = $this->runWithMerchantScope($scope['merchant_row'], function () use ($where) {
-            return $this->queryGoodsList($where, 1, 'g.sort ASC, g.id DESC');
+        $rows = $this->runWithApiBuyerContext($apiUser, function () use ($scope, $where) {
+            return $this->runWithMerchantScope($scope['merchant_row'], function () use ($where) {
+                return $this->queryGoodsList($where, 1, 'g.sort ASC, g.id DESC');
+            });
         });
 
-        $importExtras = $goodsIds !== [] ? $this->fetchGoodsListImportExtras($goodsIds) : [];
+        $importExtras = $goodsIds !== []
+            ? $this->runWithApiBuyerContext($apiUser, function () use ($goodsIds) {
+                return $this->fetchGoodsListImportExtras($goodsIds);
+            })
+            : [];
 
         $outList = [];
         foreach ($rows as $row) {
@@ -545,6 +571,21 @@ class ApiController extends BaseController
              ORDER BY `goods_id` ASC, `sort` ASC, `id` ASC",
             $goodsIds
         );
+        $resolvedPriceMap = [];
+        foreach ($goodsIds as $gid) {
+            $gid = (int) $gid;
+            if ($gid <= 0) {
+                continue;
+            }
+            $resolvedSpecs = GoodsModel::getSpecsByGoodsId($gid, true);
+            foreach ($resolvedSpecs as $sp) {
+                $sid = (int) ($sp['id'] ?? 0);
+                if ($sid <= 0) {
+                    continue;
+                }
+                $resolvedPriceMap[$sid] = number_format((float) ($sp['price'] ?? 0), 2, '.', '');
+            }
+        }
         $dimRows = Database::query(
             "SELECT `goods_id`, `name`
              FROM `{$prefix}goods_spec_dim`
@@ -585,7 +626,8 @@ class ApiController extends BaseController
                 'upstream_spec_id' => (int) ($s['id'] ?? 0),
                 'name'         => (string) ($s['name'] ?? ''),
                 'spec_no'      => (string) ($s['spec_no'] ?? ''),
-                'price'        => number_format((float) GoodsModel::moneyFromDb($s['price'] ?? 0), 2, '.', ''),
+                'price'        => (string) ($resolvedPriceMap[(int) ($s['id'] ?? 0)]
+                    ?? number_format((float) GoodsModel::moneyFromDb($s['price'] ?? 0), 2, '.', '')),
                 'cost_price'   => $s['cost_price'] !== null && $s['cost_price'] !== ''
                     ? number_format((float) GoodsModel::moneyFromDb($s['cost_price']), 2, '.', '')
                     : '',
@@ -858,6 +900,35 @@ class ApiController extends BaseController
             return $fn();
         } finally {
             MerchantContext::setCurrent($saved);
+        }
+    }
+
+    /**
+     * 在指定 API 账号买家上下文中执行闭包（影响 GoodsModel 的会员价/专属价解析），执行后恢复原会话。
+     *
+     * @template T
+     * @param array<string,mixed> $apiUser
+     * @param callable():T $fn
+     * @return T
+     */
+    private function runWithApiBuyerContext(array $apiUser, callable $fn)
+    {
+        $buyerId = (int) ($apiUser['id'] ?? 0);
+        if ($buyerId <= 0) {
+            return $fn();
+        }
+        $buyerLevelId = (int) ($apiUser['level_id'] ?? 0);
+        $hasForced = array_key_exists('em_force_buyer_identity', $GLOBALS);
+        $savedForced = $hasForced ? $GLOBALS['em_force_buyer_identity'] : null;
+        $GLOBALS['em_force_buyer_identity'] = [$buyerId, $buyerLevelId];
+        try {
+            return $fn();
+        } finally {
+            if ($hasForced) {
+                $GLOBALS['em_force_buyer_identity'] = $savedForced;
+            } else {
+                unset($GLOBALS['em_force_buyer_identity']);
+            }
         }
     }
 

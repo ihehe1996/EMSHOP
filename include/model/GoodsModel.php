@@ -268,10 +268,14 @@ class GoodsModel
      */
     public static function resolveBuyerDiscountRate(): float
     {
-        static $cached = null;
-        if ($cached !== null) return $cached;
         [, $buyerLevelId] = self::resolveBuyerIdentity();
-        if ($buyerLevelId <= 0) return $cached = 1.0;
+        static $cachedByLevelId = [];
+        if (isset($cachedByLevelId[$buyerLevelId])) {
+            return $cachedByLevelId[$buyerLevelId];
+        }
+        if ($buyerLevelId <= 0) {
+            return $cachedByLevelId[$buyerLevelId] = 1.0;
+        }
         $row = Database::fetchOne(
             'SELECT `discount` AS d
                FROM `' . Database::prefix() . 'user_levels`
@@ -280,10 +284,12 @@ class GoodsModel
             [$buyerLevelId]
         );
         $raw = (int) ($row['d'] ?? 0);
-        if ($raw <= 0) return $cached = 1.0;
+        if ($raw <= 0) {
+            return $cachedByLevelId[$buyerLevelId] = 1.0;
+        }
         $rate = ($raw / 1000000) / 10;        // 9.5 → 0.95
         if ($rate <= 0 || $rate > 1) $rate = 1.0;
-        return $cached = $rate;
+        return $cachedByLevelId[$buyerLevelId] = $rate;
     }
 
     /**
@@ -293,21 +299,35 @@ class GoodsModel
      */
     public static function resolveBuyerIdentity(): array
     {
-        static $cached = null;
-        if ($cached !== null) return $cached;
+        $forced = $GLOBALS['em_force_buyer_identity'] ?? null;
+        if (is_array($forced)) {
+            $forcedBuyerId = (int) ($forced[0] ?? 0);
+            if ($forcedBuyerId > 0) {
+                return [
+                    $forcedBuyerId,
+                    (int) ($forced[1] ?? 0),
+                ];
+            }
+        }
 
         if (session_status() === PHP_SESSION_NONE && php_sapi_name() !== 'cli') {
             @session_start();
         }
         $buyerId = (int) ($_SESSION['em_front_user']['id'] ?? 0);
-        if ($buyerId <= 0) return $cached = [0, 0];
+        static $cachedByBuyerId = [];
+        if (isset($cachedByBuyerId[$buyerId])) {
+            return $cachedByBuyerId[$buyerId];
+        }
+        if ($buyerId <= 0) {
+            return $cachedByBuyerId[$buyerId] = [0, 0];
+        }
 
         $row = Database::fetchOne(
             'SELECT `level_id` FROM `' . Database::prefix() . 'user` WHERE `id` = ? LIMIT 1',
             [$buyerId]
         );
         $levelId = (int) ($row['level_id'] ?? 0);
-        return $cached = [$buyerId, $levelId];
+        return $cachedByBuyerId[$buyerId] = [$buyerId, $levelId];
     }
 
     /**

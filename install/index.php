@@ -81,6 +81,33 @@ function installer_admin_url(): string
     return $scheme . '://' . $host . '/admin/';
 }
 
+function installer_detect_site_url(): string
+{
+    $forwardedProto = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+    if ($forwardedProto !== '' && strpos($forwardedProto, ',') !== false) {
+        $forwardedProto = trim((string) explode(',', $forwardedProto, 2)[0]);
+    }
+    $forwardedHost = trim((string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''));
+    if ($forwardedHost !== '' && strpos($forwardedHost, ',') !== false) {
+        $forwardedHost = trim((string) explode(',', $forwardedHost, 2)[0]);
+    }
+    $host = $forwardedHost !== '' ? $forwardedHost : trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    $scheme = 'http';
+    if ($forwardedProto === 'https' || $forwardedProto === 'http') {
+        $scheme = $forwardedProto;
+    } else {
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int) ($_SERVER['SERVER_PORT'] ?? 80) === 443);
+        $scheme = $isHttps ? 'https' : 'http';
+    }
+
+    return $scheme . '://' . $host;
+}
+
 function installer_messages_text(array $messages): string
 {
     $texts = [];
@@ -962,6 +989,7 @@ define('EM_CONFIG', [
 try {
     $installer = new InstallService();
     $installer->setup([
+        'site_url' => installer_detect_site_url(),
         'admin' => [
             'username' => $adminClean['username'],
             'email' => $adminClean['email'],

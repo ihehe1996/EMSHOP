@@ -109,7 +109,7 @@ if (Request::isPost()) {
             case 'base':
                 $fields = [
                     'site_enabled',
-                    'sitename', 'site_url', 'site_keywords', 'site_description',
+                    'sitename', 'site_keywords', 'site_description',
                     'site_favicon', 'site_logo', 'site_logo_type', 'site_icp', 'site_statistical_code',
                     'site_rewrite', 'site_timezone', 'homepage_mode',
                 ];
@@ -118,6 +118,34 @@ if (Request::isPost()) {
                     Config::set($field, $val);
                     $saved++;
                 }
+
+                // 站点地址：允许留空；非空时必须是 http(s) 且仅保留 origin（scheme + host[:port]）
+                // 统一落库为带尾斜杠格式，便于各处读取时行为一致。
+                $siteUrl = rtrim(trim((string) Input::post('site_url', '')), '/');
+                if ($siteUrl !== '') {
+                    if (!preg_match('#^https?://#i', $siteUrl)) {
+                        Response::error('站点地址需以 http:// 或 https:// 开头');
+                    }
+                    $parts = @parse_url($siteUrl);
+                    $scheme = strtolower((string) (is_array($parts) ? ($parts['scheme'] ?? '') : ''));
+                    $host = trim((string) (is_array($parts) ? ($parts['host'] ?? '') : ''));
+                    $port = (int) (is_array($parts) ? ($parts['port'] ?? 0) : 0);
+                    $path = trim((string) (is_array($parts) ? ($parts['path'] ?? '') : ''));
+                    $query = trim((string) (is_array($parts) ? ($parts['query'] ?? '') : ''));
+                    $fragment = trim((string) (is_array($parts) ? ($parts['fragment'] ?? '') : ''));
+                    if (($scheme !== 'http' && $scheme !== 'https') || $host === '') {
+                        Response::error('站点地址格式无效，请填写完整 URL（如 https://example.com）');
+                    }
+                    if ($port > 0 && ($port < 1 || $port > 65535)) {
+                        Response::error('站点地址端口无效');
+                    }
+                    if (($path !== '' && $path !== '/') || $query !== '' || $fragment !== '') {
+                        Response::error('站点地址无需携带路径、参数或锚点（如 https://example.com）');
+                    }
+                    $siteUrl = $scheme . '://' . $host . ($port > 0 ? ':' . $port : '') . '/';
+                }
+                Config::set('site_url', $siteUrl);
+                $saved++;
 
                 // Swoole API 地址：用于后台监控联通检查，也作为 server.php 的监听端口来源（取 URL 中 port）
                 // 允许留空（回退默认）；非空时要求 http(s) 且必须显式包含端口。
