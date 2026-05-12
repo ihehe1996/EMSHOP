@@ -147,26 +147,6 @@ if (Request::isPost()) {
                 Config::set('site_url', $siteUrl);
                 $saved++;
 
-                // Swoole API 地址：用于后台监控联通检查，也作为 server.php 的监听端口来源（取 URL 中 port）
-                // 允许留空（回退默认）；非空时要求 http(s) 且必须显式包含端口。
-                $swooleApiUrl = rtrim(trim((string) Input::post('swoole_api_url', '')), '/');
-                if ($swooleApiUrl !== '') {
-                    if (!preg_match('#^https?://#i', $swooleApiUrl)) {
-                        Response::error('Swoole API 地址需以 http:// 或 https:// 开头');
-                    }
-                    $parts = @parse_url($swooleApiUrl);
-                    $host = is_array($parts) ? trim((string) ($parts['host'] ?? '')) : '';
-                    $port = is_array($parts) ? (int) ($parts['port'] ?? 0) : 0;
-                    $path = is_array($parts) ? trim((string) ($parts['path'] ?? '')) : '';
-                    if ($host === '' || $port < 1 || $port > 65535) {
-                        Response::error('Swoole API 地址必须包含有效端口，例如 http://127.0.0.1:9601');
-                    }
-                    if ($path !== '' && $path !== '/') {
-                        Response::error('Swoole API 地址无需携带路径，例如 http://127.0.0.1:9601');
-                    }
-                }
-                Config::set('swoole_api_url', $swooleApiUrl);
-                $saved++;
                 break;
 
             // 用户设置

@@ -403,15 +403,6 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             </div>
                         </div>
                         <div class="layui-form-item">
-                            <label class="layui-form-label">Swoole API 地址</label>
-                            <div class="layui-input-block">
-                                <?php echo formInput('swoole_api_url', $cfg['swoole_api_url'] ?? 'http://127.0.0.1:9601', '如：http://127.0.0.1:9601'); ?>
-                            </div>
-                            <div class="layui-form-mid layui-word-aux">
-                                必须带端口。Swoole 监控会请求该地址；`server.php start` 也会读取此地址中的端口作为监听端口。
-                            </div>
-                        </div>
-                        <div class="layui-form-item">
                             <label class="layui-form-label">统计代码</label>
                             <div class="layui-input-block">
                                 <?php echo formTextarea('site_statistical_code', $cfg['site_statistical_code'] ?? '', '粘贴第三方统计代码（如百度统计、Google Analytics 等）'); ?>

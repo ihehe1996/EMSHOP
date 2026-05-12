@@ -8,9 +8,10 @@ defined('EM_ROOT') || exit('access denied!');
  *   - action=export_order_cards  按订单 ID 导出已发卡密为 txt
  *   - 不带 action                展示占位说明（本插件不对外暴露主页面）
  *
- * 权限检查：
- *   - 登录用户：订单 user_id 必须匹配 session 里的 em_front_user.id
- *   - 游客：订单 guest_token 必须匹配浏览器的 GuestToken::get()
+ * 权限检查（与 user/order_detail.php、user/order_poll.php 一致）：
+ *   - 登录用户：订单 user_id 匹配 em_front_user.id
+ *   - 游客：订单 guest_token 匹配 GuestToken::get()
+ *   - 查单页：POST 查单成功后写入 $_SESSION['em_find_order_visible'][order_no]，命中则放行
  *   满足任一即放行；都不满足返回 403
  */
 
@@ -39,12 +40,20 @@ if ($action === 'export_order_cards') {
         exit('订单不存在');
     }
 
-    // 权限校验：和 user/order_detail.php 同款两种路径
+    // 权限校验：本人 / 同浏览器游客单 / 查单 session 白名单（见 user/find_order.php）
     $isOwner = false;
     if (!empty($frontUser) && (int) $order['user_id'] === (int) $frontUser['id']) {
         $isOwner = true;
     } elseif (empty($frontUser) && !empty($order['guest_token']) && $order['guest_token'] === GuestToken::get()) {
         $isOwner = true;
+    } else {
+        $orderNo = (string) ($order['order_no'] ?? '');
+        if ($orderNo !== '') {
+            $visible = $_SESSION['em_find_order_visible'] ?? [];
+            if (isset($visible[$orderNo])) {
+                $isOwner = true;
+            }
+        }
     }
     if (!$isOwner) {
         http_response_code(403);
