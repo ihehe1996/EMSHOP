@@ -12,7 +12,7 @@ declare(strict_types=1);
 final class UploadService
 {
     /** @var int 默认最大文件大小 2MB */
-    private $maxSize = 2 * 1024 * 1024;
+    private $maxSize = 20 * 1024 * 1024;
 
     /**
      * 上传文件。

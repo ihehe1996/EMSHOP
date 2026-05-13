@@ -25,14 +25,19 @@ $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 if ($context === 'site_favicon') {
     $allowed[] = 'ico';
 }
-$result = $uploader->upload($_FILES['file'], $allowed, $context);
 
-// 商品图片上传钩子：允许插件接管上传结果（如图床/CDN）
-if ($context === 'goods_image') {
-    $filtered = applyFilter('goods_image_upload', $result, ['file' => $_FILES['file']]);
-    if ($filtered !== $result) {
-        $result = $filtered;
+try {
+    $result = $uploader->upload($_FILES['file'], $allowed, $context);
+
+    // 商品图片上传钩子：允许插件接管上传结果（如图床/CDN）
+    if ($context === 'goods_image') {
+        $filtered = applyFilter('goods_image_upload', $result, ['file' => $_FILES['file']]);
+        if ($filtered !== $result) {
+            $result = $filtered;
+        }
     }
+} catch (RuntimeException $e) {
+    Response::error($e->getMessage());
 }
 
 // 不再在上传后刷新 token，避免用户在同一页面多次上传时 token 失效

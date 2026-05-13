@@ -27,14 +27,19 @@ if (empty($_FILES['file'])) {
 
 $uploader = new UploadService();
 $context = (string) Input::post('context', 'default');
-$result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], $context);
 
-// 商品图片上传钩子：插件可接管（图床/CDN）；商户上下文也复用同一条钩子
-if ($context === 'goods_image') {
-    $filtered = applyFilter('goods_image_upload', $result, ['file' => $_FILES['file']]);
-    if ($filtered !== $result) {
-        $result = $filtered;
+try {
+    $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], $context);
+
+    // 商品图片上传钩子：插件可接管（图床/CDN）；商户上下文也复用同一条钩子
+    if ($context === 'goods_image') {
+        $filtered = applyFilter('goods_image_upload', $result, ['file' => $_FILES['file']]);
+        if ($filtered !== $result) {
+            $result = $filtered;
+        }
     }
+} catch (RuntimeException $e) {
+    Response::error($e->getMessage());
 }
 
 $csrfToken = Csrf::token();
