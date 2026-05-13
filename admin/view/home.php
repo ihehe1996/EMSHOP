@@ -1393,7 +1393,7 @@ $(function () {
                   .css({ color: '#e11d48', fontWeight: 600 });
             $btn.addClass('dash-version-btn--alert').html('<i class="fa fa-cloud-download"></i> 立即更新');
         } else {
-            $label.text('当前已是最新').css({ color: '', fontWeight: '' });
+            $label.text('当前已是最新版本').css({ color: '', fontWeight: '' });
             $btn.removeClass('dash-version-btn--alert').html('<i class="fa fa-refresh"></i> 检查更新');
         }
     }
@@ -1467,7 +1467,6 @@ $(function () {
                 startUpdateWizard(target);
             });
         } else {
-            layui.layer.msg('正在检查最新版本…');
             $('#dashVersionLabel').html('<i class="fa fa-spinner fa-spin" style="margin-right:4px;"></i>检测中…');
             $('#dashCheckUpdate').prop('disabled', true);
             loadDashIndex();
