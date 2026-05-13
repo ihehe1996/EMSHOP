@@ -215,14 +215,14 @@ $calcRatio = static function (float $today, float $yesterday): array {
 // Swoole：依据 content/swoole/swoole.heartbeat 的 mtime，30 秒内更新视为 Worker#0 定时器在跑（与 server 中 SW_HEARTBEAT_INTERVAL=5 配套）
 $__swooleHbPath = EM_ROOT . '/content/swoole/swoole.heartbeat';
 $__swooleRunning = false;
-$__swooleFailHint = '服务未在运行';
+$__swooleFailHint = '发货队列/定时任务';
 if (is_file($__swooleHbPath)) {
     $__mt = @filemtime($__swooleHbPath);
     if ($__mt !== false) {
         $__swooleHbAge = time() - $__mt;
         $__swooleRunning = $__swooleHbAge <= 30;
         if (!$__swooleRunning) {
-            $__swooleFailHint = '服务未在运行';
+            $__swooleFailHint = '发货队列/定时任务';
         }
     }
 }

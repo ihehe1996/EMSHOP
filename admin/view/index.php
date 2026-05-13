@@ -419,7 +419,7 @@ $(function () {
         <?php if (!empty($emSwooleHardRestartPending)): ?>
         <?php
         $emSwooleRestartDialogHtml = '<div class="em-swoole-restart-dialog">'
-            . '<p class="em-swoole-restart-dialog__lead">本次升级需要重启swoole服务，请在宝塔「进程守护管理器」中关闭服务，静待10秒后再次启动。</p>'
+            . '<p class="em-swoole-restart-dialog__lead">本次升级需要重启swoole服务，请在宝塔面板 - 软件商店「进程守护管理器」中关闭服务，静待10秒后再次启动。</p>'
             . '<div class="em-swoole-restart-dialog__cmd"><span class="em-swoole-restart-dialog__cmd-label">请确认最新的启动命令</span><code>php server</code></div>'
             . '<p class="em-swoole-restart-dialog__note">如之前配置了老版本的启动命令，请先停止守护进程并修改启动命令</p>'
             . '</div>';
