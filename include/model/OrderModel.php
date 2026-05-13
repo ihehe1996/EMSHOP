@@ -45,6 +45,24 @@ class OrderModel
     }
 
     /**
+     * guest_address 六字段是否均已填写（trim 后非空）。
+     *
+     * @param mixed $g
+     */
+    private static function isGuestShippingAddressFilled($g): bool
+    {
+        if (!is_array($g)) {
+            return false;
+        }
+        foreach (['recipient', 'mobile', 'province', 'city', 'district', 'detail'] as $k) {
+            if (trim((string) ($g[$k] ?? '')) === '') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * 生成订单编号。
      * 格式：EMS + 年月日时分秒 + 6位随机字符
      */
@@ -272,20 +290,29 @@ class OrderModel
             $addressSnapshot = null;
             if ($needsAddress) {
                 $buyerId = (int) ($orderData['user_id'] ?? 0);
-                if ($buyerId > 0) {
-                    // —— 登录用户：走地址簿
-                    $addressId = (int) ($orderData['address_id'] ?? 0);
-                    if ($addressId <= 0) {
-                        throw new RuntimeException('请选择收货地址');
-                    }
+                $addressId = (int) ($orderData['address_id'] ?? 0);
+                $g = $orderData['guest_address'] ?? null;
+
+                if ($buyerId > 0 && $addressId > 0) {
+                    // —— 登录用户且显式选了地址簿：优先走地址簿
                     $addr = UserAddressModel::findById($addressId, $buyerId);
                     if ($addr === null) {
                         throw new RuntimeException('收货地址不存在或不属于当前账户');
                     }
                     $addressSnapshot = self::buildAddressSnapshot($addr);
+                } elseif (self::isGuestShippingAddressFilled($g)) {
+                    // —— 手填整单地址：游客单，或 API 单（user_id 为付款人但终端收货走 guest_address）
+                    if (!preg_match('/^1\d{10}$/', (string) $g['mobile'])) {
+                        throw new RuntimeException('收货手机号格式错误');
+                    }
+                    if (mb_strlen((string) $g['detail']) > 255) {
+                        throw new RuntimeException('详细地址过长');
+                    }
+                    $addressSnapshot = self::buildAddressSnapshot($g);
+                } elseif ($buyerId > 0) {
+                    throw new RuntimeException('请选择收货地址');
                 } else {
-                    // —— 游客：下单页手填（整单一套地址，不入地址簿，只进订单快照）
-                    $g = $orderData['guest_address'] ?? null;
+                    // —— 游客未填齐
                     if (!is_array($g)) {
                         throw new RuntimeException('请填写收货地址');
                     }

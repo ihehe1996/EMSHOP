@@ -4,6 +4,9 @@
 .cursor/
 .claude/
 
+# 勿提交 Swoole 升级硬重启标记文件（根目录 .server）
+.server
+
 /install/install.lock
 /install/migrations/
 .user.ini
@@ -14,9 +17,9 @@
 !/content/cache/.gitkeep
 !/content/tmp/.gitkeep
 !/content/uploads/.gitkeep
-/swoole/*.pid
-/swoole/*.log
-/swoole/*.heartbeat
-/swoole/logs/
+/content/swoole/*.pid
+/content/swoole/*.log
+/content/swoole/*.heartbeat
+/content/swoole/logs/
 *.log
 /logs/

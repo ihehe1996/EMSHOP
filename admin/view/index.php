@@ -84,6 +84,63 @@ $csrfToken = Csrf::token();
     @media (max-width: 600px) {
         .admin-line-switch__dropdown { right: -143px; min-width: 260px; }
     }
+
+    /* Swoole 硬重启提示（layer.open 内容区） */
+    .em-swoole-restart-dialog {
+        padding: 6px 8px 12px;
+        line-height: 1.65;
+        color: #374151;
+        font-size: 14px;
+        text-align: left;
+    }
+    .em-swoole-restart-dialog__lead {
+        margin: 0 0 18px;
+        color: #1f2937;
+    }
+    .em-swoole-restart-dialog__cmd {
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+    .em-swoole-restart-dialog__cmd-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        letter-spacing: 0.3px;
+        margin-bottom: 10px;
+    }
+    .em-swoole-restart-dialog__cmd code {
+        display: block;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 14px;
+        font-weight: 500;
+        color: #0f172a;
+        background: #fff;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        word-break: break-all;
+    }
+    .em-swoole-restart-dialog__note {
+        margin: 0;
+        font-size: 13px;
+        color: #6b7280;
+        padding: 0 2px;
+    }
+    .em-layer-swoole-restart .layui-layer-content {
+        overflow: visible;
+        padding: 4px 8px 20px 16px;
+    }
+    @media (max-width: 560px) {
+        .em-layer-swoole-restart.layui-layer {
+            width: 92% !important;
+            margin: 0 auto !important;
+        }
+    }
     </style>
 </head>
 <body<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' class="sidebar-pre-collapsed"'; } ?>>
@@ -359,6 +416,27 @@ $csrfToken = Csrf::token();
 $(function () {
     layui.use(['layer'], function () {
         var layer = layui.layer;
+        <?php if (!empty($emSwooleHardRestartPending)): ?>
+        <?php
+        $emSwooleRestartDialogHtml = '<div class="em-swoole-restart-dialog">'
+            . '<p class="em-swoole-restart-dialog__lead">本次升级需要重启swoole服务，请在宝塔「进程守护管理器」中关闭服务，静待10秒后再次启动。</p>'
+            . '<div class="em-swoole-restart-dialog__cmd"><span class="em-swoole-restart-dialog__cmd-label">请确认最新的启动命令</span><code>php server</code></div>'
+            . '<p class="em-swoole-restart-dialog__note">如之前配置了老版本的启动命令，请先停止守护进程并修改启动命令</p>'
+            . '</div>';
+        ?>
+        layer.open({
+            type: 1,
+            title: '需要重启 Swoole',
+            area: ['520px', 'auto'],
+            offset: '12vh',
+            shade: 0.45,
+            shadeClose: true,
+            resize: false,
+            anim: 0,
+            skin: 'em-layer-swoole-restart',
+            content: <?php echo json_encode($emSwooleRestartDialogHtml, JSON_UNESCAPED_UNICODE); ?>
+        });
+        <?php endif; ?>
         // ========== 授权服务器线路切换（toolbar 全局）==========
         var $lineWrap = $('#adminLineSwitch');
         if ($lineWrap.length) {

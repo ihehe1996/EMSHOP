@@ -212,6 +212,21 @@ $calcRatio = static function (float $today, float $yesterday): array {
     return ['state' => $diff > 0 ? 'up' : 'down', 'pct' => $pctStr];
 };
 
+// Swoole：依据 content/swoole/swoole.heartbeat 的 mtime，30 秒内更新视为 Worker#0 定时器在跑（与 server 中 SW_HEARTBEAT_INTERVAL=5 配套）
+$__swooleHbPath = EM_ROOT . '/content/swoole/swoole.heartbeat';
+$__swooleRunning = false;
+$__swooleFailHint = '服务未在运行';
+if (is_file($__swooleHbPath)) {
+    $__mt = @filemtime($__swooleHbPath);
+    if ($__mt !== false) {
+        $__swooleHbAge = time() - $__mt;
+        $__swooleRunning = $__swooleHbAge <= 30;
+        if (!$__swooleRunning) {
+            $__swooleFailHint = '服务未在运行';
+        }
+    }
+}
+
 /* ============================================================
  * 官方公告 / 广告推广 / 版本更新 / 代理商联系方式
  *   这四块数据依赖中心服务器接口，同步拉取会拖慢首屏
@@ -282,6 +297,28 @@ $calcRatio = static function (float $today, float $yesterday): array {
             </div>
         </div>
 
+        <div class="dash-metric dash-metric--action dash-metric--swoole" style="--m-color: #64748b; --m-soft: #f1f5f9;">
+            <div class="dash-metric__head">
+                <span class="dash-metric__icon"><i class="fa fa-heartbeat"></i></span>
+                <span class="dash-metric__label">Swoole 服务</span>
+                <span class="dash-metric__official-tag">本机</span>
+            </div>
+            <div class="dash-metric__main">
+                <div class="dash-metric__value-row">
+                    <?php if ($__swooleRunning): ?>
+                    <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--running">运行中</span>
+                    <?php else: ?>
+                    <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--stopped">未运行</span>
+                    <?php endif; ?>
+                </div>
+                <div class="dash-metric__yesterday"><?= $__swooleRunning ? '服务正在运行' : $esc($__swooleFailHint) ?></div>
+            </div>
+            <div class="dash-metric__month">
+                <span class="dash-metric__month-label">教程说明</span>
+                <button type="button" class="dash-version-btn" id="dashSwooleDetailBtn">查看详细</button>
+            </div>
+        </div>
+
         <?php foreach ($metrics as $m): ?>
         <?php
             $isEmpty = isset($m['empty']);
@@ -329,7 +366,7 @@ $calcRatio = static function (float $today, float $yesterday): array {
             }
         ?>
 
-        <!-- 附加操作卡：授权码 / 下载安装包 / 线路状态（均为"官方"来源，无今日/昨日数据） -->
+        <!-- 附加操作卡：授权码 / 下载安装包 / 线路状态（均为官方来源；Swoole 在系统版本后） -->
         <div class="dash-metric dash-metric--action" style="--m-color: #10b981; --m-soft: #ecfdf5;">
             <div class="dash-metric__head">
                 <span class="dash-metric__icon"><i class="fa fa-key"></i></span>
@@ -641,6 +678,26 @@ $calcRatio = static function (float $today, float $yesterday): array {
 .dash-metric__yesterday {
     font-size: 12px; color: #9ca3af;
     letter-spacing: 0.2px;
+}
+
+/* Swoole 监控：运行中绿色 + 呼吸灯（text-shadow 模拟光晕） */
+@keyframes dashSwooleBreath {
+    0%, 100% {
+        opacity: 1;
+        text-shadow: 0 0 0 transparent;
+    }
+    50% {
+        opacity: 0.9;
+        text-shadow: 0 0 12px rgba(16, 185, 129, 0.55), 0 0 26px rgba(16, 185, 129, 0.22);
+    }
+}
+.dash-swoole-status--running {
+    color: #10b981 !important;
+    animation: dashSwooleBreath 2.4s ease-in-out infinite;
+}
+.dash-swoole-status--stopped {
+    color: #ef4444 !important;
+    animation: dashSwooleBreath 2.4s ease-in-out infinite;
 }
 
 /* 环比 chip：绝对定位到大号数字右上角，不占居中计算空间 */

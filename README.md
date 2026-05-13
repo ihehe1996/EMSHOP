@@ -45,7 +45,7 @@ cd em_cc
 # 访问 http://your-domain/install/ 跟随引导完成（会生成/写入 config.php 与安装锁）
 
 # 启动 Swoole
-php swoole/server.php start
+php server start
 ```
 
 

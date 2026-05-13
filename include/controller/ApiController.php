@@ -998,8 +998,10 @@ class ApiController extends BaseController
         }
         $guestAddress = $this->parseGuestAddress($params);
 
+        $apiUid = (int) ($apiUser['id'] ?? 0);
         $createData = [
-            'user_id'             => 0, // 外部接口默认游客单
+            // 订单 user_id 记 API 付款人（appid），便于后台对账；收货人地址仍走 guest_address
+            'user_id'             => $apiUid,
             'guest_token'         => 'api_' . substr(md5((string) $apiUser['id'] . '|' . microtime(true) . '|' . random_int(1000, 9999)), 0, 32),
             'merchant_id'         => (int) $scope['merchant_id'],
             'owner_id'            => (int) $scope['owner_id'],
@@ -1056,7 +1058,7 @@ class ApiController extends BaseController
                     'category_id' => (int) ($goods['category_id'] ?? 0),
                     'goods_type'  => (string) ($goods['goods_type'] ?? ''),
                 ]],
-                'user_id'          => 0,
+                'user_id'          => $apiUid,
             ]);
             $createData['coupon'] = $checkRes['coupon'];
             $createData['coupon_discount'] = (int) $checkRes['discount_raw'];

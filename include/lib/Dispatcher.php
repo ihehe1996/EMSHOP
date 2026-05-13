@@ -819,68 +819,6 @@ final class Dispatcher
     }
 
     /**
-     * 渲染"未启用模板"提示页。
-     * 当数据库中当前 scope（主站 / 商户）+ 设备类型（pc / mobile）下没有任何启用的模板时展示。
-     * 自包含 HTML，不依赖任何主题文件。
-     */
-    /**
-     * 渲染"Swoole 服务未运行"停机页（心跳超时时）。
-     *
-     * 粗暴拦住整站，避免用户下单后卡密永远发不出去的致命场景。
-     * 文案直接说原因 + 给出启动命令，让不懂技术的管理员也能按步骤恢复。
-     */
-    private function renderSwooleDownNotice(): void
-    {
-        http_response_code(503);
-        header('Content-Type: text/html; charset=utf-8');
-        header('Cache-Control: no-store');
-        header('Retry-After: 60');
-        $siteName = (string) (Config::get('sitename') ?? 'EMSHOP');
-        echo '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">'
-           . '<meta name="viewport" content="width=device-width,initial-scale=1">'
-           . '<title>' . htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') . ' · 后台服务未运行</title>'
-           . '<style>'
-           . 'body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f9fafb;color:#111827;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}'
-           . '.wrap{max-width:620px;width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:40px 40px 32px;box-shadow:0 4px 20px rgba(0,0,0,.05);}'
-           . '.head{text-align:center;margin-bottom:28px;}'
-           . '.ico{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,rgba(239,68,68,.14),rgba(248,113,113,.08));color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 18px;}'
-           . 'h1{font-size:20px;font-weight:600;color:#111827;margin:0 0 8px;}'
-           . '.desc{font-size:13.5px;color:#6b7280;line-height:1.7;margin:0;}'
-           . '.section{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:14px;}'
-           . '.section-title{font-size:13px;font-weight:600;color:#111827;margin:0 0 10px;display:flex;align-items:center;gap:6px;}'
-           . '.section-title .num{width:20px;height:20px;border-radius:50%;background:#4f46e5;color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;font-weight:600;}'
-           . '.section-body{font-size:13px;color:#4b5563;line-height:1.75;margin:0;}'
-           . '.section-body code{background:#eef2ff;color:#4f46e5;padding:2px 6px;border-radius:4px;font-size:12.5px;font-family:Menlo,Consolas,"Courier New",monospace;}'
-           . '.cmd{background:#111827;color:#e5e7eb;border-radius:8px;padding:12px 16px;font-family:Menlo,Consolas,"Courier New",monospace;font-size:12.5px;line-height:1.6;margin-top:8px;overflow-x:auto;white-space:nowrap;}'
-           . '.cmd .prompt{color:#6ee7b7;user-select:none;}'
-           . '.tip{font-size:12px;color:#9ca3af;line-height:1.7;margin:12px 0 0;}'
-           . '.brand{margin-top:22px;padding-top:16px;border-top:1px solid #f3f4f6;font-size:12px;color:#9ca3af;text-align:center;}'
-           . '</style></head><body>'
-           . '<div class="wrap">'
-           . '<div class="head">'
-           . '<div class="ico">&#9888;</div>'
-           . '<h1>后台服务（Swoole）未运行</h1>'
-           . '<p class="desc">为防止订单支付后无法自动发货，已暂时停止前台访问。<br>请管理员按下面的步骤启动后台服务。</p>'
-           . '</div>'
-           . '<div class="section">'
-           . '<div class="section-title"><span class="num">1</span>原因</div>'
-           . '<p class="section-body">前台检测不到 Swoole 服务的心跳。Swoole 负责订单自动发货（虚拟卡密等）和过期订单关闭，它没运行时用户付款后将永远收不到商品。</p>'
-           . '</div>'
-           . '<div class="section">'
-           . '<div class="section-title"><span class="num">2</span>解决方法</div>'
-           . '<p class="section-body">通过 SSH 登录服务器，进入项目根目录，执行以下命令启动 Swoole 服务：</p>'
-           . '<div class="cmd"><span class="prompt">$ </span>php swoole/server.php start</div>'
-           . '<p class="tip">查看运行状态：<code>php swoole/server.php status</code>　停止：<code>php swoole/server.php stop</code></p>'
-           . '</div>'
-           . '<div class="section" style="background:#fff7ed;border-color:#fed7aa;">'
-           . '<div class="section-title" style="color:#c2410c;"><span class="num" style="background:#f97316;">!</span>建议</div>'
-           . '<p class="section-body">生产环境请配合 <code>systemd</code> / <code>supervisor</code> 等进程管理器常驻运行，避免服务器重启或进程异常退出后 Swoole 不会自动拉起。</p>'
-           . '</div>'
-           . '<div class="brand">' . htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') . '</div>'
-           . '</div></body></html>';
-    }
-
-    /**
      * 渲染"站点升级中"停机页（site_enabled=0 时）。
      *
      * 503 + Retry-After，让搜索引擎理解为临时不可用、不扣权重。
