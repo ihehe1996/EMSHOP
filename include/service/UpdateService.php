@@ -113,8 +113,7 @@ final class UpdateService
             $unwritable[] = '项目根目录';
         }
         if ($unwritable) {
-            $errors[] = '以下目录没有写权限，请修改后重试：' . implode('、', $unwritable)
-                . '（Linux：chmod -R 755；Windows：给 IIS 用户添加修改权限）';
+            $errors[] = '网站目录权限不足，请将网站目录权限设置为755';
         }
 
         // 磁盘空间：至少 packageSize * 3 倍（下载 + 解压 + 备份）
