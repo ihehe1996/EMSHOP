@@ -152,7 +152,7 @@ $csrfToken = Csrf::token();
         <!-- 左侧菜单 -->
         <aside class="admin-sidebar<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' is-collapsed'; } ?>" id="adminSidebar">
             <div class="admin-sidebar__header">
-                <div class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></div>
+                <a href="/admin/home.php" data-pjax="#adminContent" class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></a>
             </div>
 
             <div class="admin-sidebar__body">

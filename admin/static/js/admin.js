@@ -109,6 +109,17 @@
     }
 
     /**
+     * 移动端收起侧栏与遮罩
+     */
+    function closeMobileSidebar() {
+        if ($(window).width() > 1024) {
+            return;
+        }
+        $('#adminSidebar').removeClass('is-open');
+        $('#adminOverlay').removeClass('is-visible');
+    }
+
+    /**
      * 侧栏展开/折叠 + localStorage 持久化
      */
     function bindSidebarToggle() {
@@ -135,8 +146,7 @@
 
         // 点击遮罩关闭侧栏
         $(document).off('click.admin-overlay').on('click.admin-overlay', '#adminOverlay', function () {
-            $('#adminSidebar').removeClass('is-open');
-            $('#adminOverlay').removeClass('is-visible');
+            closeMobileSidebar();
         });
     }
 
@@ -304,10 +314,18 @@
             return;
         }
 
-        $(document).pjax('.admin-menu-item[data-pjax], .admin-dropdown-link[data-pjax], .em-tabs__item[data-pjax]', '#adminContent', {
+        $(document).pjax('.admin-menu-item[data-pjax], .admin-dropdown-link[data-pjax], .em-tabs__item[data-pjax], .admin-sidebar__site-name[data-pjax]', '#adminContent', {
             fragment: '#adminContent',
             timeout: 8000,
             scrollTo: false
+        });
+
+        // 移动端：点击左侧菜单跳转后自动收起侧栏
+        $(document).on('pjax:click', function (event, options) {
+            var link = (options && options.target) || event.target;
+            if ($(link).closest('.admin-sidebar').length) {
+                closeMobileSidebar();
+            }
         });
 
         // Pjax loading 效果
@@ -321,6 +339,7 @@
 
         $(document).on('pjax:success', function (event, data, status, xhr, options) {
             setActiveMenu(options.url);
+            closeMobileSidebar();
             // 更新工具栏标题
             var $page = $('#adminContent .admin-page__title');
             if ($page.length) {

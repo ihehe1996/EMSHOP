@@ -568,6 +568,169 @@ function installer_render(array $messages, array $defaults): void
         .msg.ok { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
         .msg.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
         .msg .ico { display: none; } /* Hide old icons */
+
+        .layui-layer.install-success-skin {
+            border-radius: var(--radius-md) !important;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl) !important;
+        }
+        .layui-layer.install-success-skin .layui-layer-setwin {
+            display: none !important;
+        }
+        .layui-layer.install-success-skin .layui-layer-content {
+            overflow: hidden !important;
+            background: var(--bg);
+        }
+        .layui-layer.install-success-skin .layui-layer-btn {
+            margin: 0;
+            padding: 16px 20px 20px;
+            text-align: center;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+        }
+        .layui-layer.install-success-skin .layui-layer-btn a {
+            height: 42px;
+            line-height: 42px;
+            padding: 0 26px;
+            border: 0;
+            border-radius: var(--radius-sm);
+            background: var(--brand);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: .3px;
+            transition: all .2s ease;
+        }
+        .layui-layer.install-success-skin .layui-layer-btn a:hover {
+            background: var(--brand-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+        }
+
+        .install-success-modal {
+            background: linear-gradient(180deg, #e0f2fe 0%, var(--bg) 55%);
+            box-sizing: border-box;
+        }
+        .install-success-modal .modal-hero {
+            position: relative;
+            padding: 24px 48px 18px 24px;
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            color: #fff;
+        }
+        .install-success-modal .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 30px;
+            height: 30px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+            font-size: 22px;
+            line-height: 28px;
+            text-align: center;
+            cursor: pointer;
+            transition: background .2s ease, transform .2s ease;
+        }
+        .install-success-modal .modal-close:hover {
+            background: rgba(255, 255, 255, 0.36);
+            transform: rotate(90deg);
+        }
+        .install-success-modal .hero-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: .3px;
+        }
+        .install-success-modal .hero-icon {
+            display: inline-flex;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.24);
+            font-size: 18px;
+            line-height: 1;
+        }
+        .install-success-modal .hero-sub {
+            margin-top: 8px;
+            font-size: 13px;
+            opacity: .94;
+        }
+        .install-success-modal .modal-body {
+            padding: 18px;
+            overflow: auto;
+        }
+        .install-success-modal .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .install-success-modal .info-item {
+            padding: 12px 13px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .install-success-modal .info-item.url {
+            grid-column: 1 / -1;
+            border-color: #bae6fd;
+            background: #e0f2fe;
+        }
+        .install-success-modal .info-label {
+            margin-bottom: 7px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        .install-success-modal .info-item.url .info-label {
+            color: #0284c7;
+        }
+        .install-success-modal .info-value {
+            color: var(--text-main);
+            font-size: 15px;
+            font-weight: 700;
+            word-break: break-all;
+        }
+        .install-success-modal .info-item.url .info-value {
+            color: #0369a1;
+        }
+        .install-success-modal .info-value a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .install-success-modal .info-value a:hover {
+            color: var(--brand);
+        }
+        .install-success-modal .tips {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid #bae6fd;
+            background: #f0f9ff;
+            color: #0369a1;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        @media (max-width: 640px) {
+            .install-success-modal .modal-hero {
+                padding: 18px 16px 14px;
+            }
+            .install-success-modal .hero-title {
+                font-size: 18px;
+            }
+            .install-success-modal .modal-body {
+                padding: 14px;
+            }
+            .install-success-modal .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -737,6 +900,61 @@ layui.use(function () {
       .replace(/'/g, '&#39;');
   }
 
+  function showInstallSuccessDialog(data) {
+    var adminUrl = data.admin_url || '/admin/';
+    var adminUser = data.admin_username || '';
+    var adminPass = data.admin_password || '';
+    var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    var viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    var dialogWidth = viewportWidth <= 768 ? '92%' : Math.min(760, Math.max(420, viewportWidth - 40)) + 'px';
+    var contentMaxHeight = Math.max(240, viewportHeight - 250);
+    var html = ''
+      + '<div class="install-success-modal">'
+      + '  <div class="modal-hero">'
+      + '    <button type="button" class="modal-close" aria-label="关闭">&times;</button>'
+      + '    <div class="hero-title"><span class="hero-icon">✓</span><span>安装成功</span></div>'
+      + '    <div class="hero-sub">系统已完成初始化，请使用下方信息登录后台。</div>'
+      + '  </div>'
+      + '  <div class="modal-body" style="max-height:' + contentMaxHeight + 'px;">'
+      + '    <div class="info-grid">'
+      + '      <div class="info-item url">'
+      + '        <div class="info-label">后台地址</div>'
+      + '        <div class="info-value"><a href="' + escapeHtml(adminUrl) + '" target="_blank">' + escapeHtml(adminUrl) + '</a></div>'
+      + '      </div>'
+      + '      <div class="info-item">'
+      + '        <div class="info-label">管理员账号</div>'
+      + '        <div class="info-value">' + escapeHtml(adminUser) + '</div>'
+      + '      </div>'
+      + '      <div class="info-item">'
+      + '        <div class="info-label">管理员密码</div>'
+      + '        <div class="info-value">' + escapeHtml(adminPass) + '</div>'
+      + '        </div>'
+      + '    </div>'
+      + '    <div class="tips">请妥善保存账号密码，首次登录后建议立即修改默认密码并开启二次验证。</div>'
+      + '  </div>'
+      + '</div>';
+    var layerIndex = layer.open({
+      type: 1,
+      title: false,
+      skin: 'install-success-skin',
+      area: [dialogWidth, 'auto'],
+      content: html,
+      closeBtn: 0,
+      shade: [0.32, '#0f172a'],
+      shadeClose: true,
+      btnAlign: 'c',
+      btn: ['进入后台'],
+      success: function (layero, index) {
+        $(layero).find('.modal-close').on('click', function () {
+          layer.close(index);
+        });
+      },
+      yes: function () {
+        window.location.href = adminUrl;
+      }
+    });
+  }
+
   $btn.on('click', function () {
     if ($btn.length === 0) return;
 
@@ -783,42 +1001,7 @@ layui.use(function () {
       var ok = res && res.code === 200;
       var message = (res && res.msg) ? res.msg : (ok ? '安装完成' : '安装失败');
       if (ok) {
-        var data = (res && res.data) ? res.data : {};
-        var adminUrl = data.admin_url || '/admin/';
-        var adminUser = data.admin_username || '';
-        var adminPass = data.admin_password || '';
-        var html = ''
-          + '<div style="padding:18px 18px 12px;background:#f8fbfa;">'
-          + '  <div style="border-radius:16px;background:#fff;border:1px solid rgba(76,125,113,.18);box-shadow:0 12px 28px rgba(15,23,42,.08);overflow:hidden;">'
-          + '    <div style="padding:14px 16px;background:linear-gradient(135deg,rgba(76,125,113,.96),rgba(90,148,134,.88));color:#fff;">'
-          + '      <div style="font-size:18px;font-weight:700;letter-spacing:.4px;">安装完成</div>'
-          + '      <div style="margin-top:4px;font-size:12px;opacity:.9;">请使用以下信息登录后台</div>'
-          + '    </div>'
-          + '    <div style="padding:14px 16px 8px;line-height:1.85;color:#0f172a;">'
-          + '      <div style="margin-bottom:8px;"><span style="display:inline-block;width:88px;color:#64748b;">后台地址</span><a href="' + escapeHtml(adminUrl) + '" target="_blank" style="color:#0f766e;font-weight:600;text-decoration:none;word-break:break-all;">' + escapeHtml(adminUrl) + '</a></div>'
-          + '      <div style="margin-bottom:8px;"><span style="display:inline-block;width:88px;color:#64748b;">管理员账号</span><span style="display:inline-block;padding:2px 10px;border-radius:999px;background:rgba(76,125,113,.12);color:#1f5146;font-weight:700;">' + escapeHtml(adminUser) + '</span></div>'
-          + '      <div style="margin-bottom:6px;"><span style="display:inline-block;width:88px;color:#64748b;">管理员密码</span><span style="display:inline-block;padding:2px 10px;border-radius:999px;background:rgba(15,23,42,.08);color:#0f172a;font-weight:700;">' + escapeHtml(adminPass) + '</span></div>'
-          + '    </div>'
-          + '    <div style="padding:0 16px 14px;color:#94a3b8;font-size:12px;">请妥善保存账号密码，进入后台后建议立即修改默认密码。</div>'
-          + '  </div>'
-          + '</div>';
-        layer.open({
-          type: 1,
-          title: '安装成功',
-          area: ['640px', '420px'],
-          content: html,
-          closeBtn: 0,
-          shade: [0.28, '#0f172a'],
-          shadeClose: false,
-          btnAlign: 'c',
-          btn: ['进入后台'],
-          cancel: function () {
-            return false;
-          },
-          yes: function () {
-            window.location.href = adminUrl;
-          }
-        });
+        showInstallSuccessDialog((res && res.data) ? res.data : {});
       } else {
         layer.msg(message);
       }
