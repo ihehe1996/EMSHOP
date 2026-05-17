@@ -438,9 +438,7 @@ $(function(){
 
             switch(action){
                 case 'copy':
-                    var text = card.card_no;
-                    if (card.card_pwd) text += ':' + card.card_pwd;
-                    copyText(text);
+                    copyText(card.card_no || '');
                     layer.msg('已复制');
                     break;
                 case 'view':    showDetail(card);  break;

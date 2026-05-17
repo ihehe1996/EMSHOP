@@ -8,6 +8,15 @@
  */
 defined('EM_ROOT') || exit('Access Denied');
 
+function virtual_card_bump_swoole_file_version(): void
+{
+    try {
+        Config::set('new_swoole_file_version', (string) time());
+    } catch (Throwable $e) {
+        // 回调不阻断主流程
+    }
+}
+
 // 启用插件时执行：创建所需数据库表
 function callback_init()
 {
@@ -42,18 +51,26 @@ function callback_init()
             Database::statement($sql);
         }
     }
+    virtual_card_bump_swoole_file_version();
 }
 
 // 删除插件时执行：清理插件数据
 function callback_rm()
 {
     // 删除卡密库存表（谨慎：会丢失所有卡密数据）
-    $prefix = Database::prefix();
-    Database::statement("DROP TABLE IF EXISTS `{$prefix}goods_virtual_card`");
+    // $prefix = Database::prefix();
+    // Database::statement("DROP TABLE IF EXISTS `{$prefix}goods_virtual_card`");
+    virtual_card_bump_swoole_file_version();
 }
 
 // 更新插件时执行：处理表结构升级
 function callback_up()
 {
     // 新版本仅支持全新库安装，不再执行老库升级补丁
+    virtual_card_bump_swoole_file_version();
+}
+
+function callback_disable()
+{
+    virtual_card_bump_swoole_file_version();
 }

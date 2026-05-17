@@ -69,22 +69,44 @@ if ($action === 'export_order_cards') {
         [$orderId]
     );
 
-    // 仅输出卡密行（不含商品名 / 规格注释）
+    // 兼容历史数据：
+    // 若卡密被拆分存储为 card_no + card_pwd，则导出时拼回 card_no:card_pwd。
+    // 优先走 goods_virtual_card（按 order_id 关联）；查不到再回退 delivery_content。
     $lines = [];
     $titleSet = [];
+    $cardRows = Database::query(
+        "SELECT card_no, card_pwd
+         FROM {$prefix}goods_virtual_card
+         WHERE order_id = ?
+         ORDER BY id",
+        [$orderId]
+    );
     foreach ($rows as $row) {
-        $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
-        if ($content === '') {
-            continue;
-        }
         $gt = trim((string) ($row['goods_title'] ?? ''));
         if ($gt !== '') {
             $titleSet[$gt] = true;
         }
-        foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
-            $line = trim((string) $line);
-            if ($line !== '') {
-                $lines[] = $line;
+    }
+    if (!empty($cardRows)) {
+        foreach ($cardRows as $card) {
+            $no = trim((string) ($card['card_no'] ?? ''));
+            if ($no === '') {
+                continue;
+            }
+            $pwd = trim((string) ($card['card_pwd'] ?? ''));
+            $lines[] = $pwd !== '' ? ($no . ':' . $pwd) : $no;
+        }
+    } else {
+        foreach ($rows as $row) {
+            $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
+            if ($content === '') {
+                continue;
+            }
+            foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $lines[] = $line;
+                }
             }
         }
     }

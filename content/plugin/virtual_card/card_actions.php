@@ -157,23 +157,16 @@ if ($action === 'card_import') {
     $prefix = Database::prefix();
     $now = date('Y-m-d H:i:s');
 
-    // 1. 解析所有行，提取卡号和密码
+    // 1. 解析所有行：一行就是一条完整卡密，不做分割
     $lines = explode("\n", $content);
-    $parsed = []; // [{card_no, card_pwd}, ...]
+    $parsed = []; // [{card_no}, ...]
     $cardNos = []; // 用于去重查询
     foreach ($lines as $line) {
         $raw = trim($line);
         if ($raw === '') continue;
 
         $cardNo = $raw;
-        $cardPwd = null;
-        if (strpos($raw, ':') !== false) {
-            [$cardNo, $cardPwd] = explode(':', $raw, 2);
-        } elseif (strpos($raw, '|') !== false) {
-            [$cardNo, $cardPwd] = explode('|', $raw, 2);
-        }
         $cardNo = trim($cardNo);
-        $cardPwd = ($cardPwd !== null && trim($cardPwd) !== '') ? trim($cardPwd) : null;
 
         if ($cardNo === '') continue;
 
@@ -183,7 +176,7 @@ if ($action === 'card_import') {
             $cardNos[$cardNo] = true;
         }
 
-        $parsed[] = ['card_no' => $cardNo, 'card_pwd' => $cardPwd];
+        $parsed[] = ['card_no' => $cardNo];
     }
 
     if (empty($parsed)) {
@@ -246,7 +239,7 @@ if ($action === 'card_import') {
             $params[] = $goodsId;
             $params[] = $specId;
             $params[] = $item['card_no'];
-            $params[] = $item['card_pwd'];
+            $params[] = null;
             $params[] = $remark !== '' ? $remark : null;
             $params[] = $now;
         }
@@ -376,7 +369,7 @@ if ($action === 'card_export') {
 
     $whereSql = 'WHERE ' . implode(' AND ', $conditions);
     $cards = Database::query(
-        "SELECT card_no, card_pwd FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC",
+        "SELECT card_no FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC",
         $params
     );
 
@@ -386,10 +379,7 @@ if ($action === 'card_export') {
         if ($no === '') {
             continue;
         }
-        $pwd = isset($card['card_pwd']) && (string) $card['card_pwd'] !== ''
-            ? (string) $card['card_pwd']
-            : '';
-        $lines[] = $pwd !== '' ? $no . ':' . $pwd : $no;
+        $lines[] = $no;
     }
     $output = implode("\n", $lines);
     $count = count($lines);
@@ -591,7 +581,7 @@ if ($action === 'order_export_cards') {
         exit('订单不存在');
     }
 
-    // 只取该订单里 virtual_card 类型的商品；goods_type 是 order_goods 的快照字段，不用 JOIN goods
+    // 用于文件名：尽量取订单里 virtual_card 商品标题
     $rows = Database::query(
         "SELECT id, goods_title, delivery_content
          FROM " . Database::prefix() . "order_goods
@@ -600,22 +590,45 @@ if ($action === 'order_export_cards') {
         [$orderId]
     );
 
-    // 仅输出卡密行（发货内容原样按行展开，不含商品名 / 规格标题）
+    // 兼容历史数据：
+    // 若卡密被拆分存储为 card_no + card_pwd，则导出时拼回 card_no:card_pwd。
+    // 优先走 goods_virtual_card（按 order_id 关联）；查不到再回退 delivery_content。
     $lines = [];
     $titleSet = [];
+    $cardRows = Database::query(
+        "SELECT card_no, card_pwd
+         FROM " . Database::prefix() . "goods_virtual_card
+         WHERE order_id = ?
+         ORDER BY id",
+        [$orderId]
+    );
     foreach ($rows as $row) {
-        $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
-        if ($content === '') {
-            continue;
-        }
         $gt = trim((string) ($row['goods_title'] ?? ''));
         if ($gt !== '') {
             $titleSet[$gt] = true;
         }
-        foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
-            $line = trim((string) $line);
-            if ($line !== '') {
-                $lines[] = $line;
+    }
+    if (!empty($cardRows)) {
+        foreach ($cardRows as $card) {
+            $no = trim((string) ($card['card_no'] ?? ''));
+            if ($no === '') {
+                continue;
+            }
+            $pwd = trim((string) ($card['card_pwd'] ?? ''));
+            $lines[] = $pwd !== '' ? ($no . ':' . $pwd) : $no;
+        }
+    } else {
+        // 回退：按旧逻辑从订单发货内容展开
+        foreach ($rows as $row) {
+            $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
+            if ($content === '') {
+                continue;
+            }
+            foreach (preg_split("/\r\n|\r|\n/", $content) as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $lines[] = $line;
+                }
             }
         }
     }

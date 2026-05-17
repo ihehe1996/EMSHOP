@@ -774,12 +774,38 @@ class GoodsModel
      */
     public static function updatePriceStockCache($goodsId)
     {
+        self::ensureSingleSpecDefault((int) $goodsId);
+
         $range = self::getPriceAndStockRange($goodsId);
         return Database::update('goods', [
             'min_price' => $range['min_price'],
             'max_price' => $range['max_price'],
             'total_stock' => $range['total_stock'],
         ], $goodsId);
+    }
+
+    /**
+     * 仅一个在售规格且未标默认时，自动设为默认（列表划线价等依赖参考规格）。
+     */
+    private static function ensureSingleSpecDefault(int $goodsId): void
+    {
+        if ($goodsId <= 0) {
+            return;
+        }
+        $prefix = Database::prefix();
+        $rows = Database::query(
+            "SELECT id, is_default FROM {$prefix}goods_spec
+             WHERE goods_id = ? AND status = 1
+             ORDER BY sort ASC, id ASC",
+            [$goodsId]
+        );
+        if (count($rows) !== 1 || (int) ($rows[0]['is_default'] ?? 0) === 1) {
+            return;
+        }
+        Database::execute(
+            "UPDATE {$prefix}goods_spec SET is_default = 1 WHERE id = ?",
+            [(int) $rows[0]['id']]
+        );
     }
 
     /**

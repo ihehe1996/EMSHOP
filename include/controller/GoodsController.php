@@ -258,9 +258,7 @@ class GoodsController extends BaseController
                     'image'          => $covers[0] ?? '',
                     'images'         => $covers,
                     'price'          => $defaultSpec ? (float) $defaultSpec['price'] : (float) $row['min_price'],
-                    'original_price' => ($defaultSpec && $defaultSpec['market_price'])
-                        ? (float) $defaultSpec['market_price']
-                        : null,
+                    'original_price' => self::resolveOriginalPrice($defaultSpec),
                     // stock 是业务数字（整数），stock_text 是展示文字（默认千分位，可被插件替换）
                     'stock'          => $stock,
                     'stock_text'     => self::formatStockText($stock),
@@ -413,6 +411,12 @@ class GoodsController extends BaseController
             $gf = GuestFindModel::getConfig();
 
             if (!empty($gf['contact_enabled'])) {
+                $contactIconMap = [
+                    GuestFindModel::CONTACT_TYPE_PHONE => 'fa-mobile',
+                    GuestFindModel::CONTACT_TYPE_EMAIL => 'fa-envelope-o',
+                    GuestFindModel::CONTACT_TYPE_QQ    => 'fa-qq',
+                ];
+                $contactType = (string) ($gf['contact_type'] ?? GuestFindModel::CONTACT_TYPE_ANY);
                 $sections[] = [
                     'id'     => 'guestFindContactSection',
                     'group'  => 'guest_find_contact',
@@ -421,6 +425,7 @@ class GoodsController extends BaseController
                             'name'        => 'guest_find_contact_query',
                             'id'          => 'guestFindContactQuery',
                             'label'       => (string) $gf['contact_type_label'],
+                            'icon'        => $contactIconMap[$contactType] ?? 'fa-phone',
                             'type'        => (string) $gf['contact_input_type'],
                             'placeholder' => (string) $gf['contact_checkout_placeholder'],
                             'required'    => true,
@@ -444,6 +449,7 @@ class GoodsController extends BaseController
                             'name'        => 'guest_find_password_query',
                             'id'          => 'guestFindPasswordQuery',
                             'label'       => '订单密码',
+                            'icon'        => 'fa-lock',
                             // 下单时"设置"订单密码，用明文 text 便于用户确认输入
                             'type'        => 'text',
                             'placeholder' => (string) $gf['password_checkout_placeholder'],

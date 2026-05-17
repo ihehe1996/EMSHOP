@@ -253,8 +253,7 @@ abstract class BaseController
         }
         $sql = "SELECT g.id, g.title, g.category_id, g.cover_images, g.min_price, g.max_price,
                     g.total_stock, g.goods_type, g.plugin_data, g.configs, g.owner_id, g.jump_url" . $selectExtra . ",
-                    (SELECT market_price FROM {$prefix}goods_spec
-                     WHERE goods_id = g.id AND is_default = 1 AND status = 1 LIMIT 1) as default_market_price,
+                    {$this->goodsRefSpecColumnSql('market_price')} as default_market_price,
                     (SELECT COALESCE(SUM(sold_count), 0) FROM {$prefix}goods_spec
                      WHERE goods_id = g.id AND status = 1) as total_sold
                 FROM {$prefix}goods g{$join}
@@ -306,6 +305,21 @@ abstract class BaseController
             ];
         }
         return $list;
+    }
+
+    /**
+     * 列表/划线价用的参考规格列子查询：优先默认规格，否则取 sort、id 最小的在售规格。
+     */
+    protected function goodsRefSpecColumnSql(string $column): string
+    {
+        $prefix = Database::prefix();
+        if (!preg_match('/^[a-z_]+$/', $column)) {
+            $column = 'market_price';
+        }
+        return "(SELECT gs.{$column} FROM {$prefix}goods_spec gs
+                 WHERE gs.goods_id = g.id AND gs.status = 1
+                 ORDER BY gs.is_default DESC, gs.sort ASC, gs.id ASC
+                 LIMIT 1)";
     }
 
     /**
@@ -408,8 +422,7 @@ abstract class BaseController
         // 查询当前页数据
         $sql = "SELECT g.id, g.title, g.category_id, g.cover_images, g.min_price, g.max_price,
                     g.total_stock, g.goods_type, g.plugin_data, g.configs, g.owner_id, g.jump_url" . $selectExtra . ",
-                    (SELECT market_price FROM {$prefix}goods_spec
-                     WHERE goods_id = g.id AND is_default = 1 AND status = 1 LIMIT 1) as default_market_price,
+                    {$this->goodsRefSpecColumnSql('market_price')} as default_market_price,
                     (SELECT COALESCE(SUM(sold_count), 0) FROM {$prefix}goods_spec
                      WHERE goods_id = g.id AND status = 1) as total_sold
                 FROM {$prefix}goods g{$join}
@@ -933,6 +946,21 @@ abstract class BaseController
         $default = number_format($stock);
         $filtered = applyFilter('goods_stock_display', $stock);
         return is_string($filtered) ? $filtered : $default;
+    }
+
+    /**
+     * 划线价：仅当规格市场价大于该规格售价时返回。
+     *
+     * @param array<string, mixed>|null $spec
+     */
+    protected static function resolveOriginalPrice(?array $spec): ?float
+    {
+        if (!$spec || empty($spec['market_price'])) {
+            return null;
+        }
+        $market = (float) $spec['market_price'];
+        $price = (float) $spec['price'];
+        return $market > $price ? $market : null;
     }
 
 }

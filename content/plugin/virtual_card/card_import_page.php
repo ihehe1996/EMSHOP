@@ -32,7 +32,7 @@ $esc = function (string $str): string {
 
         <div class="form-group">
             <label class="form-group__label">卡密内容 <span style="color:#ff4d4f;">*</span></label>
-            <textarea id="importContent" class="form-group__textarea" style="min-height:160px;font-family:Consolas,'Courier New',monospace;font-size:13px;" placeholder="每行一个卡密，支持以下格式：&#10;&#10;卡号&#10;卡号:密码&#10;卡号|密码"></textarea>
+            <textarea id="importContent" class="form-group__textarea" style="min-height:160px;font-family:Consolas,'Courier New',monospace;font-size:13px;" placeholder="每行一个完整卡密，不会拆分整行内容"></textarea>
             <div class="form-group__help" id="lineCount">已输入 0 条</div>
         </div>
 
