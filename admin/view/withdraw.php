@@ -16,23 +16,20 @@ $csrfToken = Csrf::token();
 
 <div class="admin-page">
     <h1 class="admin-page__title">钱包提现申请</h1>
-
-    <!-- 快捷搜索：姓名 / 账号 / 用户名 / 昵称 —— 统一回车触发 -->
-    <div class="em-quick-search" id="withdrawQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="withdrawQuickSearch" placeholder="姓名 / 账号 / 用户名 / 昵称，回车搜索" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="withdrawQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-
-    <table id="withdrawTable" lay-filter="withdrawTable"></table>
+<table id="withdrawTable" lay-filter="withdrawTable"></table>
 </div>
 
 <!-- 工具栏 -->
 <script type="text/html" id="withdrawToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="withdrawRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="withdrawRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="withdrawQuickSearch" placeholder="姓名 / 账号 / 用户名 / 昵称，回车搜索" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="withdrawQuickClear" title="清空"><i class="fa fa-times"></i></button>
+        </div>
     </div>
 </script>
 
@@ -131,6 +128,7 @@ $(function () {
     var csrfToken = <?= json_encode($csrfToken) ?>;
 
     layui.use(['layer', 'form', 'table'], function () {
+        var withdrawQuickSearchCache = '';
         var layer = layui.layer, form = layui.form, table = layui.table;
 
         // 当前筛选（由 tab 控制）
@@ -174,6 +172,9 @@ $(function () {
                 {field: 'processed_at', title: '处理时间', width: 140, align: 'center', templet: '#withdrawProcessedTpl'},
                 {title: '操作', width: 190, align: 'center', templet: '#withdrawActionTpl'}
             ]],
+            done: function () {
+                $('#withdrawQuickSearch').val(withdrawQuickSearchCache);
+            },
             parseData: function (res) {
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                 return {
@@ -197,6 +198,7 @@ $(function () {
         });
 
         // ============================================================
+        $(document).on('input', '#withdrawQuickSearch', function () { withdrawQuickSearchCache = $(this).val(); });
         // 快捷搜索：回车触发；清空按钮立即刷新
         // ============================================================
         $(document).on('keypress.admWithdraw', '#withdrawQuickSearch', function (e) {
@@ -205,6 +207,7 @@ $(function () {
             doReload();
         });
         $(document).on('click.admWithdraw', '#withdrawQuickClear', function () {
+            withdrawQuickSearchCache = '';
             $('#withdrawQuickSearch').val('').focus();
             doReload();
         });

@@ -6,25 +6,22 @@ $csrfToken = Csrf::token();
 ?>
 <div class="admin-page">
     <h1 class="admin-page__title">商品标签管理</h1>
-
-    <!-- 快捷搜索（右上角，回车搜索） -->
-    <div class="em-quick-search" id="goodsTagQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="goodsTagSearchKeyword" placeholder="搜索标签名，回车" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="goodsTagQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-
-    <table id="goodsTagTable" lay-filter="goodsTagTable"></table>
+<table id="goodsTagTable" lay-filter="goodsTagTable"></table>
 </div>
 
 <!-- 工具栏模板（em-btn 体系；刷新计数已去掉，改为保存商品 / 删除商品时自动刷新） -->
 <script type="text/html" id="goodsTagToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="goodsTagRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-save-btn" id="goodsTagAddBtn"><i class="fa fa-plus-circle"></i>新增标签</a>
-        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="goodsTagRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+            <a class="em-btn em-save-btn" id="goodsTagAddBtn"><i class="fa fa-plus-circle"></i>新增标签</a>
+            <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="goodsTagSearchKeyword" placeholder="搜索标签名，回车" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="goodsTagQuickClear" title="清空"><i class="fa fa-times"></i></button>
+        </div>
     </div>
 </script>
 
@@ -76,6 +73,7 @@ $(function(){
     }
 
     layui.use(['layer', 'form', 'table'], function () {
+        var goodsTagSearchKeywordCache = '';
         var layer = layui.layer;
         var form = layui.form;
         var table = layui.table;
@@ -103,9 +101,11 @@ $(function(){
                 {title: '操作', width: 200, align: 'center', toolbar: '#goodsTagRowActionTpl'}
             ]],
             done: function (res) {
+                $('#goodsTagSearchKeyword').val(goodsTagSearchKeywordCache);
                 if (res.csrf_token) csrfToken = res.csrf_token;
             }
         });
+        $(document).on('input', '#goodsTagSearchKeyword', function () { goodsTagSearchKeywordCache = $(this).val(); });
 
         // 快捷搜索（回车触发 + 清空按钮）
         function doQuickSearch() {
@@ -118,6 +118,7 @@ $(function(){
             if (e.which === 13) { e.preventDefault(); doQuickSearch(); }
         });
         $(document).on('click.admGoodsTag', '#goodsTagQuickClear', function () {
+            goodsTagSearchKeywordCache = '';
             $('#goodsTagSearchKeyword').val('').focus();
             doQuickSearch();
         });

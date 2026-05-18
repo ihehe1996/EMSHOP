@@ -13,29 +13,23 @@ $csrfToken = Csrf::token();
 
 <div class="admin-page">
     <h1 class="admin-page__title">页面管理</h1>
-
-    <!-- 快捷搜索（右上角，回车搜索） -->
-    <div class="em-quick-search" id="pageQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="pageSearchKeyword" placeholder="搜索标题或 slug，回车" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="pageQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-
-    <table id="pageTable" lay-filter="pageTable"></table>
+<table id="pageTable" lay-filter="pageTable"></table>
 </div>
 
 <!-- 工具栏模板 -->
 <script type="text/html" id="pageToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="pageRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加页面</a>
-        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
-        <a class="em-btn em-reset-btn em-disabled-btn" id="pageStatusDropdownBtn">
-            <i class="fa fa-eye"></i>发布/草稿
-            <i class="layui-icon layui-icon-down layui-font-12"></i>
-        </a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="pageRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+            <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加页面</a>
+            <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+            <a class="em-btn em-reset-btn em-disabled-btn" id="pageStatusDropdownBtn"><i class="fa fa-eye"></i>发布/草稿 <i class="layui-icon layui-icon-down layui-font-12"></i></a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="pageSearchKeyword" placeholder="搜索标题或 slug，回车" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="pageQuickClear" title="清空"><i class="fa fa-times"></i></button>
+        </div>
     </div>
 </script>
 
@@ -114,6 +108,7 @@ $(function(){
     window.updateCsrf = updateCsrf;
 
     layui.use(['layer', 'form', 'table', 'dropdown'], function () {
+        var pageSearchKeywordCache = '';
         var layer = layui.layer;
         var form = layui.form;
         table = layui.table;
@@ -145,6 +140,7 @@ $(function(){
                 {title: '操作', width: 340, align: 'center', toolbar: '#pageRowActionTpl'}
             ]],
             done: function (res) {
+                $('#pageSearchKeyword').val(pageSearchKeywordCache);
                 if (res.csrf_token) csrfToken = res.csrf_token;
                 if (res.tab_counts) {
                     $('#tabCountAll').text(res.tab_counts.all || '');
@@ -194,6 +190,7 @@ $(function(){
             var checked = table.checkStatus('pageTableId').data.length > 0;
             $('[lay-event="batchDelete"], #pageStatusDropdownBtn').toggleClass('em-disabled-btn', !checked);
         });
+        $(document).on('input', '#pageSearchKeyword', function () { pageSearchKeywordCache = $(this).val(); });
 
         // 快捷搜索（回车 / 清空）
         function doQuickSearch() {
@@ -209,6 +206,7 @@ $(function(){
             if (e.which === 13) { e.preventDefault(); doQuickSearch(); }
         });
         $(document).on('click.admPage', '#pageQuickClear', function () {
+            pageSearchKeywordCache = '';
             $('#pageSearchKeyword').val('').focus();
             doQuickSearch();
         });

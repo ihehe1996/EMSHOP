@@ -7,24 +7,22 @@ $csrfToken = Csrf::token();
 <div class="admin-page">
     <h1 class="admin-page__title">用户列表</h1>
 
-    <!-- 快捷搜索（表格工具栏右上角；不随 table.reload 重建） -->
-    <div class="em-quick-search" id="userQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="userQuickSearch" placeholder="用户名 / 昵称 / 邮箱，回车搜索" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="userQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-
     <table id="userTable" lay-filter="userTable"></table>
 </div>
 
 <!-- 头部工具栏 -->
 <script type="text/html" id="userToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="userRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加用户</a>
-        <a class="em-btn em-red-btn em-disabled-btn" id="userBatchDelBtn"><i class="fa fa-trash"></i>批量删除</a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="userRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+            <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加用户</a>
+            <a class="em-btn em-red-btn em-disabled-btn" id="userBatchDelBtn"><i class="fa fa-trash"></i>批量删除</a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="userQuickSearch" placeholder="用户名 / 昵称 / 邮箱，回车搜索" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="userQuickClear" title="清空"><i class="fa fa-times"></i></button>
+        </div>
     </div>
 </script>
 
@@ -227,6 +225,7 @@ $(function(){
     window.updateCsrf = updateCsrf;
 
     layui.use(['layer', 'form', 'table'], function () {
+        var userQuickSearchCache = '';
         var layer = layui.layer;
         var form = layui.form;
         var table = layui.table;
@@ -272,6 +271,9 @@ $(function(){
                 {field: 'status', title: '状态', width: 90, templet: '#userStatusTpl', align: 'center'},
                 {title: '操作', width: 200, templet: '#userRowActionTpl', align: 'center'}
             ]],
+            done: function () {
+                $('#userQuickSearch').val(userQuickSearchCache);
+            },
             parseData: function (res) {
                 if (res.data && res.data.csrf_token) {
                     csrfToken = res.data.csrf_token;
@@ -284,6 +286,7 @@ $(function(){
                 };
             }
         });
+        $(document).on('input', '#userQuickSearch', function () { userQuickSearchCache = $(this).val(); });
 
         // 快捷搜索：回车触发
         $(document).on('keypress.admUserList', '#userQuickSearch', function (e) {
@@ -293,6 +296,7 @@ $(function(){
         });
         // 清空按钮：清空输入 + 立即刷新
         $(document).on('click.admUserList', '#userQuickClear', function () {
+            userQuickSearchCache = '';
             $('#userQuickSearch').val('').focus();
             doSearchReload();
         });

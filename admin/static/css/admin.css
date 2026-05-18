@@ -365,6 +365,7 @@ body.sidebar-pre-collapsed .admin-right {
     justify-content: space-between;
     gap: 16px;
     flex-shrink: 0;
+    z-index: 9;
 }
 
 .admin-toolbar__left,

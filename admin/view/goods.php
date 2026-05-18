@@ -67,37 +67,37 @@ $csrfToken = Csrf::token();
 
 <div class="admin-page">
     <h1 class="admin-page__title">商品管理</h1>
-    <!-- 快捷搜索（独立元素，绝对定位到工具栏右上角，不随 table.reload 重建） -->
-    <div class="em-quick-search" id="goodsQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="goodsQuickSearch" placeholder="输入商品名称后回车搜索" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="goodsQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-    <!-- 表格 -->
     <table id="goodsTable" lay-filter="goodsTable"></table>
 </div>
 
 <!-- 工具栏模板：全部按钮统一 em-btn 体系
      批量操作类按钮（删除/上架/推荐/置顶）初始挂 em-disabled-btn，选中行后 JS 再切掉 -->
 <script type="text/html" id="goodsToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="goodsRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加商品</a>
-        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
-        <a class="em-btn em-reset-btn em-disabled-btn" id="saleDropdownBtn">
-            <i class="fa fa-eye"></i>上架/下架
-            <i class="layui-icon layui-icon-down layui-font-12"></i>
-        </a>
-        <a class="em-btn em-reset-btn em-disabled-btn" id="recommendDropdownBtn">
-            <i class="fa fa-star"></i>批量推荐
-            <i class="layui-icon layui-icon-down layui-font-12"></i>
-        </a>
-        <a class="em-btn em-reset-btn em-disabled-btn" id="moreActionDropdownBtn">
-            <i class="fa fa-tag"></i>分类置顶
-            <i class="layui-icon layui-icon-down layui-font-12"></i>
-        </a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="goodsRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+            <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加商品</a>
+            <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+            <a class="em-btn em-reset-btn em-disabled-btn" id="saleDropdownBtn">
+                <i class="fa fa-eye"></i>上架/下架
+                <i class="layui-icon layui-icon-down layui-font-12"></i>
+            </a>
+            <a class="em-btn em-reset-btn em-disabled-btn" id="recommendDropdownBtn">
+                <i class="fa fa-star"></i>批量推荐
+                <i class="layui-icon layui-icon-down layui-font-12"></i>
+            </a>
+            <a class="em-btn em-reset-btn em-disabled-btn" id="moreActionDropdownBtn">
+                <i class="fa fa-tag"></i>分类置顶
+                <i class="layui-icon layui-icon-down layui-font-12"></i>
+            </a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="goodsQuickSearch" placeholder="输入商品名称后回车搜索" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="goodsQuickClear" title="清空">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
     </div>
 </script>
 
@@ -294,7 +294,7 @@ $(function(){
                 initToolbarDropdowns();
                 // 初始化行内"更多"下拉菜单
                 initRowDropdowns();
-                // 快捷搜索框不再受 reload 影响（已挪出 layui 模板），不用回填
+                $('#goodsQuickSearch').val($('#goodsSearchKeyword').val() || '');
             }
         });
 
@@ -455,7 +455,7 @@ $(function(){
             doSearchReload();
         });
 
-        // 快捷搜索（绝对定位在 admin-page 右上角）：回车触发；同步关键词到完整搜索面板
+        // 快捷搜索（工具栏内）：回车触发；同步关键词到完整搜索面板
         $(document).on('keypress.admGoods', '#goodsQuickSearch', function (e) {
             if (e.which !== 13) return;
             e.preventDefault();
@@ -711,7 +711,7 @@ $(function(){
                 title: title,
                 skin: 'admin-modal',
                 maxmin: true,
-                area: ['838px', '90%'],
+                area: [window.innerWidth >= 900 ? '838px' : '95%', window.innerHeight >= 800 ? '90%' : '95%'],
                 shadeClose: true,
                 content: url,
                 end: function () {

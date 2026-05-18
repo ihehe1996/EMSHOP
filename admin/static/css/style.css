@@ -343,29 +343,51 @@
 }
 
 /* ============================================================
- * em-quick-search：列表页表格工具栏右上角的快捷搜索
- * 绝对定位到 .admin-page 右上角，不随 table.reload 重建
- * 用法：
- *   <div class="admin-page">
- *     <div class="em-quick-search" id="xxxQuickSearchBox">
- *       <i class="fa fa-search em-quick-search__ico"></i>
- *       <input type="text" id="xxxQuickSearch" placeholder="..." autocomplete="off">
- *       <button type="button" class="em-quick-search__clear" id="xxxQuickClear" title="清空">
- *         <i class="fa fa-times"></i>
- *       </button>
- *     </div>
- *     <table id="xxxTable"></table>
- *   </div>
+ * em-table-toolbar + em-quick-search：表格工具栏（左按钮横滚 + 右搜索）
+ * 写在 layui toolbar 模板内；table.reload 后需在 done 回填搜索词
  * 清空按钮用 :placeholder-shown 纯 CSS 判空；JS 只管回车触发 + 点击清空
  * ============================================================ */
-/* 让 .admin-page 做定位锚，quick-search 才能浮在右上角 */
-.admin-page { position: relative; }
+.admin-page .layui-table-tool {
+    min-height: 45px;
+    padding: 0 15px;
+    line-height: 45px;
+}
+.em-table-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    height: 45px;
+    box-sizing: border-box;
+}
+.em-table-toolbar__actions {
+    flex: 1;
+    min-width: 0;
+    height: 45px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    word-spacing: normal;
+}
+.em-table-toolbar__actions .em-btn {
+    flex-shrink: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+}
+.admin-page .layui-table-tool .layui-table-tool-temp {
+    overflow: visible;
+    max-width: 100%;
+    min-height: 45px;
+    height: 45px;
+}
 
 .em-quick-search {
-    position: absolute;
-    top: 14px;
-    right: 15px;
-    z-index: 5;
+    position: relative;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
 }
@@ -374,6 +396,7 @@
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 2;
     color: #9ca3af;
     font-size: 12px;
     pointer-events: none;
@@ -405,6 +428,7 @@
     right: 6px;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 2;
     display: none;
     width: 20px;
     height: 20px;
@@ -426,8 +450,41 @@
     display: inline-flex;
 }
 
-/* 表格工具栏右侧留出快捷搜索的空间，避免按钮被挤到搜索框后面 */
-.admin-page .layui-table-tool { padding-right: 270px; }
+/* 窄屏：按钮区一行横滚，搜索框独占下一行（高度随内容撑开） */
+@media (max-width: 992px) {
+    .admin-page .layui-table-tool {
+        min-height: auto;
+        height: auto;
+        padding: 8px 15px;
+        line-height: normal;
+    }
+    .admin-page .layui-table-tool .layui-table-tool-temp {
+        height: auto;
+        min-height: 0;
+    }
+    .em-table-toolbar {
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 15px;
+        height: auto;
+    }
+    .em-table-toolbar__actions {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+        height: 45px;
+    }
+    .em-quick-search {
+        flex: 1 1 100%;
+        width: 100%;
+        display: block;
+        box-sizing: border-box;
+    }
+    .em-quick-search input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
 
 /* ============================================================
  * em-tag：表格单元格内的小标签（比 layui-badge 克制，适合表示状态/开关/分类）

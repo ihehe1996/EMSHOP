@@ -19,24 +19,21 @@ $cs = $currencySymbol ?? '¥';
 
 <div class="admin-page">
     <h1 class="admin-page__title">订单管理</h1>
-
-    <!-- 快捷搜索：订单号 / 商品名 / 昵称 / 账号 / 手机 / 邮箱 —— 统一回车触发 -->
-    <div class="em-quick-search" id="orderQuickSearchBox">
-        <i class="fa fa-search em-quick-search__ico"></i>
-        <input type="text" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱，回车搜索" autocomplete="off">
-        <button type="button" class="em-quick-search__clear" id="orderQuickClear" title="清空">
-            <i class="fa fa-times"></i>
-        </button>
-    </div>
-
-    <table id="orderTable" lay-filter="orderTable"></table>
+<table id="orderTable" lay-filter="orderTable"></table>
 </div>
 
 <!-- 工具栏：刷新 + 批量删除（未勾选时禁用） -->
 <script type="text/html" id="orderToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="orderRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+    <div class="em-table-toolbar">
+        <div class="em-table-toolbar__actions layui-btn-container">
+            <a class="em-btn em-reset-btn" id="orderRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
+            <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+        </div>
+        <div class="em-quick-search">
+            <i class="fa fa-search em-quick-search__ico"></i>
+            <input type="text" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱，回车搜索" autocomplete="off">
+            <button type="button" class="em-quick-search__clear" id="orderQuickClear" title="清空"><i class="fa fa-times"></i></button>
+        </div>
     </div>
 </script>
 
@@ -167,6 +164,7 @@ $(function () {
     var csrfToken = <?= json_encode($csrfToken) ?>;
 
     layui.use(['layer', 'form', 'table', 'element'], function () {
+        var orderQuickSearchCache = '';
         var layer = layui.layer;
         var form = layui.form;
         var table = layui.table;
@@ -214,6 +212,9 @@ $(function () {
                 {field: 'pay_time', title: '支付时间', width: 126, align: 'center', templet: '#orderPayTimeTpl'},
                 {title: '操作', width: 170, align: 'center', templet: '#orderActionTpl'}
             ]],
+            done: function () {
+                $('#orderQuickSearch').val(orderQuickSearchCache);
+            },
             parseData: function (res) {
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                 return {
@@ -243,6 +244,7 @@ $(function () {
         });
 
         // ============================================================
+        $(document).on('input', '#orderQuickSearch', function () { orderQuickSearchCache = $(this).val(); });
         // 快捷搜索：回车触发；清空按钮立即刷新
         // ============================================================
         $(document).on('keypress.admOrder', '#orderQuickSearch', function (e) {
@@ -251,6 +253,7 @@ $(function () {
             doReload();
         });
         $(document).on('click.admOrder', '#orderQuickClear', function () {
+            orderQuickSearchCache = '';
             $('#orderQuickSearch').val('').focus();
             doReload();
         });
