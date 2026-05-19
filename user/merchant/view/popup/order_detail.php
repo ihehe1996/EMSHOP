@@ -10,24 +10,9 @@ $esc = function (?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 };
 
-// 游客联系方式（独立字段）；contact_info 仅存商品附加选项 JSON
-$guestContact = trim((string) ($order['guest_contact'] ?? ''));
-$contactRaw = (string) ($order['contact_info'] ?? '');
-$contactPairs = [];
-if ($contactRaw !== '' && substr($contactRaw, 0, 1) === '{') {
-    $decoded = json_decode($contactRaw, true);
-    if (is_array($decoded)) {
-        foreach ($decoded as $k => $v) {
-            if ($k === 'guest_find_contact' || $k === 'api_attach') {
-                continue;
-            }
-            $contactPairs[(string) $k] = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE);
-        }
-    }
-}
-if ($guestContact === '' && $contactRaw !== '' && substr($contactRaw, 0, 1) !== '{') {
-    $guestContact = trim($contactRaw);
-}
+$buyerFields = OrderModel::parseBuyerContactFields($order);
+$guestContact = $buyerFields['guest_contact'];
+$contactPairs = $buyerFields['extra_pairs'];
 
 include EM_ROOT . '/admin/view/popup/header.php';
 ?>

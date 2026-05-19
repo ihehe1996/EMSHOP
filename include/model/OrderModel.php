@@ -1178,6 +1178,176 @@ class OrderModel
         ], JSON_UNESCAPED_UNICODE);
     }
 
+    /**
+     * 将附加选项打包为 contact_info（含下单时 title 快照，展示不依赖商品后续改配置）。
+     *
+     * @param array<int, array<string, mixed>> $definitions 商品 configs.extra_fields
+     * @param array<string, string> $valuesByName 字段 name => 用户填写值
+     * @return array{extra: list<array{name: string, title: string, value: string}>}
+     */
+    public static function packExtraContactInfo(array $definitions, array $valuesByName): array
+    {
+        $items = [];
+        $packedNames = [];
+
+        foreach ($definitions as $ef) {
+            if (!is_array($ef)) {
+                continue;
+            }
+            $name = (string) ($ef['name'] ?? '');
+            if ($name === '' || !array_key_exists($name, $valuesByName)) {
+                continue;
+            }
+            $val = trim((string) $valuesByName[$name]);
+            $items[] = [
+                'name'  => $name,
+                'title' => (string) ($ef['title'] ?? $name),
+                'value' => $val,
+            ];
+            $packedNames[$name] = true;
+        }
+
+        foreach ($valuesByName as $name => $val) {
+            $name = (string) $name;
+            if ($name === '' || isset($packedNames[$name])) {
+                continue;
+            }
+            $items[] = [
+                'name'  => $name,
+                'title' => $name,
+                'value' => trim((string) $val),
+            ];
+        }
+
+        return ['extra' => $items];
+    }
+
+    /**
+     * 从订单关联商品配置解析附加字段 name => title（旧订单展示回退用）。
+     *
+     * @return array<string, string>
+     */
+    public static function resolveExtraFieldTitleMap(int $orderId): array
+    {
+        if ($orderId <= 0) {
+            return [];
+        }
+        $prefix = Database::prefix();
+        $rows = Database::query(
+            "SELECT DISTINCT g.`configs` FROM `{$prefix}order_goods` og
+             INNER JOIN `{$prefix}goods` g ON g.`id` = og.`goods_id`
+             WHERE og.`order_id` = ?",
+            [$orderId]
+        );
+        $map = [];
+        foreach ($rows as $row) {
+            $cfg = json_decode((string) ($row['configs'] ?? '{}'), true);
+            if (!is_array($cfg)) {
+                continue;
+            }
+            foreach (($cfg['extra_fields'] ?? []) as $ef) {
+                if (!is_array($ef)) {
+                    continue;
+                }
+                $name = (string) ($ef['name'] ?? '');
+                if ($name !== '') {
+                    $map[$name] = (string) ($ef['title'] ?? $name);
+                }
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * 解析订单买家填写信息：游客联系方式、附加选项、订单密码。
+     *
+     * contact_info 新格式：{"extra":[{"name":"qq","title":"QQ号","value":"111"},...]}
+     * 旧格式：{"qq":"111"}（展示时尝试按订单商品配置补中文 title）
+     *
+     * @param array<string, mixed> $order
+     * @return array{guest_contact: string, extra_pairs: array<string, string>, order_password: string}
+     */
+    public static function parseBuyerContactFields(array $order): array
+    {
+        $guestContact = trim((string) ($order['guest_contact'] ?? ''));
+        $contactRaw = (string) ($order['contact_info'] ?? '');
+        $extraPairs = [];
+        $orderId = (int) ($order['id'] ?? 0);
+
+        if ($contactRaw !== '' && str_starts_with($contactRaw, '{')) {
+            $decoded = json_decode($contactRaw, true);
+            if (is_array($decoded)) {
+                if ($guestContact === '' && isset($decoded['guest_find_contact'])) {
+                    $guestContact = trim((string) $decoded['guest_find_contact']);
+                }
+                $extraPairs = self::extraPairsFromContactDecoded($decoded, $orderId);
+            }
+        } elseif ($guestContact === '' && $contactRaw !== '') {
+            $guestContact = trim($contactRaw);
+        }
+
+        return [
+            'guest_contact'  => $guestContact,
+            'extra_pairs'    => $extraPairs,
+            'order_password' => trim((string) ($order['order_password'] ?? '')),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $decoded
+     * @return array<string, string> 展示用 label => value
+     */
+    private static function extraPairsFromContactDecoded(array $decoded, int $orderId): array
+    {
+        if (isset($decoded['extra']) && is_array($decoded['extra'])) {
+            $pairs = [];
+            foreach ($decoded['extra'] as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $title = trim((string) ($item['title'] ?? $item['name'] ?? ''));
+                if ($title === '') {
+                    continue;
+                }
+                $value = isset($item['value']) && is_scalar($item['value'])
+                    ? (string) $item['value']
+                    : '';
+                $pairs[self::uniqueExtraDisplayLabel($pairs, $title)] = $value;
+            }
+            return $pairs;
+        }
+
+        $skipKeys = ['guest_find_contact', 'api_attach', 'extra'];
+        $titleMap = $orderId > 0 ? self::resolveExtraFieldTitleMap($orderId) : [];
+        $pairs = [];
+        foreach ($decoded as $k => $v) {
+            $name = (string) $k;
+            if ($name === '' || in_array($name, $skipKeys, true)) {
+                continue;
+            }
+            $label = $titleMap[$name] ?? $name;
+            $pairs[self::uniqueExtraDisplayLabel($pairs, $label)] = is_scalar($v)
+                ? (string) $v
+                : (string) json_encode($v, JSON_UNESCAPED_UNICODE);
+        }
+        return $pairs;
+    }
+
+    /**
+     * @param array<string, string> $existing
+     */
+    private static function uniqueExtraDisplayLabel(array $existing, string $label): string
+    {
+        if (!array_key_exists($label, $existing)) {
+            return $label;
+        }
+        $n = 2;
+        while (array_key_exists($label . ' (' . $n . ')', $existing)) {
+            $n++;
+        }
+        return $label . ' (' . $n . ')';
+    }
+
     public static function statusName(string $status): string
     {
         $map = [

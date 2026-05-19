@@ -341,6 +341,28 @@ $showMarkPaidBtn = ((string) $order['status'] === 'pending');
                 <div class="od-kv"><span class="od-kv__label">完成时间</span><span class="od-kv__value<?= empty($order['complete_time']) ? ' od-kv__value--muted' : '' ?>"><?= !empty($order['complete_time']) ? $esc($order['complete_time']) : '未完成' ?></span></div>
             </div>
         </div>
+        <?php
+        $buyerFields = OrderModel::parseBuyerContactFields($order);
+        $adminGuestContact = $buyerFields['guest_contact'];
+        $adminExtraPairs = $buyerFields['extra_pairs'];
+        $adminOrderPassword = $buyerFields['order_password'];
+        ?>
+        <?php if ($adminGuestContact !== '' || $adminOrderPassword !== '' || $adminExtraPairs !== []): ?>
+        <div class="od-section">
+            <div class="od-section-title"><i class="fa fa-address-card-o"></i>买家填写信息</div>
+            <div class="od-kv-grid">
+                <?php if ($adminGuestContact !== ''): ?>
+                <div class="od-kv"><span class="od-kv__label">游客联系方式</span><span class="od-kv__value"><?= $esc($adminGuestContact) ?></span></div>
+                <?php endif; ?>
+                <?php if ($adminOrderPassword !== ''): ?>
+                <div class="od-kv"><span class="od-kv__label">订单密码</span><span class="od-kv__value"><code><?= $esc($adminOrderPassword) ?></code></span></div>
+                <?php endif; ?>
+                <?php foreach ($adminExtraPairs as $efKey => $efVal): ?>
+                <div class="od-kv"><span class="od-kv__label"><?= $esc((string) $efKey) ?></span><span class="od-kv__value"><?= $esc((string) $efVal) ?></span></div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- ======== Panel 2: 商品信息 ======== -->

@@ -139,9 +139,12 @@ class OrderController extends BaseController
                 'guest_address'       => Input::post('guest_address', null),
             ];
 
-            // 附加选项 → contact_info；游客联系方式 → guest_contact（互不覆盖）
+            // 附加选项 → contact_info（含 title 快照）；游客联系方式 → guest_contact
             if (!empty($extraFields)) {
-                $createData['contact_info'] = $extraFields;
+                $createData['contact_info'] = OrderModel::packExtraContactInfo(
+                    $goodsConfigs['extra_fields'] ?? [],
+                    $extraFields
+                );
             }
             if ($contactQuery !== '') {
                 $createData['guest_contact'] = $contactQuery;

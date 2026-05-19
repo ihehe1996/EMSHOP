@@ -15,6 +15,7 @@ if (!defined('EM_ROOT')) {
 
     <?php
     $awaitAsyncDelivery = in_array((string) $order['status'], ['paid', 'delivering'], true);
+    $extraPairs = OrderModel::parseBuyerContactFields($order)['extra_pairs'];
     ?>
     <div class="uc-ems-poll-root" hidden data-ems-order-detail="1" data-awaiting="<?= $awaitAsyncDelivery ? '1' : '0' ?>"
          data-order-no="<?= htmlspecialchars((string) $order['order_no'], ENT_QUOTES, 'UTF-8') ?>"
@@ -80,6 +81,11 @@ if (!defined('EM_ROOT')) {
             <?php endif; ?>
         </div>
     </div>
+
+    <?php
+    $layout = 'uc';
+    include EM_ROOT . '/include/view/partials/order_extra_fields.php';
+    ?>
 
     <?php
     // 收货地址快照（仅需要地址的订单有值；虚拟卡密订单保持空，此块不显示）

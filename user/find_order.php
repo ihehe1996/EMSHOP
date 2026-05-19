@@ -301,6 +301,7 @@ if ($currentTab === 'credentials' || $currentTab === 'orderno') {
 // 拒绝时不区分"订单不存在"和"订单存在但你无权看"，避免被用作存在性探测。
 $detailOrder = null;
 $detailGoods = [];
+$detailExtraPairs = [];
 $detailDenied = false;
 $detailOrderNo = trim((string) Input::get('order_no', ''));
 if ($detailOrderNo !== '') {
@@ -314,6 +315,7 @@ if ($detailOrderNo !== '') {
             [$detailOrderNo]
         );
         if ($row) {
+            $detailExtraPairs = OrderModel::parseBuyerContactFields($row)['extra_pairs'];
             $detailOrder = $sanitizeOrder($row);
             $detailGoods = $detailOrder['order_goods'] ?? [];
         } else {
@@ -419,6 +421,12 @@ $statusMap = [
                 <span class="fo-detail__value fo-detail__amount"><?= Currency::displaySnapshot((int) ($detailOrder['pay_amount'] ?? 0), (string) ($detailOrder['_disp_code'] ?? ''), (int) ($detailOrder['_disp_rate'] ?? 0)) ?></span>
             </div>
         </div>
+
+        <?php
+        $extraPairs = $detailExtraPairs;
+        $layout = 'fo';
+        include EM_ROOT . '/include/view/partials/order_extra_fields.php';
+        ?>
 
         <?php
         // 收货地址快照（仅需要地址的订单有值）
