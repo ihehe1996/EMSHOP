@@ -3,6 +3,9 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 /** @var array<string, mixed> $row  拥有 r.* + g.title/min_price/max_price */
+/** @var array{rate: float, level_name: string, discount_label: string} $ownerDiscount */
+/** @var int $cost 商户主拿货价（×1000000） */
+/** @var int $maxCost */
 /** @var string $csrfToken */
 /** @var string $pageTitle */
 
@@ -12,9 +15,6 @@ $esc = function (string $s): string {
 
 $basePrice = (int) $row['min_price'];
 $maxBasePrice = (int) ($row['max_price'] ?? 0);
-// v1.3+：商户拿货统一按主站原价（无折扣），cost = base
-$cost = $basePrice;
-$maxCost = $maxBasePrice;
 $markupPct = rtrim(rtrim(number_format(((int) $row['markup_rate']) / 100, 2, '.', ''), '0'), '.');
 
 // 弹窗是 iframe，拿不到父窗口的 window.EMSHOP_CURRENCY —— 这里重新解析访客币种 + 汇率
@@ -68,7 +68,7 @@ if ($visitorCurRow !== null) {
                 </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">拿货价（只读）</label>
+                <label class="layui-form-label">您的拿货价</label>
                 <div class="layui-input-block">
                     <div style="line-height:34px;color:#8b5cf6;">
                         <?= $esc(Currency::displayAmount($cost)) ?>
@@ -78,7 +78,11 @@ if ($visitorCurRow !== null) {
                     </div>
                 </div>
                 <div class="layui-form-mid layui-word-aux">
-                    商户拿货统一按主站原价收，与会员等级无关
+                    <?php if ($ownerDiscount['discount_label'] !== ''): ?>
+                    按您的主站用户等级「<?= $esc($ownerDiscount['level_name']) ?>」（<?= $esc($ownerDiscount['discount_label']) ?>）从主站拿货
+                    <?php else: ?>
+                    您未设置主站用户等级，拿货价等于主站原价
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

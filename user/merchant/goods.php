@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/global.php';
 require_once EM_ROOT . '/include/model/MerchantGoodsRefModel.php';
-require_once EM_ROOT . '/include/model/UserLevelModel.php';
 
 /**
  * 商户后台 - 商品管理
@@ -17,8 +16,8 @@ require_once EM_ROOT . '/include/model/UserLevelModel.php';
  *   em_goods_merchant_ref 作为"商户覆盖层"存在：商户修改加价率 / 下架时才 UPSERT 一行，
  *   没行时按默认（加价率 0、上架中）处理。
  *
- * 价格计算约定（与 a 系统文档/分站功能方案.md §6.2 一致）：
- *   拿货价 C = M × d_user（M=主站原价，d_user=商户主的用户等级折扣率；折扣存在 user_levels.discount，小数）
+ * 价格计算约定：
+ *   拿货价 C = M × d_owner（M=主站原价；d_owner=商户主/站长的用户等级折扣率）
  *   店内售价 P = C × (1 + u)（u=加价率，markup_rate / 10000）
  */
 merchantRequireLogin();
@@ -27,43 +26,54 @@ $merchantId = (int) $currentMerchant['id'];
 $ownerUserId = (int) $currentMerchant['user_id'];
 
 /**
- * 取指定用户的等级折扣率（小数）。
+ * 商户主（当前站长）的用户等级折扣信息。
  *
- * user_levels.discount 语义：9.9 表示"9.9 折"（最终价 = 原价 × 9.9 / 10 = 0.99）；
- * UserLevelModel 存储时 × 1000000（float → int）。
- * 因此 d = (discount_raw / 1000000) / 10。
+ * user_levels.discount：9.9 表示 9.9 折 → 倍率 0.99。
+ * 未设等级或等级禁用 → rate=1.0（不打折）。
  *
- * 用户未设置等级（em_user.level_id = 0）或等级被禁用 → 返回 1.0（不打折）。
+ * @return array{rate: float, level_name: string, discount_label: string}
  */
-function mcResolveDiscountRate(int $userId): float
+function mcResolveOwnerDiscountMeta(int $userId): array
 {
     static $cache = [];
-    if (isset($cache[$userId])) return $cache[$userId];
+    if (isset($cache[$userId])) {
+        return $cache[$userId];
+    }
 
     $userTable = Database::prefix() . 'user';
     $levelTable = Database::prefix() . 'user_levels';
     $row = Database::fetchOne(
-        'SELECT ul.`discount` AS d
+        'SELECT ul.`discount`, ul.`name` AS level_name
            FROM `' . $userTable . '` u
       LEFT JOIN `' . $levelTable . '` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
           WHERE u.`id` = ? LIMIT 1',
         [$userId]
     );
-    $raw = (int) ($row['d'] ?? 0);
-    if ($raw <= 0) {
-        return $cache[$userId] = 1.0;
+
+    $raw = (int) ($row['discount'] ?? 0);
+    $rate = 1.0;
+    $label = '';
+    if ($raw > 0) {
+        $rate = ($raw / 1000000) / 10;
+        if ($rate <= 0 || $rate > 1) {
+            $rate = 1.0;
+        } else {
+            $zhe = $raw / 1000000;
+            $label = rtrim(rtrim(number_format($zhe, 2, '.', ''), '0'), '.') . '折';
+        }
     }
-    $rate = ($raw / 1000000) / 10;
-    if ($rate <= 0 || $rate > 1) {
-        $rate = 1.0;
-    }
-    return $cache[$userId] = $rate;
+
+    return $cache[$userId] = [
+        'rate'           => $rate,
+        'level_name'     => (string) ($row['level_name'] ?? ''),
+        'discount_label' => $label,
+    ];
 }
 
 /**
  * 计算主站商品在本店的拿货价 / 售价（×1000000 整数返回）。
  */
-function mcCalcRefPrices(int $basePrice, int $markupRate, float $discountRate): array
+function mcCalcRefPrices(int $basePrice, int $markupRate, float $discountRate = 1.0): array
 {
     $cost = (int) round($basePrice * $discountRate);
     $sell = (int) round($cost * (1 + $markupRate / 10000));
@@ -166,11 +176,13 @@ if (Request::isPost()) {
                 array_unshift($params, $defaultMarkup);
                 $rows = Database::query($sql, $params);
 
-                $discountRate = mcResolveDiscountRate($ownerUserId);
+                $ownerDiscount = mcResolveOwnerDiscountMeta($ownerUserId);
+                $discountRate = $ownerDiscount['rate'];
 
                 foreach ($rows as &$row) {
                     $basePrice = (int) $row['min_price'];
                     $maxBasePrice = (int) ($row['max_price'] ?? 0);
+                    // 拿货价 = 主站原价 × 商户主（站长）用户等级折扣
                     $calc = mcCalcRefPrices($basePrice, (int) $row['markup_rate'], $discountRate);
                     // 所有金额按访客当前展示币种输出完整字符串（含币种符号），前端直接拼接
                     $row['base_price_view'] = Currency::displayAmount($basePrice);
@@ -195,7 +207,7 @@ if (Request::isPost()) {
                 Response::success('', [
                     'data' => $rows,
                     'total' => $total,
-                    'discount_rate' => $discountRate,
+                    'owner_discount' => $ownerDiscount,
                     'csrf_token' => Csrf::token(),
                 ]);
                 break;
@@ -879,7 +891,13 @@ if ((string) Input::get('_popup', '') === 'ref_edit') {
         return;
     }
 
-    $discountRate = mcResolveDiscountRate($ownerUserId);
+    $ownerDiscount = mcResolveOwnerDiscountMeta($ownerUserId);
+    $discountRate = $ownerDiscount['rate'];
+    $basePrice = (int) $row['min_price'];
+    $maxBasePrice = (int) ($row['max_price'] ?? 0);
+    $cost = (int) round($basePrice * $discountRate);
+    $maxCost = (int) round($maxBasePrice * $discountRate);
+
     $csrfToken = Csrf::token();
     $pageTitle = '编辑：' . ($row['title'] ?? '');
     include __DIR__ . '/view/popup/ref_edit.php';

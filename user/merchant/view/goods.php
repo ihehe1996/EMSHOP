@@ -297,18 +297,27 @@ $(function(){
                 lineStyle: 'height: 55px;',
                 cols: [[
                     {title: '图', width: 60, templet: '#mcRefCoverTpl', align: 'center'},
-                    {field: 'title', title: '商品', minWidth: 220, templet: '#mcRefTitleTpl'},
-                    {field: 'markup_rate', title: '加价率', minWidth: 90, templet: '#mcRefMarkupTpl', align: 'center'},
+                    {field: 'title', title: '商品', minWidth: 200, templet: '#mcRefTitleTpl'},
+                    {title: '您的拿货价', minWidth: 120, templet: '#mcRefCostTpl', align: 'right'},
+                    {field: 'markup_rate', title: '加价率', minWidth: 80, templet: '#mcRefMarkupTpl', align: 'center'},
                     {title: '推荐', width: 120, templet: '#mcRefRecTpl', align: 'center'},
                     {title: '状态', width: 100, templet: '#mcRefSaleTpl', align: 'center'},
                     {title: '操作', width: 190, templet: '#mcRefActionTpl', align: 'center'}
                 ]],
                 parseData: function (res) {
                     if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
-                    // 拿货成本 / 加价率提示（v1.3+：商户拿货统一按主站原价；不再有"店主等级折扣"）
-                    $('#mcRefDiscountTip').html(
-                        '<i class="fa fa-info-circle"></i> 拿货成本 = 主站原价（无折扣）；店内售价 = 主站原价 × (1 + 本店加价率)'
-                    );
+                    var od = res.data && res.data.owner_discount;
+                    var tip = '<i class="fa fa-info-circle"></i> 您的拿货价 = 主站原价';
+                    if (od && od.discount_label) {
+                        tip += ' × ' + od.discount_label;
+                        if (od.level_name) {
+                            tip += '（主站用户等级：' + od.level_name + '）';
+                        }
+                    } else {
+                        tip += '（未设主站用户等级，无折扣）';
+                    }
+                    tip += '；店内售价 = 您的拿货价 × (1 + 本店加价率)';
+                    $('#mcRefDiscountTip').html(tip);
                     return {
                         'code': res.code === 200 ? 0 : res.code,
                         'msg': res.msg,
