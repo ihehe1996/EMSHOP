@@ -253,6 +253,81 @@ if (Request::isPost()) {
                 ]);
                 break;
 
+            case 'open_merchant':
+                require_once EM_ROOT . '/include/model/MerchantModel.php';
+                require_once EM_ROOT . '/include/model/MerchantLevelModel.php';
+
+                $userId = (int) Input::post('user_id', 0);
+                if ($userId <= 0) {
+                    Response::error('无效的用户ID');
+                }
+
+                $userModel = new UserListModel();
+                $u = $userModel->findById($userId);
+                if ($u === null) {
+                    Response::error('用户不存在');
+                }
+                if ((int) ($u['merchant_id'] ?? 0) > 0) {
+                    Response::error('该用户已开通商户分站');
+                }
+
+                $levelModel = new MerchantLevelModel();
+                $levelId = (int) Input::post('level_id', 0);
+                if ($levelId <= 0 || $levelModel->findById($levelId) === null) {
+                    Response::error('请选择商户等级');
+                }
+
+                $name = trim((string) Input::post('name', ''));
+                if ($name === '' || mb_strlen($name) > 100) {
+                    Response::error('店铺名长度需在 1~100 字符');
+                }
+
+                $subdomain = strtolower(trim((string) Input::post('subdomain', '')));
+                if ($subdomain === '') {
+                    Response::error('请填写二级域名前缀');
+                }
+                if (!preg_match('/^[a-z0-9]([a-z0-9\-]{1,30})[a-z0-9]$/', $subdomain)) {
+                    Response::error('二级域名格式不合法');
+                }
+
+                $customDomain = strtolower(trim((string) Input::post('custom_domain', '')));
+                $customDomain = $customDomain !== '' ? $customDomain : null;
+                if ($customDomain !== null) {
+                    if (!preg_match('/^[a-z0-9]([a-z0-9\-\.]{1,199})$/', $customDomain)) {
+                        Response::error('自定义域名格式不合法');
+                    }
+                }
+
+                $merchantModel = new MerchantModel();
+                if ($merchantModel->existsSubdomain($subdomain)) {
+                    Response::error('二级域名已被占用');
+                }
+                if ($customDomain !== null && $merchantModel->existsCustomDomain($customDomain)) {
+                    Response::error('该自定义域名已被占用');
+                }
+
+                $openData = [
+                    'user_id'    => $userId,
+                    'parent_id'  => 0,
+                    'level_id'   => $levelId,
+                    'name'       => $name,
+                    'subdomain'  => $subdomain,
+                    'opened_via' => 'admin',
+                    'status'     => 1,
+                ];
+                if ($customDomain !== null) {
+                    $openData['custom_domain'] = $customDomain;
+                    $openData['domain_verified'] = 1;
+                }
+
+                $merchantId = $merchantModel->openMerchant($openData);
+
+                Response::success('商户分站开通成功', [
+                    'merchant_id' => $merchantId,
+                    'csrf_token'  => Csrf::refresh(),
+                ]);
+                break;
+
             // 余额调整
             case 'balance_adjust': {
                 $userId = (int) Input::post('user_id', 0);
@@ -331,6 +406,29 @@ if ($popupType === 'balance') {
     $pageTitle = '余额调整';
 
     include __DIR__ . '/view/popup/user_balance.php';
+    return;
+}
+
+// 为用户开通商户分站（从用户列表进入，已选定商户主）
+if ($popupType === 'merchant_open') {
+    $userId = (int) Input::get('user_id', 0);
+    $model = new UserListModel();
+    $presetUser = $model->findById($userId);
+    if ($presetUser === null) {
+        exit('用户不存在');
+    }
+    if ((int) ($presetUser['merchant_id'] ?? 0) > 0) {
+        exit('该用户已开通商户');
+    }
+    require_once EM_ROOT . '/include/model/MerchantLevelModel.php';
+    $levels = (new MerchantLevelModel())->getEnabledList();
+    if ($levels === []) {
+        exit('请先在「商户等级」中创建并启用至少一个等级');
+    }
+    $esc = fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $pageTitle = '开通商户分站';
+
+    include __DIR__ . '/view/popup/user_merchant_open.php';
     return;
 }
 

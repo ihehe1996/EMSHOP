@@ -93,7 +93,7 @@ $csrfToken = Csrf::token();
         {{ d.merchant_level_name || '已开通' }}
     </span>
     {{# } else { }}
-    <span class="em-tag em-tag--muted">未开通</span>
+    <span class="em-tag em-tag--muted em-tag--clickable" lay-event="openMerchant" title="点击开通商户分站">未开通</span>
     {{# } }}
 </script>
 
@@ -370,6 +370,9 @@ $(function(){
                 case 'balance':
                     openBalancePopup(data);
                     break;
+                case 'openMerchant':
+                    openMerchantPopup(data);
+                    break;
                 case 'viewMerchant':
                     // iframe 查看商户详情（控制器 _popup=merchant 分支渲染）
                     layer.open({
@@ -450,6 +453,29 @@ $(function(){
                 openPopup('添加用户');
             }
         });
+
+        // 开通商户分站弹窗
+        function openMerchantPopup(data) {
+            if (data.merchant_id) {
+                layer.msg('该用户已开通商户');
+                return;
+            }
+            layer.open({
+                type: 2,
+                title: '开通商户分站 - ' + (data.nickname || data.username),
+                skin: 'admin-modal',
+                maxmin: true,
+                area: [window.innerWidth >= 800 ? '560px' : '95%', window.innerHeight >= 800 ? '580px' : '90%'],
+                shadeClose: false,
+                content: '/admin/user_list.php?_popup=merchant_open&user_id=' + data.id,
+                end: function () {
+                    if (window._userMchOpenSaved) {
+                        window._userMchOpenSaved = false;
+                        table.reload('userTableId');
+                    }
+                }
+            });
+        }
 
         // 余额调整弹窗
         function openBalancePopup(data) {
