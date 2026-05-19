@@ -250,7 +250,8 @@ if (Request::isPost()) {
 
                 $levelModel = new MerchantLevelModel();
                 $levelId = (int) Input::post('level_id', 0);
-                if ($levelId <= 0 || $levelModel->findById($levelId) === null) {
+                $merchantLevelRow = $levelId > 0 ? $levelModel->findById($levelId) : null;
+                if ($merchantLevelRow === null) {
                     Response::error('请选择商户等级');
                 }
 
@@ -273,6 +274,9 @@ if (Request::isPost()) {
                     if (!preg_match('/^[a-z0-9]([a-z0-9\-\.]{1,199})$/', $customDomain)) {
                         Response::error('自定义域名格式不合法');
                     }
+                    if ((int) ($merchantLevelRow['allow_custom_domain'] ?? 0) !== 1) {
+                        Response::error('所选商户等级不允许绑定自定义域名');
+                    }
                 }
 
                 $merchantModel = new MerchantModel();
@@ -294,7 +298,6 @@ if (Request::isPost()) {
                 ];
                 if ($customDomain !== null) {
                     $openData['custom_domain'] = $customDomain;
-                    $openData['domain_verified'] = 1;
                 }
 
                 $merchantId = $merchantModel->openMerchant($openData);
@@ -472,7 +475,7 @@ if ($popupType === 'merchant') {
         'SELECT `id`, `username`, `nickname`, `email`, `mobile`, `shop_balance` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1',
         [(int) $merchantDetail['user_id']]
     );
-    // 店铺前台 URL（自定义域名已验证 > 二级域名 > 空串）
+    // 店铺前台 URL（自定义域名 > 二级域名 > 空串）
     $storefrontUrl = MerchantContext::storefrontUrl($merchantDetail);
     $pageTitle = '商户详情';
 

@@ -100,11 +100,6 @@ $domainAlerts = $domainAlerts ?? [];
                 <div style="color:#9ca3af;margin-bottom:4px;">自定义域名</div>
                 <div style="font-family:Consolas,Monaco,monospace;">
                     <?= htmlspecialchars($currentMerchant['custom_domain']) ?>
-                    <?php if ((int) $currentMerchant['domain_verified'] === 1): ?>
-                    <span class="layui-badge layui-bg-green" style="margin-left:6px;">已验证</span>
-                    <?php else: ?>
-                    <span class="layui-badge layui-bg-gray" style="margin-left:6px;">未验证</span>
-                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>

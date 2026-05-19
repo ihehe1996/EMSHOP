@@ -129,13 +129,6 @@ include __DIR__ . '/header.php';
                             <input type="text" class="layui-input" name="custom_domain" maxlength="200" placeholder="如 www.myshop.com" value="<?= $val('custom_domain') ?>">
                         </div>
                     </div>
-                    <div class="layui-form-item">
-                        <label class="layui-form-label">域名已验证</label>
-                        <div class="layui-input-block">
-                            <input type="checkbox" name="domain_verified" lay-skin="switch" lay-text="已验证|未验证" value="1" <?= $chk('domain_verified') ?>>
-                        </div>
-                        <div class="layui-form-mid layui-word-aux">自定义域名必须此处勾选方能生效</div>
-                    </div>
                 </div>
             </div>
 
@@ -181,16 +174,10 @@ $(function () {
             $btn.find('i').attr('class', 'fa fa-refresh admin-spin mr-5');
             $btn.prop('disabled', true);
 
-            // 序列化 —— domain_verified 未勾选时补 0
-            var data = $('#mchEditForm').serializeArray();
-            var has = {};
-            $.each(data, function (_, it) { has[it.name] = true; });
-            if (!has.domain_verified) data.push({name: 'domain_verified', value: '0'});
-
             $.ajax({
                 url: '/admin/merchant.php',
                 type: 'POST',
-                data: $.param(data),
+                data: $('#mchEditForm').serialize(),
                 dataType: 'json',
                 success: function (res) {
                     if (res.code === 200) {

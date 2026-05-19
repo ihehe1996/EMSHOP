@@ -75,10 +75,6 @@ $customDomain = (string) ($currentMerchant['custom_domain'] ?? '');
 if ($subdomain !== '' && $mainDomain === '') {
     $domainAlerts[] = ['type' => 'warning', 'msg' => '您已绑定二级域名 ' . $subdomain . '，但主站尚未配置根域名 —— 该域名暂不生效，请联系主站管理员配置'];
 }
-if ($customDomain !== '' && (int) $currentMerchant['domain_verified'] !== 1) {
-    $domainAlerts[] = ['type' => 'info', 'msg' => '自定义域名 ' . $customDomain . ' 已提交，等待主站管理员审核后生效'];
-}
-
 merchantRenderPage(__DIR__ . '/view/home.php', [
     'orderTotal' => $orderTotal,
     'orderThisMonth' => $orderThisMonth,

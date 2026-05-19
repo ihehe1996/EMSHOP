@@ -9,7 +9,7 @@ require_once __DIR__ . '/global.php';
  *
  * 商户可改：
  *   - 店铺名 / Logo / 一句话介绍 / 详细介绍 / 备案号（任意改）
- *   - 二级域名 / 自定义域名（受等级开关限制；自定义域名改动后 domain_verified 自动置 0 重新待审）
+ *   - 二级域名 / 自定义域名（受商户等级 allow_subdomain / allow_custom_domain 限制）
  * 不可改：
  *   - slug（开通后固定）
  *   - 商户主 user_id
@@ -100,11 +100,6 @@ if (Request::isPost()) {
                             Response::error('该域名已被占用');
                         }
                     }
-                    // 域名变化时重置验证状态
-                    $oldDomain = (string) ($currentMerchant['custom_domain'] ?? '');
-                    if ($customDomain !== $oldDomain) {
-                        $data['domain_verified'] = 0;
-                    }
                     $data['custom_domain'] = $customDomain !== '' ? $customDomain : null;
                 } else {
                     if ($customDomain !== '') {
@@ -115,7 +110,7 @@ if (Request::isPost()) {
                 if ($data !== []) {
                     Database::update('merchant', $data, $merchantId);
                 }
-                Response::success('域名已保存，如需要请等待主站审核', ['csrf_token' => Csrf::refresh()]);
+                Response::success('域名已保存，请确保 DNS 已正确解析', ['csrf_token' => Csrf::refresh()]);
                 break;
             }
 

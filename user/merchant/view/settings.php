@@ -12,7 +12,6 @@ $esc = function (string $s): string {
 };
 $allowSubdomain = (int) ($merchantLevel['allow_subdomain'] ?? 0) === 1;
 $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
-$domainVerified = (int) ($currentMerchant['domain_verified'] ?? 0) === 1;
 ?>
 <div class="mc-page">
     <div class="mc-page-header">
@@ -172,16 +171,7 @@ $domainVerified = (int) ($currentMerchant['domain_verified'] ?? 0) === 1;
                 <?php endif; ?>
                 <div class="mc-field__hint">
                     <?php if ($allowCustom): ?>
-                        <?php if (!empty($currentMerchant['custom_domain'])): ?>
-                            状态：
-                            <?php if ($domainVerified): ?>
-                            <span class="mc-badge mc-badge--success">已验证</span>
-                            <?php else: ?>
-                            <span class="mc-badge mc-badge--pending">待主站审核</span>
-                            <?php endif; ?>
-                            &nbsp;|&nbsp;
-                        <?php endif; ?>
-                        <?= $customDomainTip !== '' ? $esc($customDomainTip) : '域名改动后需主站管理员审核方生效' ?>
+                        <?= $customDomainTip !== '' ? $esc($customDomainTip) : '请将域名 CNAME 解析到主站；保存后立即按 Host 匹配生效' ?>
                     <?php else: ?>
                         当前等级不允许绑定自定义顶级域名
                     <?php endif; ?>

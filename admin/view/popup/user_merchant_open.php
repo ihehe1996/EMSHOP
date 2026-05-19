@@ -76,7 +76,7 @@ include __DIR__ . '/header.php';
                 <div class="layui-input-block">
                     <input type="text" class="layui-input" name="custom_domain" id="userMchOpenCustomDomain" maxlength="200"
                            placeholder="如 www.myshop.com（选填）">
-                    <div class="layui-form-mid layui-word-aux">选填；填写后后台开通将自动标记为「已验证」</div>
+                    <div class="layui-form-mid layui-word-aux">选填；需 CNAME 到主站，且商户等级须允许自定义域名</div>
                 </div>
             </div>
         </div>

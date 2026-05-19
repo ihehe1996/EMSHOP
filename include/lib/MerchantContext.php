@@ -8,7 +8,7 @@ declare(strict_types=1);
  * 在 init.php 中调用 resolve() 一次，后续代码通过静态方法读取当前商户。
  *
  * 识别优先级：
- *   1. 自定义顶级域名   —— 需商户等级 allow_custom_domain=1 且 domain_verified=1
+ *   1. 自定义顶级域名   —— 需商户等级 allow_custom_domain=1
  *   2. 二级域名         —— 需商户等级 allow_subdomain=1
  *   3. 以上都不命中 → 主站（currentId()=0）
  *
@@ -162,7 +162,7 @@ final class MerchantContext
 
     /**
      * 计算商户的店铺前台 URL：
-     *   1. 自定义顶级域名且已验证  → https://{custom_domain}/
+     *   1. 已绑定自定义顶级域名     → https://{custom_domain}/
      *   2. 二级域名 + 主站域名已配   → https://{subdomain}.{main_domain}/
      *   3. 都没配                   → "" （店铺无法访问）
      *
@@ -171,8 +171,7 @@ final class MerchantContext
     public static function storefrontUrl(array $merchant): string
     {
         $custom = trim((string) ($merchant['custom_domain'] ?? ''));
-        $verified = (int) ($merchant['domain_verified'] ?? 0) === 1;
-        if ($custom !== '' && $verified) {
+        if ($custom !== '') {
             return 'http://' . $custom . '/';
         }
         $sub = trim((string) ($merchant['subdomain'] ?? ''));
@@ -257,7 +256,6 @@ final class MerchantContext
                   FROM `' . Database::prefix() . 'merchant` m
              LEFT JOIN `' . Database::prefix() . 'merchant_level` l ON l.id = m.level_id
                  WHERE m.custom_domain = ?
-                   AND m.domain_verified = 1
                    AND m.status = 1
                    AND m.deleted_at IS NULL
                  LIMIT 1';

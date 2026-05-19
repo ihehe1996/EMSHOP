@@ -138,13 +138,13 @@ if (Request::isPost()) {
                     'level_id' => (int) Input::post('level_id', (int) $existing['level_id']),
                     'subdomain' => strtolower(trim((string) Input::post('subdomain', ''))) ?: null,
                     'custom_domain' => strtolower(trim((string) Input::post('custom_domain', ''))) ?: null,
-                    'domain_verified' => (int) Input::post('domain_verified', 0) === 1 ? 1 : 0,
                 ];
 
                 if ($data['name'] === '' || mb_strlen($data['name']) > 100) {
                     Response::error('店铺名长度需在 1~100 字符');
                 }
-                if ($data['level_id'] <= 0 || $levelModel->findById($data['level_id']) === null) {
+                $merchantLevelRow = $data['level_id'] > 0 ? $levelModel->findById($data['level_id']) : null;
+                if ($merchantLevelRow === null) {
                     Response::error('请选择商户等级');
                 }
                 if ($data['subdomain'] !== null) {
@@ -156,19 +156,16 @@ if (Request::isPost()) {
                     }
                 }
                 if ($data['custom_domain'] !== null) {
-                    // 简单格式校验
                     if (!preg_match('/^[a-z0-9]([a-z0-9\-\.]{1,199})$/', $data['custom_domain'])) {
                         Response::error('自定义域名格式不合法');
                     }
                     if ($model->existsCustomDomain($data['custom_domain'], $id)) {
                         Response::error('该域名已被占用');
                     }
+                    if ((int) ($merchantLevelRow['allow_custom_domain'] ?? 0) !== 1) {
+                        Response::error('当前商户等级不允许绑定自定义域名');
+                    }
                 }
-                // 若取消了域名，domain_verified 同步置 0
-                if ($data['custom_domain'] === null) {
-                    $data['domain_verified'] = 0;
-                }
-
                 $model->updateMerchant($id, $data);
                 Response::success('更新成功', ['csrf_token' => Csrf::refresh()]);
                 break;

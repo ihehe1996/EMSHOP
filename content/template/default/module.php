@@ -201,7 +201,6 @@ if (($_p = strpos($_currentHost, ':')) !== false) $_currentHost = substr($_curre
 $_mc = MerchantContext::current();
 $_onCustomDomain = $_mc !== null
     && !empty($_mc['custom_domain'])
-    && (int) ($_mc['domain_verified'] ?? 0) === 1
     && strtolower((string) $_mc['custom_domain']) === $_currentHost;
 
 $siteIcp = $_onCustomDomain
