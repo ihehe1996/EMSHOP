@@ -385,6 +385,39 @@ final class UpdateService
         return ['ok' => true, 'applied' => $applied, 'pending' => [], 'batch' => $batch];
     }
 
+    /**
+     * 新装站点：把 install/migrations 里当前随包自带的 SQL 记入 em_migrations（不执行 SQL）。
+     * 安装程序建表已包含同等结构，避免用户首次在线升级重复跑迁移报错。
+     */
+    public static function markBundledMigrationsApplied(): void
+    {
+        $dir = EM_ROOT . '/install/migrations';
+        if (!is_dir($dir)) {
+            return;
+        }
+
+        self::ensureMigrationsTable();
+
+        $done = Database::query('SELECT `filename` FROM `' . Database::prefix() . 'migrations`');
+        $doneSet = array_flip(array_column($done, 'filename'));
+
+        $files = glob($dir . '/*.sql') ?: [];
+        sort($files, SORT_STRING);
+
+        foreach ($files as $file) {
+            $name = basename($file);
+            if (isset($doneSet[$name])) {
+                continue;
+            }
+            $raw = (string) file_get_contents($file);
+            Database::insert('migrations', [
+                'filename' => $name,
+                'batch'    => 0,
+                'checksum' => hash('sha256', $raw),
+            ]);
+        }
+    }
+
     // ================================================================
     // Step 7: finalize — 收尾
     // ================================================================

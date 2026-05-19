@@ -8,7 +8,6 @@
 .server
 
 /install/install.lock
-/install/migrations/
 .user.ini
 .well-known/
 /content/cache/*

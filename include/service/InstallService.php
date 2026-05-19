@@ -1356,5 +1356,7 @@ final class InstallService
             $prefix . 'user_address'
         ));
 
+        // 随包迁移已在建表 SQL 中体现，标记为已执行，避免首次在线升级重复 ALTER
+        UpdateService::markBundledMigrationsApplied();
     }
 }
