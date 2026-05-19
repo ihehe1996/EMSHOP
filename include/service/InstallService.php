@@ -333,6 +333,7 @@ final class InstallService
                 `payment_channel` VARCHAR(64) NOT NULL DEFAULT \'\' COMMENT \'支付通道\',
                 `status` VARCHAR(20) NOT NULL DEFAULT \'pending\' COMMENT \'状态\',
                 `contact_info` TEXT,
+                `guest_contact` VARCHAR(255) DEFAULT NULL COMMENT '游客联系方式（查单凭据）',
                 `order_password` VARCHAR(255) DEFAULT NULL,
                 `pay_time` DATETIME DEFAULT NULL COMMENT \'支付时间\',
                 `delivery_time` DATETIME DEFAULT NULL COMMENT \'发货时间\',

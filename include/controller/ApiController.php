@@ -1027,19 +1027,15 @@ class ApiController extends BaseController
             }
             $createData['delivery_callback_url'] = $callbackUrl;
         }
-        if ($contactQuery !== '') {
-            if ($extraFields !== []) {
-                $extraFields['guest_find_contact'] = $contactQuery;
-            } else {
-                $createData['contact_info'] = $contactQuery;
-            }
-        }
         if ($extraFields !== []) {
             $attach = trim((string) ($params['attach'] ?? ''));
             if ($attach !== '') {
                 $extraFields['api_attach'] = $attach;
             }
             $createData['contact_info'] = $extraFields;
+        }
+        if ($contactQuery !== '') {
+            $createData['guest_contact'] = $contactQuery;
         }
         if ($orderPassword !== '') {
             $createData['order_password'] = $orderPassword;

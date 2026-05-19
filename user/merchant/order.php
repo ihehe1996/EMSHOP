@@ -39,9 +39,11 @@ if (Request::isPost()) {
                 $params = [$merchantId];
 
                 if ($keyword !== '') {
-                    $conds[] = '(o.order_no LIKE ? OR o.contact_info LIKE ?)';
-                    $params[] = '%' . $keyword . '%';
-                    $params[] = '%' . $keyword . '%';
+                    $conds[] = '(o.order_no LIKE ? OR o.contact_info LIKE ? OR o.guest_contact LIKE ?)';
+                    $like = '%' . $keyword . '%';
+                    $params[] = $like;
+                    $params[] = $like;
+                    $params[] = $like;
                 }
                 // status 支持合并：paid 含 paid+delivering、refunded 含 refunded+refunding
                 if ($status !== '' && $status !== 'all') {

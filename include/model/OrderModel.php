@@ -352,6 +352,9 @@ class OrderModel
                 'inviter_l1'          => $orderData['inviter_l1'] ?? null,
                 'inviter_l2'          => $orderData['inviter_l2'] ?? null,
                 'contact_info'        => isset($orderData['contact_info']) ? (is_array($orderData['contact_info']) ? json_encode($orderData['contact_info'], JSON_UNESCAPED_UNICODE) : (string) $orderData['contact_info']) : null,
+                'guest_contact'       => isset($orderData['guest_contact']) && (string) $orderData['guest_contact'] !== ''
+                    ? (string) $orderData['guest_contact']
+                    : null,
                 'order_password'      => $orderData['order_password'] ?? null,
                 'ip'                  => $orderData['ip'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'),
                 'source'              => $orderData['source'] ?? 'web',

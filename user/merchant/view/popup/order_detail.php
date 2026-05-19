@@ -10,22 +10,23 @@ $esc = function (?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 };
 
-// 解析联系信息（contact_info 可能是 JSON，也可能是普通字符串）
+// 游客联系方式（独立字段）；contact_info 仅存商品附加选项 JSON
+$guestContact = trim((string) ($order['guest_contact'] ?? ''));
 $contactRaw = (string) ($order['contact_info'] ?? '');
 $contactPairs = [];
-$contactPlain = '';
-if ($contactRaw !== '') {
-    if (substr($contactRaw, 0, 1) === '{') {
-        $decoded = json_decode($contactRaw, true);
-        if (is_array($decoded)) {
-            foreach ($decoded as $k => $v) {
-                $contactPairs[(string) $k] = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE);
+if ($contactRaw !== '' && substr($contactRaw, 0, 1) === '{') {
+    $decoded = json_decode($contactRaw, true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $k => $v) {
+            if ($k === 'guest_find_contact' || $k === 'api_attach') {
+                continue;
             }
+            $contactPairs[(string) $k] = is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE);
         }
     }
-    if (!$contactPairs) {
-        $contactPlain = $contactRaw;
-    }
+}
+if ($guestContact === '' && $contactRaw !== '' && substr($contactRaw, 0, 1) !== '{') {
+    $guestContact = trim($contactRaw);
 }
 
 include EM_ROOT . '/admin/view/popup/header.php';
@@ -252,22 +253,28 @@ include EM_ROOT . '/admin/view/popup/header.php';
             </div>
         </div>
 
-        <!-- 买家联系信息 -->
+        <?php if ($guestContact !== ''): ?>
         <div class="od-card">
-            <div class="od-card__title"><i class="fa fa-address-card-o"></i> 买家联系方式</div>
-            <?php if ($contactPairs): ?>
+            <div class="od-card__title"><i class="fa fa-phone"></i> 游客联系方式</div>
+            <div class="od-contact-plain"><?= $esc($guestContact) ?></div>
+        </div>
+        <?php endif; ?>
+        <?php if ($contactPairs): ?>
+        <div class="od-card">
+            <div class="od-card__title"><i class="fa fa-list-alt"></i> 附加选项</div>
                 <dl class="od-contact-pairs">
                     <?php foreach ($contactPairs as $k => $v): ?>
                     <dt><?= $esc((string) $k) ?></dt>
                     <dd><?= $esc((string) $v) ?></dd>
                     <?php endforeach; ?>
-                </dl>
-            <?php elseif ($contactPlain !== ''): ?>
-                <div class="od-contact-plain"><?= $esc($contactPlain) ?></div>
-            <?php else: ?>
-                <span class="od-empty">买家未填写联系信息</span>
-            <?php endif; ?>
+            </dl>
         </div>
+        <?php elseif ($guestContact === ''): ?>
+        <div class="od-card">
+            <div class="od-card__title"><i class="fa fa-address-card-o"></i> 买家联系信息</div>
+            <span class="od-empty">买家未填写联系信息</span>
+        </div>
+        <?php endif; ?>
 
         <?php if (!empty($order['remark'])): ?>
         <div class="od-card">

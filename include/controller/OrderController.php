@@ -139,11 +139,12 @@ class OrderController extends BaseController
                 'guest_address'       => Input::post('guest_address', null),
             ];
 
-            // 附加选项优先，其次游客联系方式（contact_info 同字段存储）
+            // 附加选项 → contact_info；游客联系方式 → guest_contact（互不覆盖）
             if (!empty($extraFields)) {
                 $createData['contact_info'] = $extraFields;
-            } elseif ($contactQuery !== '') {
-                $createData['contact_info'] = $contactQuery;
+            }
+            if ($contactQuery !== '') {
+                $createData['guest_contact'] = $contactQuery;
             }
 
             // 游客查单密码（明文存储）

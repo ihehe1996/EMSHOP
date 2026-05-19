@@ -65,17 +65,26 @@ $sanitizeOrder = function (array $row) use ($orderWhiteList, $prefix): array {
 };
 
 /**
- * 判断给定凭据是否匹配订单的 contact_info。
- * contact_info 可能是纯字符串（游客联系方式）或 JSON（商品附加选项字典）。
+ * 判断给定凭据是否匹配订单的游客联系方式。
+ * 优先 guest_contact；兼容旧数据（contact_info 纯文本或 JSON 内 guest_find_contact）。
  */
 $contactMatch = function (array $row, string $contactQuery): bool {
-    if ($contactQuery === '') return false;
+    if ($contactQuery === '') {
+        return false;
+    }
+    $guest = trim((string) ($row['guest_contact'] ?? ''));
+    if ($guest !== '' && stripos($guest, $contactQuery) !== false) {
+        return true;
+    }
     $stored = (string) ($row['contact_info'] ?? '');
-    if ($stored === '') return false;
+    if ($stored === '') {
+        return false;
+    }
     $decoded = json_decode($stored, true);
     if (is_array($decoded)) {
-        foreach ($decoded as $v) {
-            if (stripos((string) $v, $contactQuery) !== false) return true;
+        $legacyGuest = trim((string) ($decoded['guest_find_contact'] ?? ''));
+        if ($legacyGuest !== '' && stripos($legacyGuest, $contactQuery) !== false) {
+            return true;
         }
         return false;
     }
@@ -161,8 +170,7 @@ if (Request::isPost()) {
                 throw new RuntimeException('订单密码查单未开启');
             }
 
-            // 先用 order_password 精确过滤（如填了）；contact_query 交由 PHP 侧 LIKE 匹配
-            // （contact_info 存储可能是 JSON，所以不在 SQL 层做模糊匹配）
+            // 先用 order_password 精确过滤（如填了）；联系方式优先 guest_contact，旧数据再 PHP 侧匹配 contact_info
             $where = [];
             $params = [];
             if ($orderPassword !== '') {
@@ -170,12 +178,12 @@ if (Request::isPost()) {
                 $params[] = $orderPassword;
             }
             if ($contactQuery !== '') {
-                $where[] = 'contact_info IS NOT NULL AND contact_info != \'\'';
+                $where[] = '(guest_contact IS NOT NULL AND guest_contact != \'\' OR contact_info IS NOT NULL AND contact_info != \'\')';
             }
             $sql = "SELECT * FROM {$prefix}order WHERE " . implode(' AND ', $where) . " ORDER BY id DESC LIMIT 50";
             $rows = Database::query($sql, $params);
 
-            // 填了联系方式则按 contact_info 再过滤
+            // 填了联系方式则按 guest_contact / 旧版 contact_info 再过滤
             if ($contactQuery !== '') {
                 $rows = array_values(array_filter($rows, function ($r) use ($contactMatch, $contactQuery) {
                     return $contactMatch($r, $contactQuery);
