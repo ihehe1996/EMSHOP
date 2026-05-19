@@ -3,11 +3,20 @@
 declare(strict_types=1);
 
 
+; if (version_compare(PHP_VERSION, '8.0', '<')) {
+;     echo "需要 PHP 8.0 或更高版本，当前为 " . PHP_VERSION . "。\n";
+;     exit(1);
+; }
 
-// 仅允许 CLI；经 FPM/CGI 等误执行时直接退出（空响应）。若 Web 未走 PHP 而直接当静态文件返回，需在服务器配置中禁止访问。
-if (PHP_SAPI !== 'cli') {
-    http_response_code(404);
+if (!extension_loaded('swoole')) {
+    echo "无法启动，PHP v" . PHP_VERSION . " 版本缺少 Swoole 扩展！\n";
+    exit(1);
 }
+
+
+
+
+
 
 /**
  * EMSHOP Swoole 入口：
@@ -160,10 +169,12 @@ $server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
         @unlink($dotServer);
         swooleServiceLog('已移除升级标记文件 .server（主进程启动后清理）');
     }
+    $swoole_version = defined('SWOOLE_VERSION') ? SWOOLE_VERSION : (function_exists('swoole_version') ? swoole_version() : phpversion('swoole'));
     swooleServiceLog("启动：服务已开始监听 " . SW_HOST . ':' . SW_PORT . '，主进程 PID ' . $server->master_pid);
     echo "========================================\n";
     echo "EMSHOP Swoole 服务已启动！\n";
-    echo "监听地址：" . SW_HOST . ':' . SW_PORT . "，主进程 PID {$server->master_pid}\n";
+    echo "监听地址：" . SW_HOST . ':' . SW_PORT . "；主进程 PID {$server->master_pid}\n";
+    echo "PHP cli版本：" . PHP_VERSION. '；Swoole扩展版本：' . $swoole_version . "\n";
     echo "========================================\n";
     $startTime = time();
 });

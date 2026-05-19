@@ -3,10 +3,7 @@
 
 declare(strict_types=1);
 
-if (PHP_SAPI !== 'cli') {
-    fwrite(STDERR, "This command can only run in CLI.\n");
-    exit(1);
-}
+
 
 $root = __DIR__;
 $lockFile = $root . '/install/install.lock';
