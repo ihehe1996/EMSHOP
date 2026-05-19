@@ -41,7 +41,7 @@ $domainVerified = (int) ($currentMerchant['domain_verified'] ?? 0) === 1;
             </div>
 
             <div class="mc-field">
-                <label class="mc-field__label">Slogan</label>
+                <label class="mc-field__label">一句话介绍</label>
                 <input type="text" class="mc-input" name="slogan" maxlength="255"
                        placeholder="店铺一句话介绍"
                        value="<?= $esc((string) ($currentMerchant['slogan'] ?? '')) ?>">

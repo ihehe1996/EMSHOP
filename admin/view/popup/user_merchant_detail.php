@@ -178,7 +178,7 @@ include __DIR__ . '/header.php';
             </div>
         </div>
         <div class="mch-info-row">
-            <div class="mch-info-row__label">Slogan</div>
+            <div class="mch-info-row__label">一句话介绍</div>
             <div class="mch-info-row__value">
                 <?php if (!empty($merchantDetail['slogan'])): ?>
                 <?= $esc($merchantDetail['slogan']) ?>
@@ -234,11 +234,6 @@ include __DIR__ . '/header.php';
                 <?php if (!empty($merchantDetail['custom_domain'])): ?>
                 <code><?= $esc($merchantDetail['custom_domain']) ?></code>
                 <a href="http://<?= $esc($merchantDetail['custom_domain']) ?>/" target="_blank" title="在新窗口打开"><i class="fa fa-external-link"></i></a>
-                <?php if ((int) ($merchantDetail['domain_verified'] ?? 0) === 1): ?>
-                <span class="em-tag em-tag--on">已验证</span>
-                <?php else: ?>
-                <span class="em-tag em-tag--amber">待验证</span>
-                <?php endif; ?>
                 <?php else: ?>
                 <span class="mch-info-row__value--muted">未设置</span>
                 <?php endif; ?>

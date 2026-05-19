@@ -93,7 +93,7 @@ include __DIR__ . '/header.php';
                         </div>
                     </div>
                     <div class="layui-form-item">
-                        <label class="layui-form-label">Slogan</label>
+                        <label class="layui-form-label">一句话介绍</label>
                         <div class="layui-input-block">
                             <input type="text" class="layui-input" name="slogan" maxlength="255" value="<?= $val('slogan') ?>">
                         </div>
