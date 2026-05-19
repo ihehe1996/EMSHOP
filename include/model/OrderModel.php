@@ -384,9 +384,13 @@ class OrderModel
                 if ($merchantId > 0) {
                     $goodsOwnerId = (int) $row['goods_owner_id'];
                     if ($goodsOwnerId === 0) {
-                        // 引用商品：商户拿货成本 = 主站原价 × 数量（不打折，主站对商户始终全价）。
-                        // 优惠券 / 买家折扣由主站承担，不影响 cost_amount。
-                        $costAmount = (int) $row['_base_price'] * (int) $row['quantity'];
+                        // 引用商品：拿货成本 = 主站原价 × 站长用户等级折扣 × 数量（行合计写入 cost_amount）。
+                        // 买家优惠券 / 会员价不影响 cost_amount。
+                        $costAmount = MerchantLedgerService::computeRefGoodsLineCost(
+                            (int) $row['_base_price'],
+                            (int) $row['quantity'],
+                            $ownerId
+                        );
                     } elseif ($goodsOwnerId === $ownerId) {
                         // 自建商品：fee = price × qty × self_goods_fee_rate / 10000
                         // 注意：price 是已乘买家折扣后的成交价，主站收的手续费按"实付"算

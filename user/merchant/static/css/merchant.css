@@ -63,6 +63,74 @@
     font-size: 13px;
     margin: 0;
 }
+
+/* 筛选栏 / 操作按钮（订单、商品等列表页共用） */
+.mc-filter-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.mc-filter-bar--split {
+    justify-content: space-between;
+}
+.mc-filter-bar__left {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #555;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.mc-btn:hover:not(:disabled) {
+    border-color: #4e6ef2;
+    color: #4e6ef2;
+}
+.mc-btn--primary {
+    background: #4e6ef2;
+    border-color: #4e6ef2;
+    color: #fff;
+}
+.mc-btn--primary:hover:not(:disabled) {
+    background: #3d5bd9;
+    border-color: #3d5bd9;
+    color: #fff;
+}
+.mc-btn--danger {
+    border-color: #fecaca;
+    color: #dc2626;
+}
+.mc-btn--danger:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+}
+.mc-btn--sm {
+    padding: 3px 10px;
+    height: auto;
+    font-size: 12px;
+}
+.mc-btn:disabled {
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 .mc-stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

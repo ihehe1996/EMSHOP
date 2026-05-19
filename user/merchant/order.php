@@ -182,7 +182,7 @@ if (Request::isPost()) {
                     $it['cost_amount_view'] = Currency::displaySnapshot((int) ($it['cost_amount'] ?? 0), $dispCode, $dispRate);
                     $it['fee_amount_view']  = Currency::displaySnapshot((int) ($it['fee_amount'] ?? 0), $dispCode, $dispRate);
                     $line = ((int) $it['price']) * ((int) $it['quantity']);
-                    $lineCost = (int) ($it['cost_amount'] ?? 0) * (int) $it['quantity'];
+                    $lineCost = (int) ($it['cost_amount'] ?? 0);
                     $lineFee  = (int) ($it['fee_amount'] ?? 0);
                     $it['line_net_view'] = Currency::displaySnapshot($line - $lineCost - $lineFee, $dispCode, $dispRate);
                 }
@@ -288,7 +288,7 @@ if ((string) Input::get('_popup', '') === 'detail') {
         $it['cost_amount_view'] = Currency::displaySnapshot((int) ($it['cost_amount'] ?? 0), $dispCode, $dispRate);
         $it['fee_amount_view']  = Currency::displaySnapshot((int) ($it['fee_amount'] ?? 0), $dispCode, $dispRate);
         $line = ((int) $it['price']) * ((int) $it['quantity']);
-        $lineCost = ((int) ($it['cost_amount'] ?? 0)) * ((int) $it['quantity']);
+        $lineCost = (int) ($it['cost_amount'] ?? 0);
         $lineFee  = (int) ($it['fee_amount'] ?? 0);
         $it['line_net_view'] = Currency::displaySnapshot($line - $lineCost - $lineFee, $dispCode, $dispRate);
         $it['line_subtotal_view'] = Currency::displaySnapshot($line, $dispCode, $dispRate);
@@ -300,7 +300,7 @@ if ((string) Input::get('_popup', '') === 'detail') {
     $order['discount_amount_view'] = Currency::displaySnapshot((int) $order['discount_amount'], $dispCode, $dispRate);
     $totalCost = 0; $totalFee = 0;
     foreach ($items as $it) {
-        $totalCost += ((int) ($it['cost_amount'] ?? 0)) * ((int) $it['quantity']);
+        $totalCost += (int) ($it['cost_amount'] ?? 0);
         $totalFee  += (int) ($it['fee_amount'] ?? 0);
     }
     $netIncome = ((int) $order['pay_amount']) - $totalCost - $totalFee;

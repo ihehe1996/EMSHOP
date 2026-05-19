@@ -35,6 +35,51 @@ final class MerchantLedgerService
     }
 
     /**
+     * 商户主（站长）在主站的用户等级折扣率（9.9 折 → 0.99）。
+     * 未设等级 / 等级禁用 → 1.0。
+     */
+    public static function resolveOwnerDiscountRate(int $ownerUserId): float
+    {
+        static $cache = [];
+        if ($ownerUserId <= 0) {
+            return 1.0;
+        }
+        if (isset($cache[$ownerUserId])) {
+            return $cache[$ownerUserId];
+        }
+
+        $userTable = Database::prefix() . 'user';
+        $levelTable = Database::prefix() . 'user_levels';
+        $row = Database::fetchOne(
+            'SELECT ul.`discount`
+               FROM `' . $userTable . '` u
+          LEFT JOIN `' . $levelTable . '` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
+              WHERE u.`id` = ? LIMIT 1',
+            [$ownerUserId]
+        );
+
+        $raw = (int) ($row['discount'] ?? 0);
+        if ($raw <= 0) {
+            return $cache[$ownerUserId] = 1.0;
+        }
+        $rate = ($raw / 1000000) / 10;
+        if ($rate <= 0 || $rate > 1) {
+            $rate = 1.0;
+        }
+        return $cache[$ownerUserId] = $rate;
+    }
+
+    /**
+     * 主站引用商品：本行拿货成本合计（×1000000）= 主站原价单价 × 站长等级折扣 × 数量。
+     */
+    public static function computeRefGoodsLineCost(int $basePricePerUnit, int $quantity, int $ownerUserId): int
+    {
+        $qty = max(1, $quantity);
+        $unitCost = (int) round($basePricePerUnit * self::resolveOwnerDiscountRate($ownerUserId));
+        return $unitCost * $qty;
+    }
+
+    /**
      * 订单完成时结算：把商户实得入账到 em_user.shop_balance。
      *
      * 幂等：若该订单已有 increase 记录，直接跳过（防重入）。

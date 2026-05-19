@@ -26,10 +26,7 @@ $merchantId = (int) $currentMerchant['id'];
 $ownerUserId = (int) $currentMerchant['user_id'];
 
 /**
- * 商户主（当前站长）的用户等级折扣信息。
- *
- * user_levels.discount：9.9 表示 9.9 折 → 倍率 0.99。
- * 未设等级或等级禁用 → rate=1.0（不打折）。
+ * 商户主（当前站长）的用户等级折扣信息（展示用）。
  *
  * @return array{rate: float, level_name: string, discount_label: string}
  */
@@ -40,24 +37,22 @@ function mcResolveOwnerDiscountMeta(int $userId): array
         return $cache[$userId];
     }
 
-    $userTable = Database::prefix() . 'user';
-    $levelTable = Database::prefix() . 'user_levels';
-    $row = Database::fetchOne(
-        'SELECT ul.`discount`, ul.`name` AS level_name
-           FROM `' . $userTable . '` u
-      LEFT JOIN `' . $levelTable . '` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
-          WHERE u.`id` = ? LIMIT 1',
-        [$userId]
-    );
-
-    $raw = (int) ($row['discount'] ?? 0);
-    $rate = 1.0;
+    $rate = MerchantLedgerService::resolveOwnerDiscountRate($userId);
+    $levelName = '';
     $label = '';
-    if ($raw > 0) {
-        $rate = ($raw / 1000000) / 10;
-        if ($rate <= 0 || $rate > 1) {
-            $rate = 1.0;
-        } else {
+    if ($rate < 1.0) {
+        $userTable = Database::prefix() . 'user';
+        $levelTable = Database::prefix() . 'user_levels';
+        $row = Database::fetchOne(
+            'SELECT ul.`discount`, ul.`name` AS level_name
+               FROM `' . $userTable . '` u
+          LEFT JOIN `' . $levelTable . '` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
+              WHERE u.`id` = ? LIMIT 1',
+            [$userId]
+        );
+        $levelName = (string) ($row['level_name'] ?? '');
+        $raw = (int) ($row['discount'] ?? 0);
+        if ($raw > 0) {
             $zhe = $raw / 1000000;
             $label = rtrim(rtrim(number_format($zhe, 2, '.', ''), '0'), '.') . '折';
         }
@@ -65,7 +60,7 @@ function mcResolveOwnerDiscountMeta(int $userId): array
 
     return $cache[$userId] = [
         'rate'           => $rate,
-        'level_name'     => (string) ($row['level_name'] ?? ''),
+        'level_name'     => $levelName,
         'discount_label' => $label,
     ];
 }
