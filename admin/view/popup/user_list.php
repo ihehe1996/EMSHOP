@@ -92,32 +92,6 @@ include __DIR__ . '/header.php';
             </div>
         </div>
 
-        <!-- 用户等级（新建 / 编辑都可设；不设默认 0=无等级=不打折） -->
-        <div class="popup-section">
-            <div class="layui-form-item">
-                <label class="layui-form-label">用户等级</label>
-                <div class="layui-input-block">
-                    <select name="level_id" lay-search>
-                        <option value="0">无等级（不打折）</option>
-                        <?php
-                        $currentLevelId = $isEdit ? (int) ($editUser['level_id'] ?? 0) : 0;
-                        foreach (($userLevels ?? []) as $lv):
-                            $lvId = (int) $lv['id'];
-                            $lvName = (string) $lv['name'];
-                            $disc = (float) ($lv['discount'] ?? 0);
-                            // discount 字段 toDb 后存 ×1000000；UserLevelModel::getAll 已转回 9.5 这种数
-                            $discTxt = $disc > 0 ? ' · ' . rtrim(rtrim(number_format($disc, 2), '0'), '.') . ' 折' : '';
-                        ?>
-                        <option value="<?php echo $lvId; ?>" <?php echo $lvId === $currentLevelId ? 'selected' : ''; ?>>
-                            <?php echo $esc($lvName . $discTxt); ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="layui-form-mid layui-word-aux">买家会员折扣，购买商品时按该折扣计算最终成交价</div>
-            </div>
-        </div>
-
         <!-- 状态 -->
         <div class="popup-section">
             <div class="layui-form-item">

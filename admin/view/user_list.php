@@ -80,7 +80,7 @@ $csrfToken = Csrf::token();
 <!-- 手机号：有值显浅色底板，无值灰标签 -->
 <script type="text/html" id="userMobileTpl">
     {{# if(d.mobile){ }}
-    <span class="ul-mobile"><i class="fa fa-mobile" style="color:#6366f1;margin-right:4px;"></i>{{d.mobile}}</span>
+    <span class="ul-mobile">{{d.mobile}}</span>
     {{# } else { }}
     <span class="em-tag em-tag--muted">未填写</span>
     {{# } }}
@@ -100,9 +100,9 @@ $csrfToken = Csrf::token();
 <!-- 用户等级：未设等级显示灰标签；已设显示蓝色等级名 -->
 <script type="text/html" id="userLevelTpl">
     {{# if(d.user_level_name){ }}
-    <span class="em-tag em-tag--blue">{{ d.user_level_name }}</span>
+    <span class="em-tag em-tag--blue em-tag--clickable" lay-event="changeLevel" title="点击修改用户等级">{{ d.user_level_name }}</span>
     {{# } else { }}
-    <span class="em-tag em-tag--muted">无</span>
+    <span class="em-tag em-tag--muted em-tag--clickable" lay-event="changeLevel" title="点击设置用户等级">无</span>
     {{# } }}
 </script>
 
@@ -370,6 +370,9 @@ $(function(){
                 case 'balance':
                     openBalancePopup(data);
                     break;
+                case 'changeLevel':
+                    openUserLevelPopup(data);
+                    break;
                 case 'openMerchant':
                     openMerchantPopup(data);
                     break;
@@ -471,6 +474,24 @@ $(function(){
                 end: function () {
                     if (window._userMchOpenSaved) {
                         window._userMchOpenSaved = false;
+                        table.reload('userTableId');
+                    }
+                }
+            });
+        }
+
+        // 修改用户等级弹窗
+        function openUserLevelPopup(data) {
+            layer.open({
+                type: 2,
+                title: '修改用户等级 - ' + (data.nickname || data.username),
+                skin: 'admin-modal',
+                area: [window.innerWidth >= 800 ? '480px' : '95%', window.innerHeight >= 800 ? '380px' : '70%'],
+                shadeClose: true,
+                content: '/admin/user_list.php?_popup=user_level&id=' + data.id,
+                end: function () {
+                    if (window._userPopupSaved) {
+                        window._userPopupSaved = false;
                         table.reload('userTableId');
                     }
                 }

@@ -86,16 +86,6 @@ if (Request::isPost()) {
                 $status = Input::post('status', '1');
                 $status = $status === '1' ? 1 : 0;
 
-                // 用户等级（user_levels.id）：0 = 不设等级；> 0 时校验等级存在且未禁用
-                $levelId = (int) Input::post('level_id', 0);
-                if ($levelId > 0) {
-                    require_once EM_ROOT . '/include/model/UserLevelModel.php';
-                    $lvRow = (new UserLevelModel())->findById($levelId);
-                    if ($lvRow === null || (string) ($lvRow['enabled'] ?? 'y') !== 'y') {
-                        Response::error('用户等级不存在或已被禁用');
-                    }
-                }
-
                 $model = new UserListModel();
 
                 if ($model->existsUsername($username)) {
@@ -120,7 +110,6 @@ if (Request::isPost()) {
                     'nickname' => $nickname,
                     'avatar' => $avatar,
                     'status' => $status,
-                    'level_id' => $levelId,
                 ]);
 
                 $csrfToken = Csrf::refresh();
@@ -157,17 +146,6 @@ if (Request::isPost()) {
                 $status = Input::post('status', '1');
                 $status = $status === '1' ? 1 : 0;
 
-                // 用户等级（user_levels.id）：0 = 不设等级 → 买家折扣 1.0；
-                // 校验合法 id 必须存在于 user_levels 且 enabled='y'，避免写入幽灵 id
-                $levelId = (int) Input::post('level_id', 0);
-                if ($levelId > 0) {
-                    require_once EM_ROOT . '/include/model/UserLevelModel.php';
-                    $lvRow = (new UserLevelModel())->findById($levelId);
-                    if ($lvRow === null || (string) ($lvRow['enabled'] ?? 'y') !== 'y') {
-                        Response::error('用户等级不存在或已被禁用');
-                    }
-                }
-
                 if ($model->existsEmail($email, $id)) {
                     Response::error('该邮箱已被其他用户占用');
                 }
@@ -182,7 +160,6 @@ if (Request::isPost()) {
                     'nickname' => $nickname,
                     'avatar' => $avatar,
                     'status' => $status,
-                    'level_id' => $levelId,
                 ]);
 
                 $csrfToken = Csrf::refresh();
@@ -328,6 +305,32 @@ if (Request::isPost()) {
                 ]);
                 break;
 
+            case 'set_level':
+                $userId = (int) Input::post('user_id', 0);
+                if ($userId <= 0) {
+                    Response::error('无效的用户ID');
+                }
+
+                $model = new UserListModel();
+                $existing = $model->findById($userId);
+                if ($existing === null) {
+                    Response::error('用户不存在');
+                }
+
+                $levelId = (int) Input::post('level_id', 0);
+                if ($levelId > 0) {
+                    require_once EM_ROOT . '/include/model/UserLevelModel.php';
+                    $lvRow = (new UserLevelModel())->findById($levelId);
+                    if ($lvRow === null || (string) ($lvRow['enabled'] ?? 'y') !== 'y') {
+                        Response::error('用户等级不存在或已被禁用');
+                    }
+                }
+
+                $model->update($userId, ['level_id' => $levelId]);
+
+                Response::success('用户等级已更新', ['csrf_token' => Csrf::refresh()]);
+                break;
+
             // 余额调整
             case 'balance_adjust': {
                 $userId = (int) Input::post('user_id', 0);
@@ -409,6 +412,24 @@ if ($popupType === 'balance') {
     return;
 }
 
+// 修改用户等级弹窗
+if ($popupType === 'user_level') {
+    $levelUserId = (int) Input::get('id', 0);
+    $model = new UserListModel();
+    $levelUser = $model->findById($levelUserId);
+    if ($levelUser === null) {
+        exit('用户不存在');
+    }
+    require_once EM_ROOT . '/include/model/UserLevelModel.php';
+    $allLevels = (new UserLevelModel())->getAll();
+    $userLevels = array_values(array_filter($allLevels, static fn($l) => (string) ($l['enabled'] ?? 'y') === 'y'));
+    $esc = fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $pageTitle = '修改用户等级';
+
+    include __DIR__ . '/view/popup/user_level_change.php';
+    return;
+}
+
 // 为用户开通商户分站（从用户列表进入，已选定商户主）
 if ($popupType === 'merchant_open') {
     $userId = (int) Input::get('user_id', 0);
@@ -471,11 +492,6 @@ if ($popupType === '1') {
 
     $isEdit = $editUser !== null;
     $pageTitle = $isEdit ? '编辑用户' : '添加用户';
-
-    // 用户等级下拉选项：只列 enabled='y' 的；提供 0=不设等级 兜底
-    require_once EM_ROOT . '/include/model/UserLevelModel.php';
-    $allLevels = (new UserLevelModel())->getAll();
-    $userLevels = array_values(array_filter($allLevels, static fn($l) => (string) ($l['enabled'] ?? 'y') === 'y'));
 
     $esc = function (string $str): string {
         return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
