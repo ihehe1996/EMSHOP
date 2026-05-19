@@ -7,16 +7,15 @@ declare(strict_types=1);
  *
  * 升级流水线（由 admin/update.php 按顺序调度 AJAX 调用）：
  *   1. preflight       —— 预检：写权限 / 磁盘空间 / PHP 版本 / 锁文件 / 源版本兼容
- *   2. download        —— 下载升级包到 tmp/update/cache/，校验 SHA256
- *   3. backup          —— 把"本次会被替换的文件"拷贝到 tmp/update/backup/<ts>/
- *   4. extract         —— 解压 zip 到 tmp/update/extract/
- *   5. apply           —— 用解压出来的文件替换项目内容（白名单目录不覆盖）
- *   6. migrate         —— 扫 install/migrations/ 与 em_migrations 表求差集，跑新增 SQL
- *   7. finalize        —— 成功后清理临时文件；失败时由 rollback 善后
+ *   2. download        —— 下载升级包到临时 cache（校验 SHA256）
+ *   3. extract         —— 解压到 tmp/update/extract/，成功后删除 zip
+ *   4. apply           —— 用解压出来的文件替换项目内容（不备份旧文件）
+ *   5. migrate         —— 扫 install/migrations/ 与 em_migrations 表求差集，跑新增 SQL
+ *   6. finalize        —— 清理临时文件
  *
- * 回滚策略：
- *   - apply 过程中任意拷贝失败 → 依 manifest 自动还原文件（用户无感）
- *   - migrate 中途失败 → 不自动回滚数据库，仅提供文件回滚入口
+ * 回滚策略（无文件备份）：
+ *   - apply 失败 → 仅删除本次新增的文件；已覆盖的文件需手动恢复
+ *   - migrate 失败 → 不自动回滚数据库
  *
  * 所有路径均使用 /（UNIX 风格），PHP 在 Windows 下也接受。
  */
@@ -28,8 +27,6 @@ final class UpdateService
     private const CACHE_DIR     = '/content/tmp/update/cache';
     /** zip 解压目标 */
     private const EXTRACT_DIR   = '/content/tmp/update/extract';
-    /** 文件备份根（每次升级一个子目录） */
-    private const BACKUP_DIR    = '/content/tmp/update/backup';
     /** 锁文件（升级进行中 = 存在） */
     private const LOCK_FILE     = '/content/tmp/update/lock';
     /** 当前批次的 apply 文件清单（回滚时用） */
@@ -116,8 +113,8 @@ final class UpdateService
             $errors[] = '网站目录权限不足，请将网站目录权限设置为755';
         }
 
-        // 磁盘空间：至少 packageSize * 3 倍（下载 + 解压 + 备份）
-        $required = max($packageSize * 3, 50 * 1024 * 1024); // 保底 50MB
+        // 磁盘空间：至少 packageSize * 2 倍（下载 + 解压；解压后会删 zip）
+        $required = max($packageSize * 2, 50 * 1024 * 1024); // 保底 50MB
         $diskFree = @disk_free_space(EM_ROOT) ?: 0;
         if ($diskFree > 0 && $diskFree < $required) {
             $errors[] = '磁盘剩余空间不足：需 ' . self::formatBytes($required)
@@ -233,87 +230,34 @@ final class UpdateService
 
         if (!$ok) {
             self::removeDir(EM_ROOT . self::EXTRACT_DIR);
+            @unlink($zipPath);
             return ['ok' => false, 'extract_path' => '', 'files' => 0, 'error' => '解压失败，可能磁盘空间不足或权限不够'];
         }
+
+        // 解压完成后删除 zip，不在服务器保留升级包
+        @unlink($zipPath);
 
         return ['ok' => true, 'extract_path' => EM_ROOT . self::EXTRACT_DIR, 'files' => $count];
     }
 
     // ================================================================
-    // Step 4: backup — 备份"将被替换的文件"
-    // ================================================================
-
-    /**
-     * 以 extract 目录为基准，把项目中即将被覆盖的文件拷贝到 backup 目录。
-     * 注意：这一步只备份"会被覆盖的"，不备份整个项目，省空间也更快。
-     *
-     * @return array{ok:bool, backup_path:string, backed_up:int, error?:string}
-     */
-    public static function backup(string $extractPath): array
-    {
-        if (!is_dir($extractPath)) {
-            return ['ok' => false, 'backup_path' => '', 'backed_up' => 0, 'error' => '解压目录不存在'];
-        }
-
-        $stamp = date('YmdHis');
-        $backupRel = self::BACKUP_DIR . '/' . $stamp;
-        $backupAbs = EM_ROOT . $backupRel;
-        self::ensureDir($backupRel);
-
-        // 找到解压目录里升级代码的真实根（应对 zip 里可能套一层目录的情况）
-        $srcRoot = self::detectPackageRoot($extractPath);
-
-        $count = 0;
-        $iter = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($srcRoot, FilesystemIterator::SKIP_DOTS)
-        );
-
-        /** @var SplFileInfo $fileInfo */
-        foreach ($iter as $fileInfo) {
-            if ($fileInfo->isDir()) continue;
-            $rel = ltrim(str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($srcRoot))), '/');
-            if (self::isPreserved($rel)) continue;
-
-            $existing = EM_ROOT . '/' . $rel;
-            if (!is_file($existing)) continue; // 新增文件不用备份
-
-            $dst = $backupAbs . '/' . $rel;
-            if (!is_dir(dirname($dst))) {
-                @mkdir(dirname($dst), 0755, true);
-            }
-            if (@copy($existing, $dst) === false) {
-                return [
-                    'ok' => false, 'backup_path' => $backupAbs, 'backed_up' => $count,
-                    'error' => '备份文件失败：' . $rel,
-                ];
-            }
-            $count++;
-        }
-
-        return ['ok' => true, 'backup_path' => $backupAbs, 'backed_up' => $count];
-    }
-
-    // ================================================================
-    // Step 5: apply — 应用升级
+    // Step 4: apply — 应用升级
     // ================================================================
 
     /**
      * 把解压目录里的文件逐个覆盖到项目根（保留白名单路径）。
-     * 任一文件写入失败 → 立即用本步已写入的 manifest 回滚。
+     * 任一文件写入失败 → 删除 manifest 中记录的新增文件（不备份旧文件，无法自动还原覆盖项）。
      *
      * @return array{ok:bool, replaced:int, added:int, skipped:int, manifest_file:string, error?:string}
      */
-    public static function apply(string $extractPath, string $backupPath): array
+    public static function apply(string $extractPath): array
     {
         if (!is_dir($extractPath)) {
             return ['ok' => false, 'replaced' => 0, 'added' => 0, 'skipped' => 0, 'manifest_file' => '', 'error' => '解压目录不存在'];
         }
-        if (!is_dir($backupPath)) {
-            return ['ok' => false, 'replaced' => 0, 'added' => 0, 'skipped' => 0, 'manifest_file' => '', 'error' => '备份目录不存在，禁止应用'];
-        }
 
         $srcRoot = self::detectPackageRoot($extractPath);
-        $manifest = ['applied' => [], 'backup_path' => $backupPath, 'started_at' => date('c')];
+        $manifest = ['applied' => [], 'added' => [], 'replaced' => [], 'started_at' => date('c')];
 
         $replaced = 0; $added = 0; $skipped = 0;
 
@@ -340,10 +284,15 @@ final class UpdateService
                 }
 
                 $manifest['applied'][] = $rel;
-                if ($isNew) $added++; else $replaced++;
+                if ($isNew) {
+                    $added++;
+                    $manifest['added'][] = $rel;
+                } else {
+                    $replaced++;
+                    $manifest['replaced'][] = $rel;
+                }
             }
         } catch (Throwable $e) {
-            // 自动回滚：从 backup 还原；新文件直接删
             self::rollbackFromManifest($manifest);
             return [
                 'ok' => false, 'replaced' => $replaced, 'added' => $added, 'skipped' => $skipped,
@@ -442,16 +391,16 @@ final class UpdateService
 
     /**
      * 收尾：清理临时文件，记录 last_update_at。
-     * backup 目录保留最近 3 份。
      */
     public static function finalize(): array
     {
-        // 清解压目录、cache 里的 zip（backup 保留）
         self::removeDir(EM_ROOT . self::EXTRACT_DIR);
         self::cleanDir(EM_ROOT . self::CACHE_DIR);
-
-        // backup 只保留最近 3 份
-        self::keepRecentDirs(EM_ROOT . self::BACKUP_DIR, 3);
+        // 清理旧版升级遗留的备份目录
+        $legacyBackup = EM_ROOT . '/content/tmp/update/backup';
+        if (is_dir($legacyBackup)) {
+            self::removeDir($legacyBackup);
+        }
 
         // 清 manifest
         @unlink(EM_ROOT . self::MANIFEST_FILE);
@@ -493,28 +442,34 @@ final class UpdateService
     // ================================================================
 
     /**
-     * 根据 manifest 把被替换的文件从 backup 还原、新增的文件直接删除。
+     * 根据 manifest 回滚：仅删除本次新增的文件（无备份时不还原已覆盖文件）。
      *
-     * @param array{applied?:string[], backup_path?:string} $manifest
+     * @param array{applied?:string[], added?:string[], replaced?:string[], backup_path?:string} $manifest
      */
     private static function rollbackFromManifest(array $manifest): int
     {
-        $applied = $manifest['applied'] ?? [];
         $backupPath = (string) ($manifest['backup_path'] ?? '');
         $count = 0;
 
-        foreach ($applied as $rel) {
-            $projectFile = EM_ROOT . '/' . $rel;
-            $backupFile  = $backupPath . '/' . $rel;
-
-            if (is_file($backupFile)) {
-                // 原本就存在 → 从备份还原
-                if (!is_dir(dirname($projectFile))) @mkdir(dirname($projectFile), 0755, true);
-                @copy($backupFile, $projectFile);
-            } else {
-                // 备份里没有 = 本次新增的文件 → 直接删
-                @unlink($projectFile);
+        if ($backupPath !== '') {
+            foreach ($manifest['applied'] ?? [] as $rel) {
+                $projectFile = EM_ROOT . '/' . $rel;
+                $backupFile = $backupPath . '/' . $rel;
+                if (is_file($backupFile)) {
+                    if (!is_dir(dirname($projectFile))) {
+                        @mkdir(dirname($projectFile), 0755, true);
+                    }
+                    @copy($backupFile, $projectFile);
+                } else {
+                    @unlink($projectFile);
+                }
+                $count++;
             }
+            return $count;
+        }
+
+        foreach ($manifest['added'] ?? [] as $rel) {
+            @unlink(EM_ROOT . '/' . $rel);
             $count++;
         }
         return $count;
@@ -675,18 +630,6 @@ final class UpdateService
             if (is_dir($f)) self::removeDir($f);
             else @unlink($f);
         }
-    }
-
-    /**
-     * 保留目录下最近 N 个子目录（按名字字典序倒序）。
-     */
-    private static function keepRecentDirs(string $parentAbs, int $keep): void
-    {
-        if (!is_dir($parentAbs)) return;
-        $dirs = array_filter(glob($parentAbs . '/*', GLOB_ONLYDIR) ?: []);
-        if (count($dirs) <= $keep) return;
-        rsort($dirs, SORT_STRING);
-        foreach (array_slice($dirs, $keep) as $d) self::removeDir($d);
     }
 
     private static function writeLock(): void

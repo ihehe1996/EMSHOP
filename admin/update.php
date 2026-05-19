@@ -7,21 +7,20 @@ require __DIR__ . '/global.php';
 /**
  * 在线升级控制器。
  *
- * 所有动作均为 POST AJAX，由前端升级向导按 preflight → download → extract → backup
- *   → apply → migrate → finalize 的顺序调度；任一步失败均可调 rollback 收尾。
+ * 所有动作均为 POST AJAX，由前端升级向导按 preflight → download → extract
+ *   → apply → migrate → finalize 的顺序调度。
  *
- * 每步独立返回 JSON，后端不记状态——让前端持有"当前到哪一步"的数据（zip path /
- * extract path / backup path），避免会话依赖。
+ * 每步独立返回 JSON，后端不记状态——让前端持有 zip_path / extract_path。
+ * 不备份旧文件、不长期保留升级包（解压后删除 zip，finalize 清空 cache）。
  *
  * 动作（_action）：
  *   preflight   —— 预检环境
- *   download    —— 下载升级包（服务端返回 path）
+ *   download    —— 下载升级包（临时 cache，解压后删除）
  *   extract     —— 解压（返回 extract_path）
- *   backup      —— 备份将被替换的文件（返回 backup_path）
- *   apply       —— 覆盖文件（返回 manifest_file；失败自动回滚）
+ *   apply       —— 覆盖文件（失败时仅删除本次新增文件）
  *   migrate     —— 跑 install/migrations 新增 SQL
  *   finalize    —— 成功收尾，清临时文件
- *   rollback    —— 手动回滚（用户在 migrate 失败时触发）
+ *   rollback    —— 删除本次升级新增的文件（无法还原已覆盖文件）
  */
 adminRequireLogin();
 
@@ -29,9 +28,9 @@ adminRequireLogin();
 if (!Request::isPost()) {
     Response::error('仅支持 POST');
 }
-$csrf = (string) Input::post('csrf_token', '');
-if (!Csrf::validate($csrf)) {
-    Response::error('请求已失效，请刷新页面后重试');
+
+if (!LicenseService::isActivated()) {
+    Response::error('未激活版本不支持在线升级');
 }
 
 $action = (string) Input::post('_action', '');
@@ -71,23 +70,12 @@ try {
         }
 
         // ------------------------------------------------------------
-        case 'backup': {
-            $extractPath = (string) Input::post('extract_path', '');
-            if ($extractPath === '') Response::error('缺少 extract_path 参数');
-
-            $res = UpdateService::backup($extractPath);
-            if (!$res['ok']) Response::error($res['error'] ?? '备份失败', $res);
-            Response::success('备份完成', $res);
-        }
-
-        // ------------------------------------------------------------
         case 'apply': {
             $extractPath = (string) Input::post('extract_path', '');
-            $backupPath  = (string) Input::post('backup_path', '');
-            if ($extractPath === '' || $backupPath === '') {
-                Response::error('缺少 extract_path / backup_path 参数');
+            if ($extractPath === '') {
+                Response::error('缺少 extract_path 参数');
             }
-            $res = UpdateService::apply($extractPath, $backupPath);
+            $res = UpdateService::apply($extractPath);
             if (!$res['ok']) Response::error($res['error'] ?? '应用失败', $res);
             Response::success('文件覆盖完成', $res);
         }

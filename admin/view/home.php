@@ -1319,6 +1319,7 @@ $(function () {
     // 异步加载首页中心服务数据（代理商联系方式 / 公告 / 广告 / 版本更新）
     // 保存最新一次响应，供"检查更新"按钮读取
     var __dashIndexData = null;
+    var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
 
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -1457,6 +1458,10 @@ $(function () {
             $(document).off('click.dashUpdate').on('click.dashUpdate', '#dashUpdateCancel', function () {
                 layui.layer.close(idx);
             }).on('click.dashUpdate', '#dashUpdateGo', function () {
+                if (!__dashLicenseActivated) {
+                    layui.layer.msg('未激活版本不支持在线升级');
+                    return;
+                }
                 // 取最新的一条作为本次升级目标（updates 已按版本降序）
                 var target = updates[0];
                 if (!target || !target.package_url) {
@@ -1474,23 +1479,25 @@ $(function () {
     });
 
     // ==================================================================
-    // 在线升级向导：7 步顺序执行，每步独立 AJAX，失败可回滚
+    // 在线升级向导：6 步顺序执行，每步独立 AJAX（不备份、不保留升级包）
     // ==================================================================
     function startUpdateWizard(target) {
+        if (!__dashLicenseActivated) {
+            layui.layer.msg('未激活版本不支持在线升级');
+            return;
+        }
         // target 字段来自服务端 updates[]，必要字段：
         //   version / package_url / package_sha256 / package_size / min_from_version
         var STEPS = [
             { id: 'preflight', name: '环境预检' },
             { id: 'download',  name: '下载升级包' },
             { id: 'extract',   name: '解压升级包' },
-            { id: 'backup',    name: '备份当前版本' },
             { id: 'apply',     name: '应用新文件' },
             { id: 'migrate',   name: '数据库迁移' },
             { id: 'finalize',  name: '完成收尾' }
         ];
 
-        // 各步之间需要传递的路径，保存在前端，服务端不记状态
-        var state = { zip_path: '', extract_path: '', backup_path: '', manifest_file: '' };
+        var state = { zip_path: '', extract_path: '', manifest_file: '' };
 
         function formatBytes(bytes) {
             if (!bytes) return '-';
@@ -1523,7 +1530,7 @@ $(function () {
             '</div>' +
             '<div class="popup-footer">' +
                 '<button type="button" class="dash-wizard__btn" id="dashWizardClose">关闭</button>' +
-                '<button type="button" class="dash-wizard__btn dash-wizard__btn--danger" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 回滚到升级前</button>' +
+                '<button type="button" class="dash-wizard__btn dash-wizard__btn--danger" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 删除本次新增文件</button>' +
                 '<button type="button" class="em-btn em-save-btn" id="dashWizardStart"><i class="fa fa-play"></i> 开始升级</button>' +
             '</div>' +
         '</div>';
@@ -1595,22 +1602,13 @@ $(function () {
                     if (res.code !== 200) throw new Error(res.msg || '解压失败');
                     state.extract_path = res.data.extract_path;
                     setStep('extract', 'done', '共 ' + res.data.files + ' 个文件');
-                    log('解压完成 · 共 ' + res.data.files + ' 个文件', 'ok');
-                });
-            },
-            backup: function () {
-                setStep('backup', 'running', '备份即将被替换的文件…');
-                return callStep('backup', { extract_path: state.extract_path }).then(function (res) {
-                    if (res.code !== 200) throw new Error(res.msg || '备份失败');
-                    state.backup_path = res.data.backup_path;
-                    setStep('backup', 'done', '已备份 ' + res.data.backed_up + ' 个文件');
-                    log('备份完成 · 路径：' + state.backup_path, 'ok');
+                    log('解压完成 · 共 ' + res.data.files + ' 个文件（升级包已删除）', 'ok');
                 });
             },
             apply: function () {
                 setStep('apply', 'running', '覆盖文件…');
                 return callStep('apply', {
-                    extract_path: state.extract_path, backup_path: state.backup_path
+                    extract_path: state.extract_path
                 }).then(function (res) {
                     if (res.code !== 200) throw new Error(res.msg || '应用失败');
                     state.manifest_file = res.data.manifest_file;
@@ -1671,20 +1669,19 @@ $(function () {
                 });
                 $start.hide();
                 $close.prop('disabled', false);
-                // apply 成功后才显示回滚按钮（之前的步骤失败不需要回滚文件）
                 if (state.manifest_file) $('#dashWizardRollback').show();
             });
         });
         $(document).on('click.dashWizard', '#dashWizardRollback', function () {
             var $btn = $(this);
             layui.layer.confirm(
-                '确定回滚文件到升级前的状态吗？',
+                '将删除本次升级新增的文件；已覆盖的旧文件无法自动还原，确定继续吗？',
                 function (cidx) {
                     layui.layer.close(cidx);
-                    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 回滚中');
+                    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 处理中');
                     callStep('rollback').then(function (res) {
                         if (res.data && res.data.csrf_token) window.adminCsrfToken = res.data.csrf_token;
-                        log('已回滚到升级前状态', 'ok');
+                        log('已删除本次新增文件（共 ' + (res.data.restored_files || 0) + ' 个）', 'ok');
                         $btn.hide();
                         $('#dashWizardClose').addClass('dash-wizard__btn--primary').html('<i class="fa fa-refresh"></i> 刷新页面');
                         $('#dashWizardClose').off('click').on('click', function () { location.reload(); });
