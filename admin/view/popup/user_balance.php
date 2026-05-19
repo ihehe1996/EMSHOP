@@ -38,11 +38,8 @@ include __DIR__ . '/header.php';
             <div class="layui-form-item">
                 <label class="layui-form-label">操作类型</label>
                 <div class="layui-input-block">
-                    <select name="type" lay-filter="balanceType">
-                        <option value="">请选择</option>
-                        <option value="increase">增加</option>
-                        <option value="decrease">减少</option>
-                    </select>
+                    <input type="radio" name="type" value="increase" title="增加">
+                    <input type="radio" name="type" value="decrease" title="减少">
                 </div>
             </div>
             <div class="layui-form-item">
@@ -96,7 +93,7 @@ $(function () {
             var formData = $('#balanceForm').serialize();
 
             // 前端校验
-            var type = $('select[name="type"]').val();
+            var type = $('input[name="type"]:checked').val();
             var amount = $('#balanceAmount').val();
             if (!type) { layer.msg('请选择操作类型'); return; }
             if (!amount || parseFloat(amount) <= 0) { layer.msg('请输入有效金额'); return; }

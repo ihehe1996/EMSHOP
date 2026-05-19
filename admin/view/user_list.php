@@ -458,7 +458,7 @@ $(function(){
                 type: 2,
                 title: '余额调整',
                 skin: 'admin-modal',
-                area: [window.innerWidth >= 800 ? '520px' : '95%', window.innerHeight >= 800 ? '480px' : '80%'],
+                area: [window.innerWidth >= 800 ? '520px' : '95%', window.innerHeight >= 800 ? '620px' : '80%'],
                 shadeClose: true,
                 content: url,
                 end: function () {
