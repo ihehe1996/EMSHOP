@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 final class UploadService
 {
-    /** @var int 默认最大文件大小 2MB */
+    /** @var int 单文件上传上限（字节），富文本/封面等共用；须 ≥ 前端 EM_EDITOR_IMAGE_MAX_BYTES */
     private $maxSize = 20 * 1024 * 1024;
 
     /**

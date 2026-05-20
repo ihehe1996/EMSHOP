@@ -913,20 +913,17 @@ $(function() {
                     $editorTextarea.val(editor.getHtml());
                 },
                 MENU_CONF: {
-                    uploadImage: {
-                        fieldName: 'file',
+                    uploadImage: window.emEditorUploadImageConf({
                         server: '/admin/upload.php',
                         data: {
                             csrf_token: csrfToken,
                             context: 'goods_image',
                         },
-                        onSuccess: function(res) {
-                            if (res && res.data && res.data.csrf_token) {
-                                csrfToken = res.data.csrf_token;
-                                $('input[name="csrf_token"]').val(csrfToken);
-                            }
+                        onCsrf: function (token) {
+                            csrfToken = token;
+                            $('input[name="csrf_token"]').val(csrfToken);
                         },
-                    },
+                    }),
                 },
             };
 

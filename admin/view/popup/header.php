@@ -15,6 +15,7 @@ if (!defined('EM_ROOT')) {
     <link rel="stylesheet" href="/admin/static/css/reset-layui.css">
     <link rel="stylesheet" href="/admin/static/css/style.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
+    <script src="/admin/static/js/em-editor-upload.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/content/static/lib/cropper.min.js"></script>
     <script src="/content/static/lib/sortable.min.js"></script>

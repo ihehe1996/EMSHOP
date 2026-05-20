@@ -287,6 +287,7 @@ $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
 
 <link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">
 <script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
+<script src="/admin/static/js/em-editor-upload.js"></script>
 
 <script>
 $(function(){
@@ -339,17 +340,14 @@ $(function(){
                         placeholder: '在这里输入店铺公告，支持图文混排…',
                         onChange: function (ed) { $ta.val(ed.getHtml()); },
                         MENU_CONF: {
-                            uploadImage: {
-                                fieldName: 'file',
+                            uploadImage: window.emEditorUploadImageConf({
                                 server: '/user/merchant/upload.php',
                                 data: { csrf_token: csrfToken, context: 'announce_image' },
-                                onSuccess: function (file, res) {
-                                    if (res && res.data && res.data.csrf_token) {
-                                        csrfToken = res.data.csrf_token;
-                                        $('input[name="csrf_token"]').val(csrfToken);
-                                    }
-                                }
-                            }
+                                onCsrf: function (token) {
+                                    csrfToken = token;
+                                    $('input[name="csrf_token"]').val(csrfToken);
+                                },
+                            }),
                         }
                     }
                 });

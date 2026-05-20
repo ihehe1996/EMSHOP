@@ -10,10 +10,7 @@ if (!Request::isPost()) {
     Response::error('请求方式无效');
 }
 
-$csrf = (string) Input::post('csrf_token', '');
-if (!Csrf::validate($csrf)) {
-    Response::error('请求已失效，请刷新页面后重试');
-}
+
 
 if (empty($_FILES['file'])) {
     Response::error('请选择图片文件');

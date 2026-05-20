@@ -241,20 +241,17 @@ $(function () {
                         placeholder: '请输入文章内容...',
                         onChange: function (ed) { $editorTextarea.val(ed.getHtml()); },
                         MENU_CONF: {
-                            uploadImage: {
-                                fieldName: 'file',
+                            uploadImage: window.emEditorUploadImageConf({
                                 server: '/user/merchant/upload.php',
                                 data: {
                                     csrf_token: csrfToken,
                                     context: 'blog_image',
                                 },
-                                onSuccess: function (file, res) {
-                                    if (res && res.data && res.data.csrf_token) {
-                                        csrfToken = res.data.csrf_token;
-                                        $('input[name="csrf_token"]').val(csrfToken);
-                                    }
+                                onCsrf: function (token) {
+                                    csrfToken = token;
+                                    $('input[name="csrf_token"]').val(csrfToken);
                                 },
-                            },
+                            }),
                         },
                     },
                     mode: 'default',

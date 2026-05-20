@@ -411,6 +411,7 @@ $csrfToken = Csrf::token();
 <script src="/content/static/lib/viewer.js/viewer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
 <script>window.adminCsrfToken = <?php echo json_encode($csrfToken); ?>;</script>
+<script src="/admin/static/js/em-editor-upload.js"></script>
 <script src="/admin/static/js/admin.js"></script>
 <script>
 $(function () {

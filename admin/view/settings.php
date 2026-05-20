@@ -751,16 +751,16 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                                     $ta.val(ed.getHtml());
                                 },
                                 MENU_CONF: {
-                                    uploadImage: {
-                                        fieldName: 'file',
+                                    uploadImage: window.emEditorUploadImageConf({
                                         server: '/admin/upload.php',
-                                        data: { csrf_token: $('input[name="csrf_token"]').first().val() || '', context: 'announce_image' },
-                                        onSuccess: function (file, res) {
-                                            if (res && res.data && res.data.csrf_token) {
-                                                $('input[name="csrf_token"]').val(res.data.csrf_token);
-                                            }
-                                        }
-                                    }
+                                        data: {
+                                            csrf_token: $('input[name="csrf_token"]').first().val() || '',
+                                            context: 'announce_image',
+                                        },
+                                        onCsrf: function (token) {
+                                            $('input[name="csrf_token"]').val(token);
+                                        },
+                                    }),
                                 }
                             }
                         });
