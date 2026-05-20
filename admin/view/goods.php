@@ -540,7 +540,9 @@ $(function(){
                         type: 2,
                         title: '<i class="fa fa-cubes"></i> 库存管理',
                         skin: 'admin-modal',
-                        area: ['960px', '85%'],
+                        maxmin: true,
+                        area: [window.innerWidth >= 960 ? '960px' : '95%', window.innerHeight >= 800 ? '85%' : '95%'],
+                        shadeClose: true,
                         content: '/admin/goods_edit.php?_action=stock_manager&goods_id=' + data.id + '&_popup=1',
                         end: function () {
                             if (window._stockPopupSaved) {

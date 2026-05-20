@@ -77,6 +77,25 @@ if (!defined('EM_ROOT')) {
 }
 .va-time__date { color: #374151; font-weight: 500; font-size: 12.5px; }
 .va-time__clock { color: #9ca3af; font-size: 11.5px; font-family: Menlo, Consolas, monospace; }
+
+/* ===== 操作栏（独立于 layui table toolbar，小屏横滚） ===== */
+.va-toolbar {
+    margin-bottom: 10px;
+}
+.va-toolbar__actions {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+.va-toolbar__actions .em-btn {
+    flex-shrink: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+}
 </style>
 
 <div class="popup-inner">
@@ -135,22 +154,22 @@ if (!defined('EM_ROOT')) {
         <a class="em-tabs__item" data-status="2"><i class="fa fa-flag"></i>标记售出<em class="em-tabs__count" id="tabMarked"></em></a>
     </div>
 
+    <!-- 操作栏（自定义布局，不用 layui table toolbar） -->
+    <div class="va-toolbar" id="cardToolbar">
+        <div class="va-toolbar__actions">
+            <button type="button" class="em-btn em-reset-btn" id="cardRefreshBtn"><i class="fa fa-refresh"></i>刷新</button>
+            <button type="button" class="em-btn em-save-btn" id="cardImportBtn"><i class="fa fa-upload"></i>导入卡密</button>
+            <button type="button" class="em-btn em-red-btn em-disabled-btn" id="cardBatchDeleteBtn"><i class="fa fa-trash"></i>批量删除</button>
+            <button type="button" class="em-btn em-red-btn" id="cardClearStockBtn"><i class="fa fa-eraser"></i>清空库存</button>
+        </div>
+    </div>
+
     <!-- 表格 -->
     <div class="va-table-wrap" style="margin-bottom: 15px;">
         <table id="cardTable" lay-filter="cardTable"></table>
     </div>
 
 </div><!-- /popup-inner -->
-
-<!-- 工具栏模板 -->
-<script type="text/html" id="cardToolbarTpl">
-    <div class="layui-btn-container">
-        <a class="em-btn em-reset-btn" id="cardRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
-        <a class="em-btn em-save-btn" lay-event="import"><i class="fa fa-upload"></i>导入卡密</a>
-        <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
-        <a class="em-btn em-red-btn" lay-event="clearStock"><i class="fa fa-eraser"></i>清空库存</a>
-    </div>
-</script>
 
 <!-- 状态徽章：em-tag + 圆点，和项目其他列表页统一 -->
 <script type="text/html" id="cardStatusTpl">
@@ -267,8 +286,6 @@ $(function(){
             url: '/admin/index.php?_action=card_list',
             method: 'POST',
             where: { goods_id: goodsId, status: '1' },
-            toolbar: '#cardToolbarTpl',
-            defaultToolbar: [],
             page: true,
             limit: 10,
             limits: [10, 20, 50, 100],
@@ -285,7 +302,7 @@ $(function(){
         // 勾选联动：批量删除按钮启用/禁用
         table.on('checkbox(cardTable)', function () {
             var checked = table.checkStatus('cardTableId').data.length > 0;
-            $('[lay-event="batchDelete"]').toggleClass('em-disabled-btn', !checked);
+            $('#cardBatchDeleteBtn').toggleClass('em-disabled-btn', !checked);
         });
 
         // ============================================================
@@ -345,43 +362,39 @@ $(function(){
         }
 
         // ============================================================
-        //  工具栏事件
+        //  操作栏事件
         // ============================================================
-        $(document).on('click', '#cardRefreshBtn', function(){ table.reload('cardTableId'); });
+        $('#cardRefreshBtn').on('click', function () { table.reload('cardTableId'); });
 
-        table.on('toolbar(cardTable)', function(obj){
+        $('#cardImportBtn').on('click', function () { openImport(); });
+
+        $('#cardBatchDeleteBtn').on('click', function () {
+            if ($(this).hasClass('em-disabled-btn')) return;
             var data = table.checkStatus('cardTableId').data;
-            switch(obj.event){
-                case 'batchDelete':
-                    if ($('[lay-event="batchDelete"]').hasClass('em-disabled-btn')) return;
-                    if(!data.length){ layer.msg('请选择卡密'); return; }
-                    var ids = data.map(function(d){ return d.id; });
-                    layer.confirm('确定删除选中的 <strong>' + ids.length + '</strong> 条卡密吗？', function(idx){
-                        layer.close(idx);
-                        doDelete(ids);
-                    });
-                    break;
-                case 'import':
-                    openImport();
-                    break;
-                case 'clearStock':
-                    layer.confirm('确定清空本商品全部「未售」卡密？已售与标记售出记录不会被删除。', function (idx) {
-                        layer.close(idx);
-                        $.post('/admin/index.php?_action=card_clear_available', {
-                            csrf_token: csrfToken,
-                            goods_id: goodsId
-                        }, function (res) {
-                            if (res.data && res.data.csrf_token) {
-                                csrfToken = res.data.csrf_token;
-                            }
-                            layer.msg(res.msg || (res.code === 200 ? '操作完成' : '操作失败'));
-                            if (res.code === 200) {
-                                table.reload('cardTableId');
-                            }
-                        }, 'json');
-                    });
-                    break;
-            }
+            if (!data.length) { layer.msg('请选择卡密'); return; }
+            var ids = data.map(function (d) { return d.id; });
+            layer.confirm('确定删除选中的 <strong>' + ids.length + '</strong> 条卡密吗？', function (idx) {
+                layer.close(idx);
+                doDelete(ids);
+            });
+        });
+
+        $('#cardClearStockBtn').on('click', function () {
+            layer.confirm('确定清空本商品全部「未售」卡密？已售与标记售出记录不会被删除。', function (idx) {
+                layer.close(idx);
+                $.post('/admin/index.php?_action=card_clear_available', {
+                    csrf_token: csrfToken,
+                    goods_id: goodsId
+                }, function (res) {
+                    if (res.data && res.data.csrf_token) {
+                        csrfToken = res.data.csrf_token;
+                    }
+                    layer.msg(res.msg || (res.code === 200 ? '操作完成' : '操作失败'));
+                    if (res.code === 200) {
+                        table.reload('cardTableId');
+                    }
+                }, 'json');
+            });
         });
 
         // ============================================================
@@ -581,11 +594,16 @@ $(function(){
         //  导入弹窗
         // ============================================================
         function openImport(){
-            layer.open({
+            // 库存管理本身在 iframe 内，导入弹窗用父页 layer 打开，避免套娃
+            var rootLayer = (window.parent && window.parent.layer) ? window.parent.layer : layer;
+            var pWin = window.parent || window;
+            rootLayer.open({
                 type: 2,
                 title: '<i class="fa fa-upload"></i> 导入卡密',
                 skin: 'admin-modal',
-                area: ['560px', '520px'],
+                maxmin: true,
+                area: [pWin.innerWidth >= 800 ? '560px' : '95%', pWin.innerHeight >= 800 ? '520px' : '80%'],
+                shadeClose: true,
                 content: '/admin/index.php?_action=card_import_page&goods_id=' + goodsId,
                 end: function(){ table.reload('cardTableId'); }
             });

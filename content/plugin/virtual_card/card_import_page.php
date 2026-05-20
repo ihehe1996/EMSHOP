@@ -69,7 +69,7 @@ $esc = function (string $str): string {
 
 <script>
 $(function() {
-    var layer = layui.layer;
+    var rootLayer = (window.parent && window.parent.layer) ? window.parent.layer : layui.layer;
     var csrfToken = <?php echo json_encode($csrfToken); ?>;
     var goodsId = <?php echo $goodsId; ?>;
 
@@ -82,20 +82,20 @@ $(function() {
 
     // 取消
     $('#cancelBtn').on('click', function() {
-        var index = parent.layer.getFrameIndex(window.name);
-        parent.layer.close(index);
+        var index = rootLayer.getFrameIndex(window.name);
+        rootLayer.close(index);
     });
 
     // 导入
     $('#importBtn').on('click', function() {
         var specId = $('#importSpecId').val();
         if (!specId) {
-            layer.msg('请选择规格');
+            rootLayer.msg('请选择规格');
             return;
         }
         var content = $.trim($('#importContent').val());
         if (!content) {
-            layer.msg('请输入卡密内容');
+            rootLayer.msg('请输入卡密内容');
             return;
         }
 
@@ -118,14 +118,14 @@ $(function() {
             success: function(res) {
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                 if (res.code === 200) {
-                    parent.layer.msg(res.msg || '导入成功');
-                    var index = parent.layer.getFrameIndex(window.name);
-                    parent.layer.close(index);
+                    rootLayer.msg(res.msg || '导入成功');
+                    var index = rootLayer.getFrameIndex(window.name);
+                    rootLayer.close(index);
                 } else {
-                    layer.msg(res.msg || '导入失败');
+                    rootLayer.msg(res.msg || '导入失败');
                 }
             },
-            error: function() { layer.msg('网络异常'); },
+            error: function() { rootLayer.msg('网络异常'); },
             complete: function() {
                 $btn.prop('disabled', false).html('<i class="fa fa-upload mr-5"></i>开始导入');
             }
