@@ -142,6 +142,7 @@ $csrfToken = Csrf::token();
         }
     }
     </style>
+    <?php doAction('adm_head'); ?>
 </head>
 <body<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' class="sidebar-pre-collapsed"'; } ?>>
 <div class="admin-shell">
