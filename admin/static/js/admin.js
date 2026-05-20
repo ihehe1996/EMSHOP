@@ -356,9 +356,13 @@
             var urlParams = new URLSearchParams(window.location.search);
             var currentTab = urlParams.get('action') || 'base';
             $('.em-tabs__item[data-tab]').removeClass('is-active');
-            $('.em-tabs__item[data-tab="' + currentTab + '"]').addClass('is-active');
+            var $activeSettingsTab = $('.em-tabs__item[data-tab="' + currentTab + '"]').addClass('is-active');
             $('.admin-settings__form-wrap').hide();
             $('#tab-' + currentTab).show();
+            // 设置页横向 tab：切换后滚到当前项，避免激活项在可视区外
+            if ($activeSettingsTab.length && $activeSettingsTab[0].scrollIntoView) {
+                $activeSettingsTab[0].scrollIntoView({ inline: 'center', block: 'nearest' });
+            }
         });
     }
 

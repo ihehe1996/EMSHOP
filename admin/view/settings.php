@@ -256,7 +256,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
 
     <div class="admin-settings__layout">
         <!-- 左侧选项卡导航（复用 em-tabs 样式） -->
-        <div class="em-tabs" id="settingsTabs">
+        <div class="em-tabs em-tabs--scroll" id="settingsTabs">
             <?php foreach ($tabs as $key => $tab): ?>
             <a href="/admin/settings.php?action=<?php echo $key; ?>"
                class="em-tabs__item <?php echo $currentTab === $key ? 'is-active' : ''; ?>"
@@ -1239,6 +1239,17 @@ function formRadio(string $name, array $options, string $selected = ''): string 
             alert(text);
         }
     }
+
+    // 横向 tab：首屏把当前激活项滚进可视区
+    (function () {
+        var tabs = document.getElementById('settingsTabs');
+        if (!tabs) return;
+        var active = tabs.querySelector('.em-tabs__item.is-active');
+        if (active && active.scrollIntoView) {
+            active.scrollIntoView({ inline: 'center', block: 'nearest' });
+        }
+    })();
+
 <?php if ($needSiteUrlTip): ?>
     settingsMsg('请先配置站点地址（site_url）');
     (function () {

@@ -44,7 +44,10 @@ body {
    后台容器 — 最大宽度1680px，居中
    ================================================ */
 .admin-shell {
+    /* 100vh 在真机 Safari/微信等会把地址栏区域算进去，导致底部内容滚不到可视区内；
+       DevTools 手机模式是固定视口，所以电脑模拟往往正常。优先用 dvh / -webkit-fill-available。 */
     height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: stretch;
     justify-content: center;
@@ -852,6 +855,11 @@ body.sidebar-pre-collapsed .admin-right {
     .admin-container {
         padding: 0;
         position: relative;
+    }
+
+    /* 滚动区底部留白：配合 dvh 修正，长页（如系统设置）最后一屏按钮可滚进可视区 */
+    .admin-content {
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     }
 
     .admin-sidebar {
