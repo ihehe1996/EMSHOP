@@ -42,6 +42,14 @@ define('SW_HEARTBEAT_FILE', SW_RUNTIME_DIR . '/swoole.heartbeat');
 define('SW_QUEUE_INTERVAL', 2);
 define('SW_TIMER_INTERVAL', 60);
 define('SW_HEARTBEAT_INTERVAL', 5);
+/** Task 进程数：与队列/主定时/商品同步三条重任务一一对应，与 HTTP Worker 并行 */
+define('SW_TASK_WORKER_NUM', 3);
+define('SW_TASK_JOB_QUEUE', 'process_queue');
+define('SW_TASK_JOB_MAIN', 'main_timer');
+define('SW_TASK_JOB_GOODS', 'goods_sync');
+define('SW_TASK_DST_QUEUE', 0);
+define('SW_TASK_DST_MAIN', 1);
+define('SW_TASK_DST_GOODS', 2);
 define('SW_GOODS_SYNC_BATCH_SIZE', 30);
 define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
 define('SW_GOODS_SYNC_LOCK_STALE_SECONDS', 1800);
@@ -144,8 +152,10 @@ try {
 }
 
 $server->set([
-    // Worker 进程数（仅 worker#0 执行定时任务与队列轮询，其余 worker 预留并发扩展）
+    // Worker 进程数（worker#0 注册定时器并投递 Task；worker#1 处理 HTTP）
     'worker_num'      => 2,
+    // 独立 Task 进程：队列消费、主定时、商品同步互不阻塞（与 worker#0 心跳并行）
+    'task_worker_num' => SW_TASK_WORKER_NUM,
     // 由 Supervisor/systemd 托管时应保持前台运行，避免双重守护
     'daemonize'       => false,
     // 主进程 PID 文件路径（stop/status/reload 命令依赖）
@@ -161,6 +171,11 @@ $server->set([
 ]);
 
 $startTime = time();
+$swooleTaskInFlight = [
+    SW_TASK_JOB_QUEUE => false,
+    SW_TASK_JOB_MAIN => false,
+    SW_TASK_JOB_GOODS => false,
+];
 
 $server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
     // 升级包可在根目录放置空文件 `.server`，表示需硬重启；仅主进程 Start 时清理（reload 不会触发本回调）
@@ -183,7 +198,51 @@ $server->on('Shutdown', function () {
     swooleServiceLog('关闭：Swoole 主进程已退出');
 });
 
-$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) {
+/** 向指定 Task 进程投递任务；若上一轮同类型任务未完成则跳过，避免堆积 */
+function swooleDispatchTask(Swoole\Http\Server $server, string $job, int $dstWorkerId, array &$taskInFlight): void
+{
+    if ($taskInFlight[$job] ?? false) {
+        return;
+    }
+    $taskId = $server->task(['job' => $job], $dstWorkerId);
+    if ($taskId === false) {
+        return;
+    }
+    $taskInFlight[$job] = true;
+}
+
+$server->on('Task', function (Swoole\Http\Server $server, $task) {
+    $payload = is_array($task->data ?? null) ? $task->data : [];
+    $job = (string) ($payload['job'] ?? '');
+    try {
+        switch ($job) {
+            case SW_TASK_JOB_QUEUE:
+                processQueue();
+                break;
+            case SW_TASK_JOB_MAIN:
+                runOrderTimeoutChecks();
+                runOrderPollingTasks();
+                break;
+            case SW_TASK_JOB_GOODS:
+                runGoodsSyncTasks();
+                break;
+        }
+    } catch (Throwable $e) {
+        if ($job === SW_TASK_JOB_MAIN) {
+            echo "主定时任务执行失败，" . $e->getMessage() . "\n";
+        }
+    }
+    return $job;
+});
+
+$server->on('Finish', function (Swoole\Http\Server $server, $taskId, $data) use (&$swooleTaskInFlight) {
+    $job = is_string($data) ? $data : '';
+    if ($job !== '' && array_key_exists($job, $swooleTaskInFlight)) {
+        $swooleTaskInFlight[$job] = false;
+    }
+});
+
+$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$swooleTaskInFlight) {
 
     // WSL 下可通过网关访问 Windows 主机上的 MySQL
     if (PHP_OS_FAMILY === 'Linux' && is_file('/proc/version') && str_contains(file_get_contents('/proc/version'), 'microsoft')) {
@@ -195,7 +254,12 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
 
     require EM_ROOT . '/init.php';
 
-    // 仅 worker #0 跑定时器和队列
+    $httpWorkerNum = (int) ($server->setting['worker_num'] ?? 2);
+    if ($workerId >= $httpWorkerNum) {
+        // Task 进程：仅加载 init，实际逻辑由 on('Task') 触发
+        return;
+    }
+
     if ($workerId !== 0) {
         return;
     }
@@ -211,15 +275,17 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
     } catch (Throwable $e) {
     }
 
-    Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () {
-        try {
-            processQueue();
-        } catch (Throwable $e) {
-        }
+    // 心跳最先注册且仅在 worker#0 同步执行，不被 Task 阻塞
+    Swoole\Timer::tick(SW_HEARTBEAT_INTERVAL * 1000, function () {
+        @touch(SW_HEARTBEAT_FILE);
     });
 
-    // 每分钟执行主定时任务（订单超时 + 订单轮询）并检查代码版本
-    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use ($server, $bootCodeVersion) {
+    Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () use ($server, &$swooleTaskInFlight) {
+        swooleDispatchTask($server, SW_TASK_JOB_QUEUE, SW_TASK_DST_QUEUE, $swooleTaskInFlight);
+    });
+
+    // 主定时器：版本检查与 reload 留在 worker#0；重任务投递到 Task 进程
+    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use ($server, $bootCodeVersion, &$swooleTaskInFlight) {
         try {
             Config::reload();
             if (runSwooleFileVersionReloadCheck($server)) {
@@ -235,24 +301,14 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
                 echo "热更新成功（代码版本 {$bootCodeVersion} → {$current}）\n";
                 return;
             }
-            runOrderTimeoutChecks();
-            runOrderPollingTasks();
+            swooleDispatchTask($server, SW_TASK_JOB_MAIN, SW_TASK_DST_MAIN, $swooleTaskInFlight);
         } catch (Throwable $e) {
-            echo "主定时任务执行失败，" . $e->getMessage() . "\n";
+            echo "主定时调度失败，" . $e->getMessage() . "\n";
         }
     });
 
-    // 商品同步任务独立定时器，避免与其它任务串行阻塞
-    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () {
-        try {
-            runGoodsSyncTasks();
-        } catch (Throwable $e) {
-            
-        }
-    });
-
-    Swoole\Timer::tick(SW_HEARTBEAT_INTERVAL * 1000, function () {
-        @touch(SW_HEARTBEAT_FILE);
+    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use ($server, &$swooleTaskInFlight) {
+        swooleDispatchTask($server, SW_TASK_JOB_GOODS, SW_TASK_DST_GOODS, $swooleTaskInFlight);
     });
 
 });
