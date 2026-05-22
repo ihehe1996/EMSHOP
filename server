@@ -24,6 +24,11 @@ if (!extension_loaded('swoole')) {
  * - 发货队列消费
  * - 定时任务调度
  *
+ * Task 回调兼容（必须支持 Swoole 4.x）：
+ * - 经典模式 task_enable_coroutine=false：on('Task', $server, $taskId, $srcWorkerId, $data)
+ * - 协程模式（若开启）：on('Task', $server, Task $task)
+ * - 结束任务：优先 $server->finish()（Swoole 4 标准），其次 $task->finish()
+ *
  * 用法：
  * php server start|stop|status|reload
  */
@@ -59,6 +64,50 @@ function swooleServiceLog(string $message): void
 {
     $line = '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
     @file_put_contents(SW_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
+}
+
+/** PHP 7.x / Swoole 4 环境无 str_contains 时的兼容 */
+function swooleStrContains(string $haystack, string $needle): bool
+{
+    if ($needle === '') {
+        return true;
+    }
+    return strpos($haystack, $needle) !== false;
+}
+
+/** 当前 Swoole 扩展版本号，如 4.8.13 → 40813 */
+function swooleExtVersionId(): int
+{
+    $raw = defined('SWOOLE_VERSION') ? (string) SWOOLE_VERSION : (string) (function_exists('swoole_version') ? swoole_version() : '0');
+    if (!preg_match('/(\d+)\.(\d+)\.(\d+)/', $raw, $m)) {
+        return 0;
+    }
+    return (int) $m[1] * 10000 + (int) $m[2] * 100 + (int) $m[3];
+}
+
+$swooleExtVerId = swooleExtVersionId();
+if ($swooleExtVerId > 0 && $swooleExtVerId < 40000) {
+    echo "需要 Swoole 4.0 或更高版本，当前为 " . (defined('SWOOLE_VERSION') ? SWOOLE_VERSION : 'unknown') . "。\n";
+    exit(1);
+}
+
+/**
+ * 将 task() 传入的 data 规范为数组（Swoole 4 一般为数组，少数为 JSON 字符串）。
+ *
+ * @return array<string, mixed>
+ */
+function swooleNormalizeTaskPayload($data): array
+{
+    if (is_array($data)) {
+        return $data;
+    }
+    if (is_string($data) && $data !== '') {
+        $decoded = json_decode($data, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    return [];
 }
 
 /**
@@ -154,6 +203,8 @@ $server->set([
     'worker_num'      => 2,
     // 独立 Task 进程：主定时、商品同步（与 worker#0 心跳/发货队列并行；变更后需 stop+start）
     'task_worker_num' => SW_TASK_WORKER_NUM,
+    // 强制经典 Task 回调（Swoole 4 默认形态；避免仅收到 taskId 导致解析失败）
+    'task_enable_coroutine' => false,
     // 由 Supervisor/systemd 托管时应保持前台运行，避免双重守护
     'daemonize'       => false,
     // 主进程 PID 文件路径（stop/status/reload 命令依赖）
@@ -186,7 +237,7 @@ $server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
     echo "========================================\n";
     echo "EMSHOP Swoole 服务已启动！\n";
     echo "监听地址：" . SW_HOST . ':' . SW_PORT . "；主进程 PID {$server->master_pid}\n";
-    echo "PHP cli版本：" . PHP_VERSION. '；Swoole扩展版本：' . $swoole_version . "\n";
+    echo "PHP cli版本：" . PHP_VERSION . '；Swoole扩展版本：' . $swoole_version . "（兼容 4.x 经典 Task）\n";
     echo "========================================\n";
     $startTime = time();
 });
@@ -209,8 +260,63 @@ function swooleDispatchTask(Swoole\Http\Server $server, string $job, int $dstWor
     $taskInFlight[$job] = true;
 }
 
-$server->on('Task', function (Swoole\Http\Server $server, $task) {
-    $payload = is_array($task->data ?? null) ? $task->data : [];
+/**
+ * Task 进程内结束任务并回传 Finish（Swoole 4 必须走 $server->finish）。
+ *
+ * @param object|null $taskHandle 协程 Task 对象；经典模式传 null
+ */
+function swooleFinishTask(Swoole\Http\Server $server, $taskHandle, $result): void
+{
+    if (is_object($taskHandle) && method_exists($taskHandle, 'finish')) {
+        $taskHandle->finish($result);
+        return;
+    }
+    if (method_exists($server, 'finish')) {
+        $server->finish($result);
+    }
+}
+
+/**
+ * 解析 on('Task') 回调参数（必须兼容 Swoole 4.x）。
+ *
+ * - Swoole 4/5/6 经典：($server, int $taskId, int $srcWorkerId, mixed $data) ← task_enable_coroutine=false
+ * - 协程 Task 对象：($server, Swoole\Server\Task $task)（未强制开启时仍兼容）
+ *
+ * @return array{payload: array<string, mixed>, task_handle: object|null}
+ */
+function swooleParseTaskCallback(array $args): array
+{
+    if (isset($args[0]) && is_object($args[0])) {
+        $task = $args[0];
+        if ($task instanceof Swoole\Server\Task
+            || (class_exists('OpenSwoole\\Server\\Task', false) && $task instanceof OpenSwoole\Server\Task)
+            || (property_exists($task, 'data') && method_exists($task, 'finish'))) {
+            return [
+                'payload' => swooleNormalizeTaskPayload($task->data ?? null),
+                'task_handle' => $task,
+            ];
+        }
+    }
+
+    // Swoole 4.x 标准：第 1 个参数为 taskId，业务数据在第 3 个参数（索引 2）
+    $data = $args[2] ?? null;
+    if ($data === null && isset($args[1]) && !is_int($args[1])) {
+        $data = $args[1];
+    }
+    if ($data === null && isset($args[0]) && !is_int($args[0])) {
+        $data = $args[0];
+    }
+
+    return [
+        'payload' => swooleNormalizeTaskPayload($data),
+        'task_handle' => null,
+    ];
+}
+
+$server->on('Task', function (Swoole\Http\Server $server, ...$args) {
+    $parsed = swooleParseTaskCallback($args);
+    $payload = $parsed['payload'];
+    $taskHandle = $parsed['task_handle'];
     $job = (string) ($payload['job'] ?? '');
     try {
         switch ($job) {
@@ -229,13 +335,13 @@ $server->on('Task', function (Swoole\Http\Server $server, $task) {
             swooleServiceLog('异常：商品同步 Task，' . $e->getMessage());
         }
     } finally {
-        if (method_exists($task, 'finish')) {
-            $task->finish($job);
-        }
+        swooleFinishTask($server, $taskHandle, $job);
     }
 });
 
-$server->on('Finish', function (Swoole\Http\Server $server, $taskId, $data) use (&$swooleTaskInFlight) {
+$server->on('Finish', function (Swoole\Http\Server $server, ...$args) use (&$swooleTaskInFlight) {
+    // Swoole 4/5/6 均为 ($server, $taskId, $data)
+    $data = $args[1] ?? '';
     $job = is_string($data) ? $data : '';
     if ($job !== '' && array_key_exists($job, $swooleTaskInFlight)) {
         $swooleTaskInFlight[$job] = false;
@@ -245,7 +351,7 @@ $server->on('Finish', function (Swoole\Http\Server $server, $taskId, $data) use 
 $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$swooleTaskInFlight) {
 
     // WSL 下可通过网关访问 Windows 主机上的 MySQL
-    if (PHP_OS_FAMILY === 'Linux' && is_file('/proc/version') && str_contains(file_get_contents('/proc/version'), 'microsoft')) {
+    if (PHP_OS_FAMILY === 'Linux' && is_file('/proc/version') && swooleStrContains((string) file_get_contents('/proc/version'), 'microsoft')) {
         $gwIp = trim(shell_exec("ip route show default 2>/dev/null | awk '{print \$3}'") ?: '');
         if ($gwIp !== '') {
             putenv("EM_DB_HOST={$gwIp}");
