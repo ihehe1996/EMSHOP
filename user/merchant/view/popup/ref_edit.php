@@ -6,6 +6,9 @@ if (!defined('EM_ROOT')) {
 /** @var array{rate: float, level_name: string, discount_label: string} $ownerDiscount */
 /** @var int $cost 商户主拿货价（×1000000） */
 /** @var int $maxCost */
+/** @var int $sell 店内对客售价（×1000000） */
+/** @var int $maxSell */
+/** @var bool $hasExclusiveWholesale 是否命中主站用户/等级专属价 */
 /** @var string $csrfToken */
 /** @var string $pageTitle */
 
@@ -78,7 +81,9 @@ if ($visitorCurRow !== null) {
                     </div>
                 </div>
                 <div class="layui-form-mid layui-word-aux">
-                    <?php if ($ownerDiscount['discount_label'] !== ''): ?>
+                    <?php if (!empty($hasExclusiveWholesale)): ?>
+                    已按主站为本店站长配置的<strong>用户专属价</strong>或<strong>等级专属价</strong>计算（优先于等级折扣）
+                    <?php elseif ($ownerDiscount['discount_label'] !== ''): ?>
                     按您的主站用户等级「<?= $esc($ownerDiscount['level_name']) ?>」（<?= $esc($ownerDiscount['discount_label']) ?>）从主站拿货
                     <?php else: ?>
                     您未设置主站用户等级，拿货价等于主站原价
@@ -99,7 +104,7 @@ if ($visitorCurRow !== null) {
                     </div>
                 </div>
                 <div class="layui-form-mid layui-word-aux">
-                    0 = 不加价；店内售价 = 拿货价 × (1 + 加价率 / 100)
+                    0 = 不加价；店内售价 = 主站原价 × (1 + 加价率 / 100)（与拿货价无关）
                 </div>
             </div>
             <div class="layui-form-item">
@@ -151,18 +156,18 @@ $(function () {
         var form = layui.form;
         form.render();
 
-        var cost = <?= $cost ?>;
-        var maxCost = <?= $maxCost ?>;
+        var mainMin = <?= (int) $basePrice ?>;
+        var mainMax = <?= (int) $maxBasePrice ?>;
         // 按访客当前展示币种符号 / 汇率展示（iframe 不共享父窗口 EMSHOP_CURRENCY，这里直接注入）
         var CUR = {symbol: <?= json_encode($curSymbol) ?>, rate: <?= (float) $curRate ?>};
 
         function updateSellPreview() {
             var pct = parseFloat($('#refMarkup').val()) || 0;
             if (pct < 0) pct = 0;
-            var sell = cost * (1 + pct / 100);
+            var sell = mainMin * (1 + pct / 100);
             var html = CUR.symbol + ((sell / 1000000) * CUR.rate).toFixed(2);
-            if (maxCost > cost) {
-                var maxSell = maxCost * (1 + pct / 100);
+            if (mainMax > mainMin) {
+                var maxSell = mainMax * (1 + pct / 100);
                 html += ' ~ ' + CUR.symbol + ((maxSell / 1000000) * CUR.rate).toFixed(2);
             }
             $('#refSellPreview').text(html);

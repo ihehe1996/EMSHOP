@@ -316,7 +316,7 @@ $(function(){
                     } else {
                         tip += '（未设主站用户等级，无折扣）';
                     }
-                    tip += '；店内售价 = 您的拿货价 × (1 + 本店加价率)';
+                    tip += '；店内售价 = 主站原价 × (1 + 本店加价率)';
                     $('#mcRefDiscountTip').html(tip);
                     return {
                         'code': res.code === 200 ? 0 : res.code,

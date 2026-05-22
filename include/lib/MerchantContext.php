@@ -175,7 +175,7 @@ final class MerchantContext
             return 'http://' . $custom . '/';
         }
         $sub = trim((string) ($merchant['subdomain'] ?? ''));
-        $main = trim((string) (Config::get('main_domain') ?? ''));
+        $main = self::normalizeHost((string) (Config::get('main_domain') ?? ''));
         if ($sub !== '' && $main !== '') {
             return 'http://' . $sub . '.' . $main . '/';
         }
@@ -230,12 +230,7 @@ final class MerchantContext
         if ($host === '') {
             return '';
         }
-        // 去端口号
-        $pos = strpos($host, ':');
-        if ($pos !== false) {
-            $host = substr($host, 0, $pos);
-        }
-        return strtolower($host);
+        return self::normalizeHost($host);
     }
 
     /**
@@ -268,9 +263,11 @@ final class MerchantContext
      */
     private static function findBySubdomain(string $host): ?array
     {
-        $mainDomain = strtolower((string) (Config::get('main_domain') ?? ''));
+        $mainDomain = self::normalizeHost((string) (Config::get('main_domain') ?? ''));
         if ($mainDomain === '') {
-            return null;
+            // 兼容：主域名未配置时，退化为按 host 首段子域名匹配。
+            // 例：1022.em.cc -> subdomain=1022。
+            return self::findBySubdomainLoose($host);
         }
         $suffix = '.' . $mainDomain;
         if (!str_ends_with($host, $suffix)) {
@@ -303,6 +300,43 @@ final class MerchantContext
     }
 
     /**
+     * 在未配置 main_domain 时，按 host 第一段尝试匹配 subdomain。
+     *
+     * 约束：
+     * - host 至少两段（a.b）
+     * - 首段不能是 www
+     * - 首段只允许字母/数字/短横线
+     */
+    private static function findBySubdomainLoose(string $host): ?array
+    {
+        $parts = array_values(array_filter(explode('.', strtolower($host))));
+        if (count($parts) < 2) {
+            return null;
+        }
+        $subdomain = (string) ($parts[0] ?? '');
+        if ($subdomain === '' || $subdomain === 'www') {
+            return null;
+        }
+        if (!preg_match('/^[a-z0-9]([a-z0-9\-]{0,62}[a-z0-9])?$/', $subdomain)) {
+            return null;
+        }
+
+        $sql = 'SELECT m.*, l.allow_custom_domain AS level_allow_custom_domain,
+                       l.allow_subdomain AS level_allow_subdomain,
+                       l.allow_self_goods AS level_allow_self_goods,
+                       l.self_goods_fee_rate AS level_self_goods_fee_rate,
+                       l.withdraw_fee_rate AS level_withdraw_fee_rate,
+                       l.name AS level_name
+                  FROM `' . Database::prefix() . 'merchant` m
+             LEFT JOIN `' . Database::prefix() . 'merchant_level` l ON l.id = m.level_id
+                 WHERE m.subdomain = ?
+                   AND m.status = 1
+                   AND m.deleted_at IS NULL
+                 LIMIT 1';
+        return self::safeFetch($sql, [$subdomain]);
+    }
+
+    /**
      * 查询包容安装未完成 / 表不存在的场景，返回 null 不抛异常。
      *
      * @param array<int, mixed> $params
@@ -316,6 +350,41 @@ final class MerchantContext
         } catch (Throwable $e) {
             return null;
         }
+    }
+
+    /**
+     * 归一化 host 字符串（兼容把 main_domain 配成 https://x:port/path 的场景）。
+     */
+    private static function normalizeHost(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        // 带协议时优先 parse_url 取 host
+        if (strpos($value, '://') !== false) {
+            $parsedHost = (string) (parse_url($value, PHP_URL_HOST) ?? '');
+            if ($parsedHost !== '') {
+                $value = $parsedHost;
+            }
+        }
+
+        // 去路径/query/fragment
+        $value = preg_split('/[\/\?#]/', $value, 2)[0] ?? $value;
+
+        // 去端口
+        $pos = strpos($value, ':');
+        if ($pos !== false) {
+            $value = substr($value, 0, $pos);
+        }
+
+        // 兼容误填 *.example.com
+        if (strpos($value, '*.') === 0) {
+            $value = substr($value, 2);
+        }
+
+        return strtolower(trim($value, ". \t\n\r\0\x0B"));
     }
 
     /**

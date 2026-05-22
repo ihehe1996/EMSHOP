@@ -16,9 +16,9 @@ require_once EM_ROOT . '/include/model/MerchantGoodsRefModel.php';
  *   em_goods_merchant_ref 作为"商户覆盖层"存在：商户修改加价率 / 下架时才 UPSERT 一行，
  *   没行时按默认（加价率 0、上架中）处理。
  *
- * 价格计算约定：
- *   拿货价 C = M × d_owner（M=主站原价；d_owner=商户主/站长的用户等级折扣率）
- *   店内售价 P = C × (1 + u)（u=加价率，markup_rate / 10000）
+ * 价格计算约定（主站商品）：
+ *   拿货价 C = 站长专属价/等级价/原价×站长等级折扣（仅成本与利润）
+ *   店内售价 P = 主站规格原价（或列表 min_price）× (1 + 加价率)（对客标价，与拿货价无关）
  */
 merchantRequireLogin();
 
@@ -66,13 +66,19 @@ function mcResolveOwnerDiscountMeta(int $userId): array
 }
 
 /**
- * 计算主站商品在本店的拿货价 / 售价（×1000000 整数返回）。
+ * 主站商品：站长拿货价（×1000000）。
  */
-function mcCalcRefPrices(int $basePrice, int $markupRate, float $discountRate = 1.0): array
+function mcCalcRefOwnerCost(int $wholesaleUnit, float $discountRate = 1.0): int
 {
-    $cost = (int) round($basePrice * $discountRate);
-    $sell = (int) round($cost * (1 + $markupRate / 10000));
-    return ['cost' => $cost, 'sell' => $sell];
+    return (int) round($wholesaleUnit * $discountRate);
+}
+
+/**
+ * 主站商品：店内对客售价 = 主站原价 × (1 + 加价率)（×1000000）。
+ */
+function mcCalcRefSellPrice(int $mainSitePrice, int $markupRate): int
+{
+    return (int) round($mainSitePrice * (1 + $markupRate / 10000));
 }
 
 /**
@@ -175,19 +181,23 @@ if (Request::isPost()) {
                 $discountRate = $ownerDiscount['rate'];
 
                 foreach ($rows as &$row) {
-                    $basePrice = (int) $row['min_price'];
-                    $maxBasePrice = (int) ($row['max_price'] ?? 0);
-                    // 拿货价 = 主站原价 × 商户主（站长）用户等级折扣
-                    $calc = mcCalcRefPrices($basePrice, (int) $row['markup_rate'], $discountRate);
-                    // 所有金额按访客当前展示币种输出完整字符串（含币种符号），前端直接拼接
-                    $row['base_price_view'] = Currency::displayAmount($basePrice);
-                    $row['cost_view'] = Currency::displayAmount($calc['cost']);
-                    $row['sell_view'] = Currency::displayAmount($calc['sell']);
-                    if ($maxBasePrice > $basePrice) {
-                        $maxCalc = mcCalcRefPrices($maxBasePrice, (int) $row['markup_rate'], $discountRate);
-                        $row['max_base_price_view'] = Currency::displayAmount($maxBasePrice);
-                        $row['max_cost_view'] = Currency::displayAmount($maxCalc['cost']);
-                        $row['max_sell_view'] = Currency::displayAmount($maxCalc['sell']);
+                    $mainMin = (int) $row['min_price'];
+                    $mainMax = (int) ($row['max_price'] ?? 0);
+                    $wholesale = GoodsModel::resolveGoodsWholesalePriceRange(
+                        (int) $row['goods_id'],
+                        $ownerUserId,
+                        $discountRate
+                    );
+                    $costUnit = $wholesale['min'] > 0 ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
+                    $maxCostUnit = $wholesale['max'] > 0 ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
+                    $markup = (int) $row['markup_rate'];
+                    $row['base_price_view'] = Currency::displayAmount($mainMin);
+                    $row['cost_view'] = Currency::displayAmount($costUnit);
+                    $row['sell_view'] = Currency::displayAmount(mcCalcRefSellPrice($mainMin, $markup));
+                    if ($mainMax > $mainMin) {
+                        $row['max_base_price_view'] = Currency::displayAmount($mainMax);
+                        $row['max_cost_view'] = Currency::displayAmount($maxCostUnit);
+                        $row['max_sell_view'] = Currency::displayAmount(mcCalcRefSellPrice($mainMax, $markup));
                     }
                     $row['markup_rate_view'] = rtrim(rtrim(number_format(((int) $row['markup_rate']) / 100, 2, '.', ''), '0'), '.');
                     $row['cover_image'] = '';
@@ -888,10 +898,20 @@ if ((string) Input::get('_popup', '') === 'ref_edit') {
 
     $ownerDiscount = mcResolveOwnerDiscountMeta($ownerUserId);
     $discountRate = $ownerDiscount['rate'];
-    $basePrice = (int) $row['min_price'];
-    $maxBasePrice = (int) ($row['max_price'] ?? 0);
-    $cost = (int) round($basePrice * $discountRate);
-    $maxCost = (int) round($maxBasePrice * $discountRate);
+    $mainMin = (int) $row['min_price'];
+    $mainMax = (int) ($row['max_price'] ?? 0);
+    $markup = (int) $row['markup_rate'];
+    $wholesale = GoodsModel::resolveGoodsWholesalePriceRange((int) $row['goods_id'], $ownerUserId, $discountRate);
+    $cost = $wholesale['min'] > 0 ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
+    $maxCost = $wholesale['max'] > 0 ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
+    if ($maxCost < $cost) {
+        $maxCost = $cost;
+    }
+    $sell = mcCalcRefSellPrice($mainMin, $markup);
+    $maxSell = $mainMax > $mainMin ? mcCalcRefSellPrice($mainMax, $markup) : $sell;
+    $hasExclusiveWholesale = GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
+    $basePrice = $mainMin;
+    $maxBasePrice = $mainMax;
 
     $csrfToken = Csrf::token();
     $pageTitle = '编辑：' . ($row['title'] ?? '');

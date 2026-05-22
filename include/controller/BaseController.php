@@ -529,10 +529,8 @@ abstract class BaseController
      *
      * factor 规则：
      *   - 主站：factor = buyer_discount（仅当前登录买家的会员折扣）
-     *   - 商户站 主站引用商品：factor = (1+markup) × buyer_discount
+     *   - 商户站 主站引用商品：factor = (1+markup)（会员折扣在 getSpecs 的「主站售价」中已体现）
      *   - 商户站 自建商品：factor = buyer_discount
-     *
-     * 商户拿货成本与本 factor 无关 —— 主站对商户始终按原价（goods_spec.price）收。
      *
      * @param array<string, mixed> $row 引用传入，原地修改
      */
@@ -543,11 +541,10 @@ abstract class BaseController
 
         $merchantId = MerchantContext::currentId();
         if ($merchantId > 0 && (int) ($row['owner_id'] ?? 0) === 0) {
-            // 商户站 + 引用主站商品：先 markup 再买家折扣
             $markup = isset($row['mgr_markup_rate']) && $row['mgr_markup_rate'] !== null
                 ? (int) $row['mgr_markup_rate']
                 : self::resolveMerchantDefaultMarkup($merchantId);
-            $factor = (1 + $markup / 10000) * $buyerDiscount;
+            $factor = 1 + $markup / 10000;
         }
         // 商户站的自建商品（owner = ownerUserId）和主站作用域，都只乘 buyer_discount
 
@@ -579,7 +576,7 @@ abstract class BaseController
     }
 
     /**
-     * 登录用户场景下，按规格成交价重算商品卡片展示最低价。
+     * 登录用户场景下，按规格对客成交价重算商品卡片最低价。
      */
     private function resolvePersonalizedMinPrice(int $goodsId, float $fallback): float
     {

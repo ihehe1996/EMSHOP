@@ -173,9 +173,8 @@ class OrderModel
                     throw new RuntimeException($submitError);
                 }
 
-                // 价格（BIGINT 格式）：price_raw 是已经应用了 factor（markup × 买家折扣）的成交单价
+                // 价格（BIGINT 格式）：price_raw 为对客成交单价（分站引用货 = 主站售价×加价）
                 $priceBigint = (int) $spec['price_raw'];
-                // 主站原价（未应用任何 factor），下面算商户分账 cost 时要用
                 $basePriceBigint = (int) ($spec['_base_price_raw'] ?? $spec['price_raw']);
                 $itemTotal = $priceBigint * $quantity;
                 $goodsAmount += $itemTotal;
@@ -195,7 +194,8 @@ class OrderModel
                     // 商户分账所需的原始字段（下面统一生成快照）
                     'goods_owner_id'=> (int) ($goods['owner_id'] ?? 0),
                     'markup_rate'   => (int) ($spec['_shop_markup_rate'] ?? 0),
-                    '_base_price'   => $basePriceBigint, // 内部字段：主站原价，cost_amount 计算用
+                    '_base_price'   => $basePriceBigint,
+                    '_owner_cost'   => (int) ($spec['_owner_cost_raw'] ?? 0),
                     // 本商品原始配置，下面算满减时用（configs.discount_rules 是商品级的阶梯折扣）
                     '_goods_configs' => (string) ($goods['configs'] ?? ''),
                     '_item_total'    => $itemTotal,
@@ -384,13 +384,14 @@ class OrderModel
                 if ($merchantId > 0) {
                     $goodsOwnerId = (int) $row['goods_owner_id'];
                     if ($goodsOwnerId === 0) {
-                        // 引用商品：拿货成本 = 主站原价 × 站长用户等级折扣 × 数量（行合计写入 cost_amount）。
-                        // 买家优惠券 / 会员价不影响 cost_amount。
-                        $costAmount = MerchantLedgerService::computeRefGoodsLineCost(
-                            (int) $row['_base_price'],
-                            (int) $row['quantity'],
-                            $ownerId
-                        );
+                        // 引用商品：拿货成本 = 站长拿货单价 × 数量（与对客售价无关）
+                        $ownerUnitCost = (int) ($row['_owner_cost'] ?? 0);
+                        if ($ownerUnitCost <= 0) {
+                            $ownerUnitCost = (int) round(
+                                (int) $row['_base_price'] * MerchantLedgerService::resolveOwnerDiscountRate($ownerId)
+                            );
+                        }
+                        $costAmount = $ownerUnitCost * max(1, (int) $row['quantity']);
                     } elseif ($goodsOwnerId === $ownerId) {
                         // 自建商品：fee = price × qty × self_goods_fee_rate / 10000
                         // 注意：price 是已乘买家折扣后的成交价，主站收的手续费按"实付"算

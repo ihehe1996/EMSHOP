@@ -700,7 +700,7 @@ final class Dispatcher
     /**
      * 获取当前请求的启用主题。
      * 按当前 scope 取：商户上下文 merchant_{id}，否则主站 main；
-     * scope 下未启用任何模板时返回空串，由 dispatch() 渲染"未启用模板"提示，不再回退兜底。
+     * 商户站未启用模板时回退主站同终端模板；主站未启用仍提示去后台启用。
      */
     private function getActiveTheme(): string
     {

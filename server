@@ -42,14 +42,12 @@ define('SW_HEARTBEAT_FILE', SW_RUNTIME_DIR . '/swoole.heartbeat');
 define('SW_QUEUE_INTERVAL', 2);
 define('SW_TIMER_INTERVAL', 60);
 define('SW_HEARTBEAT_INTERVAL', 5);
-/** Task 进程数：与队列/主定时/商品同步三条重任务一一对应，与 HTTP Worker 并行 */
-define('SW_TASK_WORKER_NUM', 3);
-define('SW_TASK_JOB_QUEUE', 'process_queue');
+/** Task 进程数：主定时、商品同步（发货队列仍在 Worker#0 同步消费，避免 Task 未就绪时不发货） */
+define('SW_TASK_WORKER_NUM', 2);
 define('SW_TASK_JOB_MAIN', 'main_timer');
 define('SW_TASK_JOB_GOODS', 'goods_sync');
-define('SW_TASK_DST_QUEUE', 0);
-define('SW_TASK_DST_MAIN', 1);
-define('SW_TASK_DST_GOODS', 2);
+define('SW_TASK_DST_MAIN', 0);
+define('SW_TASK_DST_GOODS', 1);
 define('SW_GOODS_SYNC_BATCH_SIZE', 30);
 define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
 define('SW_GOODS_SYNC_LOCK_STALE_SECONDS', 1800);
@@ -152,9 +150,9 @@ try {
 }
 
 $server->set([
-    // Worker 进程数（worker#0 注册定时器并投递 Task；worker#1 处理 HTTP）
+    // Worker 进程数（worker#0 注册定时器、消费发货队列；worker#1 处理 HTTP）
     'worker_num'      => 2,
-    // 独立 Task 进程：队列消费、主定时、商品同步互不阻塞（与 worker#0 心跳并行）
+    // 独立 Task 进程：主定时、商品同步（与 worker#0 心跳/发货队列并行；变更后需 stop+start）
     'task_worker_num' => SW_TASK_WORKER_NUM,
     // 由 Supervisor/systemd 托管时应保持前台运行，避免双重守护
     'daemonize'       => false,
@@ -172,7 +170,6 @@ $server->set([
 
 $startTime = time();
 $swooleTaskInFlight = [
-    SW_TASK_JOB_QUEUE => false,
     SW_TASK_JOB_MAIN => false,
     SW_TASK_JOB_GOODS => false,
 ];
@@ -206,6 +203,7 @@ function swooleDispatchTask(Swoole\Http\Server $server, string $job, int $dstWor
     }
     $taskId = $server->task(['job' => $job], $dstWorkerId);
     if ($taskId === false) {
+        swooleServiceLog("警告：Task 投递失败（job={$job}），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
         return;
     }
     $taskInFlight[$job] = true;
@@ -216,9 +214,6 @@ $server->on('Task', function (Swoole\Http\Server $server, $task) {
     $job = (string) ($payload['job'] ?? '');
     try {
         switch ($job) {
-            case SW_TASK_JOB_QUEUE:
-                processQueue();
-                break;
             case SW_TASK_JOB_MAIN:
                 runOrderTimeoutChecks();
                 runOrderPollingTasks();
@@ -230,9 +225,14 @@ $server->on('Task', function (Swoole\Http\Server $server, $task) {
     } catch (Throwable $e) {
         if ($job === SW_TASK_JOB_MAIN) {
             echo "主定时任务执行失败，" . $e->getMessage() . "\n";
+        } elseif ($job === SW_TASK_JOB_GOODS) {
+            swooleServiceLog('异常：商品同步 Task，' . $e->getMessage());
+        }
+    } finally {
+        if (method_exists($task, 'finish')) {
+            $task->finish($job);
         }
     }
-    return $job;
 });
 
 $server->on('Finish', function (Swoole\Http\Server $server, $taskId, $data) use (&$swooleTaskInFlight) {
@@ -280,8 +280,12 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
         @touch(SW_HEARTBEAT_FILE);
     });
 
-    Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () use ($server, &$swooleTaskInFlight) {
-        swooleDispatchTask($server, SW_TASK_JOB_QUEUE, SW_TASK_DST_QUEUE, $swooleTaskInFlight);
+    Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () {
+        try {
+            processQueue();
+        } catch (Throwable $e) {
+            swooleServiceLog('异常：发货队列 processQueue，' . $e->getMessage());
+        }
     });
 
     // 主定时器：版本检查与 reload 留在 worker#0；重任务投递到 Task 进程

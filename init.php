@@ -107,6 +107,15 @@ $emCurrentScope = MerchantContext::currentId() > 0
     : 'main';
 $GLOBALS['__em_current_scope'] = $emCurrentScope;
 
+// echo '<pre>';
+// print_r([
+//     'http_host' => $_SERVER['HTTP_HOST'] ?? '',
+//     'main_domain' => Config::get('main_domain', ''),
+//     'merchant_id' => MerchantContext::currentId(),
+//     'blocked_reason' => MerchantContext::blockedReason(),
+// ]);
+// die;
+
 // 加载插件系统：按当前 scope 读已启用插件，执行其 addAction 注册钩子
 // $emHooks 由插件中的 addAction() 函数填充，供 doAction() 使用
 //

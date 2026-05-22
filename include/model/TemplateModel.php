@@ -196,7 +196,7 @@ final class TemplateModel
     /**
      * 获取当前请求最终应使用的模板。
      *
-     * 优先级：Cookie 指定模板 > 后台启用模板。
+     * 优先级：Cookie 指定模板 > 后台启用模板 > 商户站回退主站同终端启用模板。
      * Cookie 命中但模板不存在 / 当前 scope 未安装时，自动忽略并回退后台设置。
      */
     public function getEffectiveTheme(string $client, string $scope): string
@@ -205,7 +205,12 @@ final class TemplateModel
         if ($cookieTheme !== '') {
             return $cookieTheme;
         }
-        return $this->getActiveTheme($client, $scope);
+        $active = $this->getActiveTheme($client, $scope);
+        if ($active !== '') {
+            return $active;
+        }
+
+        return $this->resolveMerchantFallbackTheme($client, $scope);
     }
 
     /**
@@ -374,6 +379,21 @@ final class TemplateModel
     // -----------------------------------------------------------------
     // 内部辅助
     // -----------------------------------------------------------------
+
+    /**
+     * 商户站未配置 PC/Mobile 启用模板时，回退主站同终端已启用的模板（磁盘须存在）。
+     */
+    private function resolveMerchantFallbackTheme(string $client, string $scope): string
+    {
+        if ($this->parseMerchantScope($scope) <= 0) {
+            return '';
+        }
+        $mainTheme = trim($this->getActiveTheme($client, 'main'));
+        if ($mainTheme === '' || !$this->existsOnDisk($mainTheme)) {
+            return '';
+        }
+        return $mainTheme;
+    }
 
     /**
      * 'merchant_42' → 42;非商户 scope 返回 0。

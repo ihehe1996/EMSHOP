@@ -165,8 +165,7 @@ class GoodsModel
      *
      * 商户上下文下（MerchantContext 激活）额外做两件事：
      *   1. 可见性过滤：不属于本店（既非自建、也非引用上架）→ 返回 null
-     *   2. 价格重写：引用商品的 min_price / max_price 按店内售价（base × d_user × (1+markup)）
-     *      同时把 _shop_markup_rate / _shop_price_factor 挂到返回行，供 getSpecsByGoodsId 沿用
+     *   2. 价格重写：引用商品对客价 = 主站售价 × (1+markup)；站长拿货价仅用于 _owner_cost_raw / 分账
      *
      * 主站上下文或 admin 调用路径（MerchantContext::currentId()=0）行为完全不变。
      *
@@ -186,7 +185,7 @@ class GoodsModel
 
         // 价格 factor 计算：
         //   - 主站作用域：factor = buyer_discount（仅买家会员价生效）
-        //   - 商户作用域 · 主站引用商品：factor = (1+markup) × buyer_discount（公开标价 = base × (1+markup)；登录买家再乘自己的折扣）
+        //   - 商户作用域 · 主站引用商品：对客 factor = (1+markup)；会员折扣已并入「主站售价」再加价
         //   - 商户作用域 · 自建商品：factor = buyer_discount（无 markup，按规格原价 × 折扣）
         //   - 商户作用域 · 跨商户的自建商品：不可见
         //
@@ -220,7 +219,7 @@ class GoodsModel
                 // 加价率：覆盖行 > 商户默认值（em_merchant.default_markup_rate）> 0
                 $markup = $ref ? (int) $ref['markup_rate'] : self::resolveMerchantDefaultMarkup($merchantId);
                 // applyFactor=false 时不参与加价 / 不打折，让后台 ref 编辑表单看到主站原值
-                $factor = $applyFactor ? (1 + $markup / 10000) * $buyerDiscount : 1.0;
+                $factor = $applyFactor ? (1 + $markup / 10000) : 1.0;
             } else {
                 // 其他商户的自建商品 → 不可见
                 return null;
@@ -229,7 +228,21 @@ class GoodsModel
 
         $row['_shop_markup_rate'] = $markup;
         $row['_shop_price_factor'] = $factor;
-        if ($factor !== 1.0) {
+        // 分站主站引用商品：列表/详情价以各规格对客成交价（主站售价×加价）为准
+        if ($applyFactor && $merchantId > 0 && (int) ($row['owner_id'] ?? 0) === 0) {
+            $specs = self::getSpecsByGoodsId((int) $row['id'], true);
+            $priceRaws = [];
+            foreach ($specs as $s) {
+                $pr = (int) ($s['price_raw'] ?? 0);
+                if ($pr > 0) {
+                    $priceRaws[] = $pr;
+                }
+            }
+            if ($priceRaws !== []) {
+                $row['min_price'] = min($priceRaws);
+                $row['max_price'] = max($priceRaws);
+            }
+        } elseif ($factor !== 1.0) {
             if (isset($row['min_price'])) {
                 $row['min_price'] = (int) round(((int) $row['min_price']) * $factor);
             }
@@ -328,6 +341,151 @@ class GoodsModel
         );
         $levelId = (int) ($row['level_id'] ?? 0);
         return $cachedByBuyerId[$buyerId] = [$buyerId, $levelId];
+    }
+
+    /**
+     * 主站侧某规格「售价」（×1000000）：买家专属/等级专属优先（视作最终价），否则原价×会员折扣。
+     */
+    public static function resolveMainSiteSellUnitPrice(
+        int $basePriceRaw,
+        bool $hasBuyerExclusive,
+        int $exclusivePriceRaw,
+        float $buyerDiscountRate
+    ): int {
+        if ($hasBuyerExclusive) {
+            return $exclusivePriceRaw;
+        }
+        return (int) round($basePriceRaw * $buyerDiscountRate);
+    }
+
+    /**
+     * 某规格对指定用户的有效拿货底价（×1000000）：
+     * 用户专属价（em_goods_price_user）> 等级专属价（em_goods_price_level）> 规格原价 × 折扣率。
+     *
+     * 仅用于分站站长成本/利润，不参与对客售价。
+     */
+    public static function resolveSpecWholesaleUnitPrice(
+        int $basePriceRaw,
+        int $specId,
+        int $userId,
+        int $levelId,
+        float $discountRate = 1.0
+    ): int {
+        $prefix = Database::prefix();
+        if ($specId > 0 && $userId > 0) {
+            $row = Database::fetchOne(
+                "SELECT `price` FROM `{$prefix}goods_price_user` WHERE `user_id` = ? AND `spec_id` = ? LIMIT 1",
+                [$userId, $specId]
+            );
+            if ($row !== null && isset($row['price'])) {
+                return (int) $row['price'];
+            }
+        }
+        if ($specId > 0 && $levelId > 0) {
+            $row = Database::fetchOne(
+                "SELECT `price` FROM `{$prefix}goods_price_level` WHERE `level_id` = ? AND `spec_id` = ? LIMIT 1",
+                [$levelId, $specId]
+            );
+            if ($row !== null && isset($row['price'])) {
+                return (int) $row['price'];
+            }
+        }
+        return (int) round($basePriceRaw * $discountRate);
+    }
+
+    /**
+     * 商品在售规格的有效拿货价区间（用于商户后台主站商品列表等）。
+     *
+     * @return array{min:int,max:int}
+     */
+    public static function resolveGoodsWholesalePriceRange(int $goodsId, int $userId, float $discountRate = 1.0): array
+    {
+        if ($goodsId <= 0) {
+            return ['min' => 0, 'max' => 0];
+        }
+        $levelId = 0;
+        if ($userId > 0) {
+            $row = Database::fetchOne(
+                'SELECT `level_id` FROM `' . Database::prefix() . 'user` WHERE `id` = ? LIMIT 1',
+                [$userId]
+            );
+            $levelId = (int) ($row['level_id'] ?? 0);
+        }
+        $specs = Database::query(
+            'SELECT `id`, `price` FROM `' . Database::prefix() . 'goods_spec`
+              WHERE `goods_id` = ? AND `status` = 1 ORDER BY `sort` ASC, `id` ASC',
+            [$goodsId]
+        );
+        if ($specs === []) {
+            return ['min' => 0, 'max' => 0];
+        }
+        $min = PHP_INT_MAX;
+        $max = 0;
+        foreach ($specs as $spec) {
+            $unit = self::resolveSpecWholesaleUnitPrice(
+                (int) ($spec['price'] ?? 0),
+                (int) ($spec['id'] ?? 0),
+                $userId,
+                $levelId,
+                $discountRate
+            );
+            $min = min($min, $unit);
+            $max = max($max, $unit);
+        }
+        if ($min === PHP_INT_MAX) {
+            $min = 0;
+        }
+        return ['min' => $min, 'max' => $max];
+    }
+
+    /**
+     * 商品是否存在针对该用户（或其所处等级）的规格专属拿货价配置。
+     */
+    public static function goodsHasWholesaleExclusivePrice(int $goodsId, int $userId): bool
+    {
+        if ($goodsId <= 0) {
+            return false;
+        }
+        $prefix = Database::prefix();
+        $specRows = Database::query(
+            'SELECT `id` FROM `' . $prefix . 'goods_spec` WHERE `goods_id` = ? AND `status` = 1',
+            [$goodsId]
+        );
+        if ($specRows === []) {
+            return false;
+        }
+        $specIds = array_values(array_filter(array_map(static fn($r) => (int) ($r['id'] ?? 0), $specRows)));
+        if ($specIds === []) {
+            return false;
+        }
+        $placeholders = implode(',', array_fill(0, count($specIds), '?'));
+        if ($userId > 0) {
+            $hit = Database::fetchOne(
+                "SELECT 1 FROM `{$prefix}goods_price_user` WHERE `user_id` = ? AND `spec_id` IN ({$placeholders}) LIMIT 1",
+                array_merge([$userId], $specIds)
+            );
+            if ($hit !== null) {
+                return true;
+            }
+        }
+        $levelId = 0;
+        if ($userId > 0) {
+            $u = Database::fetchOne(
+                'SELECT `level_id` FROM `' . $prefix . 'user` WHERE `id` = ? LIMIT 1',
+                [$userId]
+            );
+            $levelId = (int) ($u['level_id'] ?? 0);
+        }
+        if ($levelId > 0) {
+            $hit = Database::fetchOne(
+                "SELECT 1 FROM `{$prefix}goods_price_level` WHERE `level_id` = ? AND `spec_id` IN ({$placeholders}) LIMIT 1",
+                array_merge([$levelId], $specIds)
+            );
+            if ($hit !== null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -609,12 +767,13 @@ class GoodsModel
      *
      * 价格 factor 同 getById 的规则：
      *   - 主站：factor = buyer_discount
-     *   - 商户站 主站引用商品：factor = (1+markup) × buyer_discount
+     *   - 商户站 主站引用商品：对客价 = 主站售价 × (1+markup)；_owner_cost_raw = 站长拿货价
      *   - 商户站 自建商品：factor = buyer_discount
      *
      * 每条 spec 挂三个内部字段供 OrderModel 用：
-     *   _base_price_raw    —— 主站原始单价（BIGINT，未乘任何 factor），用于商户分账时算 cost_amount
-     *   price_raw          —— 应用 factor 后的单价（BIGINT），即买家最终成交价 × 1
+     *   _base_price_raw    —— 主站规格原价（未乘 factor）
+     *   _owner_cost_raw    —— 站长拿货单价（引用主站货时写入，分账用）
+     *   price_raw          —— 对客成交单价（分站引用货 = 主站售价×(1+markup)）
      *   _shop_markup_rate  —— 加价率（万分位），主要给前端展示用
      *
      * @param int $goodsId 商品 ID
@@ -663,6 +822,7 @@ class GoodsModel
         $buyerDiscount = $applyFactor ? self::resolveBuyerDiscountRate() : 1.0;
         $factor = $buyerDiscount;
         $markup = 0;
+        $isMerchantRefGoods = false;
 
         $merchantId = class_exists('MerchantContext') ? MerchantContext::currentId() : 0;
         if ($merchantId > 0) {
@@ -674,6 +834,7 @@ class GoodsModel
             $ownerUserId = MerchantContext::currentOwnerId();
 
             if ($goodsOwner === 0) {
+                $isMerchantRefGoods = true;
                 // 主站引用商品：先 markup 再买家折扣
                 $ref = Database::fetchOne(
                     'SELECT `markup_rate` FROM `' . Database::prefix() . 'goods_merchant_ref`
@@ -681,12 +842,29 @@ class GoodsModel
                     [$merchantId, (int) $goodsId]
                 );
                 $markup = $ref !== null ? (int) $ref['markup_rate'] : self::resolveMerchantDefaultMarkup($merchantId);
-                $factor = $applyFactor ? (1 + $markup / 10000) * $buyerDiscount : 1.0;
+                $factor = $applyFactor ? (1 + $markup / 10000) : 1.0;
             } elseif ($ownerUserId > 0 && $goodsOwner === $ownerUserId) {
                 // 自建商品：仅买家折扣
                 $factor = $buyerDiscount;
             }
             // 跨商户自建：getById 已返回 null，理论上 OrderModel 拿不到这里；做一次保护即可
+        }
+
+        $ownerLevelId = 0;
+        $ownerDiscountRate = 1.0;
+        $ownerUserIdForWholesale = 0;
+        if ($isMerchantRefGoods) {
+            $ownerUserIdForWholesale = MerchantContext::currentOwnerId();
+            if ($ownerUserIdForWholesale > 0) {
+                if (class_exists('MerchantLedgerService')) {
+                    $ownerDiscountRate = MerchantLedgerService::resolveOwnerDiscountRate($ownerUserIdForWholesale);
+                }
+                $ownerRow = Database::fetchOne(
+                    'SELECT `level_id` FROM `' . Database::prefix() . 'user` WHERE `id` = ? LIMIT 1',
+                    [$ownerUserIdForWholesale]
+                );
+                $ownerLevelId = (int) ($ownerRow['level_id'] ?? 0);
+            }
         }
 
         foreach ($specs as &$spec) {
@@ -702,17 +880,42 @@ class GoodsModel
                 $hasFixedPersonalPrice = true;
             }
 
-            // _base_price_raw 永远是主站原价（无任何调整），用于下单时算商户拿货 cost
             $spec['_base_price_raw'] = $basePriceRaw;
-            if ($hasFixedPersonalPrice) {
-                // 用户专属价 / 等级价视为最终成交单价，不叠加折扣或店铺加价因子
+            if ($isMerchantRefGoods) {
+                $spec['_owner_cost_raw'] = self::resolveSpecWholesaleUnitPrice(
+                    $basePriceRaw,
+                    $specId,
+                    $ownerUserIdForWholesale,
+                    $ownerLevelId,
+                    $ownerDiscountRate
+                );
+            }
+
+            $mainSiteSell = self::resolveMainSiteSellUnitPrice(
+                $basePriceRaw,
+                $hasFixedPersonalPrice,
+                $resolvedPriceRaw,
+                $buyerDiscount
+            );
+            $exclusiveIsFinal = $hasFixedPersonalPrice && (!$isMerchantRefGoods || !$applyFactor);
+
+            if ($isMerchantRefGoods && $applyFactor) {
+                $spec['price_raw'] = (int) round($mainSiteSell * $factor);
+                $spec['price'] = $spec['price_raw'];
+                if (isset($spec['cost_price'])) {
+                    $spec['cost_price'] = (int) round((int) $spec['cost_price'] * $factor);
+                }
+                if (isset($spec['market_price'])) {
+                    $spec['market_price'] = (int) round((int) $spec['market_price'] * $factor);
+                }
+            } elseif ($exclusiveIsFinal) {
                 $spec['price_raw'] = $resolvedPriceRaw;
                 $spec['price'] = $resolvedPriceRaw;
             } else {
-                // price_raw 是应用 factor 后的成交价，下单时落 order_goods.price
-                $spec['price_raw'] = (int) round($resolvedPriceRaw * $factor);
+                $unitBaseRaw = $hasFixedPersonalPrice ? $resolvedPriceRaw : $basePriceRaw;
+                $spec['price_raw'] = (int) round($unitBaseRaw * $factor);
                 if ($factor !== 1.0) {
-                    $spec['price'] = (int) round($resolvedPriceRaw * $factor);
+                    $spec['price'] = (int) round($unitBaseRaw * $factor);
                     if (isset($spec['cost_price'])) {
                         $spec['cost_price'] = (int) round((int) $spec['cost_price'] * $factor);
                     }
