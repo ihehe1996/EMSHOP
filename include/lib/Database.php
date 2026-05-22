@@ -665,4 +665,29 @@ final class Database
             return $fn();
         }
     }
+
+    /**
+     * 判断表字段是否已存在（用于兼容未跑迁移的老库）。
+     */
+    public static function columnExists(string $table, string $column): bool
+    {
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        if ($table === '' || $column === '') {
+            return false;
+        }
+
+        $dbName = (string) (self::config()['dbname'] ?? '');
+        if ($dbName === '') {
+            return false;
+        }
+
+        $row = self::fetchOne(
+            'SELECT 1 AS ok FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$dbName, $table, $column]
+        );
+
+        return $row !== null;
+    }
 }

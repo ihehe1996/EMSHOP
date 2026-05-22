@@ -102,7 +102,7 @@ if (Request::isPost()) {
                 $hasher = new PasswordHash(8, true);
                 $hashedPassword = $hasher->HashPassword($password);
 
-                $model->create([
+                $userId = $model->create([
                     'username' => $username,
                     'password' => $hashedPassword,
                     'email' => $email,
@@ -111,6 +111,14 @@ if (Request::isPost()) {
                     'avatar' => $avatar,
                     'status' => $status,
                 ]);
+
+                if ($userId > 0) {
+                    try {
+                        UserExperienceService::applyRegisterBonus($userId);
+                    } catch (Throwable $e) {
+                        // 初始经验发放失败不阻断创建
+                    }
+                }
 
                 $csrfToken = Csrf::refresh();
                 Response::success('用户创建成功', ['csrf_token' => $csrfToken]);

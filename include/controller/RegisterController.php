@@ -123,6 +123,12 @@ class RegisterController extends BaseController
             Response::error('注册失败，请稍后重试');
         }
 
+        try {
+            UserExperienceService::applyRegisterBonus($userId);
+        } catch (Throwable $e) {
+            // 初始经验发放失败不阻断注册
+        }
+
         // 注册成功后自动登录
         if (session_status() === PHP_SESSION_NONE) {
             session_start();

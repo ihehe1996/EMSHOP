@@ -417,10 +417,11 @@ if ($action === 'save') {
                 'max_buy' => isset($spec['max_buy']) && $spec['max_buy'] !== '' ? max(0, (int)$spec['max_buy']) : null,
                 'sort' => (int)($spec['sort'] ?? 0),
                 'is_default' => isset($specs['is_default']) && $specs['is_default'] == $index ? 1 : 0,
+                'sold_count' => max(0, (int)($spec['sold_count'] ?? 0)),
             ];
 
             if (isset($oldSpecMap[$specName])) {
-                // 已有规格：就地 UPDATE，保留 id / stock / sold_count
+                // 已有规格：就地 UPDATE，保留 id / stock
                 $existingId = $oldSpecMap[$specName]['id'];
                 Database::update('goods_spec', $updateData, $existingId);
                 $specIdMap[$index] = $existingId;

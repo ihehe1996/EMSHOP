@@ -12,9 +12,27 @@ final class UserListModel
 {
     private string $table;
 
+    /** @var bool|null */
+    private static $hasExperienceFields = null;
+
     public function __construct()
     {
         $this->table = Database::prefix() . 'user';
+    }
+
+    /**
+     * 列表查询用：未迁移时回退为 0，避免 Unknown column。
+     */
+    private function userStatsSelectSql(): string
+    {
+        if (self::$hasExperienceFields === null) {
+            self::$hasExperienceFields = Database::columnExists($this->table, 'total_consumption')
+                && Database::columnExists($this->table, 'experience');
+        }
+        if (self::$hasExperienceFields) {
+            return 'u.`total_consumption`, u.`experience`,';
+        }
+        return '0 AS `total_consumption`, 0 AS `experience`,';
     }
 
     /**
@@ -52,6 +70,7 @@ final class UserListModel
         $userLevelTable = Database::prefix() . 'user_levels';
         $sql = sprintf(
             'SELECT u.`id`, u.`username`, u.`email`, u.`mobile`, u.`nickname`, u.`avatar`, u.`money`,
+                    %s
                     u.`role`, u.`status`, u.`level_id`, u.`last_login_ip`, u.`last_login_at`, u.`created_at`,
                     m.`id` AS merchant_id, m.`name` AS merchant_name,
                     ml.`name` AS merchant_level_name,
@@ -63,6 +82,7 @@ final class UserListModel
              WHERE %s
              ORDER BY u.`id` DESC
              LIMIT %d OFFSET %d',
+            $this->userStatsSelectSql(),
             $this->table,
             $merchantTable,
             $merchantLevelTable,

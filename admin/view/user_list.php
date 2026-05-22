@@ -34,11 +34,6 @@ $csrfToken = Csrf::token();
     </div>
 </script>
 
-<!-- ID：#数字，淡灰去干扰（鼠标悬停时可复制） -->
-<script type="text/html" id="userIdTpl">
-    <span class="ul-id">#{{d.id}}</span>
-</script>
-
 <!-- 头像：圆形 + 细边框；无头像时使用系统默认头像图片 -->
 <script type="text/html" id="userAvatarTpl">
     <span lay-event="previewImg" class="ul-avatar" title="点击预览">
@@ -46,15 +41,15 @@ $csrfToken = Csrf::token();
     </span>
 </script>
 
-<!-- 账号：用户名等宽字体凸显 -->
+<!-- 账号 -->
 <script type="text/html" id="userNameTpl">
-    <span class="ul-username">{{d.username}}</span>
+    <span class="ul-text">{{d.username}}</span>
 </script>
 
-<!-- 昵称：空值显灰斜体 -->
+<!-- 昵称 -->
 <script type="text/html" id="userNickTpl">
     {{# if(d.nickname){ }}
-    <span style="color:#374151;font-weight:500;">{{d.nickname}}</span>
+    <span class="ul-text">{{d.nickname}}</span>
     {{# } else { }}
     <span class="em-tag em-tag--muted">未设置</span>
     {{# } }}
@@ -71,7 +66,7 @@ $csrfToken = Csrf::token();
 <!-- 邮箱：有值显灰字 + 单行省略，无值灰标签 -->
 <script type="text/html" id="userEmailTpl">
     {{# if(d.email){ }}
-    <span class="ul-email" title="{{d.email}}">{{d.email}}</span>
+    <span class="ul-text ul-email" title="{{d.email}}">{{d.email}}</span>
     {{# } else { }}
     <span class="em-tag em-tag--muted">未填写</span>
     {{# } }}
@@ -80,7 +75,7 @@ $csrfToken = Csrf::token();
 <!-- 手机号：有值显浅色底板，无值灰标签 -->
 <script type="text/html" id="userMobileTpl">
     {{# if(d.mobile){ }}
-    <span class="ul-mobile">{{d.mobile}}</span>
+    <span class="ul-text">{{d.mobile}}</span>
     {{# } else { }}
     <span class="em-tag em-tag--muted">未填写</span>
     {{# } }}
@@ -104,6 +99,18 @@ $csrfToken = Csrf::token();
     {{# } else { }}
     <span class="em-tag em-tag--muted em-tag--clickable" lay-event="changeLevel" title="点击设置用户等级">无</span>
     {{# } }}
+</script>
+
+<!-- 总消费：×1000000 存储，展示为元 -->
+<script type="text/html" id="userConsumptionTpl">
+    {{# var c = d.total_consumption || 0; var yuan = (c / 1000000).toFixed(2); }}
+    <span class="ul-text">¥ {{yuan}}</span>
+</script>
+
+<!-- 经验值 -->
+<script type="text/html" id="userExperienceTpl">
+    {{# var exp = parseInt(d.experience, 10) || 0; }}
+    <span class="ul-text">{{ exp.toLocaleString() }}</span>
 </script>
 
 <!-- 注册时间：日期粗体 + 时间浅色 -->
@@ -139,11 +146,6 @@ $csrfToken = Csrf::token();
 
 <style>
 /* 用户列表单元格样式（ul- 前缀，作用域限定本页避免污染其它页面） */
-.ul-id {
-    font-family: Menlo, Consolas, monospace;
-    color: #9ca3af;
-    font-size: 12.5px;
-}
 .ul-avatar {
     display: inline-flex;
     align-items: center;
@@ -167,15 +169,17 @@ $csrfToken = Csrf::token();
     object-fit: cover;
     display: block;
 }
-.ul-username {
+/* 数据列统一字体（与账号列一致） */
+.ul-text,
+.ul-time__date,
+.ul-time__clock,
+.admin-page .layui-table-body .layui-table-cell .em-tag {
     font-family: Menlo, Consolas, monospace;
-    font-size: 13px;
+    font-size: 14px;
     color: #1f2937;
     font-weight: 500;
 }
 .ul-email {
-    color: #4b5563;
-    font-size: 12.5px;
     display: inline-block;
     max-width: 200px;
     overflow: hidden;
@@ -183,26 +187,14 @@ $csrfToken = Csrf::token();
     white-space: nowrap;
     vertical-align: middle;
 }
-.ul-mobile {
-    color: #374151;
-    font-size: 13px;
-    letter-spacing: 0.3px;
-}
 .ul-time {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    line-height: 1.3;
-}
-.ul-time__date {
-    color: #374151;
-    font-weight: 500;
-    font-size: 12.5px;
+    line-height: 1.35;
 }
 .ul-time__clock {
-    color: #9ca3af;
-    font-size: 11.5px;
-    font-family: Menlo, Consolas, monospace;
+    color: #6b7280;
 }
 </style>
 
@@ -258,7 +250,6 @@ $(function(){
             initSort: {field: 'id', type: 'desc'},
             cols: [[
                 {type: 'checkbox', width: 50, align: 'center'},
-                {field: 'id', title: 'ID', width: 80, align: 'center', sort: true, templet: '#userIdTpl'},
                 {field: 'avatar', title: '头像', width: 70, templet: '#userAvatarTpl', align: 'center'},
                 {field: 'username', title: '账号', minWidth: 130, align: 'center', templet: '#userNameTpl'},
                 {field: 'nickname', title: '昵称', minWidth: 110, align: 'center', templet: '#userNickTpl'},
@@ -267,6 +258,8 @@ $(function(){
                 {field: 'mobile', title: '手机', minWidth: 130, align: 'center', templet: '#userMobileTpl'},
                 {field: 'merchant_level_name', title: '商户', minWidth: 110, align: 'center', templet: '#userMerchantTpl'},
                 {field: 'user_level_name', title: '等级', width: 90, align: 'center', templet: '#userLevelTpl'},
+                {field: 'total_consumption', title: '总消费', width: 110, align: 'center', templet: '#userConsumptionTpl', sort: true},
+                {field: 'experience', title: '经验值', width: 100, align: 'center', templet: '#userExperienceTpl', sort: true},
                 {field: 'created_at', title: '注册时间', minWidth: 130, align: 'center', templet: '#userCreatedAtTpl', sort: true},
                 {field: 'status', title: '状态', width: 90, templet: '#userStatusTpl', align: 'center'},
                 {title: '操作', width: 200, templet: '#userRowActionTpl', align: 'center'}

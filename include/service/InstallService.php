@@ -49,6 +49,9 @@ final class InstallService
             ['config_name' => 'swoole_api_url', 'config_value' => 'http://127.0.0.1:9601', 'description' => 'Swoole API 地址'],
             ['config_name' => 'url_format', 'config_value' => 'default', 'description' => '链接格式'],
             ['config_name' => 'user_register', 'config_value' => '1', 'description' => '开放注册'],
+            ['config_name' => 'user_credit_name', 'config_value' => '经验', 'description' => '前台经验名称展示'],
+            ['config_name' => 'user_credit_initial', 'config_value' => '0', 'description' => '注册赠送初始经验值'],
+            ['config_name' => 'user_exp_per_yuan', 'config_value' => '0', 'description' => '每消费1元赠送经验值'],
             ['config_name' => 'shop_balance_enabled', 'config_value' => '1', 'description' => '余额购买'],
             ['config_name' => 'shop_guest_balance_enabled', 'config_value' => '1', 'description' => '游客余额购买'],
             ['config_name' => 'shop_min_recharge', 'config_value' => '10000000', 'description' => '单次最低充值'],
@@ -117,6 +120,8 @@ final class InstallService
                 `merchant_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'所属商户 id；0=非商户主\',
                 `shop_balance` BIGINT NOT NULL DEFAULT 0 COMMENT \'店铺余额 ×1000000（仅商户主有值）\',
                 `level_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'用户等级 user_levels.id；0=未设置\',
+                `total_consumption` BIGINT NOT NULL DEFAULT 0 COMMENT \'累计消费金额×1000000\',
+                `experience` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'经验值\',
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uniq_username` (`username`),
                 UNIQUE KEY `uniq_email` (`email`, `role`),
@@ -361,6 +366,20 @@ final class InstallService
                 KEY `idx_merchant_status` (`merchant_id`, `status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'订单主表\'',
             $prefix . 'order'
+        ));
+
+        // 订单经验/消费结算记录（幂等，不污染 order 表）
+        Database::statement(sprintf(
+            'CREATE TABLE IF NOT EXISTS `%s` (
+                `order_id` BIGINT UNSIGNED NOT NULL COMMENT \'订单ID\',
+                `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'用户ID\',
+                `pay_amount` BIGINT NOT NULL DEFAULT 0 COMMENT \'计入累计消费的实付×1000000\',
+                `exp_gained` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'本单赠送经验\',
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`order_id`),
+                KEY `idx_user_id` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'订单经验/消费结算记录\'',
+            $prefix . 'user_experience_order'
         ));
 
         // 订单商品表（与线上一致）

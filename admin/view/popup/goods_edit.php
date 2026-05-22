@@ -185,6 +185,7 @@ include __DIR__ . '/header.php';
                                         <col width="70">
                                         <col width="70">
                                         <col width="60">
+                                        <col width="88">
                                         <col width="140">
                                     </colgroup>
                                     <thead>
@@ -208,7 +209,8 @@ include __DIR__ . '/header.php';
                                             <th>最小购买</th>
                                             <th>最大购买</th>
                                             <th>默认选中</th>
-                                            <th>操作</th>
+                                            <th title="前台展示用；订单完成后会在当前值上累加">销量</th>
+                                            <th class="spec-col-actions">操作</th>
                                         </tr>
                                     </thead>
                                     <tbody id="specList">
@@ -252,7 +254,8 @@ include __DIR__ . '/header.php';
                                                     <td><input type="number" name="specs[<?php echo $index; ?>][min_buy]" class="layui-input" value="<?php echo $spec["min_buy"] ?? ""; ?>"></td>
                                                     <td><input type="number" name="specs[<?php echo $index; ?>][max_buy]" class="layui-input" value="<?php echo $spec["max_buy"] ?? ""; ?>" placeholder=""></td>
                                                     <td><input type="radio" name="specs[is_default]" lay-skin="primary" value="<?php echo $index; ?>" <?php echo $spec['is_default'] ? 'checked' : ''; ?>></td>
-                                                    <td>
+                                                    <td><input type="number" step="1" min="0" name="specs[<?php echo $index; ?>][sold_count]" class="layui-input" value="<?php echo (int) ($spec['sold_count'] ?? 0); ?>" placeholder="0" title="前台展示销量"></td>
+                                                    <td class="spec-col-actions">
                                                         <!-- 隐藏字段承载 configs JSON（images/level_prices/user_prices），弹窗保存时会回写 -->
                                                         <input type="hidden" class="spec-configs" name="specs[<?php echo $index; ?>][configs]" value='<?php echo $esc($specConfigsJson); ?>'>
                                                         <div class="spec-actions">
@@ -270,6 +273,7 @@ include __DIR__ . '/header.php';
                                 </div>
                                 <button type="button" class="layui-btn layui-btn-sm" id="addSpecBtn"><i class="fa fa-plus"></i> 添加规格</button>
                                 <button type="button" class="layui-btn layui-btn-sm layui-btn-normal" id="specHelpBtn"><i class="fa fa-info"></i> 查看设置教程</button>
+                                <span class="layui-word-aux" style="margin-left:8px;">销量为前台展示值，可手动调高；用户下单完成后会在该值上累加真实销量。</span>
                             </div>
                         </div>
                     </div>
@@ -789,7 +793,10 @@ div.image-preview-list.has-images { display: block; }
 .extra-fields-table th:nth-child(2), .extra-fields-table td:nth-child(2) {
     text-align: left;
 }
-.spec-table td:last-child, .extra-fields-table td:last-child, .discount-table td:last-child {
+.extra-fields-table td:last-child, .discount-table td:last-child {
+    text-align: center !important;
+}
+.spec-table td.spec-col-actions {
     text-align: center !important;
 }
 .spec-table .layui-input:not([type="radio"]):not([type="checkbox"]),
@@ -814,10 +821,29 @@ div.image-preview-list.has-images { display: block; }
 .spec-table .layui-form-radio{ padding-right: 0; margin-right: 0; }
 .spec-table .layui-form-radio i{ padding-right: 0; margin-right: 0; }
 /* 表格横向滚动 */
-.spec-table-wrap { overflow-x: auto; margin-bottom: 10px; }
+.spec-table-wrap { overflow-x: auto; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
 .spec-table-wrap::-webkit-scrollbar { height: 6px; }
 .spec-table-wrap::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
 .spec-table-wrap::-webkit-scrollbar-track { background: #f0f0f0; }
+/* 规格表操作列：横向滚动时固定在右侧 */
+.spec-table th.spec-col-actions,
+.spec-table td.spec-col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    min-width: 140px !important;
+    width: 140px;
+    background: #fff;
+    border-left: 1px solid #ebeef5;
+    box-shadow: -6px 0 8px -4px rgba(0, 0, 0, 0.08);
+}
+.spec-table thead th.spec-col-actions {
+    z-index: 3;
+    background: #fafafa;
+}
+.spec-table tbody tr:hover td.spec-col-actions {
+    background: #f8f8f8;
+}
 
 /* 拖拽手柄 */
 .drag-handle {
@@ -1148,7 +1174,7 @@ $(function() {
         // ============================================================
         // 规格行操作列（4 个图标按钮 + 隐藏 configs JSON 字段）的模板，新增/重建时复用
         function specActionsCellHtml(idx) {
-            return '<td>' +
+            return '<td class="spec-col-actions">' +
                 '<input type="hidden" class="spec-configs" name="specs[' + idx + '][configs]" value="{}">' +
                 '<div class="spec-actions">' +
                     '<button type="button" class="spec-action-btn" data-action="levelPrice" title="用户等级专属价"><i class="fa fa-id-badge"></i></button>' +
@@ -1172,6 +1198,7 @@ $(function() {
                 '<td><input type="number" name="specs[' + idx + '][min_buy]" class="layui-input" value=""></td>' +
                 '<td><input type="number" name="specs[' + idx + '][max_buy]" class="layui-input" value="" placeholder=""></td>' +
                 '<td><input type="radio" name="specs[is_default]" lay-skin="primary" value="' + idx + '"></td>' +
+                '<td><input type="number" step="1" min="0" name="specs[' + idx + '][sold_count]" class="layui-input" value="0" placeholder="0" title="前台展示销量"></td>' +
                 specActionsCellHtml(idx) +
                 '</tr>';
             $('#specList').append(html);
@@ -1574,7 +1601,8 @@ $(function() {
                     '<td><input type="number" name="specs[' + idx + '][min_buy]" class="layui-input" value="' + esc(minBuy) + '"></td>' +
                     '<td><input type="number" name="specs[' + idx + '][max_buy]" class="layui-input" value="' + esc(maxBuy) + '" placeholder="0不限"></td>' +
                     '<td><input type="radio" name="specs[is_default]" lay-skin="primary" value="' + idx + '"' + (spec.is_default == 1 ? ' checked' : '') + '></td>' +
-                    '<td>' +
+                    '<td><input type="number" step="1" min="0" name="specs[' + idx + '][sold_count]" class="layui-input" value="' + esc(spec.sold_count || 0) + '" placeholder="0" title="前台展示销量"></td>' +
+                    '<td class="spec-col-actions">' +
                         '<input type="hidden" class="spec-configs" name="specs[' + idx + '][configs]" value="' + esc(configsStr) + '">' +
                         '<div class="spec-actions">' +
                             '<button type="button" class="spec-action-btn" data-action="levelPrice" title="用户等级专属价"><i class="fa fa-id-badge"></i></button>' +

@@ -518,6 +518,7 @@ class OrderModel
                     } else {
                         RebateService::settleOrder($orderId);
                     }
+                    UserExperienceService::onOrderCompleted($orderId);
                 } elseif ($newStatus === 'refunded') {
                     if ($merchantId > 0) {
                         MerchantLedgerService::refundOrder($orderId);
@@ -528,8 +529,8 @@ class OrderModel
             } catch (Throwable $e) {
                 self::writeSystemLog(
                     'warning',
-                    '订单结算/回滚失败',
-                    '状态变更成功，但后置结算或回滚失败',
+                    '订单后置处理失败',
+                    '状态变更成功，但结算/经验/回滚等后置处理失败',
                     [
                         'order_id' => $orderId,
                         'status' => $newStatus,

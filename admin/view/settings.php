@@ -547,18 +547,27 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                     </div>
 
                     <div class="admin-settings__block">
-                        <div class="admin-settings__block-title"><i class="fa fa-star-o"></i>积分与资源</div>
+                        <div class="admin-settings__block-title"><i class="fa fa-star-o"></i>经验与资源</div>
 
                         <div class="layui-form-item">
-                            <label class="layui-form-label">积分名称</label>
+                            <label class="layui-form-label">经验名称</label>
                             <div class="layui-input-block">
-                                <?php echo formInput('user_credit_name', $cfg['user_credit_name'] ?? '积分', ''); ?>
+                                <?php echo formInput('user_credit_name', $cfg['user_credit_name'] ?? '经验', ''); ?>
+                                <div class="layui-form-mid layui-word-aux">前台展示用名称</div>
                             </div>
                         </div>
                         <div class="layui-form-item">
-                            <label class="layui-form-label">注册初始积分</label>
+                            <label class="layui-form-label">注册初始经验</label>
                             <div class="layui-input-block">
-                                <?php echo formInput('user_credit_initial', $cfg['user_credit_initial'] ?? '100', ''); ?>
+                                <?php echo formInput('user_credit_initial', $cfg['user_credit_initial'] ?? '0', ''); ?>
+                                <div class="layui-form-mid layui-word-aux">用户注册成功后赠送的整数经验值，0 表示不赠送</div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">消费赠经验</label>
+                            <div class="layui-input-block">
+                                <?php echo formInput('user_exp_per_yuan', $cfg['user_exp_per_yuan'] ?? '0', ''); ?>
+                                <div class="layui-form-mid layui-word-aux">订单完成时，每实付 1 元（整元）赠送的经验值，0 表示不赠送；与累计消费一并结算</div>
                             </div>
                         </div>
                     </div>
