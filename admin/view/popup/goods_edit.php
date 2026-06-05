@@ -278,13 +278,13 @@ include __DIR__ . '/header.php';
                     </div>
                 </div>
 
-                <!-- ========== Tab 3: 详细内容 ========== -->
+                <!-- ========== Tab 3: 详细内容 ========== --> 
                 <div class="layui-tab-item">
                     <div class="popup-section">
                     <div class="layui-form-item">
                         <label class="layui-form-label">商品简介</label>
                         <div class="layui-input-block">
-                            <textarea name="intro" id="editor-1" placeholder="简短描述" class="layui-textarea"><?php echo $isEdit ? $esc($goods['intro']) : ''; ?></textarea>
+                            <textarea name="intro" id="intro-textarea" placeholder="简短描述" class="layui-textarea"><?php echo $isEdit ? $esc($goods['intro']) : ''; ?></textarea>
                         </div>
                     </div>
                     <div class="layui-form-item" style="margin-bottom:0;">
@@ -932,7 +932,6 @@ $(function() {
             context: 'goods_image',
             onCsrf: function(token) { csrfToken = token; }, 
             editors: [
-                { selector: '#editor-1', height: 300, placeholder: '请输入商品简介...' },
                 { selector: '#editor-2', height: 450, placeholder: '请输入商品详情...' }
             ]
         });
