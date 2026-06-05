@@ -1,7 +1,7 @@
 (function ($) {
     'use strict';
 
-    /**
+    /** 
      * 高亮当前菜单项
      * 根据 URL 匹配侧栏菜单，设置 is-active 状态并展开对应父级
      * @param {string} url - 当前页面 URL
@@ -328,8 +328,12 @@
             }
         });
 
-        // Pjax loading 效果
+        // Pjax loading 效果；切换前销毁内容区 TinyMCE，避免重复实例/孤儿编辑器
         $(document).on('pjax:send', function () {
+            window._emTinymcePjaxGen = (window._emTinymcePjaxGen || 0) + 1;
+            if (typeof window.emTinymceDestroyIn === 'function') {
+                window.emTinymceDestroyIn('#adminContent');
+            }
             $('#adminContent').addClass('is-loading');
         });
 
@@ -351,6 +355,12 @@
             if (typeof layui !== 'undefined' && layui.form) {
                 layui.form.render();
             }
+            // PJAX 注入后重算 TinyMCE 尺寸
+            setTimeout(function () {
+                if (typeof window.emTinymceResize === 'function') {
+                    window.emTinymceResize();
+                }
+            }, 80);
             // 设置页选项卡高亮：基于当前 URL 参数（只影响带 data-tab 的 em-tabs，
             // 避免误清掉其它页面里 em-tabs 的激活态，如 goods 列表的 data-sale）
             var urlParams = new URLSearchParams(window.location.search);

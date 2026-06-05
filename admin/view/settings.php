@@ -237,18 +237,8 @@ function formRadio(string $name, array $options, string $selected = ''): string 
 .em-checkbox span i { margin-right: 4px; color: #9ca3af; }
 .em-checkbox:has(input:checked) span i { color: #4338ca; }
 
-/* 店铺公告富文本编辑器外框 */
-.shop-announce-editor {
-    border: 1px solid #d4d7dc; border-radius: 6px;
-    background: #fff; overflow: hidden; max-width: 920px;
-}
-.shop-announce-editor__toolbar {
-    border-bottom: 1px solid #e5e7eb;
-    background: #fafbfc;
-}
-.shop-announce-editor__body { min-height: 240px; }
-.shop-announce-editor__body [data-slate-editor] { min-height: 240px; }
-.shop-announce-editor__body .w-e-text-container { min-height: 240px !important; background: #fff; }
+/* 店铺公告富文本 */
+#shopAnnouncementTextarea { max-width: 920px; }
 </style>
 
 <div class="admin-page admin-settings">
@@ -414,8 +404,8 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <button type="submit" class="em-btn em-save-btn"><i class="fa fa-check"></i>保存设置</button>
                     </div>
                 </form>
-            </div>
-            <?php endif; ?>
+            </div> 
+            <?php endif; ?> 
 
             <?php /* ==================== 安全设置 ==================== */ ?>
             <?php if ($currentTab === 'security'): ?>
@@ -676,18 +666,14 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         </div>
                     </div>
 
-                    <!-- 店铺公告（WangEditor 富文本，会显示在前台） -->
+                    <!-- 店铺公告（TinyMCE 富文本，会显示在前台） -->
                     <div class="admin-settings__block">
                         <div class="admin-settings__block-title"><i class="fa fa-bullhorn"></i>店铺公告</div>
 
                         <div class="layui-form-item">
                             <label class="layui-form-label">公告内容</label>
                             <div class="layui-input-block">
-                                <textarea name="shop_announcement" id="shopAnnouncementTextarea" style="display:none;"><?= htmlspecialchars((string) ($cfg['shop_announcement'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
-                                <div class="shop-announce-editor">
-                                    <div id="shopAnnouncementToolbar" class="shop-announce-editor__toolbar"></div>
-                                    <div id="shopAnnouncementEditor"  class="shop-announce-editor__body"></div>
-                                </div>
+                                <textarea name="shop_announcement" id="shopAnnouncementTextarea" class="layui-textarea"><?= htmlspecialchars((string) ($cfg['shop_announcement'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
                                 <div class="layui-form-mid layui-word-aux">富文本 HTML，会按下方"显示位置"在前台展示</div>
                             </div>
                         </div>
@@ -725,73 +711,24 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <button type="submit" class="em-btn em-save-btn"><i class="fa fa-check"></i>保存设置</button>
                     </div>
                 </form>
-            </div>
-
-            <!-- WangEditor 资源 + 初始化（仅 shop tab 用到；PJAX 切换时浏览器会复用已缓存的资源） -->
-            <link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">
-            <script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
+            </div> 
+ 
+            <!-- 店铺公告 TinyMCE 初始化 -->
             <script>
             (function () {
-                'use strict';
-                // 防止 PJAX 多次加载这块 view 时重复初始化（每次清掉旧实例后重建）
-                if (window._shopAnnouncementEditor) {
-                    try { window._shopAnnouncementEditor.destroy(); } catch (e) {}
-                    window._shopAnnouncementEditor = null;
+                if (typeof window.emTinymceInit !== 'function') {
+                    return;
                 }
-
-                function init() {
-                    var $ta = $('#shopAnnouncementTextarea');
-                    if (!$ta.length) return;
-                    if (typeof window.wangEditor === 'undefined') {
-                        // 资源还没加载完，下一帧重试
-                        setTimeout(init, 50);
-                        return;
-                    }
-                    var initial = $ta.val() || '';
-                    try {
-                        var E = window.wangEditor;
-                        var editor = E.createEditor({
-                            selector: '#shopAnnouncementEditor',
-                            html: initial || '<p><br></p>',
-                            mode: 'default',
-                            config: {
-                                placeholder: '在这里输入店铺公告，支持图文混排…',
-                                onChange: function (ed) {
-                                    $ta.val(ed.getHtml());
-                                },
-                                MENU_CONF: {
-                                    uploadImage: window.emEditorUploadImageConf({
-                                        server: '/admin/upload.php',
-                                        data: {
-                                            csrf_token: $('input[name="csrf_token"]').first().val() || '',
-                                            context: 'announce_image',
-                                        },
-                                        onCsrf: function (token) {
-                                            $('input[name="csrf_token"]').val(token);
-                                        },
-                                    }),
-                                }
-                            }
-                        });
-                        E.createToolbar({
-                            editor: editor,
-                            selector: '#shopAnnouncementToolbar',
-                            mode: 'simple',
-                            config: {}
-                        });
-                        window._shopAnnouncementEditor = editor;
-                        // 点击空白区聚焦输入区
-                        $('#shopAnnouncementEditor').on('click', function (e) {
-                            if (e.target === this || $(e.target).hasClass('w-e-text-container') || $(e.target).hasClass('w-e-scroll')) {
-                                editor.focus(true);
-                            }
-                        });
-                    } catch (e) {
-                        console.error('店铺公告富文本初始化失败:', e);
-                        $('.shop-announce-editor').replaceWith('<div style="color:#ef4444;padding:10px;border:1px solid #fecaca;border-radius:6px;">富文本编辑器加载失败，请刷新页面重试</div>');
-                    }
-                }
-                init();
+                window.emTinymceInit({
+                    context: 'announce_image',
+                    editors: [
+                        {
+                            selector: '#shopAnnouncementTextarea',
+                            height: 300,
+                            placeholder: '在这里输入店铺公告，支持图文混排…'
+                        }
+                    ]
+                }).catch(function () {});
             })();
             </script>
             <?php endif; ?>
@@ -1289,6 +1226,8 @@ function formRadio(string $name, array $options, string $selected = ''): string 
         } else {
             $btn.prop('disabled', true).text('保存中...');
         }
+
+        window.emTinymceSave();
 
         $.ajax({
             url: '/admin/settings.php',

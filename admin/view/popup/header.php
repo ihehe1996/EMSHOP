@@ -31,8 +31,11 @@ if (!defined('EM_ROOT')) {
     // 库存保存 URL（商品类型插件在 stock_form.php 里使用；主站默认指向 /admin/goods_edit.php，商户端覆盖到自己的控制器）
     window.STOCK_SAVE_URL    = <?php echo json_encode($popupStockSaveUrl    ?? '/admin/goods_edit.php?_action=save_stock', JSON_UNESCAPED_SLASHES); ?>;
     </script>
+
+<script src="/content/static/lib/tinymce/tinymce.min.js"></script>
+    <script src="/admin/static/js/em-tinymce.js"></script> 
     <?php if (isset($extraHead)) echo $extraHead; ?>
-</head>
+</head> 
 <body class="popup-body">
 <div class="popup-wrap" id="popupWrap">
     <div class="popup-content" id="popupContent">

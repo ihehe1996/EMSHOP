@@ -1,12 +1,9 @@
 <?php
-if (!defined('EM_ROOT')) {
-    exit('Access Denied');
-}
+if (!defined('EM_ROOT')) exit('Access Denied');
+
 $csrfToken = Csrf::token();
 $isEdit = isset($editCat) && $editCat !== null;
 
-// 分类级返佣配置（JSON）。未设置 = null（表单显示空）；0 = 明确不返佣。
-// DB 存万分位（500 = 5%），前端按百分比展示（/100）。
 $rebateCat = null;
 if ($isEdit && !empty($editCat['rebate_config'])) {
     $rebateCat = json_decode((string) $editCat['rebate_config'], true) ?: null;
@@ -21,10 +18,11 @@ $esc = function (string $str) use (&$esc): string {
 };
 include __DIR__ . '/header.php';
 ?>
-
+<style>
+.cat-edit-content > .layui-tab-item { padding: 0; }
+</style>
 <div class="popup-inner">
     <form class="layui-form" id="catForm" lay-filter="catForm">
-        <input type="hidden" name="_action" value="<?php echo $isEdit ? 'update' : 'create'; ?>">
         <input type="hidden" name="csrf_token" value="<?php echo $esc($csrfToken); ?>">
         <input type="hidden" name="id" value="<?php echo $isEdit ? $esc((string) $editCat['id']) : ''; ?>">
 
@@ -196,10 +194,7 @@ include __DIR__ . '/header.php';
     <button type="button" class="em-btn em-save-btn" id="catSubmitBtn"><i class="fa fa-check"></i>确认保存</button>
 </div>
 
-<style>
-/* 选项卡内的 layui-tab-item 去掉默认 padding（和 goods_edit.php 做法一致） */
-.cat-edit-content > .layui-tab-item { padding: 0; }
-</style>
+
 
 <script>
 $(function () {
@@ -449,7 +444,7 @@ $(function () {
             $btn.prop('disabled', true).addClass('is-loading');
 
             $.ajax({
-                url: '/admin/goods_category.php',
+                url: '/admin/goods_category.php?action=<?php echo $isEdit ? "edit" : "add"; ?>',
                 type: 'POST',
                 data: $('#catForm').serialize(),
                 dataType: 'json',

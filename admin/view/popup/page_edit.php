@@ -5,8 +5,6 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $isEdit = isset($pageRow) && !empty($pageRow);
 $pageTitle = $isEdit ? '编辑页面' : '添加页面';
-$extraHead = '<link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">' . "\n";
-$extraHead .= '<script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
@@ -14,7 +12,7 @@ $esc = function (?string $str): string {
 include __DIR__ . '/header.php';
 ?>
 
-<div class="popup-inner">
+<div class="popup-inner"> 
     <form class="layui-form" id="pageForm" lay-filter="pageForm">
         <input type="hidden" name="_action" value="save">
         <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
@@ -56,16 +54,12 @@ include __DIR__ . '/header.php';
                 </div>
             </div>
 
-            <!-- ========== Tab 2: 页面内容（富文本，复用博客同款 WangEditor） ========== -->
+            <!-- ========== Tab 2: 页面内容 ========== -->
             <div class="layui-tab-item">
                 <div class="popup-section">
                     <div class="layui-form-item">
                         <div class="layui-input-block" style="margin-left:0;">
-                            <textarea name="content" id="editor-textarea" style="display:none;"><?= $isEdit ? $esc($pageRow['content']) : '' ?></textarea>
-                            <div id="editor-wrapper" style="border:1px solid #e6e6e6;border-radius:4px;overflow:hidden;">
-                                <div id="toolbar-container" style="border-bottom:1px solid #e6e6e6;"></div>
-                                <div id="editor-container" style="min-height:360px;"></div>
-                            </div>
+                            <textarea name="content" id="editor-content" class="layui-textarea"><?= $isEdit ? $esc($pageRow['content']) : '' ?></textarea>
                         </div>
                     </div>
                 </div>
@@ -141,10 +135,6 @@ include __DIR__ . '/header.php';
 
 <style>
 .page-edit-content > .layui-tab-item { padding: 0; }
-/* WangEditor v5 最小高度修复 */
-#editor-container { min-height: 360px; background: #fff; }
-#editor-container [data-slate-editor] { min-height: 360px; }
-#editor-container .w-e-text-container { min-height: 360px !important; }
 </style>
 
 <script>
@@ -175,56 +165,15 @@ $(function () {
             $('#slugPreview').text(v || 'your-slug');
         });
 
-        // ============================================================
-        // 富文本编辑器（WangEditor v5，和博客模块同款）
-        // ============================================================
-        (function () {
-            var $textarea = $('#editor-textarea');
-            var initialContent = $textarea.val() || '';
-
-            var editorConfig = {
-                placeholder: '输入页面内容…（支持贴 HTML）',
-                onChange: function (editor) {
-                    $textarea.val(editor.getHtml());
-                },
-                MENU_CONF: {
-                    uploadImage: window.emEditorUploadImageConf({
-                        server: '/admin/upload.php',
-                        data: { csrf_token: csrfToken, context: 'page_image' },
-                        onCsrf: function (token) {
-                            csrfToken = token;
-                            $('input[name="csrf_token"]').val(csrfToken);
-                        },
-                    }),
-                }
-            };
-
-            try {
-                var E = window.wangEditor;
-                var editor = E.createEditor({
-                    selector: '#editor-container',
-                    html: initialContent || '<p><br></p>',
-                    config: editorConfig,
-                    mode: 'default'
-                });
-                E.createToolbar({
-                    editor: editor,
-                    selector: '#toolbar-container',
-                    config: {},
-                    mode: 'simple'
-                });
-                window._pageEditor = editor;
-
-                $('#editor-container').on('click', function (e) {
-                    if (e.target === this || $(e.target).hasClass('w-e-text-container') || $(e.target).hasClass('w-e-scroll')) {
-                        editor.focus(true);
-                    }
-                });
-            } catch (e) {
-                console.error('富文本编辑器初始化失败:', e);
-                $('#editor-wrapper').html('<div style="color:#f00;padding:10px;">富文本编辑器加载失败，请刷新页面重试</div>');
-            }
-        })();
+        // 富文本编辑器（封装见 /admin/static/js/em-tinymce.js）
+        window.emTinymceInit({
+            context: 'page_image',
+            onCsrf: function(token) { csrfToken = token; },
+            editors: [
+                { selector: '#editor-content', height: 450, placeholder: '输入页面内容…（支持贴 HTML）' }
+            ]
+        });
+        window.emTinymceBindTabResize({ tabs: '#pageEditTabs', tabIndex: 1 });
 
         // 取消
         $('#pageCancelBtn').on('click', function () {
@@ -237,6 +186,8 @@ $(function () {
             var $btn = $(this);
             $btn.find('i').attr('class', 'fa fa-refresh admin-spin');
             $btn.prop('disabled', true).addClass('is-loading');
+
+            window.emTinymceSave();
 
             $.ajax({
                 url: '/admin/page_edit.php',

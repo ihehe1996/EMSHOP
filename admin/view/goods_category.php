@@ -70,7 +70,6 @@ $(function(){
             url: '/admin/goods_category.php',
             headers: {csrf: csrfToken},
             method: 'POST',
-            where: {_action: 'list'},
             toolbar: '#catToolbarTpl',
             defaultToolbar: [],
             page: false,
@@ -140,7 +139,7 @@ $(function(){
             var cnt = (st && st.data) ? st.data.length : 0;
             var $btn = $('#catBatchDelBtn');
             if (cnt > 0) {
-                $btn.removeClass('em-disabled-btn').html('<i class="fa fa-trash"></i>批量删除（' + cnt + '）');
+                $btn.removeClass('em-disabled-btn').html('<i class="fa fa-trash"></i>批量删除');
             } else {
                 $btn.addClass('em-disabled-btn').html('<i class="fa fa-trash"></i>批量删除');
             }
@@ -157,10 +156,10 @@ $(function(){
 
             layer.confirm('确认删除 ' + rows.length + ' 个分类？<br><span style="color:#9ca3af;font-size:12px;">' + names + '</span>', function (idx) {
                 $.ajax({
-                    url: '/admin/goods_category.php',
+                    url: '/admin/goods_category.php?action=batch_delete',
                     type: 'POST',
                     dataType: 'json',
-                    data: { csrf_token: csrfToken, _action: 'batch_delete', ids: ids },
+                    data: { csrf_token: csrfToken, ids: ids },
                     success: function (res) {
                         if (res.code === 200) {
                             csrfToken = res.data && res.data.csrf_token ? res.data.csrf_token : csrfToken;
@@ -198,10 +197,10 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除分类「' + data.name + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/goods_category.php',
+                            url: '/admin/goods_category.php?action=delete',
                             type: 'POST',
                             dataType: 'json',
-                            data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
+                            data: {csrf_token: csrfToken, id: data.id},
                             success: function (res) {
                                 if (res.code === 200) {
                                     csrfToken = res.data && res.data.csrf_token ? res.data.csrf_token : csrfToken;

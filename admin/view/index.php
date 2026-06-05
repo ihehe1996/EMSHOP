@@ -22,6 +22,12 @@ $csrfToken = Csrf::token();
     <link rel="stylesheet" href="/admin/static/css/style.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+
+    <script src="/content/static/lib/tinymce/tinymce.min.js"></script> 
+    <script src="/admin/static/js/em-editor-upload.js"></script>
+    <script src="/admin/static/js/em-tinymce.js"></script>
+ 
+
     <style>
     /* ================ 授权服务器线路切换（toolbar 全局）================ */
     .admin-line-switch { position: relative; }

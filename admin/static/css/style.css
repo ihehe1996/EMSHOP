@@ -1,26 +1,13 @@
-/* ============================================================
- * 后台通用样式（跨页面复用的小组件放这里，避免塞进 admin.css）
- * 引入：admin/view/index.php 头部
- * ============================================================ */
-
-/* ============================================================
- * em-btn：通用按钮基类（尺寸 / 布局 / 交互动效 / 禁用态）
- * 色系通过变体类覆盖：em-save-btn / em-green-btn / em-reset-btn
- * 用法：<button class="em-btn em-save-btn"><i class="fa fa-check mr-5"></i>保存设置</button>
- * Loading 态只切图标不动文字：
- *   $btn.find('i').attr('class', 'fa fa-refresh admin-spin mr-5');
- *   $btn.addClass('is-loading').prop('disabled', true);
- * ============================================================ */
 .em-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     height: 32px;
     line-height: 32px;
-    padding: 0 14px;
-    gap: 7px;
-    border: none;
-    border-radius: 6px;
+    padding: 0 12px;
+    gap: 5px;
+    border: 0;
+    border-radius: 5px;
     font-size: 13px;
     font-weight: 500;
     white-space: nowrap;

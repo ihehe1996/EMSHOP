@@ -37,5 +37,4 @@ define('HOMEPAGE_MODE', Config::get('homepage_mode', 'mall'));
 Dispatcher::getInstance()->dispatch();
 
 // 页面渲染：根据请求类型（普通/PJAX/AJAX）输出完整页面
-View::getInstance()->output();
-
+View::getInstance()->output(); 
