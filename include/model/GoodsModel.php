@@ -661,7 +661,11 @@ class GoodsModel
         // min_price / max_price 已被 getById 转为前端值，克隆时需还原为 DB 值
         $moneyFields = ['min_price', 'max_price'];
         foreach ($old as $key => $value) {
-            if (!in_array($key, $skipFields)) {
+            // 过滤运行期注入的虚拟字段（如 _shop_markup_rate），避免写入不存在的表列
+            if (strpos((string) $key, '_') === 0) {
+                continue;
+            }
+            if (!in_array($key, $skipFields, true)) { 
                 if (in_array($key, $moneyFields)) {
                     $newData[$key] = self::moneyToDb($value);
                 } else {
