@@ -7,11 +7,10 @@ $isEdit = isset($goods) && !empty($goods);
 $placeholderImg = EM_CONFIG['placeholder_img'] ?? '/content/static/img/placeholder.png';
 $coverImages = $isEdit && !empty($goods['cover_images']) ? json_decode($goods['cover_images'], true) : [];
 $pageTitle = $isEdit ? '编辑商品' : '添加商品';
-$extraHead = '<link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">' . "\n";
-$extraHead .= '<script src="/content/static/lib/wangeditor/index.min.js"></script>';
+$popupTemplateUploadUrl = '/user/merchant/upload.php';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
-};
+}; 
 
 // 解析 configs JSON（附加选项、营销配置）
 $goodsConfigs = [];
@@ -269,17 +268,13 @@ include EM_ROOT . '/admin/view/popup/header.php';
                     <div class="layui-form-item">
                         <label class="layui-form-label">商品简介</label>
                         <div class="layui-input-block">
-                            <textarea name="intro" placeholder="简短描述" class="layui-textarea"><?php echo $isEdit ? $esc($goods['intro']) : ''; ?></textarea>
+                            <textarea name="intro" id="editor-1" placeholder="简短描述" class="layui-textarea"><?php echo $isEdit ? $esc($goods['intro']) : ''; ?></textarea>
                         </div>
                     </div>
                     <div class="layui-form-item" style="margin-bottom:0;">
                         <label class="layui-form-label">商品详情</label>
                         <div class="layui-input-block">
-                            <div id="editor-wrapper">
-                                <div id="toolbar-container"></div>
-                                <div id="editor-container"></div>
-                            </div>
-                            <textarea name="content" id="editor-textarea" style="display:none;"><?php echo $isEdit ? $esc($goods['content']) : ''; ?></textarea>
+                            <textarea name="content" id="editor-2" placeholder="商品详情内容" class="layui-textarea"><?php echo $isEdit ? $esc($goods['content']) : ''; ?></textarea>
                         </div>
                     </div>
                     </div>
@@ -516,18 +511,6 @@ include EM_ROOT . '/admin/view/popup/header.php';
     color: #fff;
 }
 
-/* 富文本编辑器边框 */
-#editor-wrapper {
-    border: 1px solid #e6e6e6;
-    border-radius: 4px;
-    background: #fff;
-    overflow: hidden;
-}
-#toolbar-container { border-bottom: 1px solid #e6e6e6; }
-#editor-container { min-height: 200px; background: #fff; }
-#editor-container [data-slate-editor] { min-height: 200px; }
-#editor-container .w-e-text-container { min-height: 200px !important; }
-
 /* 图片预览列表间距 & 无图时隐藏 */
 .image-preview-list { margin-top: 8px; display: none; }
 div.image-preview-list.has-images { display: block; }
@@ -667,61 +650,16 @@ $(function() {
         var $coverInput = $('#coverImagesInput');
         var placeholderImg = <?php echo json_encode($placeholderImg); ?>;
 
-        // ============================================================
-        // 富文本编辑器初始化（WangEditor v5）
-        // ============================================================
-        (function() {
-            var $editorTextarea = $('#editor-textarea');
-            var initialContent = $editorTextarea.val() || '';
-
-            var editorConfig = {
-                placeholder: '请输入商品详情...',
-                onChange: function(editor) {
-                    $editorTextarea.val(editor.getHtml());
-                },
-                MENU_CONF: {
-                    uploadImage: window.emEditorUploadImageConf({
-                        server: '/user/merchant/upload.php',
-                        data: {
-                            csrf_token: csrfToken,
-                            context: 'goods_image',
-                        },
-                        onCsrf: function (token) {
-                            csrfToken = token;
-                            $('input[name="csrf_token"]').val(csrfToken);
-                        },
-                    }),
-                },
-            };
-
-            try {
-                var E = window.wangEditor;
-                var editor = E.createEditor({
-                    selector: '#editor-container',
-                    html: initialContent || '<p><br></p>',
-                    config: editorConfig,
-                    mode: 'default',
-                });
-
-                E.createToolbar({
-                    editor: editor,
-                    selector: '#toolbar-container',
-                    config: {},
-                    mode: 'simple',
-                });
-
-                window._goodsEditor = editor;
-
-                $('#editor-container').on('click', function(e) {
-                    if (e.target === this || $(e.target).hasClass('w-e-text-container') || $(e.target).hasClass('w-e-scroll')) {
-                        editor.focus(true);
-                    }
-                });
-            } catch (e) {
-                console.error('富文本编辑器初始化失败:', e);
-                $('#editor-wrapper').html('<div style="color:#f00;padding:10px;">富文本编辑器加载失败，请刷新页面重试</div>');
-            }
-        })();
+        // 富文本编辑器（封装见 /admin/static/js/em-tinymce.js）
+        window.emTinymceInit({
+            context: 'goods_image',
+            onCsrf: function(token) { csrfToken = token; },
+            editors: [
+                { selector: '#editor-1', height: 300, placeholder: '请输入商品简介...' },
+                { selector: '#editor-2', height: 450, placeholder: '请输入商品详情...' }
+            ]
+        });
+        window.emTinymceBindTabResize({ tabs: '.goods-tab', itemSelector: '.layui-tab-title>li', tabIndex: 2 });
 
         // ============================================================
         // 图片相关
@@ -1223,6 +1161,7 @@ $(function() {
             $btn.find('i').attr('class', 'fa fa-refresh admin-spin mr-5');
             $btn.prop('disabled', true);
 
+            window.emTinymceSave();
             var formData = $('#goodsForm').serialize();
 
             $.ajax({

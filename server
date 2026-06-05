@@ -3,19 +3,10 @@
 declare(strict_types=1);
 
 
-; if (version_compare(PHP_VERSION, '8.0', '<')) {
-;     echo "需要 PHP 8.0 或更高版本，当前为 " . PHP_VERSION . "。\n";
-;     exit(1);
-; }
-
 if (!extension_loaded('swoole')) {
-    echo "无法启动，PHP v" . PHP_VERSION . " 版本缺少 Swoole 扩展！\n";
+    echo "无法启动，PHP cli版本：" . PHP_VERSION . " 版本缺少 Swoole 扩展！\n";
     exit(1);
 }
-
-
-
-
 
 
 /**
@@ -28,9 +19,6 @@ if (!extension_loaded('swoole')) {
  * - 经典模式 task_enable_coroutine=false：on('Task', $server, $taskId, $srcWorkerId, $data)
  * - 协程模式（若开启）：on('Task', $server, Task $task)
  * - 结束任务：优先 $server->finish()（Swoole 4 标准），其次 $task->finish()
- *
- * 用法：
- * php server start|stop|status|reload
  */
 
 define('EM_ROOT', __DIR__);
@@ -423,73 +411,14 @@ $server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) 
 
 });
 
-// 监控 API（供后台页面调用）
-$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server, &$startTime) {
+// 保留 HTTP request 事件，避免删除后导致 HTTP 服务器事件未注册。
+$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
     $response->header('Content-Type', 'application/json; charset=utf-8');
-    $response->header('Access-Control-Allow-Origin', '*');
-
-    $path = $request->server['request_uri'] ?? '/';
-
-    switch ($path) {
-        case '/status':
-            $swooleStats = $server->stats();
-            $prefix = Database::prefix();
-
-            $queueStats = Database::fetchOne(
-                "SELECT COUNT(*) as total,
-                    SUM(status='pending') as pending, SUM(status='processing') as processing,
-                    SUM(status='success') as success, SUM(status='failed') as failed
-                 FROM {$prefix}delivery_queue"
-            );
-
-            $response->end(json_encode([
-                'code' => 200,
-                'data' => [
-                    'running'     => true,
-                    'pid'         => $server->master_pid,
-                    'uptime'      => time() - $startTime,
-                    'workers'     => $swooleStats['worker_num'] ?? 0,
-                    'connections' => $swooleStats['connection_num'] ?? 0,
-                    'queue'       => [
-                        'total'      => (int) ($queueStats['total'] ?? 0),
-                        'pending'    => (int) ($queueStats['pending'] ?? 0),
-                        'processing' => (int) ($queueStats['processing'] ?? 0),
-                        'success'    => (int) ($queueStats['success'] ?? 0),
-                        'failed'     => (int) ($queueStats['failed'] ?? 0),
-                    ],
-                ],
-            ], JSON_UNESCAPED_UNICODE));
-            break;
-
-        case '/queue/recent':
-            $prefix = Database::prefix();
-            $rows = Database::query(
-                "SELECT id, order_id, task_type, goods_type, status, attempts, max_attempts, last_error, created_at, completed_at
-                 FROM {$prefix}delivery_queue ORDER BY id DESC LIMIT 20"
-            );
-            $response->end(json_encode(['code' => 200, 'data' => $rows], JSON_UNESCAPED_UNICODE));
-            break;
-
-        case '/queue/retry':
-            if ($request->server['request_method'] !== 'POST') {
-                $response->end(json_encode(['code' => 400, 'msg' => 'POST only']));
-                break;
-            }
-            $id = (int) ($request->post['id'] ?? 0);
-            if ($id > 0) {
-                $prefix = Database::prefix();
-                Database::execute(
-                    "UPDATE {$prefix}delivery_queue SET status='pending', attempts=0, last_error=NULL, next_retry_at=NULL WHERE id=? AND status='failed'",
-                    [$id]
-                );
-            }
-            $response->end(json_encode(['code' => 200, 'msg' => '已重置']));
-            break;
-
-        default:
-            $response->end(json_encode(['code' => 404, 'msg' => 'Not Found']));
-    }
+    $response->status(404);
+    $response->end(json_encode(['code' => 404, 'msg' => 'Not Found'], JSON_UNESCAPED_UNICODE));
 });
+
+
 
 try {
     $server->start();
@@ -505,13 +434,11 @@ try {
  * @return array{host: string, port: int, requested_port: int}
  */
 function resolveSwooleListenAddress(array $argv): array
-{
+{ 
     $cli = parseCliListenOptions($argv);
     $host = $cli['host'] !== '' ? $cli['host'] : SW_DEFAULT_HOST;
     $requestedPort = $cli['port'];
-    if ($requestedPort <= 0) {
-        $requestedPort = readSwoolePortFromDbConfig();
-    }
+    
     if ($requestedPort <= 0) {
         $requestedPort = SW_DEFAULT_PORT;
     }
@@ -590,81 +517,8 @@ function canBindTcpPort(string $host, int $port): bool
     return true;
 }
 
-/**
- * 从配置表读取 swoole_api_url 并解析端口。
- */
-function readSwoolePortFromDbConfig(): int
-{
-    $cfgFile = EM_ROOT . '/config.php';
-    if (!is_file($cfgFile)) {
-        return 0;
-    }
 
-    $cfg = require $cfgFile;
-    if (!is_array($cfg) || !isset($cfg['db']) || !is_array($cfg['db'])) {
-        return 0;
-    }
 
-    $db = $cfg['db'];
-    $host = (string) ($db['host'] ?? '');
-    $port = (int) ($db['port'] ?? 3306);
-    $name = (string) ($db['dbname'] ?? '');
-    $user = (string) ($db['username'] ?? '');
-    $pass = (string) ($db['password'] ?? '');
-    $charset = (string) ($db['charset'] ?? 'utf8mb4');
-    $prefixRaw = (string) ($db['prefix'] ?? 'em_');
-    $prefix = preg_match('/^[a-zA-Z0-9_]+$/', $prefixRaw) ? $prefixRaw : 'em_';
-    if ($host === '' || $name === '' || $user === '' || $port < 1 || $port > 65535) {
-        return 0;
-    }
-
-    $url = '';
-    $sql = "SELECT `config_value` FROM `{$prefix}config` WHERE `config_name`='swoole_api_url' LIMIT 1";
-
-    try {
-        if (extension_loaded('mysqli')) {
-            $conn = @new mysqli($host, $user, $pass, $name, $port);
-            if (!$conn->connect_errno) {
-                @mysqli_set_charset($conn, $charset);
-                $res = @$conn->query($sql);
-                if ($res instanceof mysqli_result) {
-                    $row = $res->fetch_assoc();
-                    $url = trim((string) ($row['config_value'] ?? ''));
-                    $res->free();
-                }
-                @$conn->close();
-            }
-        } elseif (extension_loaded('pdo_mysql')) {
-            $dsn = 'mysql:host=' . $host . ';port=' . $port . ';dbname=' . $name . ';charset=' . $charset;
-            $pdo = new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
-            $row = $pdo->query($sql)->fetch();
-            $url = trim((string) ($row['config_value'] ?? ''));
-        }
-    } catch (Throwable $e) {
-        return 0;
-    }
-
-    return parsePortFromApiUrl($url);
-}
-
-/**
- * 从 API URL 解析端口。
- */
-function parsePortFromApiUrl(string $url): int
-{
-    if ($url === '' || !preg_match('#^https?://#i', $url)) {
-        return 0;
-    }
-    $parts = @parse_url($url);
-    if (!is_array($parts)) {
-        return 0;
-    }
-    $port = (int) ($parts['port'] ?? 0);
-    return ($port >= 1 && $port <= 65535) ? $port : 0;
-}
 
 /**
  * 读取 PID 文件，返回进程 ID。

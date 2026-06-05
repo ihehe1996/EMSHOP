@@ -46,7 +46,6 @@ final class InstallService
             ['config_name' => 'site_logo_type', 'config_value' => 'text', 'description' => 'Logo 显示方式'],
             ['config_name' => 'homepage_mode', 'config_value' => 'mall', 'description' => '首页入口'],
             ['config_name' => 'site_timezone', 'config_value' => 'Asia/Shanghai', 'description' => '服务器时区'],
-            ['config_name' => 'swoole_api_url', 'config_value' => 'http://127.0.0.1:9601', 'description' => 'Swoole API 地址'],
             ['config_name' => 'url_format', 'config_value' => 'default', 'description' => '链接格式'],
             ['config_name' => 'user_register', 'config_value' => '1', 'description' => '开放注册'],
             ['config_name' => 'user_credit_name', 'config_value' => '经验', 'description' => '前台经验名称展示'],

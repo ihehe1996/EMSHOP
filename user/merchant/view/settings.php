@@ -12,13 +12,14 @@ $esc = function (string $s): string {
 };
 $allowSubdomain = (int) ($merchantLevel['allow_subdomain'] ?? 0) === 1;
 $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
+$csrfTokenJson = json_encode($csrfToken, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 ?>
 <div class="mc-page">
     <div class="mc-page-header">
         <h2 class="mc-page-title">店铺设置</h2>
         <p class="mc-page-desc">店铺信息 / 域名绑定</p>
     </div>
-
+ 
     <!-- 基本信息 -->
     <div class="mc-settings-card">
         <div class="mc-settings-card__title"><i class="fa fa-info-circle"></i> 基本信息</div>
@@ -65,11 +66,7 @@ $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
             <!-- 店铺公告（富文本，按本店独立存）+ 显示位置多选 -->
             <div class="mc-field">
                 <label class="mc-field__label">店铺公告</label>
-                <textarea name="announcement" id="mcAnnouncementTextarea" style="display:none;"><?= htmlspecialchars((string) ($currentMerchant['announcement'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
-                <div class="mc-announce-editor">
-                    <div id="mcAnnouncementToolbar" class="mc-announce-editor__toolbar"></div>
-                    <div id="mcAnnouncementEditor"  class="mc-announce-editor__body"></div>
-                </div>
+                <textarea name="announcement" id="mcAnnouncementTextarea" class="mc-input mc-input--textarea"><?= htmlspecialchars((string) ($currentMerchant['announcement'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
                 <div class="mc-field__hint">本店公告（富文本，独立于主站）；下方勾选要展示的位置即可生效</div>
             </div>
 
@@ -256,17 +253,6 @@ $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
 .mc-badge--success { background:#ecfdf5; color:#059669; }
 .mc-badge--pending { background:#f3f4f6; color:#6b7280; }
 
-/* 公告富文本 */
-.mc-announce-editor {
-    border:1px solid #d4d7dc; border-radius:6px;
-    background:#fff; overflow:hidden;
-}
-.mc-announce-editor:focus-within { border-color:#5b8def; }
-.mc-announce-editor__toolbar { border-bottom:1px solid #e5e7eb; background:#fafbfc; }
-.mc-announce-editor__body { min-height:200px; }
-.mc-announce-editor__body [data-slate-editor] { min-height:200px; }
-.mc-announce-editor__body .w-e-text-container { min-height:200px !important; background:#fff; }
-
 /* 显示位置 checkbox group —— 卡片式胶囊按钮 */
 .mc-checkbox-group { display:flex; gap:10px; flex-wrap:wrap; }
 .mc-checkbox {
@@ -283,16 +269,13 @@ $allowCustom = (int) ($merchantLevel['allow_custom_domain'] ?? 0) === 1;
 .mc-checkbox:has(input:checked) span i { color:#4338ca; }
 </style>
 
-<!-- WangEditor 资源（PJAX 切回时浏览器复用缓存）-->
-
-<link rel="stylesheet" href="https://unpkg.com/@wangeditor/editor@latest/dist/css/style.css">
-<script src="https://unpkg.com/@wangeditor/editor@latest/dist/index.js"></script>
-<script src="/admin/static/js/em-editor-upload.js"></script>
+<script src="/content/static/lib/tinymce/tinymce.min.js"></script>
+<script src="/admin/static/js/em-tinymce.js"></script>
 
 <script>
 $(function(){
     'use strict';
-    var csrfToken = <?php echo json_encode($csrfToken); ?>;
+    var csrfToken = <?php echo $csrfTokenJson; ?>;
 
     layui.use(['layer'], function () {
         var layer = layui.layer;
@@ -321,50 +304,21 @@ $(function(){
             });
         }
 
-        // 公告富文本初始化（PJAX 多次进入时清掉旧实例后重建）
-        if (window._mcAnnouncementEditor) {
-            try { window._mcAnnouncementEditor.destroy(); } catch (e) {}
-            window._mcAnnouncementEditor = null;
-        }
-        (function initAnnounceEditor() {
-            var $ta = $('#mcAnnouncementTextarea');
-            if (!$ta.length) return;
-            if (typeof window.wangEditor === 'undefined') { setTimeout(initAnnounceEditor, 50); return; }
-            try {
-                var E = window.wangEditor;
-                var editor = E.createEditor({
-                    selector: '#mcAnnouncementEditor',
-                    html: $ta.val() || '<p><br></p>',
-                    mode: 'default',
-                    config: {
-                        placeholder: '在这里输入店铺公告，支持图文混排…',
-                        onChange: function (ed) { $ta.val(ed.getHtml()); },
-                        MENU_CONF: {
-                            uploadImage: window.emEditorUploadImageConf({
-                                server: '/user/merchant/upload.php',
-                                data: { csrf_token: csrfToken, context: 'announce_image' },
-                                onCsrf: function (token) {
-                                    csrfToken = token;
-                                    $('input[name="csrf_token"]').val(csrfToken);
-                                },
-                            }),
-                        }
-                    }
-                });
-                E.createToolbar({ editor: editor, selector: '#mcAnnouncementToolbar', mode: 'simple', config: {} });
-                window._mcAnnouncementEditor = editor;
-                $('#mcAnnouncementEditor').on('click', function (e) {
-                    if (e.target === this || $(e.target).hasClass('w-e-text-container') || $(e.target).hasClass('w-e-scroll')) {
-                        editor.focus(true);
-                    }
-                });
-            } catch (e) {
-                console.error('店铺公告富文本初始化失败:', e);
-                $('.mc-announce-editor').replaceWith('<div style="color:#ef4444;padding:10px;border:1px solid #fecaca;border-radius:6px;">富文本编辑器加载失败，请刷新页面重试</div>');
-            }
-        })();
+        // 店铺公告富文本（TinyMCE）
+        window.emTinymceInit({
+            context: 'announce_image',
+            uploadUrl: '/user/merchant/upload.php',
+            onCsrf: function (token) {
+                csrfToken = token;
+                $('input[name="csrf_token"]').val(csrfToken);
+            },
+            editors: [
+                { selector: '#mcAnnouncementTextarea', height: 320, placeholder: '在这里输入店铺公告，支持图文混排...' }
+            ]
+        });
 
         $('#mcProfileSubmit').on('click', function () {
+            window.emTinymceSave();
             submitForm('#mcProfileForm', $(this), '<i class="fa fa-check"></i> 保存基本信息');
         });
         $('#mcDomainSubmit').on('click', function () {

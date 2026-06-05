@@ -8,15 +8,14 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $isEdit = isset($pageRow) && !empty($pageRow);
 $pageTitle = $isEdit ? '编辑页面' : '新建页面';
-$extraHead = '<link rel="stylesheet" href="/content/static/lib/wangeditor/style.min.css">' . "\n";
-$extraHead .= '<script src="/content/static/lib/wangeditor/index.min.js"></script>';
+$popupTemplateUploadUrl = '/user/merchant/upload.php';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
 
 include EM_ROOT . '/admin/view/popup/header.php';
 ?>
-
+ 
 <div class="popup-inner">
     <form class="layui-form" id="mcPageForm" lay-filter="mcPageForm">
         <input type="hidden" name="_action" value="save">
@@ -59,11 +58,7 @@ include EM_ROOT . '/admin/view/popup/header.php';
                 <div class="popup-section">
                     <div class="layui-form-item">
                         <div class="layui-input-block" style="margin-left:0;">
-                            <textarea name="content" id="editor-textarea" style="display:none;"><?= $isEdit ? $esc($pageRow['content'] ?? '') : '' ?></textarea>
-                            <div id="editor-wrapper" style="border:1px solid #e6e6e6;border-radius:4px;overflow:hidden;">
-                                <div id="toolbar-container" style="border-bottom:1px solid #e6e6e6;"></div>
-                                <div id="editor-container" style="min-height:360px;"></div>
-                            </div>
+                            <textarea name="content" id="editor-1" placeholder="页面正文内容" class="layui-textarea"><?= $isEdit ? $esc($pageRow['content'] ?? '') : '' ?></textarea>
                         </div>
                     </div>
                 </div>
@@ -137,9 +132,6 @@ include EM_ROOT . '/admin/view/popup/header.php';
 
 <style>
 .page-edit-content > .layui-tab-item { padding: 0; }
-#editor-container { min-height: 360px; background: #fff; }
-#editor-container [data-slate-editor] { min-height: 360px; }
-#editor-container .w-e-text-container { min-height: 360px !important; }
 </style>
 
 <script>
@@ -168,50 +160,18 @@ $(function () {
             $('#slugPreview').text(v || 'your-slug');
         });
 
-        // 富文本编辑器
-        (function () {
-            var $textarea = $('#editor-textarea');
-            var initialContent = $textarea.val() || '';
-
-            try {
-                var E = window.wangEditor;
-                var editor = E.createEditor({
-                    selector: '#editor-container',
-                    html: initialContent || '<p><br></p>',
-                    config: {
-                        placeholder: '输入页面内容…',
-                        onChange: function (ed) { $textarea.val(ed.getHtml()); },
-                        MENU_CONF: {
-                            uploadImage: window.emEditorUploadImageConf({
-                                server: '/user/merchant/upload.php',
-                                data: { csrf_token: csrfToken, context: 'page_image' },
-                                onCsrf: function (token) {
-                                    csrfToken = token;
-                                    $('input[name="csrf_token"]').val(csrfToken);
-                                },
-                            }),
-                        }
-                    },
-                    mode: 'default'
-                });
-                E.createToolbar({
-                    editor: editor,
-                    selector: '#toolbar-container',
-                    config: {},
-                    mode: 'simple'
-                });
-                window._mcPageEditor = editor;
-
-                $('#editor-container').on('click', function (e) {
-                    if (e.target === this || $(e.target).hasClass('w-e-text-container') || $(e.target).hasClass('w-e-scroll')) {
-                        editor.focus(true);
-                    }
-                });
-            } catch (e) {
-                console.error('富文本编辑器初始化失败:', e);
-                $('#editor-wrapper').html('<div style="color:#f00;padding:10px;">富文本编辑器加载失败，请刷新页面重试</div>');
-            }
-        })();
+        // 富文本编辑器（TinyMCE）
+        window.emTinymceInit({
+            context: 'page_image',
+            onCsrf: function (token) {
+                csrfToken = token;
+                $('input[name="csrf_token"]').val(csrfToken);
+            },
+            editors: [
+                { selector: '#editor-1', height: 520, placeholder: '输入页面内容...' }
+            ]
+        });
+        window.emTinymceBindTabResize({ tabs: '#mcPageEditTabs', tabIndex: 1 });
 
         $('#mcPageCancelBtn').on('click', function () {
             var index = parent.layer.getFrameIndex(window.name);
@@ -223,6 +183,7 @@ $(function () {
             $btn.find('i').attr('class', 'fa fa-refresh admin-spin');
             $btn.prop('disabled', true).addClass('is-loading');
 
+            window.emTinymceSave();
             $.ajax({
                 url: '/user/merchant/page_edit.php',
                 type: 'POST',
