@@ -536,8 +536,11 @@ final class Database
                 (int) $config['port']
             );
         } catch (Throwable $e) {
+            if (PHP_SAPI === 'cli') {
+                throw new RuntimeException('数据库连接失败：' . $e->getMessage(), 0, $e);
+            }
             Emmsg::error('数据库连接失败', $e);
-        }
+        }  
 
         $mysqli->set_charset((string) $config['charset']);
 

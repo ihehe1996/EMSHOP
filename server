@@ -123,6 +123,17 @@ if ($command === 'start') {
         echo "检测到EMSHOP Swoole 服务（PID {$runningPid}）已在运行中！\n";
         exit(0);
     }
+    try {
+        // 启动前先初始化并验证数据库可用性，失败则直接退出等待守护进程重试。
+        require EM_ROOT . '/init.php';
+        Config::reload();
+        swooleServiceLog("数据库连接成功，准备启动 Swoole");
+    } catch (Throwable $e) {
+        swooleServiceLog("启动失败：数据库未就绪，" . $e->getMessage());
+        echo "数据库未就绪，退出进程，等待重试\n";
+        sleep(5); // 守护进程有重试次数限制
+        exit(1);
+    } 
 }
 
 // 监听地址优先级：CLI 参数 > 数据库配置 > 默认值
