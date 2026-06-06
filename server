@@ -32,6 +32,7 @@ define('SW_RUNTIME_DIR', EM_ROOT . '/content/swoole');
 define('SW_PID_FILE', SW_RUNTIME_DIR . '/swoole.pid');
 define('SW_LOG_FILE', SW_RUNTIME_DIR . '/swoole.log');
 define('SW_HEARTBEAT_FILE', SW_RUNTIME_DIR . '/swoole.heartbeat');
+define('SW_START_LOCK_FILE', SW_RUNTIME_DIR . '/swoole.start.lock');
 define('SW_QUEUE_INTERVAL', 2);
 define('SW_TIMER_INTERVAL', 60);
 define('SW_HEARTBEAT_INTERVAL', 5);
@@ -44,7 +45,7 @@ define('SW_TASK_DST_GOODS', 1);
 define('SW_GOODS_SYNC_BATCH_SIZE', 30);
 define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
 define('SW_GOODS_SYNC_LOCK_STALE_SECONDS', 1800);
-
+ 
 /**
  * 服务生命周期与异常日志（中文），追加写入 swoole.log。
  */
@@ -111,8 +112,12 @@ function ensureSwooleRuntimeDir(): void
 
 ensureSwooleRuntimeDir();
 
+/** @var resource|null $__swStartLockFp */
+$__swStartLockFp = null;
+
 // 启动时先判断是否已有主进程，再做端口探测，避免「端口被占→换端口」的提示实际来自当前实例监听端口而产生误导
 if ($command === 'start') {
+    $__swStartLockFp = acquireSwooleStartLock();
     $runningPid = getPid(SW_PID_FILE);
     if ($runningPid > 0 && posix_kill($runningPid, 0)) {
         echo "检测到EMSHOP Swoole 服务（PID {$runningPid}）已在运行中！\n";
@@ -529,6 +534,30 @@ function getPid(string $pidFile): int
         return 0;
     }
     return (int) file_get_contents($pidFile);
+}
+
+/**
+ * 获取 start 命令互斥锁，避免并发重复启动。
+ *
+ * @return resource
+ */
+function acquireSwooleStartLock()
+{
+    $fp = @fopen(SW_START_LOCK_FILE, 'c+');
+    if ($fp === false) {
+        echo "无法打开启动锁文件：" . SW_START_LOCK_FILE . "\n";
+        exit(1);
+    }
+
+    if (!@flock($fp, LOCK_EX | LOCK_NB)) {
+        echo "检测到另一个启动进程正在执行，已阻止重复启动。（如果刚刚关闭进程，请等待1~5分钟后再尝试启动）\n";
+        exit(1);
+    }
+
+    @ftruncate($fp, 0);
+    @fwrite($fp, (string) getmypid());
+    @fflush($fp);
+    return $fp;
 }
 
 /**

@@ -536,7 +536,7 @@ final class Database
                 (int) $config['port']
             );
         } catch (Throwable $e) {
-            Emmsg::error('数据库连接失败', $e, true);
+            Emmsg::error('数据库连接失败', $e);
         }
 
         $mysqli->set_charset((string) $config['charset']);
