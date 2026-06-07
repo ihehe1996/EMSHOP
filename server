@@ -2,24 +2,11 @@
 
 declare(strict_types=1);
 
-
+// 1. 检查是否安装swoole扩展
 if (!extension_loaded('swoole')) {
     echo "无法启动，PHP cli版本：" . PHP_VERSION . " 版本缺少 Swoole 扩展！\n";
     exit(1);
 }
-
-
-/**
- * EMSHOP Swoole 入口：
- * - HTTP 状态接口
- * - 发货队列消费
- * - 定时任务调度
- *
- * Task 回调兼容（必须支持 Swoole 4.x）：
- * - 经典模式 task_enable_coroutine=false：on('Task', $server, $taskId, $srcWorkerId, $data)
- * - 协程模式（若开启）：on('Task', $server, Task $task)
- * - 结束任务：优先 $server->finish()（Swoole 4 标准），其次 $task->finish()
- */
 
 define('EM_ROOT', __DIR__);
 
@@ -33,180 +20,47 @@ define('SW_PID_FILE', SW_RUNTIME_DIR . '/swoole.pid');
 define('SW_LOG_FILE', SW_RUNTIME_DIR . '/swoole.log');
 define('SW_HEARTBEAT_FILE', SW_RUNTIME_DIR . '/swoole.heartbeat');
 define('SW_START_LOCK_FILE', SW_RUNTIME_DIR . '/swoole.start.lock');
-define('SW_QUEUE_INTERVAL', 2);
-define('SW_TIMER_INTERVAL', 60);
-define('SW_HEARTBEAT_INTERVAL', 5);
-/** Task 进程数：主定时、商品同步（发货队列仍在 Worker#0 同步消费，避免 Task 未就绪时不发货） */
-define('SW_TASK_WORKER_NUM', 2);
 define('SW_TASK_JOB_MAIN', 'main_timer');
 define('SW_TASK_JOB_GOODS', 'goods_sync');
 define('SW_TASK_DST_MAIN', 0);
 define('SW_TASK_DST_GOODS', 1);
 define('SW_GOODS_SYNC_BATCH_SIZE', 30);
 define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
-define('SW_GOODS_SYNC_LOCK_STALE_SECONDS', 1800);
  
-/**
- * 服务生命周期与异常日志（中文），追加写入 swoole.log。
- */
-function swooleServiceLog(string $message): void
-{
-    $line = '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
-    @file_put_contents(SW_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
-}
-
-/** PHP 7.x / Swoole 4 环境无 str_contains 时的兼容 */
-function swooleStrContains(string $haystack, string $needle): bool
-{
-    if ($needle === '') {
-        return true;
-    }
-    return strpos($haystack, $needle) !== false;
-}
-
-/** 当前 Swoole 扩展版本号，如 4.8.13 → 40813 */
-function swooleExtVersionId(): int
-{
-    $raw = defined('SWOOLE_VERSION') ? (string) SWOOLE_VERSION : (string) (function_exists('swoole_version') ? swoole_version() : '0');
-    if (!preg_match('/(\d+)\.(\d+)\.(\d+)/', $raw, $m)) {
-        return 0;
-    }
-    return (int) $m[1] * 10000 + (int) $m[2] * 100 + (int) $m[3];
-}
-
-$swooleExtVerId = swooleExtVersionId();
-if ($swooleExtVerId > 0 && $swooleExtVerId < 40000) {
-    echo "需要 Swoole 4.0 或更高版本，当前为 " . (defined('SWOOLE_VERSION') ? SWOOLE_VERSION : 'unknown') . "。\n";
-    exit(1);
-}
-
-/**
- * 将 task() 传入的 data 规范为数组（Swoole 4 一般为数组，少数为 JSON 字符串）。
- *
- * @return array<string, mixed>
- */
-function swooleNormalizeTaskPayload($data): array
-{
-    if (is_array($data)) {
-        return $data;
-    }
-    if (is_string($data) && $data !== '') {
-        $decoded = json_decode($data, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-    }
-    return [];
-}
-
-/**
- * 确保 Swoole 运行时目录存在（pid/log/heartbeat）。
- */
-function ensureSwooleRuntimeDir(): void
-{
-    if (is_dir(SW_RUNTIME_DIR)) {
-        return;
-    }
+// 确保存在swoole的运行目录
+if (!is_dir(SW_RUNTIME_DIR)) {
     @mkdir(SW_RUNTIME_DIR, 0755, true);
 }
 
-ensureSwooleRuntimeDir();
-
-/** @var resource|null $__swStartLockFp */
+// 启动锁文件
 $__swStartLockFp = null;
 
-// 启动时先判断是否已有主进程，再做端口探测，避免「端口被占→换端口」的提示实际来自当前实例监听端口而产生误导
-if ($command === 'start') {
-    $__swStartLockFp = acquireSwooleStartLock();
-    $runningPid = getPid(SW_PID_FILE);
-    if ($runningPid > 0 && posix_kill($runningPid, 0)) {
-        echo "检测到EMSHOP Swoole 服务（PID {$runningPid}）已在运行中！\n";
-        exit(0);
-    }
-    try {
-        // 启动前先初始化并验证数据库可用性，失败则直接退出等待守护进程重试。
-        require EM_ROOT . '/init.php';
-        Config::reload();
-        swooleServiceLog("数据库连接成功，准备启动 Swoole");
-    } catch (Throwable $e) {
-        swooleServiceLog("启动失败：数据库未就绪，" . $e->getMessage());
-        echo "数据库未就绪，退出进程，等待重试\n";
-        sleep(5); // 守护进程有重试次数限制
-        exit(1);
-    } 
-}
+// 2. 启动前准备（锁、pid检查、MySQL探测、命令分支）
+$listen = prepareStartEnvironment($command, $argv ?? [], $__swStartLockFp);
 
-// 监听地址优先级：CLI 参数 > 数据库配置 > 默认值
-$listen = ['host' => SW_DEFAULT_HOST, 'port' => SW_DEFAULT_PORT, 'requested_port' => SW_DEFAULT_PORT];
-if ($command === 'start') {
-    $listen = resolveSwooleListenAddress($argv ?? []);
-}
 define('SW_HOST', $listen['host']);
 define('SW_PORT', $listen['port']);
 
-if ($command === 'start') {
-    $requestedPort = (int) ($listen['requested_port'] ?? SW_PORT);
-    if ($requestedPort > 0 && $requestedPort !== SW_PORT) {
-        echo "端口 {$requestedPort} 已被占用，自动切换到空闲端口 " . SW_PORT . "\n";
-    }
-}
+// 提示端口自动回退信息
+announcePortFallbackIfNeeded($command, $listen);
+// 处理生命周期命令
+handleLifecycleCommand($command);
 
-switch ($command) {
-    case 'stop':
-        $pid = getPid(SW_PID_FILE);
-        if ($pid && posix_kill($pid, 0)) {
-            posix_kill($pid, SIGTERM);
-            swooleServiceLog("停止：已向主进程发送退出信号（PID {$pid}）");
-            echo "已向主进程发送停止信号（PID {$pid}），服务即将退出。\n";
-        } else {
-            swooleServiceLog('停止：当前没有正在运行的 Swoole 主进程');
-            echo "当前没有正在运行的 Swoole 服务。\n";
-        }
-        exit(0);
-
-    case 'status':
-        $pid = getPid(SW_PID_FILE);
-        if ($pid && posix_kill($pid, 0)) {
-            echo "Swoole 服务正在运行（主进程 PID：{$pid}）\n";
-        } else {
-            echo "Swoole 服务未在运行。\n";
-        }
-        exit(0);
-
-    case 'reload':
-        $pid = getPid(SW_PID_FILE);
-        if ($pid && posix_kill($pid, 0)) {
-            posix_kill($pid, SIGUSR1);
-            swooleServiceLog("重载：已向主进程发送平滑重载信号（SIGUSR1，PID {$pid}）");
-            echo "已发送平滑重载信号（PID {$pid}）。\n";
-        } else {
-            swooleServiceLog('重载失败：没有正在运行的主进程，无法重载');
-            echo "服务未在运行，无法重载。\n";
-            exit(1);
-        }
-        exit(0);
-
-    case 'start':
-        break;
-
-    default:
-        echo "用法：php server {start|stop|status|reload}\n";
-        exit(1);
-}
-
+// 3. 创建swoole服务
 try {
     $server = new Swoole\Http\Server(SW_HOST, SW_PORT);
 } catch (Throwable $e) {
     swooleServiceLog('启动失败：无法创建监听，' . $e->getMessage());
     fwrite(STDERR, '启动失败：' . $e->getMessage() . "\n");
-    exit(1);
+    exit(1); 
 }
 
+// 设置swoole服务配置
 $server->set([
     // Worker 进程数（worker#0 注册定时器、消费发货队列；worker#1 处理 HTTP）
     'worker_num'      => 2,
     // 独立 Task 进程：主定时、商品同步（与 worker#0 心跳/发货队列并行；变更后需 stop+start）
-    'task_worker_num' => SW_TASK_WORKER_NUM,
+    'task_worker_num' => 2,
     // 强制经典 Task 回调（Swoole 4 默认形态；避免仅收到 taskId 导致解析失败）
     'task_enable_coroutine' => false,
     // 由 Supervisor/systemd 托管时应保持前台运行，避免双重守护
@@ -223,18 +77,22 @@ $server->set([
     'max_wait_time'   => 60,
 ]);
 
-$startTime = time();
 $swooleTaskInFlight = [
     SW_TASK_JOB_MAIN => false,
     SW_TASK_JOB_GOODS => false,
 ];
 
-$server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
+// 4. 注册生命周期回调
+/**
+ * 生命周期：start
+ * 触发时机：主进程启动完成并开始监听后。
+ */
+$server->on('start', function (Swoole\Http\Server $server) {
     // 升级包可在根目录放置空文件 `.server`，表示需硬重启；仅主进程 Start 时清理（reload 不会触发本回调）
     $dotServer = EM_ROOT . '/.server';
     if (is_file($dotServer)) {
         @unlink($dotServer);
-        swooleServiceLog('已移除升级标记文件 .server（主进程启动后清理）');
+        swooleServiceLog('已移除升级标记文件 .server');
     }
     $swoole_version = defined('SWOOLE_VERSION') ? SWOOLE_VERSION : (function_exists('swoole_version') ? swoole_version() : phpversion('swoole'));
     swooleServiceLog("启动：服务已开始监听 " . SW_HOST . ':' . SW_PORT . '，主进程 PID ' . $server->master_pid);
@@ -243,26 +101,103 @@ $server->on('start', function (Swoole\Http\Server $server) use (&$startTime) {
     echo "监听地址：" . SW_HOST . ':' . SW_PORT . "；主进程 PID {$server->master_pid}\n";
     echo "PHP cli版本：" . PHP_VERSION . '；Swoole扩展版本：' . $swoole_version . "（兼容 4.x 经典 Task）\n";
     echo "========================================\n";
-    $startTime = time();
+}); 
+
+/**
+ * 生命周期：workerStart
+ * 触发时机：每个 worker / task_worker 进程启动时。
+ */
+$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$swooleTaskInFlight) {
+    
+    // 加载初始化文件
+    require EM_ROOT . '/init.php';
+
+    // 如果workerId大于HTTP进程数，则返回
+    if ($workerId >= $server->setting['worker_num'] ) {
+        // Task 进程：仅加载 init，实际逻辑由 on('Task') 触发
+        return;
+    }
+
+    // 只接收第一个进程任务，其他进程不处理
+    if ($workerId !== 0) {
+        // worker#1 仅处理 HTTP，请求分流与 worker#0 隔离。
+        return;
+    }
+
+    // 注册worker#0的定时器
+    registerWorkerZeroTimers($server, 0, $swooleTaskInFlight);
 });
 
+/**
+ * 生命周期：request
+ * 触发时机：收到 HTTP 请求时（由 worker 处理）。
+ */
+$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
+    $response->header('Content-Type', 'application/json; charset=utf-8');
+    $response->status(404);
+    $response->end(json_encode(['code' => 404, 'msg' => 'Not Found'], JSON_UNESCAPED_UNICODE));
+});
+
+/**
+ * 生命周期：task
+ * 触发时机：task_worker 收到投递任务时。
+ */
+$server->on('Task', function (Swoole\Http\Server $server, ...$args) {
+    $parsed = swooleParseTaskCallback($args);
+    $payload = $parsed['payload'];
+    $taskHandle = $parsed['task_handle'];
+    $job = (string) ($payload['job'] ?? '');
+    try {
+        switch ($job) {
+            case SW_TASK_JOB_MAIN:
+                runOrderTimeoutChecks(); // 订单超时检查
+                runOrderPollingTasks(); // 钩子：订单轮询任务
+                break;
+            case SW_TASK_JOB_GOODS:
+                runGoodsSyncTasks(); // 商品同步任务
+                break;
+        }
+    } catch (Throwable $e) {
+        if ($job === SW_TASK_JOB_MAIN) {
+            echo "主定时任务执行失败，" . $e->getMessage() . "\n";
+        } elseif ($job === SW_TASK_JOB_GOODS) {
+            swooleServiceLog('异常：商品同步 Task，' . $e->getMessage());
+        }
+    } finally {
+        swooleFinishTask($server, $taskHandle, $job);
+    }
+});
+
+/**
+ * 生命周期：finish
+ * 触发时机：task 执行完成后回调到 worker。
+ */
+$server->on('Finish', function (Swoole\Http\Server $server, ...$args) use (&$swooleTaskInFlight) {
+    // Swoole 4/5/6 均为 ($server, $taskId, $data)
+    $data = $args[1] ?? '';
+    $job = is_string($data) ? $data : '';
+    if ($job !== '' && array_key_exists($job, $swooleTaskInFlight)) {
+        $swooleTaskInFlight[$job] = false;
+    }
+});
+
+/**
+ * 生命周期：shutdown
+ * 触发时机：Swoole 主进程退出时。
+ */
 $server->on('Shutdown', function () {
     swooleServiceLog('关闭：Swoole 主进程已退出');
 });
 
-/** 向指定 Task 进程投递任务；若上一轮同类型任务未完成则跳过，避免堆积 */
-function swooleDispatchTask(Swoole\Http\Server $server, string $job, int $dstWorkerId, array &$taskInFlight): void
-{
-    if ($taskInFlight[$job] ?? false) {
-        return;
-    }
-    $taskId = $server->task(['job' => $job], $dstWorkerId);
-    if ($taskId === false) {
-        swooleServiceLog("警告：Task 投递失败（job={$job}），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
-        return;
-    }
-    $taskInFlight[$job] = true;
+
+// 5. 启动Swoole服务，主进程
+try {
+    $server->start(); // 开始触发workerStart
+} catch (Throwable $e) {
+    echo "EMSHOP Swoole 服务启动失败：" . $e->getMessage() . "\n";
+    exit(1);
 }
+
 
 /**
  * Task 进程内结束任务并回传 Finish（Swoole 4 必须走 $server->finish）。
@@ -317,131 +252,54 @@ function swooleParseTaskCallback(array $args): array
     ];
 }
 
-$server->on('Task', function (Swoole\Http\Server $server, ...$args) {
-    $parsed = swooleParseTaskCallback($args);
-    $payload = $parsed['payload'];
-    $taskHandle = $parsed['task_handle'];
-    $job = (string) ($payload['job'] ?? '');
-    try {
-        switch ($job) {
-            case SW_TASK_JOB_MAIN:
-                runOrderTimeoutChecks();
-                runOrderPollingTasks();
-                break;
-            case SW_TASK_JOB_GOODS:
-                runGoodsSyncTasks();
-                break;
-        }
-    } catch (Throwable $e) {
-        if ($job === SW_TASK_JOB_MAIN) {
-            echo "主定时任务执行失败，" . $e->getMessage() . "\n";
-        } elseif ($job === SW_TASK_JOB_GOODS) {
-            swooleServiceLog('异常：商品同步 Task，' . $e->getMessage());
-        }
-    } finally {
-        swooleFinishTask($server, $taskHandle, $job);
-    }
-});
-
-$server->on('Finish', function (Swoole\Http\Server $server, ...$args) use (&$swooleTaskInFlight) {
-    // Swoole 4/5/6 均为 ($server, $taskId, $data)
-    $data = $args[1] ?? '';
-    $job = is_string($data) ? $data : '';
-    if ($job !== '' && array_key_exists($job, $swooleTaskInFlight)) {
-        $swooleTaskInFlight[$job] = false;
-    }
-});
-
-$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$swooleTaskInFlight) {
-
-    // WSL 下可通过网关访问 Windows 主机上的 MySQL
-    if (PHP_OS_FAMILY === 'Linux' && is_file('/proc/version') && swooleStrContains((string) file_get_contents('/proc/version'), 'microsoft')) {
-        $gwIp = trim(shell_exec("ip route show default 2>/dev/null | awk '{print \$3}'") ?: '');
-        if ($gwIp !== '') {
-            putenv("EM_DB_HOST={$gwIp}");
-        }
-    }
-
-    require EM_ROOT . '/init.php';
-
-    $httpWorkerNum = (int) ($server->setting['worker_num'] ?? 2);
-    if ($workerId >= $httpWorkerNum) {
-        // Task 进程：仅加载 init，实际逻辑由 on('Task') 触发
-        return;
-    }
-
-    if ($workerId !== 0) {
-        return;
-    }
-
-    @touch(SW_HEARTBEAT_FILE);
-
-    Config::reload();
-    $bootCodeVersion = (string) (Config::get('swoole_code_version') ?? '');
-
-    // 插件可在该钩子内注册自定义 timer
-    try {
-        doAction('swoole_worker_start', $server, $workerId);
-    } catch (Throwable $e) {
-    }
-
-    // 心跳最先注册且仅在 worker#0 同步执行，不被 Task 阻塞
-    Swoole\Timer::tick(SW_HEARTBEAT_INTERVAL * 1000, function () {
-        @touch(SW_HEARTBEAT_FILE);
-    });
-
-    Swoole\Timer::tick(SW_QUEUE_INTERVAL * 1000, function () {
-        try {
-            processQueue();
-        } catch (Throwable $e) {
-            swooleServiceLog('异常：发货队列 processQueue，' . $e->getMessage());
-        }
-    });
-
-    // 主定时器：版本检查与 reload 留在 worker#0；重任务投递到 Task 进程
-    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use ($server, $bootCodeVersion, &$swooleTaskInFlight) {
-        try {
-            Config::reload();
-            if (runSwooleFileVersionReloadCheck($server)) {
-                return;
-            }
-            $current = (string) (Config::get('swoole_code_version') ?? '');
-            if ($current !== '' && $current !== $bootCodeVersion) {
-                echo "检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），正在触发热更新\n";
-                if (!$server->reload()) {
-                    echo "热更新失败（代码版本 {$bootCodeVersion} → {$current}）\n";
-                    return;
-                }
-                echo "热更新成功（代码版本 {$bootCodeVersion} → {$current}）\n";
-                return;
-            }
-            swooleDispatchTask($server, SW_TASK_JOB_MAIN, SW_TASK_DST_MAIN, $swooleTaskInFlight);
-        } catch (Throwable $e) {
-            echo "主定时调度失败，" . $e->getMessage() . "\n";
-        }
-    });
-
-    Swoole\Timer::tick(SW_TIMER_INTERVAL * 1000, function () use ($server, &$swooleTaskInFlight) {
-        swooleDispatchTask($server, SW_TASK_JOB_GOODS, SW_TASK_DST_GOODS, $swooleTaskInFlight);
-    });
-
-});
-
-// 保留 HTTP request 事件，避免删除后导致 HTTP 服务器事件未注册。
-$server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
-    $response->header('Content-Type', 'application/json; charset=utf-8');
-    $response->status(404);
-    $response->end(json_encode(['code' => 404, 'msg' => 'Not Found'], JSON_UNESCAPED_UNICODE));
-});
-
-
-
-try {
-    $server->start();
-} catch (Throwable $e) {
-    echo "EMSHOP Swoole 服务启动失败：" . $e->getMessage() . "\n";
-    exit(1);
+/**
+ * 服务生命周期与异常日志（中文），追加写入 swoole.log。
+ */
+function swooleServiceLog(string $message): void
+{
+    $line = '[' . date('Y-m-d H:i:s') . '] ' . $message . "\n";
+    @file_put_contents(SW_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
 }
+
+/** PHP 7.x / Swoole 4 环境无 str_contains 时的兼容 */
+function swooleStrContains(string $haystack, string $needle): bool
+{
+    if ($needle === '') {
+        return true;
+    }
+    return strpos($haystack, $needle) !== false;
+}
+
+/** 当前 Swoole 扩展版本号，如 4.8.13 → 40813 */
+function swooleExtVersionId(): int
+{
+    $raw = defined('SWOOLE_VERSION') ? (string) SWOOLE_VERSION : (string) (function_exists('swoole_version') ? swoole_version() : '0');
+    if (!preg_match('/(\d+)\.(\d+)\.(\d+)/', $raw, $m)) {
+        return 0;
+    }
+    return (int) $m[1] * 10000 + (int) $m[2] * 100 + (int) $m[3];
+}
+
+/**
+ * 将 task() 传入的 data 规范为数组（Swoole 4 一般为数组，少数为 JSON 字符串）。
+ *
+ * @return array<string, mixed>
+ */
+function swooleNormalizeTaskPayload($data): array
+{
+    if (is_array($data)) {
+        return $data;
+    }
+    if (is_string($data) && $data !== '') {
+        $decoded = json_decode($data, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+    return [];
+}
+
+
 
 /**
  * 解析 Swoole 监听地址与端口。
@@ -533,6 +391,107 @@ function canBindTcpPort(string $host, int $port): bool
     return true;
 }
 
+/**
+ * 准备启动环境（仅 start 命令会做锁与数据库探测）。
+ *
+ * @param array<int, string> $argv
+ * @param resource|null $startLockFp
+ * @return array{host: string, port: int, requested_port: int}
+ */
+function prepareStartEnvironment(string $command, array $argv, &$startLockFp): array
+{
+    if ($command !== 'start') {
+        return ['host' => SW_DEFAULT_HOST, 'port' => SW_DEFAULT_PORT, 'requested_port' => SW_DEFAULT_PORT];
+    }
+
+    $startLockFp = acquireSwooleStartLock();
+    $runningPid = getPid(SW_PID_FILE);
+    if ($runningPid > 0 && posix_kill($runningPid, 0)) {
+        echo "检测到EMSHOP Swoole 服务（PID {$runningPid}）已在运行中！\n";
+        exit(0);
+    }
+
+    try {
+        // 启动前仅做数据库探测，避免在 master 进程预先初始化框架并创建可被 fork 继承的连接。
+        probeMysqlBeforeSwooleStart();
+        swooleServiceLog("数据库连接成功，准备启动 Swoole");
+    } catch (Throwable $e) {
+        swooleServiceLog("启动失败：数据库未就绪，" . $e->getMessage());
+        echo "数据库未就绪，退出进程，等待重试\n";
+        sleep(6); // 守护进程有重试次数限制
+        exit(1);
+    }
+
+    // 监听地址优先级：CLI 参数 > 数据库配置 > 默认值
+    return resolveSwooleListenAddress($argv);
+}
+
+/**
+ * 启动前提示端口自动回退信息（仅 start 命令）。
+ *
+ * @param array{host: string, port: int, requested_port: int} $listen
+ */
+function announcePortFallbackIfNeeded(string $command, array $listen): void
+{
+    if ($command !== 'start') {
+        return;
+    }
+
+    $requestedPort = (int) ($listen['requested_port'] ?? SW_PORT);
+    if ($requestedPort > 0 && $requestedPort !== SW_PORT) {
+        echo "端口 {$requestedPort} 已被占用，自动切换到空闲端口 " . SW_PORT . "\n";
+    }
+}
+
+/**
+ * 处理生命周期命令（start/stop/status/reload）。
+ */
+function handleLifecycleCommand(string $command): void
+{
+    switch ($command) {
+        case 'stop':
+            $pid = getPid(SW_PID_FILE);
+            if ($pid && posix_kill($pid, 0)) {
+                posix_kill($pid, SIGTERM);
+                swooleServiceLog("停止：已向主进程发送退出信号（PID {$pid}）");
+                echo "已向主进程发送停止信号（PID {$pid}），服务即将退出。\n";
+            } else {
+                swooleServiceLog('停止：当前没有正在运行的 Swoole 主进程');
+                echo "当前没有正在运行的 Swoole 服务。\n";
+            }
+            exit(0);
+
+        case 'status':
+            $pid = getPid(SW_PID_FILE);
+            if ($pid && posix_kill($pid, 0)) {
+                echo "Swoole 服务正在运行（主进程 PID：{$pid}）\n";
+            } else {
+                echo "Swoole 服务未在运行。\n";
+            }
+            exit(0);
+
+        case 'reload':
+            $pid = getPid(SW_PID_FILE);
+            if ($pid && posix_kill($pid, 0)) {
+                posix_kill($pid, SIGUSR1);
+                swooleServiceLog("重载：已向主进程发送平滑重载信号（SIGUSR1，PID {$pid}）");
+                echo "已发送平滑重载信号（PID {$pid}）。\n";
+            } else {
+                swooleServiceLog('重载失败：没有正在运行的主进程，无法重载');
+                echo "服务未在运行，无法重载。\n";
+                exit(1);
+            }
+            exit(0);
+
+        case 'start':
+            return;
+
+        default:
+            echo "用法：php server {start|stop|status|reload}\n";
+            exit(1);
+    }
+}
+
 
 
 
@@ -545,6 +504,53 @@ function getPid(string $pidFile): int
         return 0;
     }
     return (int) file_get_contents($pidFile);
+}
+
+/**
+ * Swoole 启动前数据库探测：使用临时连接，成功后立即关闭，不污染运行时连接状态。
+ */
+function probeMysqlBeforeSwooleStart(): void
+{
+    $cfg = require EM_ROOT . '/config.php';
+    $db = (array) ($cfg['db'] ?? []);
+
+    $host = (string) ($db['host'] ?? '127.0.0.1');
+    $port = (int) ($db['port'] ?? 3306);
+    $dbname = (string) ($db['dbname'] ?? '');
+    $username = (string) ($db['username'] ?? '');
+    $password = (string) ($db['password'] ?? '');
+    $charset = (string) ($db['charset'] ?? 'utf8mb4');
+
+    if ($dbname === '' || $username === '') {
+        throw new RuntimeException('数据库配置不完整');
+    }
+
+    if (extension_loaded('mysqli')) {
+        mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+        $mysqli = mysqli_init();
+        $mysqli->real_connect($host, $username, $password, $dbname, $port);
+        $mysqli->set_charset($charset);
+        $rs = $mysqli->query('SELECT 1');
+        if ($rs instanceof mysqli_result) {
+            $rs->free();
+        }
+        $mysqli->close();
+        return;
+    }
+
+    if (extension_loaded('pdo_mysql')) {
+        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $dbname, $charset);
+        $pdo = new PDO($dsn, $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+        $pdo->query('SELECT 1');
+        $pdo = null;
+        return;
+    }
+
+    throw new RuntimeException('当前 PHP 环境既不支持 mysqli，也不支持 pdo_mysql，无法探测数据库连接');
 }
 
 /**
@@ -569,6 +575,82 @@ function acquireSwooleStartLock()
     @fwrite($fp, (string) getmypid());
     @fflush($fp);
     return $fp;
+}
+
+
+/**
+ * 仅 worker#0 注册定时器，保持与 HTTP worker 分流。
+ *
+ * @param array<string, bool> $swooleTaskInFlight
+ */
+function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId, array &$swooleTaskInFlight): void
+{
+    @touch(SW_HEARTBEAT_FILE);
+
+    Config::reload();
+    $bootCodeVersion = (string) (Config::get('swoole_code_version') ?? '');
+
+    // 插件可在该钩子内注册自定义 timer
+    try {
+        doAction('swoole_worker_start', $server, $workerId);
+    } catch (Throwable $e) {
+    }
+
+    // 每5秒刷新一次心跳文件
+    Swoole\Timer::tick(5000, function () {
+        @touch(SW_HEARTBEAT_FILE);
+    });
+    // 每2秒处理一次发货队列
+    Swoole\Timer::tick(2000, function () {
+        try {
+            processQueue();
+        } catch (Throwable $e) {
+            swooleServiceLog('异常：发货队列 processQueue，' . $e->getMessage());
+        }
+    });
+
+    // 每60秒检查一次swoole代码版本
+    Swoole\Timer::tick(60000, function () use ($server, $bootCodeVersion, &$swooleTaskInFlight) {
+        try {
+            Config::reload();
+            if (runSwooleFileVersionReloadCheck($server)) {
+                return; 
+            }
+            $current = (string) (Config::get('swoole_code_version') ?? '');
+            if ($current !== '' && $current !== $bootCodeVersion) {
+                echo "检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），正在触发热更新\n";
+                if (!$server->reload()) {
+                    echo "热更新失败（代码版本 {$bootCodeVersion} → {$current}）\n";
+                    return;
+                }
+                echo "热更新成功（代码版本 {$bootCodeVersion} → {$current}）\n";
+                return;
+            }
+            // 每60秒投递一次主定时任务
+            if (!($swooleTaskInFlight[SW_TASK_JOB_MAIN] ?? false)) {
+                $taskId = $server->task(['job' => SW_TASK_JOB_MAIN], SW_TASK_DST_MAIN);
+                if ($taskId === false) {
+                    swooleServiceLog("警告：Task 投递失败（job=" . SW_TASK_JOB_MAIN . "），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
+                } else {
+                    $swooleTaskInFlight[SW_TASK_JOB_MAIN] = true;
+                } 
+            }
+        } catch (Throwable $e) {
+            echo "主定时调度失败，" . $e->getMessage() . "\n";
+        }
+    });
+
+    // 每60秒投递一次商品同步任务
+    Swoole\Timer::tick(60000, function () use ($server, &$swooleTaskInFlight) {
+        if (!($swooleTaskInFlight[SW_TASK_JOB_GOODS] ?? false)) {
+            $taskId = $server->task(['job' => SW_TASK_JOB_GOODS], SW_TASK_DST_GOODS);
+            if ($taskId === false) {
+                swooleServiceLog("警告：Task 投递失败（job=" . SW_TASK_JOB_GOODS . "），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
+            } else {
+                $swooleTaskInFlight[SW_TASK_JOB_GOODS] = true;
+            }
+        }
+    });
 }
 
 /**
@@ -664,7 +746,7 @@ function runOrderTimeoutChecks(): void
         [$expireMinutes]
     );
 
-}
+} 
 
 /**
  * 定时任务：商品同步。
@@ -816,7 +898,7 @@ function swooleGoodsSyncAcquireRunLock(): string
     if ($existingLock !== '') {
         $parts = explode(':', $existingLock, 2);
         $lockAt = isset($parts[1]) ? (int) $parts[1] : 0;
-        if ($lockAt > 0 && (time() - $lockAt) <= SW_GOODS_SYNC_LOCK_STALE_SECONDS) {
+        if ($lockAt > 0 && (time() - $lockAt) <= 1800) {
             return '';
         }
         swooleServiceLog('警告：检测到商品同步运行锁过期，已自动回收');

@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 require __DIR__ . '/global.php';
-
+ 
 /**
- * 后台控制台首页。
+ * 后台控制台首页。 
  *
  * 流程：
  *   - 鉴权 + 授权状态核对（revalidateCurrent）
@@ -303,6 +303,14 @@ if ((string) Input::get('_action', '') === 'ping_line') {
         // 失败用 -1 表示不可达，前端据此展示"无法连接"
         Response::success('', ['latency_ms' => -1, 'error' => $e->getMessage()]);
     }
+}
+
+/**
+ * 弹窗：Swoole 服务说明（layer.open type:2 加载）
+ */
+if ((string) Input::get('_popup', '') === 'swoole_guide') {
+    include __DIR__ . '/view/popup/swoole_guide.php';
+    return;
 }
 
 // 进入后台首页时跟服务端核对一次授权状态

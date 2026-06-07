@@ -1,9 +1,9 @@
 <?php
-if (!defined('EM_ROOT')) {
+if (!defined('EM_ROOT')) { 
     exit('Access Denied');
 }
 /** @var array<string, mixed> $adminUser */
-/** @var string $siteName */
+/** @var string $siteName */ 
 
 $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -1320,6 +1320,7 @@ $(function () {
     // 保存最新一次响应，供"检查更新"按钮读取
     var __dashIndexData = null;
     var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
+    var __dashSwooleRunning = <?= $__swooleRunning ? 'true' : 'false' ?>;
 
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
@@ -1726,6 +1727,24 @@ $(function () {
         });
     }
     $('#dashGetLicenseBtn').on('click', function () { dashOpenAgentPopup('获取正版授权码'); });
+
+    // Swoole 未运行时：查看详细 → iframe 教程弹窗
+    $('#dashSwooleDetailBtn').on('click', function () {
+        if (typeof layui === 'undefined' || !layui.layer) return;
+        if (__dashSwooleRunning) {
+            layui.layer.msg('Swoole 服务运行正常');
+            return;
+        }
+        layui.layer.open({
+            type: 2,
+            title: 'Swoole 服务说明',
+            skin: 'admin-modal',
+            maxmin: false,
+            area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
+            shadeClose: true,
+            content: '/admin/home.php?_popup=swoole_guide'
+        });
+    });
 
     // 下载安装包：从 admin_index_data 返回的 agent.download_url 取下载源，始终用弹层展示，由用户点具体条目后再打开
     $('#dashGetDownloadBtn').on('click', function () {
