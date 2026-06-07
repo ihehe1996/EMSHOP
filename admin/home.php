@@ -304,12 +304,16 @@ if ((string) Input::get('_action', '') === 'ping_line') {
         Response::success('', ['latency_ms' => -1, 'error' => $e->getMessage()]);
     }
 }
-
+ 
 /**
- * 弹窗：Swoole 服务说明（layer.open type:2 加载）
+ * 弹窗：Swoole 服务说明 / 升级后重启提示（layer.open type:2 加载）
  */
 if ((string) Input::get('_popup', '') === 'swoole_guide') {
     include __DIR__ . '/view/popup/swoole_guide.php';
+    return;
+}
+if ((string) Input::get('_popup', '') === 'swoole_restart') {
+    include __DIR__ . '/view/popup/swoole_restart.php';
     return;
 }
 
