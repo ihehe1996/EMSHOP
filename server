@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types=1); 
 
 // 1. 检查是否安装swoole扩展
 if (!extension_loaded('swoole')) {
@@ -20,10 +20,6 @@ define('SW_PID_FILE', SW_RUNTIME_DIR . '/swoole.pid');
 define('SW_LOG_FILE', SW_RUNTIME_DIR . '/swoole.log');
 define('SW_HEARTBEAT_FILE', SW_RUNTIME_DIR . '/swoole.heartbeat');
 define('SW_START_LOCK_FILE', SW_RUNTIME_DIR . '/swoole.start.lock');
-define('SW_TASK_JOB_MAIN', 'main_timer');
-define('SW_TASK_JOB_GOODS', 'goods_sync');
-define('SW_TASK_DST_MAIN', 0);
-define('SW_TASK_DST_GOODS', 1);
 define('SW_GOODS_SYNC_BATCH_SIZE', 30);
 define('SW_GOODS_SYNC_STATE_KEY', 'swoole_goods_rr_state');
  
@@ -57,12 +53,8 @@ try {
 
 // 设置swoole服务配置
 $server->set([
-    // Worker 进程数（worker#0 注册定时器、消费发货队列；worker#1 处理 HTTP）
-    'worker_num'      => 2,
-    // 独立 Task 进程：主定时、商品同步（与 worker#0 心跳/发货队列并行；变更后需 stop+start）
-    'task_worker_num' => 2,
-    // 强制经典 Task 回调（Swoole 4 默认形态；避免仅收到 taskId 导致解析失败）
-    'task_enable_coroutine' => false,
+    // worker#0 发货队列/心跳/超时/热更新；worker#1 订单轮询；worker#2 商品同步（各进程独立定时器）
+    'worker_num'      => 3,
     // 由 Supervisor/systemd 托管时应保持前台运行，避免双重守护
     'daemonize'       => false,
     // 主进程 PID 文件路径（stop/status/reload 命令依赖）
@@ -74,13 +66,8 @@ $server->set([
     // 平滑重载：先拉起新 Worker，再等待旧 Worker 退出
     'reload_async'    => true,
     // 平滑重载最大等待秒数；超时后旧 Worker 会被强制回收
-    'max_wait_time'   => 60,
+    'max_wait_time'   => 2, 
 ]);
-
-$swooleTaskInFlight = [
-    SW_TASK_JOB_MAIN => false,
-    SW_TASK_JOB_GOODS => false,
-];
 
 // 4. 注册生命周期回调
 /**
@@ -99,33 +86,24 @@ $server->on('start', function (Swoole\Http\Server $server) {
     echo "========================================\n";
     echo "EMSHOP Swoole 服务已启动！\n";
     echo "监听地址：" . SW_HOST . ':' . SW_PORT . "；主进程 PID {$server->master_pid}\n";
-    echo "PHP cli版本：" . PHP_VERSION . '；Swoole扩展版本：' . $swoole_version . "（兼容 4.x 经典 Task）\n";
+    echo "PHP cli版本：" . PHP_VERSION . '；Swoole扩展版本：' . $swoole_version . "\n";
     echo "========================================\n";
 }); 
 
 /**
  * 生命周期：workerStart
- * 触发时机：每个 worker / task_worker 进程启动时。
+ * 触发时机：每个 Worker 进程启动时（共 3 次：#0 #1 #2）。
  */
-$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) use (&$swooleTaskInFlight) {
-    
-    // 加载初始化文件
+$server->on('workerStart', function (Swoole\Http\Server $server, int $workerId) {
     require EM_ROOT . '/init.php';
 
-    // 如果workerId大于HTTP进程数，则返回
-    if ($workerId >= $server->setting['worker_num'] ) {
-        // Task 进程：仅加载 init，实际逻辑由 on('Task') 触发
-        return;
-    }
-
-    // 只接收第一个进程任务，其他进程不处理
-    if ($workerId !== 0) {
-        // worker#1 仅处理 HTTP，请求分流与 worker#0 隔离。
-        return;
-    }
-
-    // 注册worker#0的定时器
-    registerWorkerZeroTimers($server, 0, $swooleTaskInFlight);
+    if ($workerId === 0) {
+        registerWorkerZeroTimers($server, $workerId);
+    } elseif ($workerId === 1) {
+        registerWorkerOneTimers();
+    } elseif ($workerId === 2) {
+        registerWorkerTwoTimers();
+    } 
 });
 
 /**
@@ -136,49 +114,6 @@ $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Respo
     $response->header('Content-Type', 'application/json; charset=utf-8');
     $response->status(404);
     $response->end(json_encode(['code' => 404, 'msg' => 'Not Found'], JSON_UNESCAPED_UNICODE));
-});
-
-/**
- * 生命周期：task
- * 触发时机：task_worker 收到投递任务时。
- */
-$server->on('Task', function (Swoole\Http\Server $server, ...$args) {
-    $parsed = swooleParseTaskCallback($args);
-    $payload = $parsed['payload'];
-    $taskHandle = $parsed['task_handle'];
-    $job = (string) ($payload['job'] ?? '');
-    try {
-        switch ($job) {
-            case SW_TASK_JOB_MAIN:
-                runOrderTimeoutChecks(); // 订单超时检查
-                runOrderPollingTasks(); // 钩子：订单轮询任务
-                break;
-            case SW_TASK_JOB_GOODS:
-                runGoodsSyncTasks(); // 商品同步任务
-                break;
-        }
-    } catch (Throwable $e) {
-        if ($job === SW_TASK_JOB_MAIN) {
-            echo "主定时任务执行失败，" . $e->getMessage() . "\n";
-        } elseif ($job === SW_TASK_JOB_GOODS) {
-            swooleServiceLog('异常：商品同步 Task，' . $e->getMessage());
-        }
-    } finally {
-        swooleFinishTask($server, $taskHandle, $job);
-    }
-});
-
-/**
- * 生命周期：finish
- * 触发时机：task 执行完成后回调到 worker。
- */
-$server->on('Finish', function (Swoole\Http\Server $server, ...$args) use (&$swooleTaskInFlight) {
-    // Swoole 4/5/6 均为 ($server, $taskId, $data)
-    $data = $args[1] ?? '';
-    $job = is_string($data) ? $data : '';
-    if ($job !== '' && array_key_exists($job, $swooleTaskInFlight)) {
-        $swooleTaskInFlight[$job] = false;
-    }
 });
 
 /**
@@ -198,59 +133,6 @@ try {
     exit(1);
 }
 
-
-/**
- * Task 进程内结束任务并回传 Finish（Swoole 4 必须走 $server->finish）。
- *
- * @param object|null $taskHandle 协程 Task 对象；经典模式传 null
- */
-function swooleFinishTask(Swoole\Http\Server $server, $taskHandle, $result): void
-{
-    if (is_object($taskHandle) && method_exists($taskHandle, 'finish')) {
-        $taskHandle->finish($result);
-        return;
-    }
-    if (method_exists($server, 'finish')) {
-        $server->finish($result);
-    }
-}
-
-/**
- * 解析 on('Task') 回调参数（必须兼容 Swoole 4.x）。
- *
- * - Swoole 4/5/6 经典：($server, int $taskId, int $srcWorkerId, mixed $data) ← task_enable_coroutine=false
- * - 协程 Task 对象：($server, Swoole\Server\Task $task)（未强制开启时仍兼容）
- *
- * @return array{payload: array<string, mixed>, task_handle: object|null}
- */
-function swooleParseTaskCallback(array $args): array
-{
-    if (isset($args[0]) && is_object($args[0])) {
-        $task = $args[0];
-        if ($task instanceof Swoole\Server\Task
-            || (class_exists('OpenSwoole\\Server\\Task', false) && $task instanceof OpenSwoole\Server\Task)
-            || (property_exists($task, 'data') && method_exists($task, 'finish'))) {
-            return [
-                'payload' => swooleNormalizeTaskPayload($task->data ?? null),
-                'task_handle' => $task,
-            ];
-        }
-    }
-
-    // Swoole 4.x 标准：第 1 个参数为 taskId，业务数据在第 3 个参数（索引 2）
-    $data = $args[2] ?? null;
-    if ($data === null && isset($args[1]) && !is_int($args[1])) {
-        $data = $args[1];
-    }
-    if ($data === null && isset($args[0]) && !is_int($args[0])) {
-        $data = $args[0];
-    }
-
-    return [
-        'payload' => swooleNormalizeTaskPayload($data),
-        'task_handle' => null,
-    ];
-}
 
 /**
  * 服务生命周期与异常日志（中文），追加写入 swoole.log。
@@ -279,27 +161,6 @@ function swooleExtVersionId(): int
     }
     return (int) $m[1] * 10000 + (int) $m[2] * 100 + (int) $m[3];
 }
-
-/**
- * 将 task() 传入的 data 规范为数组（Swoole 4 一般为数组，少数为 JSON 字符串）。
- *
- * @return array<string, mixed>
- */
-function swooleNormalizeTaskPayload($data): array
-{
-    if (is_array($data)) {
-        return $data;
-    }
-    if (is_string($data) && $data !== '') {
-        $decoded = json_decode($data, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-    }
-    return [];
-}
-
-
 
 /**
  * 解析 Swoole 监听地址与端口。
@@ -579,18 +440,18 @@ function acquireSwooleStartLock()
 
 
 /**
- * 仅 worker#0 注册定时器，保持与 HTTP worker 分流。
- *
- * @param array<string, bool> $swooleTaskInFlight
+ * worker#0：发货队列、心跳、订单超时、代码热更新。
  */
-function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId, array &$swooleTaskInFlight): void
+function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId): void
 {
     @touch(SW_HEARTBEAT_FILE);
 
     Config::reload();
     $bootCodeVersion = (string) (Config::get('swoole_code_version') ?? '');
 
-    // 插件可在该钩子内注册自定义 timer
+    /** 插件可在该钩子内注册自定义 timer 
+    * 开发者注意此处不要注册易阻塞的定时器，否则会阻塞下面其他的定时器，导致无法执行发货等任务
+    */
     try {
         doAction('swoole_worker_start', $server, $workerId);
     } catch (Throwable $e) {
@@ -608,13 +469,21 @@ function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId, arr
             swooleServiceLog('异常：发货队列 processQueue，' . $e->getMessage());
         }
     });
+    // 每60秒检查一次待支付订单超时（轻量 SQL，直接在 worker#0 执行）
+    Swoole\Timer::tick(60000, function () {
+        try {
+            runOrderTimeoutChecks();
+        } catch (Throwable $e) {
+            swooleServiceLog('异常：订单超时检查 runOrderTimeoutChecks，' . $e->getMessage());
+        }
+    });
 
     // 每60秒检查一次swoole代码版本
-    Swoole\Timer::tick(60000, function () use ($server, $bootCodeVersion, &$swooleTaskInFlight) {
+    Swoole\Timer::tick(60000, function () use ($server, $bootCodeVersion) {
         try {
             Config::reload();
             if (runSwooleFileVersionReloadCheck($server)) {
-                return; 
+                return;
             }
             $current = (string) (Config::get('swoole_code_version') ?? '');
             if ($current !== '' && $current !== $bootCodeVersion) {
@@ -624,31 +493,45 @@ function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId, arr
                     return;
                 }
                 echo "热更新成功（代码版本 {$bootCodeVersion} → {$current}）\n";
-                return;
-            }
-            // 每60秒投递一次主定时任务
-            if (!($swooleTaskInFlight[SW_TASK_JOB_MAIN] ?? false)) {
-                $taskId = $server->task(['job' => SW_TASK_JOB_MAIN], SW_TASK_DST_MAIN);
-                if ($taskId === false) {
-                    swooleServiceLog("警告：Task 投递失败（job=" . SW_TASK_JOB_MAIN . "），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
-                } else {
-                    $swooleTaskInFlight[SW_TASK_JOB_MAIN] = true;
-                } 
             }
         } catch (Throwable $e) {
-            echo "主定时调度失败，" . $e->getMessage() . "\n";
+            echo "代码热更新检查失败，" . $e->getMessage() . "\n";
         }
     });
+}
 
-    // 每60秒投递一次商品同步任务
-    Swoole\Timer::tick(60000, function () use ($server, &$swooleTaskInFlight) {
-        if (!($swooleTaskInFlight[SW_TASK_JOB_GOODS] ?? false)) {
-            $taskId = $server->task(['job' => SW_TASK_JOB_GOODS], SW_TASK_DST_GOODS);
-            if ($taskId === false) {
-                swooleServiceLog("警告：Task 投递失败（job=" . SW_TASK_JOB_GOODS . "），请确认已 stop 后 start（仅 reload 不会创建 Task 进程）");
-            } else {
-                $swooleTaskInFlight[SW_TASK_JOB_GOODS] = true;
-            }
+/**
+ * worker#1：订单轮询（插件钩子 swoole_order_poll_tick）。
+ */
+function registerWorkerOneTimers(): void
+{
+    $inFlight = false;
+
+    Swoole\Timer::tick(60000, function () use (&$inFlight) {
+        if ($inFlight) {
+            return;
+        }
+        $inFlight = true;
+        try {
+            runOrderPollingTasks();
+        } catch (Throwable $e) {
+            swooleServiceLog('异常：订单轮询 runOrderPollingTasks，' . $e->getMessage());
+        } finally {
+            $inFlight = false;
+        }
+    });
+}
+
+/**
+ * worker#2：商品同步（插件钩子 swoole_goods_sync_one；runGoodsSyncTasks 内另有运行锁）。
+ */
+function registerWorkerTwoTimers(): void
+{
+    Swoole\Timer::tick(60000, function () {
+        try {
+            runGoodsSyncTasks();
+        } catch (Throwable $e) {
+            swooleServiceLog('异常：商品同步 runGoodsSyncTasks，' . $e->getMessage());
         }
     });
 }
@@ -658,9 +541,11 @@ function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId, arr
  */
 function processQueue(): void
 {
+
     Config::reload();
 
     $prefix = Database::prefix();
+
 
     $task = Database::fetchOne(
         "SELECT * FROM {$prefix}delivery_queue
@@ -674,13 +559,24 @@ function processQueue(): void
 
     $taskId = (int) $task['id'];
 
+    swooleServiceLog('开始执行队列消费 >>> ' . $taskId);
+
+    // 抢占任务（乐观锁）：将待处理任务原子地标记为「处理中」
+    // - status='processing'：声明本 Worker 正在执行该任务，其他 Worker 不应再碰
+    // - attempts=attempts+1：本次执行计入尝试次数，供后续失败重试 / 永久失败判断使用
+    // - WHERE status IN ('pending','retry')：仅当任务仍为待处理/待重试时才更新；
+    //   若另一 Worker 已抢先改走，本 UPDATE 影响行数为 0，下方直接 return 避免重复发货
     $affected = Database::execute(
         "UPDATE {$prefix}delivery_queue SET status='processing', attempts=attempts+1 WHERE id=? AND status IN ('pending','retry')",
         [$taskId]
     );
     if ($affected === 0) {
+        // 抢占失败：任务已被其他进程认领，或状态已变更（success/failed/processing 等）
+        swooleServiceLog('抢占任务失败 >>> ' . $taskId);
         return;
     }
+
+    swooleServiceLog('抢占任务成功 >>> ' . $taskId);
 
     try {
         $orderId = (int) $task['order_id'];
@@ -688,12 +584,19 @@ function processQueue(): void
         $goodsType = $task['goods_type'];
         $payload = json_decode($task['payload'] ?? '{}', true) ?: [];
 
+        swooleServiceLog('开始执行任务 >>> ' . $orderId . ' >>> ' . "goods_type_{$goodsType}_order_paid");
+
         doAction("goods_type_{$goodsType}_order_paid", $orderId, $orderGoodsId, json_encode($payload));
+
+        swooleServiceLog('执行任务成功 >>> ' . $orderId . ' >>> ' . "goods_type_{$goodsType}_order_paid");
 
         Database::execute(
             "UPDATE {$prefix}delivery_queue SET status='success', completed_at=NOW() WHERE id=?",
             [$taskId]
         );
+        swooleServiceLog('更新任务状态成功 >>> ' . $taskId);
+
+
         OrderModel::notifyDeliveryCallback($orderGoodsId);
 
         // 统一队列成功钩子：供通知类插件在"发货动作真正完成"后接入
@@ -730,7 +633,7 @@ function processQueue(): void
 }
 
 /**
- * 定时任务：订单超时检查。
+ * worker#0 定时器：待支付订单超时检查。
  */
 function runOrderTimeoutChecks(): void
 {
@@ -747,6 +650,19 @@ function runOrderTimeoutChecks(): void
     );
 
 } 
+
+
+/**
+ * 定时任务：订单轮询。
+ */
+function runOrderPollingTasks(): void
+{
+    try {
+        doAction('swoole_order_poll_tick');
+    } catch (Throwable $e) {
+        swooleServiceLog('异常：订单轮询钩子 swoole_order_poll_tick，' . $e->getMessage());
+    }
+}
 
 /**
  * 定时任务：商品同步。
@@ -1025,17 +941,7 @@ function swooleGoodsSyncLoadGoodsRow(int $goodsId): ?array
     return $row;
 }
 
-/**
- * 定时任务：订单轮询。
- */
-function runOrderPollingTasks(): void
-{
-    try {
-        doAction('swoole_order_poll_tick');
-    } catch (Throwable $e) {
-        swooleServiceLog('异常：订单轮询钩子 swoole_order_poll_tick，' . $e->getMessage());
-    }
-}
+
 
 /**
  * 检查 swoole 文件版本号，必要时触发 reload。

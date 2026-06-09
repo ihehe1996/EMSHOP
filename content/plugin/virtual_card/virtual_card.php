@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 虚拟卡密商品类型
-Version: 1.0.8
+Version: 1.0.9
 Plugin URL:
 Description: 虚拟商品插件，支持卡密 / 账号 / 邮箱等。既可一键发货（从卡密库自动提取），也可切换为人工发货（管理员手动填写）。
 Author: EMSHOP
@@ -381,13 +381,15 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
             throw new RuntimeException('[virtual_card] 卡密库存不足，需要 ' . $qty . ' 张，实际 ' . count($cards) . ' 张');
         }
 
-        // 标记卡密为已售
+        // 标记卡密为已售（分批 UPDATE，避免单次 IN 过多导致 SQL 过大、解析慢、长时间锁行）
         $cardIds = array_column($cards, 'id');
-        $placeholders = implode(',', array_fill(0, count($cardIds), '?'));
-        Database::execute(
-            "UPDATE {$prefix}goods_virtual_card SET status = 0, order_id = ?, sold_at = NOW() WHERE id IN ({$placeholders})",
-            array_merge([$orderId], $cardIds)
-        );
+        foreach (array_chunk($cardIds, 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            Database::execute(
+                "UPDATE {$prefix}goods_virtual_card SET status = 0, order_id = ?, sold_at = NOW() WHERE id IN ({$placeholders})",
+                array_merge([$orderId], $chunk)
+            );
+        } 
 
         // 拼接发货内容
         $deliveryLines = [];
