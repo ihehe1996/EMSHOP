@@ -14,7 +14,8 @@ include __DIR__ . '/header.php';
 <div class="popup-inner">
     <div class="form-tips form-tips--warn">
         <strong>本次升级需重启 Swoole 后才会生效。</strong>
-        请在宝塔「进程守护管理器」中停止服务，等待约 10 秒后再启动。
+        请在宝塔「进程守护管理器」中停止服务，等待约 2 分钟后再启动。
+        <strong>如超过3分钟无法启动，请重启服务器解决</strong>
     </div>
 
     <div class="popup-section">

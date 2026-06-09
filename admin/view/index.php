@@ -373,7 +373,7 @@ $(function () {
             title: '需要重启 Swoole',
             skin: 'admin-modal',
             maxmin: false,
-            area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '420px' : '72%'],
+            area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '550px' : '80%'],
             shade: 0.45,
             shadeClose: true,
             content: '/admin/home.php?_popup=swoole_restart'
