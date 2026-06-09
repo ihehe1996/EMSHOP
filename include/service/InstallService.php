@@ -1087,6 +1087,7 @@ final class InstallService
             PRIMARY KEY (`id`),
             KEY `idx_goods` (`goods_id`),
             KEY `idx_goods_status` (`goods_id`, `status`),
+            KEY `idx_goods_spec_status` (`goods_id`, `spec_id`, `status`, `id`),
             KEY `idx_spec` (`spec_id`),
             KEY `idx_status` (`status`),
             KEY `idx_order` (`order_id`)
