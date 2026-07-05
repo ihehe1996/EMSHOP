@@ -478,21 +478,12 @@ function registerWorkerZeroTimers(Swoole\Http\Server $server, int $workerId): vo
         }
     });
 
-    // 每60秒检查一次swoole代码版本
-    Swoole\Timer::tick(60000, function () use ($server, $bootCodeVersion) {
+    // 每6秒检查一次swoole代码版本
+    Swoole\Timer::tick(6000, function () use ($server, $bootCodeVersion) {
         try {
             Config::reload();
             if (runSwooleFileVersionReloadCheck($server)) {
                 return;
-            }
-            $current = (string) (Config::get('swoole_code_version') ?? '');
-            if ($current !== '' && $current !== $bootCodeVersion) {
-                echo "检测到代码版本变更（自 {$bootCodeVersion} 变更为 {$current}），正在触发热更新\n";
-                if (!$server->reload()) {
-                    echo "热更新失败（代码版本 {$bootCodeVersion} → {$current}）\n";
-                    return;
-                }
-                echo "热更新成功（代码版本 {$bootCodeVersion} → {$current}）\n";
             }
         } catch (Throwable $e) {
             echo "代码热更新检查失败，" . $e->getMessage() . "\n";
