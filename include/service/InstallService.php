@@ -838,7 +838,6 @@ final class InstallService
                 `applied_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'执行时间\',
                 `checksum` CHAR(64) NOT NULL DEFAULT \'\' COMMENT \'文件校验\',
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_filename` (`filename`(191)),
                 KEY `idx_batch` (`batch`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'数据库迁移追踪表\'',
             $prefix . 'migrations'

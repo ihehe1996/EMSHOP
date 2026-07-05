@@ -522,7 +522,6 @@ final class UpdateService
                 `applied_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `checksum`   CHAR(64)     NOT NULL DEFAULT \'\',
                 PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_filename` (`filename`),
                 KEY `idx_batch` (`batch`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'数据库迁移追踪表\''
         );
