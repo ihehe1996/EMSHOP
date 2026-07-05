@@ -29,6 +29,10 @@ if ($requestPath === '/return') {
     PaymentCallbackController::handleReturn();
     exit;
 }
+if ($requestPath === '/test') {
+    PaymentCallbackController::handleTest();
+    exit;
+}
 
 // 设置首页入口模式：优先读后台配置 homepage_mode，无配置时默认 mall
 define('HOMEPAGE_MODE', Config::get('homepage_mode', 'mall'));

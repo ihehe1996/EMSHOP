@@ -7,6 +7,15 @@ declare(strict_types=1);
  */
 final class PaymentCallbackController
 {
+
+    /**
+     * 探测伪静态是否生效
+     */
+    public static function handleTest(): void
+    {
+        Response::json(200, '伪静态探测正常');
+    }
+
     /**
      * 支付同步跳回处理。
      */

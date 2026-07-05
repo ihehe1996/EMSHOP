@@ -304,6 +304,11 @@ if ((string) Input::get('_action', '') === 'ping_line') {
         Response::success('', ['latency_ms' => -1, 'error' => $e->getMessage()]);
     }
 }
+
+if (Input::get('popup', '') === 'rewrite') {
+    include __DIR__ . '/view/popup/rewrite.php';
+    return;
+}
  
 /**
  * 弹窗：Swoole 服务说明 / 升级后重启提示（layer.open type:2 加载）

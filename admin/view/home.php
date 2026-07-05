@@ -1303,6 +1303,36 @@ $(function () {
     $(document).off('.dashHome');
     $(window).off('.dashHome');
 
+    /**
+     * 探测伪静态是否生效
+     */ 
+    function testRewrite() {
+        $.ajax({
+            url: '/test',
+            method: 'GET',
+            data: {  },
+            dataType: 'json',
+            timeout: 15000
+        }).done(function (resp) {
+            console.log(resp);
+        }).fail(function (xhr, status, error) {
+            // 失败统一捕获
+            if (xhr.status === 404) {
+                console.log('未配置伪静态');
+                layui.layer.open({
+                    type: 2,
+                    title: '未配置伪静态',
+                    skin: 'admin-modal',
+                    maxmin: false,
+                    area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '580px' : '88%'],
+                    shadeClose: true,
+                    content: '/admin/home.php?popup=rewrite'
+                });
+            }
+        });
+    }
+    testRewrite();
+
     // 官方公告第一条：客服QQ / QQ群 点击复制
     $(document).on('click.dashHome', '.dash-contact-chip[data-copy]', function () {
         var text = $(this).data('copy');
@@ -1537,9 +1567,12 @@ $(function () {
         '</div>';
 
         var idx = layui.layer.open({
-            type: 1, title: '在线升级', skin: 'admin-modal dash-wizard-modal',
+            type: 1, 
+            title: '在线升级', 
+            skin: 'admin-modal dash-wizard-modal',
             area: ['640px', '620px'],
-            shadeClose: false, closeBtn: 0,  // 不允许点遮罩/右上角关
+            shadeClose: false, 
+            closeBtn: 0,  // 不允许点遮罩/右上角关
             content: html
         });
 
