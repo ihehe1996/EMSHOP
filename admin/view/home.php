@@ -214,14 +214,14 @@ $calcRatio = static function (float $today, float $yesterday): array {
 
 // Swoole：依据 content/swoole/swoole.heartbeat 的 mtime，30 秒内更新视为 Worker#0 定时器在跑（与 server 中 SW_HEARTBEAT_INTERVAL=5 配套）
 $__swooleHbPath = EM_ROOT . '/content/swoole/swoole.heartbeat';
-$__swooleRunning = false;
+$swoole_run_status = false;
 $__swooleFailHint = '发货队列/定时任务';
 if (is_file($__swooleHbPath)) {
     $__mt = @filemtime($__swooleHbPath);
     if ($__mt !== false) {
         $__swooleHbAge = time() - $__mt;
-        $__swooleRunning = $__swooleHbAge <= 30;
-        if (!$__swooleRunning) {
+        $swoole_run_status = $__swooleHbAge <= 30;
+        if (!$swoole_run_status) {
             $__swooleFailHint = '发货队列/定时任务';
         }
     }
@@ -305,13 +305,13 @@ if (is_file($__swooleHbPath)) {
             </div>
             <div class="dash-metric__main">
                 <div class="dash-metric__value-row">
-                    <?php if ($__swooleRunning): ?>
+                    <?php if ($swoole_run_status): ?>
                     <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--running">运行中</span>
                     <?php else: ?>
                     <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--stopped">未运行</span>
                     <?php endif; ?>
                 </div>
-                <div class="dash-metric__yesterday"><?= $__swooleRunning ? '服务正在运行' : $esc($__swooleFailHint) ?></div>
+                <div class="dash-metric__yesterday"><?= $swoole_run_status ? '服务正在运行' : $esc($__swooleFailHint) ?></div>
             </div>
             <div class="dash-metric__month">
                 <span class="dash-metric__month-label">教程说明</span>
@@ -1303,14 +1303,15 @@ $(function () {
     $(document).off('.dashHome');
     $(window).off('.dashHome');
 
+    checkRewriteStatus();
     /**
      * 探测伪静态是否生效
      */ 
-    function testRewrite() {
+    function checkRewriteStatus() {
         $.ajax({
             url: '/test',
             method: 'GET',
-            data: {  },
+            data: {},
             dataType: 'json',
             timeout: 15000
         }).done(function (resp) {
@@ -1331,7 +1332,7 @@ $(function () {
             }
         });
     }
-    testRewrite();
+    
 
     // 官方公告第一条：客服QQ / QQ群 点击复制
     $(document).on('click.dashHome', '.dash-contact-chip[data-copy]', function () {
@@ -1350,7 +1351,26 @@ $(function () {
     // 保存最新一次响应，供"检查更新"按钮读取
     var __dashIndexData = null;
     var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
-    var __dashSwooleRunning = <?= $__swooleRunning ? 'true' : 'false' ?>;
+    var __dashSwooleRunning = <?= $swoole_run_status ? 'true' : 'false' ?>;
+
+    console.log(__dashSwooleRunning);
+
+    if(__dashSwooleRunning == false) {
+        openSwooleDescription();
+        return;
+    }
+
+    function openSwooleDescription() {
+        layui.layer.open({
+            type: 2,
+            title: 'Swoole 服务说明',
+            skin: 'admin-modal',
+            maxmin: false,
+            area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
+            shadeClose: true,
+            content: '/admin/home.php?_popup=swoole_guide'
+        });
+    }
 
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, function (c) {
