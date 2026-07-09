@@ -1317,7 +1317,7 @@ $(function () {
         }).done(function (resp) {
             console.log(resp);
         }).fail(function (xhr, status, error) {
-            // 失败统一捕获
+            // 失败捕获
             if (xhr.status === 404) {
                 console.log('未配置伪静态');
                 layui.layer.open({
