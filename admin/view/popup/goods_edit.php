@@ -287,10 +287,16 @@ include __DIR__ . '/header.php';
                             <textarea name="intro" id="intro-textarea" placeholder="简短描述" class="layui-textarea"><?php echo $isEdit ? $esc($goods['intro']) : ''; ?></textarea>
                         </div>
                     </div>
-                    <div class="layui-form-item" style="margin-bottom:0;">
+                    <div class="layui-form-item">
                         <label class="layui-form-label">商品详情</label>
                         <div class="layui-input-block">
                             <textarea name="content" id="editor-2" placeholder="商品详情内容" class="layui-textarea"><?php echo $isEdit ? $esc($goods['content']) : ''; ?></textarea>
+                        </div>
+                    </div>
+                    <div class="layui-form-item" style="margin-bottom:0;">
+                        <label class="layui-form-label">使用教程</label>
+                        <div class="layui-input-block">
+                            <textarea name="guide" id="editor-guide" placeholder="使用教程内容" class="layui-textarea"><?php echo $isEdit ? $esc($goods['guide'] ?? '') : ''; ?></textarea>
                         </div>
                     </div>
                     </div>
@@ -932,7 +938,8 @@ $(function() {
             context: 'goods_image',
             onCsrf: function(token) { csrfToken = token; }, 
             editors: [
-                { selector: '#editor-2', height: 450, placeholder: '请输入商品详情...' }
+                { selector: '#editor-2', height: 450, placeholder: '请输入商品详情...' },
+                { selector: '#editor-guide', height: 350, placeholder: '请输入使用教程...' }
             ]
         });
         window.emTinymceBindTabResize({ tabs: '#goodsEditTabs', tabIndex: 2 });

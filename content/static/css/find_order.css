@@ -576,6 +576,29 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     overflow-y: auto;
 }
 
+/* 使用教程（购买后可见，富文本；位于商品明细上方） */
+.fo-detail__section--guide { padding-top: 4px; }
+.fo-detail__guide {
+    padding: 10px 12px;
+    background: #f5f7ff;
+    border: 1px solid #e0e7ff;
+    border-radius: 6px;
+}
+.fo-detail__guide + .fo-detail__guide { margin-top: 10px; }
+.fo-detail__guide-goods {
+    font-size: 12.5px;
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.fo-detail__guide-body {
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.8;
+    word-break: break-word;
+}
+.fo-detail__guide-body.detail-body img { max-width: 100%; height: auto; }
+
 /* 异步发货中：状态角标旁转圈 */
 .fo-status-pill--awaiting {
     display: inline-flex;

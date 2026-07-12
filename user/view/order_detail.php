@@ -108,6 +108,11 @@ if (!defined('EM_ROOT')) {
     </div>
     <?php endif; ?>
 
+    <?php
+    $layout = 'uc';
+    include EM_ROOT . '/include/view/partials/order_goods_guide.php';
+    ?>
+
     <!-- 商品信息 -->
     <div class="uc-form-card" style="margin-bottom:16px;">
         <div class="uc-section-title">商品信息</div>

@@ -98,6 +98,7 @@ if ($action === 'save') {
     $goods_type = trim($_POST['goods_type'] ?? '');
     $intro = trim($_POST['intro'] ?? '');
     $content = $_POST['content'] ?? '';
+    $guide = $_POST['guide'] ?? '';
     $cover_images = $_POST['cover_images'] ?? '[]';
     $unit = trim((string) ($_POST['unit'] ?? ''));
     // 空单位默认"个"（按需求约定）
@@ -237,6 +238,7 @@ if ($action === 'save') {
         'unit' => $unit,
         'intro' => $intro,
         'content' => $content,
+        'guide' => $guide,
         'cover_images' => $cover_images,
         'configs' => !empty($configs) ? json_encode($configs, JSON_UNESCAPED_UNICODE) : null,
         'sort' => $sort,

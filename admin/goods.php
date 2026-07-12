@@ -45,11 +45,11 @@ if ($action === 'list') {
     $registeredTypes = GoodsTypeManager::getTypes();
 
     // 让插件根据单个商品的 plugin_data 决定实际发货类型；
-    // 顺便剔除列表用不到的 content 字段（富文本正文可能很大，传过去白白占带宽）
+    // 顺便剔除列表用不到的 content / guide 字段（富文本正文可能很大，传过去白白占带宽）
     foreach ($result['list'] as &$row) {
         $defaultDt = $registeredTypes[$row['goods_type']]['delivery_type'] ?? 'manual';
         $row['delivery_type'] = applyFilter('goods_delivery_type', $defaultDt, $row);
-        unset($row['content']);
+        unset($row['content'], $row['guide']);
     }
     unset($row);
 

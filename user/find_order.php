@@ -288,6 +288,9 @@ if ($detailOrderNo !== '') {
             $detailExtraPairs = OrderModel::parseBuyerContactFields($row)['extra_pairs'];
             $detailOrder = $sanitizeOrder($row);
             $detailGoods = $detailOrder['order_goods'] ?? [];
+            if (OrderModel::isPurchasedStatus((string) ($detailOrder['status'] ?? ''))) {
+                $detailGoods = OrderModel::attachGoodsGuides($detailGoods);
+            }
         } else {
             // 白名单写入后订单又被删除的边角情况：也走拒绝分支，对外表现一致
             $detailDenied = true;
@@ -420,6 +423,12 @@ $statusMap = [
             </div>
         </div>
         <?php endif; ?>
+
+        <?php
+        $orderGoods = $detailGoods;
+        $layout = 'fo';
+        include EM_ROOT . '/include/view/partials/order_goods_guide.php';
+        ?>
 
         <?php if (!empty($detailGoods)): ?>
         <?php

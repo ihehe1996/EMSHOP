@@ -914,6 +914,7 @@ final class InstallService
             `cover_images` TEXT COMMENT 'JSON数组，存储多张图片URL',
             `intro` TEXT COMMENT '商品简介',
             `content` LONGTEXT COMMENT '商品详情',
+            `guide` TEXT COMMENT '使用教程',
             `configs` TEXT COMMENT 'JSON，扩展配置项',
             `api_enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否开启API对接',
             `jump_url` VARCHAR(255) DEFAULT NULL COMMENT '跳转链接',

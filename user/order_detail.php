@@ -32,6 +32,9 @@ if ($orderNo !== '') {
             $order = null;
         } else {
             $orderGoods = OrderModel::getOrderGoods((int) $order['id']);
+            if (OrderModel::isPurchasedStatus((string) $order['status'])) {
+                $orderGoods = OrderModel::attachGoodsGuides($orderGoods);
+            }
         }
     }
 }

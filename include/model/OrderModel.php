@@ -1033,6 +1033,62 @@ class OrderModel
     }
 
     /**
+     * 订单是否已购买（非待付/取消/过期/失败），用于控制「购买后才可见」的内容如使用教程。
+     */
+    public static function isPurchasedStatus(string $status): bool
+    {
+        return !in_array($status, ['pending', 'expired', 'cancelled', 'failed'], true);
+    }
+
+    /**
+     * 为订单商品行附加商品使用教程（guide 富文本）。
+     *
+     * @param array<int, array<string, mixed>> $orderGoods
+     * @return array<int, array<string, mixed>>
+     */
+    public static function attachGoodsGuides(array $orderGoods): array
+    {
+        if ($orderGoods === []) {
+            return $orderGoods;
+        }
+
+        $goodsIds = [];
+        foreach ($orderGoods as $og) {
+            $gid = (int) ($og['goods_id'] ?? 0);
+            if ($gid > 0) {
+                $goodsIds[$gid] = true;
+            }
+        }
+        if ($goodsIds === []) {
+            return $orderGoods;
+        }
+
+        $ids = array_keys($goodsIds);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $rows = Database::query(
+            'SELECT `id`, `guide` FROM `' . Database::prefix() . 'goods`
+              WHERE `id` IN (' . $placeholders . ') AND `deleted_at` IS NULL',
+            $ids
+        );
+
+        $guideMap = [];
+        foreach ($rows as $row) {
+            $guide = trim((string) ($row['guide'] ?? ''));
+            if ($guide !== '') {
+                $guideMap[(int) $row['id']] = $guide;
+            }
+        }
+
+        foreach ($orderGoods as &$og) {
+            $gid = (int) ($og['goods_id'] ?? 0);
+            $og['goods_guide'] = $guideMap[$gid] ?? '';
+        }
+        unset($og);
+
+        return $orderGoods;
+    }
+
+    /**
      * 是否已存在发货内容（兼容旧字段 + 新明细表）。
      */
     public static function hasDeliveryContent(int $orderGoodsId, string $legacyContent = ''): bool
