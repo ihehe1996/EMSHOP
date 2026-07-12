@@ -26,7 +26,7 @@ include __DIR__ . '/header.php';
     <div class="popup-section">
         <div class="swoole-guide__title">快速启用步骤</div>
         <ol class="swoole-guide__steps">
-            <li>在 PHP CLI 环境安装 <strong>Swoole 4.x</strong> 扩展，建议使用 PHP 8.0 及以上版本。</li>
+            <li>在 PHP CLI 环境安装 <strong>Swoole 4.x</strong> 扩展，建议使用 PHP 7.4 及以上版本。</li>
             <li>在宝塔「进程守护管理器」或同类工具中添加守护进程，启动命令见下方。</li>
             <li>启动成功后返回后台首页，Swoole 服务卡片应显示为「运行中」。</li>
         </ol>
