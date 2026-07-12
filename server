@@ -498,6 +498,7 @@ function registerWorkerOneTimers(): void
 {
     $inFlight = false;
 
+
     Swoole\Timer::tick(60000, function () use (&$inFlight) {
         if ($inFlight) {
             return;
@@ -518,7 +519,7 @@ function registerWorkerOneTimers(): void
  */
 function registerWorkerTwoTimers(): void
 {
-    Swoole\Timer::tick(60000, function () {
+    Swoole\Timer::tick(6000, function () {
         try {
             runGoodsSyncTasks();
         } catch (Throwable $e) {
@@ -665,6 +666,7 @@ function runGoodsSyncTasks(): void
         // 商品同步任务仍在运行，本次 tick 不重复进入
         return;
     }
+
 
     try {
         $state = swooleGoodsSyncLoadState();

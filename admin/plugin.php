@@ -85,10 +85,38 @@ if (Request::isPost()) {
             Response::success($listed ? '已上架' : '已下架', ['csrf_token' => Csrf::refresh()]);
         }
 
+
+
         $name   = trim((string) Input::post('name', ''));
         if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
             Response::error('非法插件名');
         }
+
+
+        if ($action === 'save_config') {
+            // 保存配置 —— 优先调插件自带 plugin_setting();无则把 POST 字段写入 Storage
+            if (!$model->existsOnDisk($name)) Response::error('磁盘上未找到该插件');
+
+            $settingFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_setting.php';
+            if (is_file($settingFile)) {
+                include_once $settingFile;
+                if (function_exists('plugin_setting')) {
+                    // plugin_setting 内部用 Storage 写并自行 Response
+                    call_user_func('plugin_setting');
+                    return;
+                }
+            }
+
+            // 通用兜底:全部 POST 字段(除框架字段)逐个写 Storage
+            $storage = Storage::getInstance($name);
+            foreach (Input::allPost() as $k => $v) {
+                if (in_array($k, ['_action', 'csrf_token', 'name'], true)) continue;
+                $storage->setValue($k, $v);
+            }
+            Response::success('配置已保存', ['csrf_token' => Csrf::refresh()]);
+        }
+
+
 
         switch ($action) {
             // 启用 —— 每次启用都触发 callback_init，再加入 enabled_plugins 列表
@@ -188,29 +216,7 @@ if (Request::isPost()) {
                 break;
             }
 
-            // 保存配置 —— 优先调插件自带 plugin_setting();无则把 POST 字段写入 Storage
-            case 'save_config': {
-                if (!$model->existsOnDisk($name)) Response::error('磁盘上未找到该插件');
-
-                $settingFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_setting.php';
-                if (is_file($settingFile)) {
-                    include_once $settingFile;
-                    if (function_exists('plugin_setting')) {
-                        // plugin_setting 内部用 Storage 写并自行 Response
-                        call_user_func('plugin_setting');
-                        return;
-                    }
-                }
-
-                // 通用兜底:全部 POST 字段(除框架字段)逐个写 Storage
-                $storage = Storage::getInstance($name);
-                foreach (Input::allPost() as $k => $v) {
-                    if (in_array($k, ['_action', 'csrf_token', 'name'], true)) continue;
-                    $storage->setValue($k, $v);
-                }
-                Response::success('配置已保存', ['csrf_token' => Csrf::refresh()]);
-                break;
-            }
+            
 
             default:
                 Response::error('未知操作');
