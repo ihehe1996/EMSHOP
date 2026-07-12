@@ -49,6 +49,42 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .pjax-bar.running { width: 85%; transition: width 8s cubic-bezier(0.1, 0.5, 0.3, 1); }
 .pjax-bar.done { width: 100%; transition: width 0.15s ease-in; }
 
+.stock-empty-box{
+    cursor: not-allowed;
+    filter: grayscale(100%);
+    -webkit-filter: grayscale(100%);
+    pointer-events: none;
+}
+.stock-empty-box:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+/* 商品列表 · 已售罄水印 */
+.goods-soldout-stamp {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.28);
+    pointer-events: none;
+}
+.goods-soldout-stamp__text {
+    display: inline-block;
+    padding: 7px 16px;
+    border: 2px solid rgba(148, 163, 184, 0.9);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.78);
+    color: rgba(100, 116, 139, 0.96);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    transform: rotate(-18deg);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+}
+
 /* --- 店铺公告（首页 / 商品列表页通用） ---
    外层一个白底圆角卡片把 head + body 包成一个整体单元；head 用浅灰底 + 下分割线
    清楚地撑出"标题区"，避免 head 透明地坐在页面背景上跟整页融为一体。 */

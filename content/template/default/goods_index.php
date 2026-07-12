@@ -39,12 +39,16 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
                 <?php if (!empty($recommended_goods)): ?>
                 <div class="goods-grid">
                     <?php foreach ($recommended_goods as $g): ?>
-                    <a <?= goods_card_href_attrs($g) ?> class="card goods-card">
+                    <?php $isSoldOut = ((int) ($g['stock'] ?? 0)) === 0; ?>
+                    <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $isSoldOut ? ' stock-empty-box' : '' ?>">
                         <div class="card-img">
                             <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                             <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
                             <?php else: ?>
                             <div class="goods-no-image" aria-hidden="true"></div>
+                            <?php endif; ?>
+                            <?php if ($isSoldOut): ?>
+                            <span class="goods-soldout-stamp" aria-hidden="true"><span class="goods-soldout-stamp__text">已售罄</span></span>
                             <?php endif; ?>
                             <?php if (($g['delivery_type'] ?? '') === 'auto'): ?>
                             <span class="goods-badge goods-badge--auto">自动发货</span>

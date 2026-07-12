@@ -161,12 +161,15 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
     <?php if (!empty($goods_list)): ?>
     <div class="goods-grid">
         <?php foreach ($goods_list as $g): ?>
-        <a <?= goods_card_href_attrs($g) ?> class="card goods-card">
+        <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $g['stock'] <= 0 ? ' stock-empty-box' : '' ?>">
             <div class="card-img">
                 <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                 <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
                 <?php else: ?>
                 <div class="goods-no-image" aria-hidden="true"></div>
+                <?php endif; ?>
+                <?php if ($g['stock'] <= 0): ?>
+                <span class="goods-soldout-stamp" aria-hidden="true"><span class="goods-soldout-stamp__text">已售罄</span></span>
                 <?php endif; ?>
                 <?php if (($g['delivery_type'] ?? '') === 'auto'): ?>
                 <span class="goods-badge goods-badge--auto">自动发货</span>
