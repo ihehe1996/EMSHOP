@@ -64,7 +64,7 @@ function callback_rm()
 }
 
 // 更新插件时执行：处理表结构升级
-function callback_up()
+function callback_update()
 {
     // 新版本仅支持全新库安装，不再执行老库升级补丁
     virtual_card_bump_swoole_file_version();
