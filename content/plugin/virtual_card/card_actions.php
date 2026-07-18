@@ -3,6 +3,9 @@
  * 虚拟商品（自动发货）插件 — 卡密库存 AJAX 接口
  *
  * 通过 admin_plugin_action 钩子由插件自行注册路由，不放在核心代码中。
+ * 商户端由 /user/merchant/goods.php 直接 require 本文件，并设置
+ * $virtualCardRequireOwnerId 限制只能操作自有商品。
+ *
  * 支持的 action：card_list / card_import / card_delete / card_clear_available / card_export / card_manager
  */
 if (!defined('EM_ROOT')) {
@@ -13,6 +16,22 @@ require_once __DIR__ . '/inc_export_filename.php';
 
 $action = (string)($_GET['_action'] ?? '');
 
+/**
+ * 商户端调用时入口会设置 $virtualCardRequireOwnerId；主站后台不设置则跳过。
+ */
+$virtualCardAssertGoodsAccess = static function (int $goodsId, bool $asPage = false) use (&$virtualCardRequireOwnerId): void {
+    if (!isset($virtualCardRequireOwnerId)) {
+        return;
+    }
+    $goods = GoodsModel::getById($goodsId, false);
+    if ($goods === null || (int) ($goods['owner_id'] ?? -1) !== (int) $virtualCardRequireOwnerId) {
+        if ($asPage) {
+            exit('商品不存在或无权限');
+        }
+        Response::error('商品不存在或无权限');
+    }
+};
+
 // ================================================================
 // 卡密列表（供 AJAX 分页查询）
 // ================================================================
@@ -21,6 +40,7 @@ if ($action === 'card_list') {
     if (!$goodsId) {
         Response::error('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
 
     $page = max(1, (int)($_POST['page'] ?? 1));
     $limit = min(100, max(10, (int)($_POST['limit'] ?? 20)));
@@ -109,6 +129,7 @@ if ($action === 'card_import_page') {
     if (!$goodsId) {
         exit('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId, true);
     $goods = GoodsModel::getById($goodsId);
     if (!$goods) {
         exit('商品不存在');
@@ -116,6 +137,10 @@ if ($action === 'card_import_page') {
     $specs = GoodsModel::getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '导入卡密';
+    // 若入口未预设（主站），保持 header 默认 /admin/index.php
+    if (!isset($popupCardActionBase)) {
+        $popupCardActionBase = '/admin/index.php';
+    }
 
     include EM_ROOT . '/admin/view/popup/header.php';
     include __DIR__ . '/card_import_page.php';
@@ -131,6 +156,7 @@ if ($action === 'card_import') {
     if (!$goodsId) {
         Response::error('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
     $csrf = (string)($_POST['csrf_token'] ?? '');
     if (!Csrf::validate($csrf)) {
         Response::error('请求已失效，请刷新页面后重试');
@@ -286,12 +312,15 @@ if ($action === 'card_delete') {
         Response::error('无效的ID');
     }
 
-    // 删除前先获取 goods_id，用于后续同步库存
+    // 删除前先获取 goods_id，用于后续同步库存 + 商户归属校验
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $goodsIds = Database::query(
         "SELECT DISTINCT goods_id FROM " . Database::prefix() . "goods_virtual_card WHERE id IN ({$placeholders})",
         $ids
     );
+    foreach ($goodsIds as $row) {
+        $virtualCardAssertGoodsAccess((int) $row['goods_id']);
+    }
 
     $result = Database::execute(
         "DELETE FROM " . Database::prefix() . "goods_virtual_card WHERE id IN ({$placeholders})",
@@ -321,6 +350,7 @@ if ($action === 'card_clear_available') {
     if ($goodsId <= 0) {
         Response::error('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
 
     $goods = GoodsModel::getById($goodsId);
     if (!$goods) {
@@ -352,6 +382,7 @@ if ($action === 'card_export') {
     if (!$goodsId) {
         exit('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId, true);
 
     $goods = GoodsModel::getById($goodsId);
     if (!$goods) {
@@ -407,6 +438,7 @@ if ($action === 'card_save') {
     if (!$id || !$goodsId) {
         Response::error('参数不完整');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
 
     $cardNo = trim($_POST['card_no'] ?? '');
     if ($cardNo === '') {
@@ -455,6 +487,7 @@ if ($action === 'card_priority') {
     if (!$id || !$goodsId) {
         Response::error('参数不完整');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
 
     $card = Database::fetchOne(
         "SELECT id, sell_priority FROM " . Database::prefix() . "goods_virtual_card WHERE id = ? AND goods_id = ? AND status = 1",
@@ -485,6 +518,7 @@ if ($action === 'card_mark_sold') {
     if (!$id || !$goodsId) {
         Response::error('参数不完整');
     }
+    $virtualCardAssertGoodsAccess($goodsId);
 
     $card = Database::fetchOne(
         "SELECT id, status FROM " . Database::prefix() . "goods_virtual_card WHERE id = ? AND goods_id = ?",
@@ -516,6 +550,7 @@ if ($action === 'card_manager') {
     if (!$goodsId) {
         exit('商品ID不能为空');
     }
+    $virtualCardAssertGoodsAccess($goodsId, true);
 
     $goods = GoodsModel::getById($goodsId);
     if (!$goods) {
@@ -525,6 +560,9 @@ if ($action === 'card_manager') {
     $specs = GoodsModel::getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '卡密管理';
+    if (!isset($popupCardActionBase)) {
+        $popupCardActionBase = '/admin/index.php';
+    }
 
     // 构建 spec_id => name 映射
     $specMap = [];

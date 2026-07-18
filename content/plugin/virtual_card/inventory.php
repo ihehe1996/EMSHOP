@@ -231,6 +231,13 @@ $(function(){
 
         form.render('select');
 
+        // 卡密 action 入口：主站默认 /admin/index.php，商户端由 popup header 覆盖为 /user/merchant/goods.php
+        var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/index.php';
+        function cardUrl(action) {
+            var sep = cardActionBase.indexOf('?') >= 0 ? '&' : '?';
+            return cardActionBase + sep + '_action=' + encodeURIComponent(action);
+        }
+
         // em-filter 展开/收起（和其他页一致，localStorage 记忆）
         var $filter = $('#cardFilter');
         var filterOpenKey = 'virtual_card_inventory_filter_open';
@@ -283,7 +290,7 @@ $(function(){
         table.render({
             elem: '#cardTable',
             id: 'cardTableId',
-            url: '/admin/index.php?_action=card_list',
+            url: cardUrl('card_list'),
             method: 'POST',
             where: { goods_id: goodsId, status: '1' },
             page: true,
@@ -382,7 +389,7 @@ $(function(){
         $('#cardClearStockBtn').on('click', function () {
             layer.confirm('确定清空本商品全部「未售」卡密？已售与标记售出记录不会被删除。', function (idx) {
                 layer.close(idx);
-                $.post('/admin/index.php?_action=card_clear_available', {
+                $.post(cardUrl('card_clear_available'), {
                     csrf_token: csrfToken,
                     goods_id: goodsId
                 }, function (res) {
@@ -545,7 +552,7 @@ $(function(){
                 yes: function(idx){
                     var cardNo = $.trim($('#editCardNo').val());
                     if (!cardNo) { layer.msg('卡号不能为空'); return; }
-                    $.post('/admin/index.php?_action=card_save', {
+                    $.post(cardUrl('card_save'), {
                         csrf_token: csrfToken,
                         id: card.id,
                         goods_id: goodsId,
@@ -573,7 +580,7 @@ $(function(){
         function ajaxAction(action, data, successMsg){
             data.csrf_token = csrfToken;
             data.goods_id   = goodsId;
-            $.post('/admin/index.php?_action=' + action, data, function(res){
+            $.post(cardUrl(action), data, function(res){
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                 layer.msg(res.msg || (res.code === 200 ? successMsg : '操作失败'));
                 if (res.code === 200) table.reload('cardTableId');
@@ -581,7 +588,7 @@ $(function(){
         }
 
         function doDelete(ids){
-            $.post('/admin/index.php?_action=card_delete', {
+            $.post(cardUrl('card_delete'), {
                 csrf_token: csrfToken, ids: ids
             }, function(res){
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
@@ -604,7 +611,7 @@ $(function(){
                 maxmin: true,
                 area: [pWin.innerWidth >= 800 ? '560px' : '95%', pWin.innerHeight >= 800 ? '520px' : '80%'],
                 shadeClose: true,
-                content: '/admin/index.php?_action=card_import_page&goods_id=' + goodsId,
+                content: cardUrl('card_import_page') + '&goods_id=' + goodsId,
                 end: function(){ table.reload('cardTableId'); }
             });
         }

@@ -110,6 +110,23 @@ function mcUpsertGoodsRef(int $merchantId, int $goodsId, int $markupRate, int $i
     }
 }
 
+// ============================================================
+// 卡密库存插件 action（库存管理弹窗内 AJAX / 导入页）
+// 复用 virtual_card/card_actions.php；限制只能操作本商户自建商品
+// ============================================================
+$_cardAct = (string) Input::get('_action', '');
+$_cardAllowed = [
+    'card_list', 'card_import', 'card_import_page', 'card_delete',
+    'card_clear_available', 'card_export', 'card_save', 'card_priority',
+    'card_mark_sold', 'card_manager',
+];
+if ($_cardAct !== '' && in_array($_cardAct, $_cardAllowed, true)) {
+    $virtualCardRequireOwnerId = $ownerUserId;
+    $popupCardActionBase = '/user/merchant/goods.php';
+    require EM_ROOT . '/content/plugin/virtual_card/card_actions.php';
+    exit;
+}
+
 if (Request::isPost()) {
     try {
         // _action 允许从 POST body 或 URL query 读，兼容"URL 带 ?_action=xxx, body 只放业务字段"的调用形式
@@ -936,6 +953,8 @@ if ((string) Input::get('_popup', '') === 'stock_manager') {
     $pageTitle = '库存管理';
     // 让 stock_form 插件里的 AJAX 把 save_stock 打回商户控制器，而不是 /admin/goods_edit.php
     $popupStockSaveUrl = '/user/merchant/goods.php?_action=save_stock';
+    // 卡密库存 / 导入弹窗走商户入口，避免打开 /admin/index.php
+    $popupCardActionBase = '/user/merchant/goods.php';
     include EM_ROOT . '/admin/view/popup/header.php';
     include EM_ROOT . '/admin/view/popup/stock_manager.php';
     include EM_ROOT . '/admin/view/popup/footer.php';

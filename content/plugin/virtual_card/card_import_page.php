@@ -72,6 +72,12 @@ $(function() {
     var rootLayer = (window.parent && window.parent.layer) ? window.parent.layer : layui.layer;
     var csrfToken = <?php echo json_encode($csrfToken); ?>;
     var goodsId = <?php echo $goodsId; ?>;
+    // 与 inventory.php 一致：商户端由 popup header 注入 CARD_ACTION_BASE
+    var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/index.php';
+    function cardUrl(action) {
+        var sep = cardActionBase.indexOf('?') >= 0 ? '&' : '?';
+        return cardActionBase + sep + '_action=' + encodeURIComponent(action);
+    }
 
     // 实时统计行数
     $('#importContent').on('input', function() {
@@ -103,7 +109,7 @@ $(function() {
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin mr-5"></i>导入中...');
 
         $.ajax({
-            url: '/admin/index.php?_action=card_import',
+            url: cardUrl('card_import'),
             type: 'POST',
             dataType: 'json',
             data: {
