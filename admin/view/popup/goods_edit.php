@@ -1667,18 +1667,22 @@ $(function() {
                         return;
                     }
 
-                    // 构建弹窗内容
-                    var popupHtml = '<div style="padding:15px;">' +
+                    // 构建弹窗内容（高度随内容收缩，超出视口时可滚动）
+                    var popupHtml = '<div style="padding:15px;box-sizing:border-box;">' +
                         '<form class="layui-form" id="pluginConfigForm" lay-filter="pluginConfigForm">' +
                         formHtml +
                         '</form>' +
                         '</div>';
 
+                    var popupW = window.innerWidth >= 700 ? '600px' : '95%';
+                    var popupMaxH = Math.max(280, Math.floor(window.innerHeight * 0.9));
+
                     layer.open({
                         type: 1,
                         title: '<i class="fa fa-cog"></i> 类型配置',
                         skin: 'admin-modal',
-                        area: ['600px', '450px'],
+                        area: [popupW, 'auto'],
+                        maxHeight: popupMaxH,
                         content: popupHtml,
                         btn: ['<i class="fa fa-check"></i> 确认', '<i class="fa fa-times"></i> 取消'],
                         btnAlign: 'r',
