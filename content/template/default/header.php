@@ -125,7 +125,9 @@ window.EMSHOP_CURRENCY = {
             </button>
             <div class="header-user-menu">
                 <a href="?c=login" data-pjax class="header-user-menu-item"><i class="fa fa-sign-in"></i>登录</a>
+                <?php if (!empty($user_register_enabled)): ?>
                 <a href="?c=register" data-pjax class="header-user-menu-item"><i class="fa fa-user-plus"></i>注册</a>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
         </div>

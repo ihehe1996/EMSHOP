@@ -26,6 +26,11 @@ class RegisterController extends BaseController
             exit;
         }
 
+        // 未开放注册时直接提示
+        if ((string) Config::get('user_register', '0') !== '1') {
+            Response::error('当前站点已关闭注册功能');
+        }
+
         $this->view->setTitle('注册');
         $this->view->setData('csrf_token', Csrf::token());
         $this->view->render('register');

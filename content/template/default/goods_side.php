@@ -44,7 +44,9 @@ defined('EM_ROOT') || exit('access denied!');
         </div>
         <div class="sidebar-user-links">
             <a href="?c=login" data-pjax class="sidebar-user-btn sidebar-user-btn--primary"><i class="fa fa-sign-in"></i> 登录</a>
+            <?php if (!empty($user_register_enabled)): ?>
             <a href="?c=register" data-pjax class="sidebar-user-btn"><i class="fa fa-user-plus"></i> 注册</a>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>

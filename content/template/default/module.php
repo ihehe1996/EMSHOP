@@ -216,6 +216,7 @@ $siteIcp = $_onCustomDomain
     ? (string) ($_mc['icp'] ?? '')
     : (string) (Config::get('site_icp') ?? '');
 $siteStatisticalCode = (string) (Config::get('site_statistical_code') ?? '');
+$userRegisterEnabled = (string) (Config::get('user_register', '0')) === '1';
 
 // ============================================================
 // 8. 注入模板变量（供 header.php / footer.php 直接输出）
@@ -230,6 +231,7 @@ $this->assign([
     'nav_blog_url'          => $navBlogUrl,
     'nav_blog_enabled'      => $navBlogEnabled,
     'nav_search_url'        => $navSearchUrl,
+    'user_register_enabled' => $userRegisterEnabled,
     'front_user'            => $frontUser,
     'site_icp'              => $siteIcp,
     'site_statistical_code' => $siteStatisticalCode,

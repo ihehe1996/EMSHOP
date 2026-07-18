@@ -28,10 +28,12 @@
             </div>
             <button type="submit" class="auth-submit" id="loginBtn">登 录</button>
         </form>
+        <?php if (!empty($user_register_enabled)): ?>
         <div class="auth-footer">
             <span>还没有账号？</span>
             <a href="?c=register" data-pjax>立即注册</a>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 
