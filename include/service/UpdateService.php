@@ -429,13 +429,12 @@ final class UpdateService
     {
         self::removeDir(EM_ROOT . self::EXTRACT_DIR);
         self::cleanDir(EM_ROOT . self::CACHE_DIR);
-        // 清理旧版升级遗留的备份目录
+        // 清理旧版升级遗留的备份目录（当前版本已不再创建备份）
         $legacyBackup = EM_ROOT . '/content/tmp/update/backup';
         if (is_dir($legacyBackup)) {
             self::removeDir($legacyBackup);
         }
 
-        // 清 manifest
         @unlink(EM_ROOT . self::MANIFEST_FILE);
 
         // 记录一下最后升级时间
@@ -475,32 +474,13 @@ final class UpdateService
     // ================================================================
 
     /**
-     * 根据 manifest 回滚：仅删除本次新增的文件（无备份时不还原已覆盖文件）。
+     * 根据 manifest 回滚：仅删除本次新增的文件（不还原已覆盖文件）。
      *
-     * @param array{applied?:string[], added?:string[], replaced?:string[], backup_path?:string} $manifest
+     * @param array{applied?:string[], added?:string[], replaced?:string[]} $manifest
      */
     private static function rollbackFromManifest(array $manifest): int
     {
-        $backupPath = (string) ($manifest['backup_path'] ?? '');
         $count = 0;
-
-        if ($backupPath !== '') {
-            foreach ($manifest['applied'] ?? [] as $rel) {
-                $projectFile = EM_ROOT . '/' . $rel;
-                $backupFile = $backupPath . '/' . $rel;
-                if (is_file($backupFile)) {
-                    if (!is_dir(dirname($projectFile))) {
-                        @mkdir(dirname($projectFile), 0755, true);
-                    }
-                    @copy($backupFile, $projectFile);
-                } else {
-                    @unlink($projectFile);
-                }
-                $count++;
-            }
-            return $count;
-        }
-
         foreach ($manifest['added'] ?? [] as $rel) {
             @unlink(EM_ROOT . '/' . $rel);
             $count++;
