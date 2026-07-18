@@ -11,7 +11,8 @@ defined('EM_ROOT') || exit('access denied!');
 ?>
 <aside class="blog-sidebar">
 
-    <!-- 个人信息 -->
+    <?php if (!empty($front_user) || !empty($user_login_enabled) || !empty($user_register_enabled)): ?>
+    <!-- 个人信息（登录/注册均关闭且未登录时不显示） -->
     <div class="sidebar-widget">
         <div class="sidebar-title">个人信息</div>
         <?php if (!empty($front_user)): ?>
@@ -43,13 +44,16 @@ defined('EM_ROOT') || exit('access denied!');
             </div>
         </div>
         <div class="sidebar-user-links">
+            <?php if (!empty($user_login_enabled)): ?>
             <a href="?c=login" data-pjax class="sidebar-user-btn sidebar-user-btn--primary"><i class="fa fa-sign-in"></i> 登录</a>
+            <?php endif; ?>
             <?php if (!empty($user_register_enabled)): ?>
-            <a href="?c=register" data-pjax class="sidebar-user-btn"><i class="fa fa-user-plus"></i> 注册</a>
+            <a href="?c=register" data-pjax class="sidebar-user-btn<?= empty($user_login_enabled) ? ' sidebar-user-btn--primary' : '' ?>"><i class="fa fa-user-plus"></i> 注册</a>
             <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 
     <!-- 最新商品 -->
     <?php if (!empty($recent_goods)): ?>

@@ -216,6 +216,7 @@ $siteIcp = $_onCustomDomain
     ? (string) ($_mc['icp'] ?? '')
     : (string) (Config::get('site_icp') ?? '');
 $siteStatisticalCode = (string) (Config::get('site_statistical_code') ?? '');
+$userLoginEnabled    = (string) (Config::get('user_login', '1')) === '1';
 $userRegisterEnabled = (string) (Config::get('user_register', '0')) === '1';
 
 // ============================================================
@@ -231,6 +232,7 @@ $this->assign([
     'nav_blog_url'          => $navBlogUrl,
     'nav_blog_enabled'      => $navBlogEnabled,
     'nav_search_url'        => $navSearchUrl,
+    'user_login_enabled'    => $userLoginEnabled,
     'user_register_enabled' => $userRegisterEnabled,
     'front_user'            => $frontUser,
     'site_icp'              => $siteIcp,

@@ -87,8 +87,12 @@ defined('EM_ROOT') || exit('access denied!');
                     <?php else: ?>
                     <div class="comment-login-tip">
                         <i class="fa fa-commenting-o"></i>
+                        <?php if (!empty($user_login_enabled)): ?>
                         <span>登录后参与评论</span>
                         <a href="?c=login" data-pjax class="comment-login-btn">登录</a>
+                        <?php else: ?>
+                        <span>评论功能暂未开放</span>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
                 </div>

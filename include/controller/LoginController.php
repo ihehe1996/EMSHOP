@@ -27,6 +27,11 @@ class LoginController extends BaseController
             exit;
         }
 
+        // 未开放登录时直接提示
+        if ((string) Config::get('user_login', '1') !== '1') {
+            Response::error('当前站点已关闭登录功能');
+        }
+
         $this->view->setTitle('登录');
         $this->view->setData('csrf_token', Csrf::token());
         $this->view->render('login');
@@ -37,6 +42,10 @@ class LoginController extends BaseController
      */
     private function handleLogin(): void
     {
+        if ((string) Config::get('user_login', '1') !== '1') {
+            Response::error('当前站点已关闭登录功能');
+        }
+
         $csrf = Input::post('csrf_token', '');
         if (!Csrf::validate((string) $csrf)) {
             Response::error('请求已失效，请刷新页面后重试');

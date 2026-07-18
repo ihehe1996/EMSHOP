@@ -151,12 +151,13 @@ if (Request::isPost()) {
 
             // 用户设置
             case 'user':
+                Config::set('user_login', Input::post('user_login', '') === '' ? '0' : '1');
                 Config::set('user_register', Input::post('user_register', '') === '' ? '0' : '1');
                 Config::set('user_verify_email', Input::post('user_verify_email', '') === '' ? '0' : '1');
                 Config::set('user_credit_name', trim((string) Input::post('user_credit_name', '经验')));
                 Config::set('user_credit_initial', (string) max(0, (int) Input::post('user_credit_initial', 0)));
                 Config::set('user_exp_per_yuan', (string) max(0, (int) Input::post('user_exp_per_yuan', 0)));
-                $saved += 5;
+                $saved += 6;
                 break;
 
             // 商城设置

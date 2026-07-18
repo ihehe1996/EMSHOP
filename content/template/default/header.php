@@ -119,16 +119,20 @@ window.EMSHOP_CURRENCY = {
                 <a href="?c=login&a=logout" class="header-user-menu-item header-user-menu-item--danger"><i class="fa fa-sign-out"></i>退出登录</a>
             </div>
             <?php else: ?>
+            <?php if (!empty($user_login_enabled) || !empty($user_register_enabled)): ?>
             <!-- 未登录：默认头像 + 下拉菜单 -->
             <button type="button" class="header-user">
                 <span class="header-user-avatar header-user-avatar--default"><i class="fa fa-user"></i></span>
             </button>
             <div class="header-user-menu">
+                <?php if (!empty($user_login_enabled)): ?>
                 <a href="?c=login" data-pjax class="header-user-menu-item"><i class="fa fa-sign-in"></i>登录</a>
+                <?php endif; ?>
                 <?php if (!empty($user_register_enabled)): ?>
                 <a href="?c=register" data-pjax class="header-user-menu-item"><i class="fa fa-user-plus"></i>注册</a>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
             <?php endif; ?>
         </div>
         <!-- 移动端菜单按钮 -->

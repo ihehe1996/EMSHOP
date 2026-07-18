@@ -50,10 +50,12 @@
             </div>
             <button type="submit" class="auth-submit" id="registerBtn">注 册</button>
         </form>
+        <?php if (!empty($user_login_enabled)): ?>
         <div class="auth-footer">
             <span>已有账号？</span>
             <a href="?c=login" data-pjax>立即登录</a>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 

@@ -518,8 +518,15 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                     <input type="hidden" name="csrf_token" value="<?php echo $esc($csrfToken); ?>">
 
                     <div class="admin-settings__block">
-                        <div class="admin-settings__block-title"><i class="fa fa-user-plus"></i>注册与认证</div>
+                        <div class="admin-settings__block-title"><i class="fa fa-user-plus"></i>登录与注册</div>
 
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">开放登录</label>
+                            <div class="layui-input-block">
+                                <?php echo formSwitch('user_login', $cfg['user_login'] ?? '1'); ?>
+                                <div class="layui-form-mid layui-word-aux">关闭后前台不显示登录入口，也无法登录</div>
+                            </div>
+                        </div>
                         <div class="layui-form-item">
                             <label class="layui-form-label">开放注册</label>
                             <div class="layui-input-block">

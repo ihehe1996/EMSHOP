@@ -113,9 +113,11 @@
             <i class="fa fa-sign-out"></i><span>退出登录</span>
         </a>
         <?php else: ?>
+        <?php if (!empty($user_login_enabled)): ?>
         <a href="?c=login" data-pjax class="mobile-nav-item">
             <i class="fa fa-sign-in"></i><span>登录</span>
         </a>
+        <?php endif; ?>
         <?php if (!empty($user_register_enabled)): ?>
         <a href="?c=register" data-pjax class="mobile-nav-item">
             <i class="fa fa-user-plus"></i><span>注册</span>
