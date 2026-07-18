@@ -14,7 +14,7 @@ $cs = $currencySymbol ?? '¥';
     <a class="em-tabs__item"           data-status="delivered" href="javascript:;"><i class="fa fa-truck"></i><span>待收货</span></a>
     <a class="em-tabs__item"           data-status="completed" href="javascript:;"><i class="fa fa-check-circle"></i><span>已完成</span></a>
     <a class="em-tabs__item"           data-status="refunded"  href="javascript:;"><i class="fa fa-undo"></i><span>已退款</span></a>
-    <a class="em-tabs__item"           data-status="cancelled" href="javascript:;"><i class="fa fa-times-circle"></i><span>已取消</span></a>
+    <a class="em-tabs__item"           data-status="expired"   href="javascript:;"><i class="fa fa-hourglass-end"></i><span>已过期</span></a>
 </div>
 
 <div class="admin-page">
