@@ -94,6 +94,15 @@ foreach ($naviTree as $nav) {
     $navItems[] = $item;
 }
 
+// 系统「博客」导航是否启用（禁用时首页不展示文章板块）
+$navBlogEnabled = false;
+foreach ($naviTree as $nav) {
+    if (($nav['type'] ?? '') === 'system' && ($nav['name'] ?? '') === '博客') {
+        $navBlogEnabled = true;
+        break;
+    }
+}
+
 // 当前请求的 path（用于 URL 精确匹配高亮，规范化为以 / 开头、无尾斜杠）
 $currentPath = '/';
 if (!empty($_SERVER['REQUEST_URI'])) {
@@ -219,6 +228,7 @@ $this->assign([
     'nav_id'                => $navId,
     'nav_goods_url'         => $navGoodsUrl,
     'nav_blog_url'          => $navBlogUrl,
+    'nav_blog_enabled'      => $navBlogEnabled,
     'nav_search_url'        => $navSearchUrl,
     'front_user'            => $frontUser,
     'site_icp'              => $siteIcp,

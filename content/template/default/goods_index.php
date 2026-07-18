@@ -93,7 +93,8 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
                 <?php endif; ?>
             </div>
 
-            <!-- 最新文章 -->
+            <?php if (!empty($nav_blog_enabled)): ?>
+            <!-- 最新文章（仅博客导航启用时显示） -->
             <div class="section">
                 <div class="section-header">
                     <div class="section-title">最新文章</div>
@@ -132,6 +133,7 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
                 </div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
 
         </div>
 
