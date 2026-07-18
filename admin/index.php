@@ -11,7 +11,8 @@ require_once __DIR__ . '/global.php';
  */
 if ((string) Input::get('action', '') === 'logout') {
     $auth->logout();
-    Response::redirect(adminSignUrl());
+    // 退出后带上安全入口参数，方便再次登录；未登录误入后台时仍不带密钥
+    Response::redirect(adminSignUrl(true));
 }
 
 // 清除缓存

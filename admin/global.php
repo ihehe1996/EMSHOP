@@ -38,11 +38,16 @@ function adminRequireLogin(): void
 }
 
 /**
- * 构造登录页 URL，自动携带安全入口参数。
- * 设置了 admin_entry_key 时跳转 /admin/sign.php?s=xxx；否则无参数。
+ * 构造登录页 URL。
+ *
+ * @param bool $includeEntryKey 为 true 时附带安全入口 ?s=（仅用于已登录场景如退出登录）；
+ *                              默认 false，避免未登录跳转把密钥写进 Location 泄露。
  */
-function adminSignUrl(): string
+function adminSignUrl(bool $includeEntryKey = false): string
 {
+    if (!$includeEntryKey) {
+        return '/admin/sign.php';
+    }
     $key = trim((string) Config::get('admin_entry_key', ''));
     return $key === '' ? '/admin/sign.php' : '/admin/sign.php?s=' . urlencode($key);
 }
