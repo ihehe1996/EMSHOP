@@ -178,6 +178,49 @@ if (Request::isPost()) {
                 ]);
                 break;
 
+            // 按状态清空：仅允许 pending（未支付）/ expired（已过期）
+            case 'clear_by_status': {
+                $status = trim((string) Input::post('status', ''));
+                $allowed = ['pending' => '未支付', 'expired' => '已过期'];
+                if (!isset($allowed[$status])) {
+                    Response::error('不支持清空该状态的订单');
+                }
+
+                $idRows = Database::query(
+                    "SELECT id FROM {$prefix}order WHERE status = ?",
+                    [$status]
+                );
+                $ids = array_map(static fn($r) => (int) $r['id'], $idRows);
+                if (!$ids) {
+                    Response::success('没有可清空的' . $allowed[$status] . '订单', [
+                        'deleted' => 0,
+                        'csrf_token' => Csrf::token(),
+                    ]);
+                }
+
+                $deleted = 0;
+                Database::begin();
+                try {
+                    // 分批删除，避免一次 IN 列表过长
+                    foreach (array_chunk($ids, 500) as $chunk) {
+                        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+                        Database::execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$placeholders})", $chunk);
+                        Database::execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$placeholders})", $chunk);
+                        $deleted += (int) Database::execute("DELETE FROM {$prefix}order WHERE id IN ({$placeholders})", $chunk);
+                    }
+                    Database::commit();
+                } catch (Throwable $e) {
+                    Database::rollBack();
+                    Response::error('清空失败：' . $e->getMessage());
+                }
+
+                Response::success('已清空 ' . $deleted . ' 条' . $allowed[$status] . '订单', [
+                    'deleted' => $deleted,
+                    'csrf_token' => Csrf::token(),
+                ]);
+                break;
+            }
+
             // 查询订单详情（AJAX）
             case 'detail':
                 $orderId = (int) Input::post('id', 0);

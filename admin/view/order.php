@@ -28,6 +28,8 @@ $cs = $currencySymbol ?? '¥';
         <div class="em-table-toolbar__actions layui-btn-container">
             <a class="em-btn em-reset-btn" id="orderRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
             <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
+            <a class="em-btn em-red-btn" lay-event="clearPending"><i class="fa fa-clock-o"></i>清空未支付订单</a>
+            <a class="em-btn em-red-btn" lay-event="clearExpired"><i class="fa fa-hourglass-end"></i>清空已过期订单</a>
         </div>
         <div class="em-quick-search">
             <i class="fa fa-search em-quick-search__ico"></i>
@@ -264,32 +266,59 @@ $(function () {
         });
 
         // ============================================================
-        // 工具栏事件：批量删除
+        // 工具栏事件：批量删除 / 按状态清空
         // ============================================================
-        table.on('toolbar(orderTable)', function (obj) {
-            if (obj.event !== 'batchDelete') return;
-            var checked = table.checkStatus('orderTableId').data;
-            if (checked.length === 0) { layer.msg('请先勾选订单'); return; }
-            var ids = checked.map(function (r) { return r.id; });
-            layer.confirm('确定要删除选中的 ' + ids.length + ' 条订单吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
+        function clearOrdersByStatus(status, label) {
+            layer.confirm('确定要清空全部「' + label + '」订单吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
                 $.ajax({
                     url: '/admin/order.php',
                     type: 'POST',
                     dataType: 'json',
-                    data: {csrf_token: csrfToken, _action: 'batch_delete', ids: ids},
+                    data: {csrf_token: csrfToken, _action: 'clear_by_status', status: status},
                     success: function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
-                            layer.msg(res.msg || '删除成功');
+                            layer.msg(res.msg || '清空成功');
                             table.reload('orderTableId');
                         } else {
-                            layer.msg(res.msg || '删除失败');
+                            layer.msg(res.msg || '清空失败');
                         }
                     },
                     error: function () { layer.msg('网络异常'); },
                     complete: function () { layer.close(idx); }
                 });
             });
+        }
+
+        table.on('toolbar(orderTable)', function (obj) {
+            if (obj.event === 'batchDelete') {
+                var checked = table.checkStatus('orderTableId').data;
+                if (checked.length === 0) { layer.msg('请先勾选订单'); return; }
+                var ids = checked.map(function (r) { return r.id; });
+                layer.confirm('确定要删除选中的 ' + ids.length + ' 条订单吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
+                    $.ajax({
+                        url: '/admin/order.php',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {csrf_token: csrfToken, _action: 'batch_delete', ids: ids},
+                        success: function (res) {
+                            if (res.code === 200) {
+                                if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                                layer.msg(res.msg || '删除成功');
+                                table.reload('orderTableId');
+                            } else {
+                                layer.msg(res.msg || '删除失败');
+                            }
+                        },
+                        error: function () { layer.msg('网络异常'); },
+                        complete: function () { layer.close(idx); }
+                    });
+                });
+            } else if (obj.event === 'clearPending') {
+                clearOrdersByStatus('pending', '未支付');
+            } else if (obj.event === 'clearExpired') {
+                clearOrdersByStatus('expired', '已过期');
+            }
         });
 
         // ============================================================
