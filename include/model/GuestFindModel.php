@@ -129,6 +129,44 @@ class GuestFindModel
         ];
     }
 
+    /**
+     * 按后台配置的联系方式类型校验用户输入。
+     *
+     * @return string|null 错误信息；通过返回 null
+     */
+    public static function validateContactQuery(string $value): ?string
+    {
+        $value = trim($value);
+        $label = self::getContactTypeLabel();
+        if ($value === '') {
+            return '请输入' . $label;
+        }
+
+        switch (self::getContactType()) {
+            case self::CONTACT_TYPE_PHONE:
+                if (!preg_match('/^1[3-9]\d{9}$/', $value)) {
+                    return '请输入正确的手机号码';
+                }
+                break;
+            case self::CONTACT_TYPE_EMAIL:
+                if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                    return '请输入正确的邮箱地址';
+                }
+                break;
+            case self::CONTACT_TYPE_QQ:
+                if (!preg_match('/^[1-9]\d{4,10}$/', $value)) {
+                    return '请输入正确的QQ号码';
+                }
+                break;
+            case self::CONTACT_TYPE_ANY:
+            default:
+                // 不限类型，仅非空即可
+                break;
+        }
+
+        return null;
+    }
+
     // ============================================================
     // 占位提示文本
     // ============================================================

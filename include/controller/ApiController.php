@@ -990,8 +990,11 @@ class ApiController extends BaseController
         $extraFields = $this->collectExtraFields($goods, $params);
         $contactQuery = trim((string) ($params['guest_find_contact_query'] ?? $params['contact'] ?? ''));
         $orderPassword = trim((string) ($params['guest_find_password_query'] ?? $params['order_password'] ?? ''));
-        if (GuestFindModel::isContactEnabled() && $contactQuery === '') {
-            throw new RuntimeException('请传 ' . GuestFindModel::getContactTypeLabel());
+        if (GuestFindModel::isContactEnabled()) {
+            $contactError = GuestFindModel::validateContactQuery($contactQuery);
+            if ($contactError !== null) {
+                throw new RuntimeException($contactError);
+            }
         }
         if (GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
             throw new RuntimeException('请传订单密码');

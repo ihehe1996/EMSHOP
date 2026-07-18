@@ -87,6 +87,7 @@ class OrderController extends BaseController
 
         // —— 附加选项必填校验（商品 configs.extra_fields 里 required=1 的项）
         $goodsConfigs = json_decode($goodsRow['configs'] ?? '{}', true) ?: [];
+        
         $extraFields = [];
         foreach (($goodsConfigs['extra_fields'] ?? []) as $ef) {
             $name = (string) ($ef['name'] ?? '');
@@ -102,12 +103,14 @@ class OrderController extends BaseController
         $isGuest = $identity['user_id'] === 0;
 
         $contactQuery = trim((string) Input::post('guest_find_contact_query', ''));
-        $contactType = trim((string) Input::post('guest_find_contact_type', ''));
         $orderPassword = trim((string) Input::post('guest_find_password_query', ''));
 
         if ($isGuest) {
-            if (GuestFindModel::isContactEnabled() && $contactQuery === '') {
-                Response::error('请输入' . GuestFindModel::getContactTypeLabel());
+            if (GuestFindModel::isContactEnabled()) {
+                $contactError = GuestFindModel::validateContactQuery($contactQuery);
+                if ($contactError !== null) {
+                    Response::error($contactError);
+                }
             }
             if (GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
                 Response::error('请设置订单密码');

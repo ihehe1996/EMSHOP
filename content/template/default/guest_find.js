@@ -291,7 +291,23 @@ var GuestFind = (function () {
             if ($contactSection.length && !$contactSection.is(':hidden')) {
                 var $cOrder = $('#guestFindContactOrder');
                 if ($cOrder.length && !($cOrder.val() || '').trim()) return '请输入订单编号';
-                if (!($('#guestFindContactQuery').val() || '').trim()) return '请输入联系方式';
+                var cQuery = ($('#guestFindContactQuery').val() || '').trim();
+                var cType = ($('#guestFindContactType').val() || 'any').toLowerCase();
+                if (!cQuery) {
+                    if (cType === 'phone') return '请输入手机号码';
+                    if (cType === 'email') return '请输入邮箱地址';
+                    if (cType === 'qq') return '请输入QQ号码';
+                    return '请输入联系方式';
+                }
+                if (cType === 'phone' && !/^1[3-9]\d{9}$/.test(cQuery)) {
+                    return '请输入正确的手机号码';
+                }
+                if (cType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cQuery)) {
+                    return '请输入正确的邮箱地址';
+                }
+                if (cType === 'qq' && !/^[1-9]\d{4,10}$/.test(cQuery)) {
+                    return '请输入正确的QQ号码';
+                }
             }
 
             if ($passwordSection.length && !$passwordSection.is(':hidden')) {
