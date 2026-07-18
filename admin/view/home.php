@@ -283,7 +283,11 @@ if (is_file($__swooleHbPath)) {
                 <div class="dash-metric__value-row">
                     <span class="dash-metric__today-value">v<?= $esc(EM_VERSION) ?></span>
                 </div>
-                <div class="dash-metric__yesterday">EMSHOP</div>
+                <div class="dash-metric__yesterday">
+                    <a href="https://changelog.ihehe.me/" target="_blank" rel="noopener noreferrer" class="dash-changelog-link">
+                        查看更新日志 <i class="fa fa-external-link"></i>
+                    </a>
+                </div>
             </div>
 
             <!-- 数据由 JS 异步注入；默认占位显示"检测中" -->
@@ -742,6 +746,16 @@ if (is_file($__swooleHbPath)) {
     color: #1f2937;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ---------- 系统版本卡：更新日志链接 ---------- */
+.dash-changelog-link {
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+.dash-changelog-link:hover { color: #4f46e5; }
+.dash-changelog-link i { font-size: 10px; margin-left: 2px; opacity: 0.75; }
 
 /* ---------- 系统版本卡：授权等级 tag + 检查更新按钮 ---------- */
 .dash-metric__level-tag {
