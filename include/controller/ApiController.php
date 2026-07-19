@@ -75,13 +75,15 @@ class ApiController extends BaseController
      * 可选：
      *   spec_id
      *   coupon_code
-     *   guest_find_contact_query / contact
-     *   guest_find_password_query / order_password
+     *   guest_find_contact_query / contact（可选；非游客身份，仅作终端客户备注/查单辅助）
+     *   guest_find_password_query / order_password（可选）
      *   attach
      *   extra_json（JSON 对象，附加字段键值）
      *   extra_{name}（附加字段，和 extra_json 二选一或混用）
      *   address_json（JSON：recipient/mobile/province/city/district/detail）
      *   delivery_callback_url（可选；上游发货后回调地址，同系统对接使用）
+     *
+     * 身份：鉴权通过后订单 user_id = appid 对应用户，后台显示为会员而非游客。
      */
     private function createOrder(): void
     {
@@ -988,22 +990,18 @@ class ApiController extends BaseController
         }
 
         $extraFields = $this->collectExtraFields($goods, $params);
+        // API 买家已鉴权，不是游客：忽略站点「游客查单」开关与手机号/密码强制校验。
+        // contact / order_password 仅作可选备注落库，不参与 GuestFindModel 校验。
         $contactQuery = trim((string) ($params['guest_find_contact_query'] ?? $params['contact'] ?? ''));
         $orderPassword = trim((string) ($params['guest_find_password_query'] ?? $params['order_password'] ?? ''));
-        if (GuestFindModel::isContactEnabled()) {
-            $contactError = GuestFindModel::validateContactQuery($contactQuery);
-            if ($contactError !== null) {
-                throw new RuntimeException($contactError);
-            }
-        }
-        if (GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
-            throw new RuntimeException('请传订单密码');
-        }
         $guestAddress = $this->parseGuestAddress($params);
 
         $apiUid = (int) ($apiUser['id'] ?? 0);
+        if ($apiUid <= 0) {
+            throw new RuntimeException('API 用户无效');
+        }
         $createData = [
-            // 订单 user_id 记 API 付款人（appid），便于后台对账；收货人地址仍走 guest_address
+            // 订单 user_id 记 API 付款人（appid）；后台按 user_id>0 识别为会员，非游客
             'user_id'             => $apiUid,
             'guest_token'         => 'api_' . substr(md5((string) $apiUser['id'] . '|' . microtime(true) . '|' . random_int(1000, 9999)), 0, 32),
             'merchant_id'         => (int) $scope['merchant_id'],
