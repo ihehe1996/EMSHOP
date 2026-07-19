@@ -61,8 +61,8 @@ class RegisterController extends BaseController
         if (mb_strlen($username) < 3 || mb_strlen($username) > 20) {
             Response::error('账号长度为 3-20 个字符');
         }
-        if (!preg_match('/^[a-zA-Z0-9_\x{4e00}-\x{9fa5}]+$/u', $username)) {
-            Response::error('账号只能包含字母、数字、下划线和中文');
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+            Response::error('账号只能包含字母、数字和下划线，不能包含中文');
         }
         if ($mobile === '') {
             Response::error('请输入手机号码');

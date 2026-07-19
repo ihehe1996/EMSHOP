@@ -15,7 +15,7 @@
                 <label class="auth-label">账号</label>
                 <div class="auth-input-wrap">
                     <i class="fa fa-user"></i>
-                    <input type="text" name="username" placeholder="3-20位字母、数字、下划线或中文" autocomplete="username" required>
+                    <input type="text" name="username" placeholder="3-20位字母、数字或下划线" autocomplete="username" required>
                 </div>
             </div>
             <div class="auth-field">
@@ -81,8 +81,17 @@
         if ($btn.hasClass('is-loading')) return;
 
         // 前端校验
+        var username = $.trim($('input[name="username"]').val());
         var password = $('input[name="password"]').val();
         var confirm = $('input[name="password_confirm"]').val();
+        if (username.length < 3 || username.length > 20) {
+            layer.msg('账号长度为 3-20 个字符');
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            layer.msg('账号只能包含字母、数字和下划线，不能包含中文');
+            return;
+        }
         if (password.length < 6) {
             layer.msg('密码长度不能少于 6 位');
             return;
