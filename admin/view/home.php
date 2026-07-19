@@ -969,6 +969,34 @@ if (is_file($__swooleHbPath)) {
 .dash-update__body img { max-width: 100%; border-radius: 4px; }
 .dash-update__body strong, .dash-update__body b { color: #0f172a; }
 
+/* 手机端：版本更新 / 升级向导弹窗 */
+@media (max-width: 640px) {
+    .layui-layer.dash-update-modal .popup-inner,
+    .layui-layer.dash-wizard-modal .popup-inner { padding: 12px 14px; }
+    .layui-layer.dash-update-modal .popup-footer,
+    .layui-layer.dash-wizard-modal .popup-footer {
+        flex-wrap: wrap;
+        justify-content: stretch;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+    .layui-layer.dash-update-modal .popup-footer .popup-btn,
+    .layui-layer.dash-wizard-modal .popup-footer .dash-wizard__btn,
+    .layui-layer.dash-wizard-modal .popup-footer .em-btn {
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+    .dash-update__item { padding: 12px 12px; }
+    .dash-update__head { flex-wrap: wrap; align-items: flex-start; }
+    .dash-wizard__hero { padding: 12px 14px; gap: 10px; }
+    .dash-wizard__hero i { font-size: 22px; }
+    .dash-wizard__hero-title { font-size: 14px; }
+    .dash-wizard__log { max-height: 140px; padding: 10px 12px; }
+}
+
 /* ---------- 升级向导弹窗 ---------- */
 .layui-layer.dash-wizard-modal .layui-layer-content { padding: 0 !important; height: 100% !important; }
 .layui-layer.dash-wizard-modal .popup-wrap { display: flex; flex-direction: column; height: 100%; }
@@ -1518,7 +1546,8 @@ $(function () {
             '</div>';
             var idx = layui.layer.open({
                 type: 1, title: '发现 ' + updates.length + ' 个新版本', skin: 'admin-modal dash-update-modal',
-                area: ['560px', '560px'], shadeClose: true, content: html
+                area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '560px' : '88%'],
+                shadeClose: true, content: html
             });
             $(document).off('click.dashUpdate').on('click.dashUpdate', '#dashUpdateCancel', function () {
                 layui.layer.close(idx);
@@ -1604,7 +1633,7 @@ $(function () {
             type: 1, 
             title: '在线升级', 
             skin: 'admin-modal dash-wizard-modal',
-            area: ['640px', '620px'],
+            area: [window.innerWidth >= 640 ? '640px' : '94%', window.innerHeight >= 640 ? '620px' : '90%'],
             shadeClose: false, 
             closeBtn: 0,  // 不允许点遮罩/右上角关
             content: html
@@ -1838,7 +1867,7 @@ $(function () {
             type: 1,
             title: urls.length === 1 ? '下载安装包' : '选择下载源',
             skin: 'admin-modal',
-            area: ['460px', 'auto'],
+            area: [window.innerWidth >= 640 ? '460px' : '94%', 'auto'],
             shadeClose: true,
             content: '<div class="dash-dl-wrap">' + items + '</div>'
         });
