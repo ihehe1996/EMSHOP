@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * CLI Worker（子进程）：只干一类事，内部 while + sleep 循环。
  *
@@ -30,10 +28,20 @@ final class CliServerWorker
             return 1;
         }
 
+        // init.php 开了 ob_start；子进程 stdout 又是管道 → echo 会堆在缓冲里，主进程看不到。
+        // heartbeat 不加载 init，所以只有它会立刻出现启动日志。这里关掉缓冲并强制刷新。
+        while (ob_get_level() > 0) {
+            ob_end_flush();
+        }
+        if (function_exists('ob_implicit_flush')) {
+            ob_implicit_flush(1);
+        }
+
         self::installSignalHandlers();
 
-        $label = self::typeLabel($type);
-        echo '[' . date('Y-m-d H:i:s') . "] worker {$type}（{$label}）已启动，PID " . getmypid() . "\n";
+        if (defined('STDOUT') && is_resource(STDOUT)) {
+            fflush(STDOUT);
+        }
         CliServer::log("worker 启动：{$type}，PID " . getmypid());
 
         // 按类型进入对应的死循环（直到被主进程终止）

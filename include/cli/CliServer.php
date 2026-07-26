@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * CLI 公共工具：路径、日志、PID、进程探测等。
  *
