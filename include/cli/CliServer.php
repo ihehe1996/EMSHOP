@@ -19,8 +19,15 @@ final class CliServer
     public const WORKER_GOODS_SYNC = 'goods_sync';
 
     public const GOODS_SYNC_BATCH_SIZE = 30;
-    /** 商品同步进度存在 config 表里的 key（沿用旧名） */
+    /** 商品同步进度存在 config 表里的 key（沿用旧名，后续可再迁） */
     public const GOODS_SYNC_STATE_KEY = 'swoole_goods_rr_state';
+
+    /** 任务服务文件版本（推荐命名） */
+    public const CONFIG_FILE_VERSION_APPLIED = 'server_file_version_applied';
+    public const CONFIG_FILE_VERSION_PENDING = 'server_file_version_pending';
+    /** 旧命名（兼容期内双写双读，后续淘汰） */
+    public const CONFIG_FILE_VERSION_APPLIED_LEGACY = 'local_swoole_file_version';
+    public const CONFIG_FILE_VERSION_PENDING_LEGACY = 'new_swoole_file_version';
 
     /** @var string|null */
     private static $runtimeDir;
@@ -79,6 +86,75 @@ final class CliServer
         }
         @unlink($file);
         return true;
+    }
+
+    /**
+     * 读取已生效（applied）文件版本：优先新 key，否则回退旧 key。
+     */
+    public static function getAppliedFileVersion(): string
+    {
+        return self::readConfigPrefer(
+            self::CONFIG_FILE_VERSION_APPLIED,
+            self::CONFIG_FILE_VERSION_APPLIED_LEGACY,
+            '0.0.0'
+        );
+    }
+
+    /**
+     * 读取待生效（pending）文件版本；多 key 都有值时取较大者（避免漏掉只 bump 旧 key 的插件）。
+     */
+    public static function getPendingFileVersion(): string
+    {
+        $primary = trim((string) (Config::get(self::CONFIG_FILE_VERSION_PENDING, '') ?? ''));
+        $legacy = trim((string) (Config::get(self::CONFIG_FILE_VERSION_PENDING_LEGACY, '') ?? ''));
+        if ($primary === '') {
+            return $legacy;
+        }
+        if ($legacy === '') {
+            return $primary;
+        }
+        return @version_compare($primary, $legacy, '>=') ? $primary : $legacy;
+    }
+
+    /**
+     * 写入已生效版本（applied + 旧 key 双写）。
+     */
+    public static function setAppliedFileVersion(string $version): void
+    {
+        $version = trim($version);
+        Config::set(self::CONFIG_FILE_VERSION_APPLIED, $version);
+        Config::set(self::CONFIG_FILE_VERSION_APPLIED_LEGACY, $version);
+    }
+
+    /**
+     * bump 待生效版本（pending + 旧 key 双写）。
+     * 新代码 / 插件迁移后请调用本方法，替代直接 Config::set('new_swoole_file_version', …)。
+     */
+    public static function bumpPendingFileVersion(?string $version = null): void
+    {
+        $version = trim((string) ($version !== null ? $version : time()));
+        if ($version === '') {
+            $version = (string) time();
+        }
+        Config::set(self::CONFIG_FILE_VERSION_PENDING, $version);
+        Config::set(self::CONFIG_FILE_VERSION_PENDING_LEGACY, $version);
+    }
+
+    /**
+     * @param string $primary 新 key
+     * @param string $legacy  旧 key
+     */
+    private static function readConfigPrefer(string $primary, string $legacy, string $default = ''): string
+    {
+        $value = trim((string) (Config::get($primary, '') ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+        $value = trim((string) (Config::get($legacy, '') ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+        return $default;
     }
 
     /**

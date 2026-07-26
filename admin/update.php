@@ -93,8 +93,8 @@ try {
         // ------------------------------------------------------------
         case 'finalize': {
             $res = UpdateService::finalize();
-            // 每次系统升级完成后写入新文件版本号，触发任务服务检测并重载 worker。
-            Config::set('new_swoole_file_version', (string) time());
+            // 每次系统升级完成后 bump pending 版本，触发任务服务检测并重载 worker（新旧 key 双写）。
+            CliServer::bumpPendingFileVersion();
             Response::success('升级完成', $res + ['csrf_token' => Csrf::refresh()]);
         }
 

@@ -185,25 +185,27 @@ final class CliServerTasks
      */
     public static function checkFileVersionAndRequestReload(): bool
     {
-        $local = trim((string) (Config::get('local_swoole_file_version', '0.0.0') ?? '0.0.0'));
-        $new = trim((string) (Config::get('new_swoole_file_version', '') ?? ''));
-        if ($new === '') {
+        // applied/pending 优先，兼容旧 local/new_swoole_file_version
+        $applied = CliServer::getAppliedFileVersion();
+        $pending = CliServer::getPendingFileVersion();
+        if ($pending === '') {
             return false;
         }
 
-        if (!@version_compare($new, $local, '>')) {
+        if (!@version_compare($pending, $applied, '>')) {
             return false;
         }
 
-        CliServer::log("重载：检测到文件版本升级（自 {$local} 变更为 {$new}），正在通知主进程重启 worker");
+        CliServer::log("重载：检测到文件版本升级（自 {$applied} 变更为 {$pending}），正在通知主进程重启 worker");
 
         if (!CliServer::requestReload()) {
-            CliServer::log("异常：文件版本升级后写入重载标记失败（自 {$local} 变更为 {$new}）");
+            CliServer::log("异常：文件版本升级后写入重载标记失败（自 {$applied} 变更为 {$pending}）");
             return false;
         }
 
-        CliServer::log("重载：已写入重载标记（文件版本 {$local}→{$new}），主进程将重启 worker");
-        Config::set('local_swoole_file_version', $new);
+        CliServer::log("重载：已写入重载标记（文件版本 {$applied}→{$pending}），主进程将重启 worker");
+        // applied + 旧 key 双写，过渡期内任一侧 bump 都能对齐
+        CliServer::setAppliedFileVersion($pending);
         return true;
     }
 

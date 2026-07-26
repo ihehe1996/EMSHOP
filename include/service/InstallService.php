@@ -87,8 +87,11 @@ final class InstallService
             ['config_name' => 'merchant_default_theme', 'config_value' => 'default', 'description' => '分站默认模板'],
             ['config_name' => 'active_template_pc', 'config_value' => 'default', 'description' => '主站 PC 启用模板'],
             ['config_name' => 'active_template_mobile', 'config_value' => 'default', 'description' => '主站手机启用模板'],
-            ['config_name' => 'local_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '本地任务服务文件版本'],
-            ['config_name' => 'new_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '最新任务服务文件版本'],
+            ['config_name' => 'server_file_version_applied', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本（已生效）'],
+            ['config_name' => 'server_file_version_pending', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本（待生效）'],
+            // 旧命名保留写入，兼容尚未迁移的插件 bump
+            ['config_name' => 'local_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本已生效（旧名，兼容）'],
+            ['config_name' => 'new_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本待生效（旧名，兼容）'],
             ['config_name' => 'enabled_plugins', 'config_value' => 'tips,virtual_card', 'description' => '主站默认启用插件'],
         ];
         foreach ($defaultConfigs as $configRow) Database::execute($siteConfigSql, $configRow);
