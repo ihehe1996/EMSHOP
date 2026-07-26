@@ -212,17 +212,17 @@ $calcRatio = static function (float $today, float $yesterday): array {
     return ['state' => $diff > 0 ? 'up' : 'down', 'pct' => $pctStr];
 };
 
-// Swoole：依据 content/swoole/swoole.heartbeat 的 mtime，30 秒内更新视为 Worker#0 定时器在跑（与 server 中 SW_HEARTBEAT_INTERVAL=5 配套）
-$__swooleHbPath = EM_ROOT . '/content/swoole/swoole.heartbeat';
-$swoole_run_status = false;
-$__swooleFailHint = '发货队列/定时任务';
-if (is_file($__swooleHbPath)) {
-    $__mt = @filemtime($__swooleHbPath);
+// 后台任务服务：依据 content/server/server.heartbeat 的 mtime，30 秒内更新视为 heartbeat worker 在跑（约每 5 秒）
+$__serverHbPath = EM_ROOT . '/content/server/server.heartbeat';
+$server_run_status = false;
+$__serverFailHint = '发货队列/定时任务';
+if (is_file($__serverHbPath)) {
+    $__mt = @filemtime($__serverHbPath);
     if ($__mt !== false) {
-        $__swooleHbAge = time() - $__mt;
-        $swoole_run_status = $__swooleHbAge <= 30;
-        if (!$swoole_run_status) {
-            $__swooleFailHint = '发货队列/定时任务';
+        $__serverHbAge = time() - $__mt;
+        $server_run_status = $__serverHbAge <= 30;
+        if (!$server_run_status) {
+            $__serverFailHint = '发货队列/定时任务';
         }
     }
 }
@@ -301,25 +301,25 @@ if (is_file($__swooleHbPath)) {
             </div>
         </div>
 
-        <div class="dash-metric dash-metric--action dash-metric--swoole" style="--m-color: #64748b; --m-soft: #f1f5f9;">
+        <div class="dash-metric dash-metric--action dash-metric--server" style="--m-color: #64748b; --m-soft: #f1f5f9;">
             <div class="dash-metric__head">
                 <span class="dash-metric__icon"><i class="fa fa-heartbeat"></i></span>
-                <span class="dash-metric__label">Swoole 服务</span>
+                <span class="dash-metric__label">任务服务</span>
                 <span class="dash-metric__official-tag">本机</span>
             </div>
             <div class="dash-metric__main">
                 <div class="dash-metric__value-row">
-                    <?php if ($swoole_run_status): ?>
-                    <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--running">运行中</span>
+                    <?php if ($server_run_status): ?>
+                    <span class="dash-metric__today-value dash-server-status dash-server-status--running">运行中</span>
                     <?php else: ?>
-                    <span class="dash-metric__today-value dash-swoole-status dash-swoole-status--stopped">未运行</span>
+                    <span class="dash-metric__today-value dash-server-status dash-server-status--stopped">未运行</span>
                     <?php endif; ?>
                 </div>
-                <div class="dash-metric__yesterday"><?= $swoole_run_status ? '服务正在运行' : $esc($__swooleFailHint) ?></div>
+                <div class="dash-metric__yesterday"><?= $server_run_status ? '服务正在运行' : $esc($__serverFailHint) ?></div>
             </div>
             <div class="dash-metric__month">
                 <span class="dash-metric__month-label">教程说明</span>
-                <button type="button" class="dash-version-btn" id="dashSwooleDetailBtn">查看详细</button>
+                <button type="button" class="dash-version-btn" id="dashServerDetailBtn">查看详细</button>
             </div>
         </div>
 
@@ -370,7 +370,7 @@ if (is_file($__swooleHbPath)) {
             }
         ?>
 
-        <!-- 附加操作卡：授权码 / 下载安装包 / 线路状态（均为官方来源；Swoole 在系统版本后） -->
+        <!-- 附加操作卡：授权码 / 下载安装包 / 线路状态（均为官方来源；任务服务在系统版本后） -->
         <div class="dash-metric dash-metric--action" style="--m-color: #10b981; --m-soft: #ecfdf5;">
             <div class="dash-metric__head">
                 <span class="dash-metric__icon"><i class="fa fa-key"></i></span>
@@ -684,8 +684,8 @@ if (is_file($__swooleHbPath)) {
     letter-spacing: 0.2px;
 }
 
-/* Swoole 监控：运行中绿色 + 呼吸灯（text-shadow 模拟光晕） */
-@keyframes dashSwooleBreath {
+/* 任务服务监控：运行中绿色 + 呼吸灯（text-shadow 模拟光晕） */
+@keyframes dashServerBreath {
     0%, 100% {
         opacity: 1;
         text-shadow: 0 0 0 transparent;
@@ -695,13 +695,13 @@ if (is_file($__swooleHbPath)) {
         text-shadow: 0 0 12px rgba(16, 185, 129, 0.55), 0 0 26px rgba(16, 185, 129, 0.22);
     }
 }
-.dash-swoole-status--running {
+.dash-server-status--running {
     color: #10b981 !important;
-    animation: dashSwooleBreath 2.4s ease-in-out infinite;
+    animation: dashServerBreath 2.4s ease-in-out infinite;
 }
-.dash-swoole-status--stopped {
+.dash-server-status--stopped {
     color: #ef4444 !important;
-    animation: dashSwooleBreath 2.4s ease-in-out infinite;
+    animation: dashServerBreath 2.4s ease-in-out infinite;
 }
 
 /* 环比 chip：绝对定位到大号数字右上角，不占居中计算空间 */
@@ -1393,24 +1393,24 @@ $(function () {
     // 保存最新一次响应，供"检查更新"按钮读取
     var __dashIndexData = null;
     var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
-    var __dashSwooleRunning = <?= $swoole_run_status ? 'true' : 'false' ?>;
+    var __dashServerRunning = <?= $server_run_status ? 'true' : 'false' ?>;
 
-    console.log(__dashSwooleRunning);
+    console.log(__dashServerRunning);
 
-    if(__dashSwooleRunning == false) {
-        openSwooleDescription();
+    if(__dashServerRunning == false) {
+        openServerDescription();
         return;
     }
 
-    function openSwooleDescription() {
+    function openServerDescription() {
         layui.layer.open({
             type: 2,
-            title: 'Swoole 服务说明',
+            title: '后台任务服务说明',
             skin: 'admin-modal',
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
             shadeClose: true,
-            content: '/admin/home.php?_popup=swoole_guide'
+            content: '/admin/home.php?_popup=server_guide'
         });
     }
 
@@ -1824,21 +1824,21 @@ $(function () {
     }
     $('#dashGetLicenseBtn').on('click', function () { dashOpenAgentPopup('获取正版授权码'); });
 
-    // Swoole 未运行时：查看详细 → iframe 教程弹窗
-    $('#dashSwooleDetailBtn').on('click', function () {
+    // 任务服务未运行时：查看详细 → iframe 教程弹窗
+    $('#dashServerDetailBtn').on('click', function () {
         if (typeof layui === 'undefined' || !layui.layer) return;
-        if (__dashSwooleRunning) {
-            layui.layer.msg('Swoole 服务运行正常');
+        if (__dashServerRunning) {
+            layui.layer.msg('任务服务运行正常');
             return;
         }
         layui.layer.open({
             type: 2,
-            title: 'Swoole 服务说明',
+            title: '后台任务服务说明',
             skin: 'admin-modal',
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
             shadeClose: true,
-            content: '/admin/home.php?_popup=swoole_guide'
+            content: '/admin/home.php?_popup=server_guide'
         });
     });
 

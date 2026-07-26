@@ -367,16 +367,16 @@ $csrfToken = Csrf::token();
 $(function () {
     layui.use(['layer'], function () {
         var layer = layui.layer;
-        <?php if (!empty($emSwooleHardRestartPending)): ?>
+        <?php if (!empty($emServerHardRestartPending)): ?>
         layer.open({
             type: 2,
-            title: '需要重启 Swoole',
+            title: '需要重启任务服务',
             skin: 'admin-modal',
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '550px' : '80%'],
             shade: 0.45,
             shadeClose: true,
-            content: '/admin/home.php?_popup=swoole_restart'
+            content: '/admin/home.php?_popup=server_restart'
         });
         <?php endif; ?>
         // ========== 授权服务器线路切换（toolbar 全局）==========

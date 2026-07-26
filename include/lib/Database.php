@@ -26,7 +26,7 @@ final class Database
     private static $connection = null;
 
     /**
-     * 事务嵌套深度。在长进程（如 swoole）下，连接失效时只有不在事务中才能安全重连重试 ——
+     * 事务嵌套深度。在长进程（如 CLI worker）下，连接失效时只有不在事务中才能安全重连重试 ——
      * 事务中重连意味着锁/SAVEPOINT 状态全丢，应直接抛错让上层 rollBack。
      *
      * @var int
@@ -157,7 +157,7 @@ final class Database
         }
 
         self::$config = EM_CONFIG['db'];
-        // 环境变量覆盖（Swoole WSL 环境下数据库 host 可能不同）
+        // 环境变量覆盖（WSL 等环境下数据库 host 可能不同）
         $envHost = getenv('EM_DB_HOST');
         if ($envHost !== false && $envHost !== '') {
             self::$config['host'] = $envHost;
@@ -628,7 +628,7 @@ final class Database
     }
 
     /**
-     * 长进程下（如 swoole 常驻 worker）连接被服务端 wait_timeout 断开是常态。
+     * 长进程下（如 CLI 常驻 worker）连接被服务端 wait_timeout 断开是常态。
      * 这里识别"连接已死"类错误：mysqli/PDO 的 errno 2006 / 2013。
      */
     private static function isConnectionLost(Throwable $e): bool

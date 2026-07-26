@@ -41,7 +41,7 @@ final class Config
                 self::$items[$name] = isset($row['config_value']) ? (string) $row['config_value'] : '';
             }
         } catch (Throwable $e) {
-            // CLI/Swoole 启动阶段需要感知数据库故障，不能静默吞掉。
+            // CLI 启动阶段需要感知数据库故障，不能静默吞掉。
             if (PHP_SAPI === 'cli') {
                 throw $e; 
             }

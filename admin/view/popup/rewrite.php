@@ -6,7 +6,7 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 
-$pageTitle = '需要重启 Swoole';
+$pageTitle = '伪静态配置说明';
 
 include __DIR__ . '/header.php';
 ?> 

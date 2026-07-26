@@ -58,7 +58,7 @@ if (!function_exists('str_contains')) {
 }
 
 // 尽早启动 session（Csrf 验证和登录状态依赖 session，尽早启动可避免 CSRF 验证失败）
-// CLI/Swoole 环境下跳过 session
+// CLI 环境下跳过 session
 if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -66,6 +66,7 @@ if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_NONE) {
 require_once EM_ROOT . '/include/lib/Autoloader.php';
 
 Autoloader::register([
+    EM_ROOT . '/include/cli',
     EM_ROOT . '/include/lib',
     EM_ROOT . '/include/model',
     EM_ROOT . '/include/service',

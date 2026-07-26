@@ -311,14 +311,14 @@ if (Input::get('popup', '') === 'rewrite') {
 }
  
 /**
- * 弹窗：Swoole 服务说明 / 升级后重启提示（layer.open type:2 加载）
+ * 弹窗：任务服务说明 / 升级后重启提示（layer.open type:2 加载）
  */
-if ((string) Input::get('_popup', '') === 'swoole_guide') {
-    include __DIR__ . '/view/popup/swoole_guide.php';
+if ((string) Input::get('_popup', '') === 'server_guide') {
+    include __DIR__ . '/view/popup/server_guide.php';
     return;
 }
-if ((string) Input::get('_popup', '') === 'swoole_restart') {
-    include __DIR__ . '/view/popup/swoole_restart.php';
+if ((string) Input::get('_popup', '') === 'server_restart') {
+    include __DIR__ . '/view/popup/server_restart.php';
     return;
 }
 

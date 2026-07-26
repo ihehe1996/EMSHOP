@@ -16,9 +16,12 @@ tmp
 !/content/cache/.gitkeep
 !/content/tmp/.gitkeep
 !/content/uploads/.gitkeep
-/content/swoole/*.pid
-/content/swoole/*.log
-/content/swoole/*.heartbeat
-/content/swoole/logs/
+/content/server/*.pid
+/content/server/*.log
+/content/server/*.heartbeat
+/content/server/*.lock
+/content/server/*.flag
+/content/server/workers.json
+/content/server/logs/
 *.log
 /logs/

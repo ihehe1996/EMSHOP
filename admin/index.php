@@ -45,8 +45,8 @@ if ($freshUser) {
 
 $siteName = Config::get('sitename', 'EMSHOP');
 
-// 升级包根目录 `.server` 空文件：存在则提示管理员硬重启 Swoole（主进程启动后由 server 入口删除）
-$emSwooleHardRestartPending = is_file(EM_ROOT . '/.server');
+// 升级包根目录 `.server` 空文件：存在则提示管理员硬重启任务服务（主进程启动后由 server 入口删除）
+$emServerHardRestartPending = is_file(EM_ROOT . '/.server');
 
 // 获取语言列表供顶部导航渲染
 $langModel = new LanguageModel();

@@ -646,7 +646,7 @@ class OrderModel
 
     /**
      * 触发发货流程。
-     * 将每个订单商品写入 em_delivery_queue，由 Swoole 队列消费者异步执行。
+     * 将每个订单商品写入 em_delivery_queue，由后台任务服务队列消费者异步执行。
      * 不直接调用插件钩子，避免阻塞用户请求。
      */
     public static function triggerDelivery(int $orderId): void
@@ -776,7 +776,7 @@ class OrderModel
 
     /**
      * 检查订单所有商品是否已发货完成，如果是则更新订单状态。
-     * 由 Swoole 队列消费者在每个任务完成后调用。
+     * 由后台任务服务队列消费者在每个任务完成后调用。
      *
      * 逻辑：
      * - 自动发货写入了发货内容（明细表）才算已发货

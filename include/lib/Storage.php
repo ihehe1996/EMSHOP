@@ -13,7 +13,7 @@ declare(strict_types=1);
  * 对插件作者透明 —— 同一份 setting.php 在不同端调用时自动读写对应商户的行。
  *
  * 读策略：不在进程内做跨调用的持久缓存；每次 getValue()/getAll() 都会重新查询 options 表，
- * 避免 Swoole 等长驻进程读到后台已更新但内存未失效的旧配置。（单例仍复用实例，仅避免重复建对象。）
+ * 避免 CLI 长驻进程读到后台已更新但内存未失效的旧配置。（单例仍复用实例，仅避免重复建对象。）
  *
  * @example
  * $storage = Storage::getInstance('tips');
@@ -48,7 +48,7 @@ final class Storage
 
     /**
      * 按显式 scope 获取插件存储（不读 $GLOBALS）。
-     * 用于 CLI/Swoole 等无 HTTP 商户上下文、但需要读写指定商户配置的场景。
+     * 用于 CLI 等无 HTTP 商户上下文、但需要读写指定商户配置的场景。
      *
      * @param string $scope 仅允许 main 或 merchant_{正整数}
      */
