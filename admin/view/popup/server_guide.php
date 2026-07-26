@@ -1,12 +1,10 @@
 <?php
 
-declare(strict_types=1);
-
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 
-$pageTitle = '????????';
+$pageTitle = '后台任务服务说明';
 
 $esc = static function (?string $s): string {
     return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
@@ -19,43 +17,42 @@ include __DIR__ . '/header.php';
 
 <div class="popup-inner">
     <div class="form-tips form-tips--warn">
-        <strong>???????????????</strong>
-        ??????????????????????????????????????????????????????
+        <strong>服务未运行，订单无法自动发货。</strong>
+        后台任务服务负责订单自动发货、发货队列与定时任务，属于必启组件。未启动时，买家付款后订单将停留在待发货状态。
     </div>
 
     <div class="popup-section">
-        <div class="server-guide__title">??????</div>
+        <div class="server-guide__title">快速启用步骤</div>
         <ol class="server-guide__steps">
-            <li>???????? <strong>PHP CLI</strong>??? PHP 7.4 ????????????</li>
-            <li>??????????? / Supervisor?????????????????????????</li>
-            <li>????????????????????????????</li>
+            <li>在宝塔「进程守护管理器 / Supervisor」中添加守护进程，启动命令见下方（只需一条命令）。</li>
+            <li>启动成功后返回后台首页，任务服务卡片应显示为「运行中」。</li>
         </ol>
     </div>
 
     <div class="popup-section">
-        <div class="server-guide__title">????????</div>
+        <div class="server-guide__title">守护进程启动命令</div>
         <div class="layui-form-mid layui-word-aux" style="margin: 10px 0 8px; padding-left: 0;">
-            ?? PHP CLI ????? <code>php -v</code> ???? CLI ???????????????????????
+            使用 PHP CLI 执行；可用 <code>php -v</code> 查看当前 CLI 版本。启动后主进程会自动拉起多个专用任务进程。
         </div>
         <div class="server-guide__cmd">
-            <span class="server-guide__cmd-label">?????????????</span>
-            <code>php server start</code>
+            <span class="server-guide__cmd-label">默认命令（项目根目录执行）</span>
+            <code>php server</code>
         </div>
         <div class="layui-form-mid layui-word-aux" style="margin: 10px 0 8px; padding-left: 0;">
-            ???? PHP ????????????? PHP 8.2?
+            若需指定 PHP 版本，请改用对应命令，例如 PHP 8.2：
         </div>
         <div class="server-guide__cmd">
-            <span class="server-guide__cmd-label">?? PHP ????</span>
-            <code>php82 server start</code>
+            <span class="server-guide__cmd-label">指定 PHP 版本示例</span>
+            <code>php82 server</code>
         </div>
     </div>
 
     <div class="popup-section" style="margin-bottom: 0;">
-        <div class="server-guide__title">????</div>
+        <div class="server-guide__title">视频教程</div>
         <a href="<?= $esc($videoUrl) ?>" target="_blank" rel="noopener noreferrer" class="server-guide__link">
             <span class="server-guide__link-icon"><i class="fa fa-play"></i></span>
             <span class="server-guide__link-body">
-                <span class="server-guide__link-title">???????????</span>
+                <span class="server-guide__link-title">查看完整安装与配置教程</span>
                 <span class="server-guide__link-url"><?= $esc($videoUrl) ?></span>
             </span>
             <i class="fa fa-external-link server-guide__link-arrow"></i>
@@ -64,7 +61,7 @@ include __DIR__ . '/header.php';
 </div>
 
 <div class="popup-footer popup-footer--single">
-    <button type="button" class="popup-btn popup-btn--primary" id="serverGuideCloseBtn"><i class="fa fa-check mr-5"></i>????</button>
+    <button type="button" class="popup-btn popup-btn--primary" id="serverGuideCloseBtn"><i class="fa fa-check mr-5"></i>我知道了</button>
 </div>
 
 <style>

@@ -1,44 +1,42 @@
 <?php
 
-declare(strict_types=1);
-
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 
-$pageTitle = '????????';
+$pageTitle = '需要重启任务服务';
 
 include __DIR__ . '/header.php';
 ?>
 
 <div class="popup-inner">
     <div class="form-tips form-tips--warn">
-        <strong>???????????????????</strong>
-        ?????????????????????? 2 ???????
-        <strong>???3???????????????</strong>
+        <strong>本次升级需重启后台任务服务后才会生效。</strong>
+        请在宝塔「进程守护管理器」中重启服务，
+        <strong>如超过3分钟无法启动，请重启服务器解决</strong>
     </div>
 
     <div class="popup-section">
-        <div class="server-guide__title">????????</div>
+        <div class="server-guide__title">守护进程启动命令</div>
         <div class="layui-word-aux" style="margin: 0 0 8px;">
-            ?? <code>php</code> ? CLI ??????? <code>php -v</code> ??????????
+            默认 <code>php</code> 为 CLI 默认版本，可用 <code>php -v</code> 查看。无需额外扩展。
         </div>
         <div class="server-guide__cmd">
-            <span class="server-guide__cmd-label">???????????</span>
-            <code>php server start</code>
+            <span class="server-guide__cmd-label">默认命令（项目根目录）</span>
+            <code>php server</code>
         </div>
         <div class="server-guide__cmd">
-            <span class="server-guide__cmd-label">?? PHP ?????PHP 8.2?</span>
-            <code>php82 server start</code>
+            <span class="server-guide__cmd-label">指定 PHP 版本示例（PHP 8.2）</span>
+            <code>php82 server</code>
         </div>
         <div class="layui-word-aux" style="margin-top: 10px;">
-            ????????????????????????????????
+            若守护进程已启动，仅需重启即可。
         </div>
     </div>
 </div>
 
 <div class="popup-footer popup-footer--single">
-    <button type="button" class="popup-btn popup-btn--primary" id="serverRestartCloseBtn"><i class="fa fa-check mr-5"></i>????</button>
+    <button type="button" class="popup-btn popup-btn--primary" id="serverRestartCloseBtn"><i class="fa fa-check mr-5"></i>我知道了</button>
 </div>
 
 <style>
