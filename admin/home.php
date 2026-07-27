@@ -313,7 +313,7 @@ if (Input::get('popup', '') === 'rewrite') {
 /**
  * 弹窗：任务服务说明 / 升级后重启提示（layer.open type:2 加载）
  */
-if ((string) Input::get('_popup', '') === 'server_guide') {
+if (Input::get('popup', '') === 'server_guide') {
     include __DIR__ . '/view/popup/server_guide.php';
     return;
 }

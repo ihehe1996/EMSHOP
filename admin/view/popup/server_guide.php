@@ -4,7 +4,7 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 
-$pageTitle = '后台任务服务说明';
+$pageTitle = '守护进程说明';
 
 $esc = static function (?string $s): string {
     return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
@@ -17,8 +17,8 @@ include __DIR__ . '/header.php';
 
 <div class="popup-inner">
     <div class="form-tips form-tips--warn">
-        <strong>服务未运行，订单无法自动发货。</strong>
-        后台任务服务负责订单自动发货、发货队列与定时任务，属于必启组件。未启动时，买家付款后订单将停留在待发货状态。
+        <strong>守护进程未运行，订单无法自动发货。</strong>
+        守护进程负责订单自动发货、发货队列与定时任务，属于必启服务。未启动时，买家付款后订单将停留在待发货状态。
     </div>
 
     <div class="popup-section">

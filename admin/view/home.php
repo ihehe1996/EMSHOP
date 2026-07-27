@@ -212,7 +212,7 @@ $calcRatio = static function (float $today, float $yesterday): array {
     return ['state' => $diff > 0 ? 'up' : 'down', 'pct' => $pctStr];
 };
 
-// 后台任务服务：依据 content/server/server.heartbeat 的 mtime，30 秒内更新视为 heartbeat worker 在跑（约每 5 秒）
+// 守护进程 content/server/server.heartbeat 的 mtime，10 秒内更新视为 heartbeat worker 在跑（约每 5 秒）
 $__serverHbPath = EM_ROOT . '/content/server/server.heartbeat';
 $server_run_status = false;
 $__serverFailHint = '发货队列/定时任务';
@@ -220,7 +220,7 @@ if (is_file($__serverHbPath)) {
     $__mt = @filemtime($__serverHbPath);
     if ($__mt !== false) {
         $__serverHbAge = time() - $__mt;
-        $server_run_status = $__serverHbAge <= 30;
+        $server_run_status = $__serverHbAge <= 10;
         if (!$server_run_status) {
             $__serverFailHint = '发货队列/定时任务';
         }
@@ -304,7 +304,7 @@ if (is_file($__serverHbPath)) {
         <div class="dash-metric dash-metric--action dash-metric--server" style="--m-color: #64748b; --m-soft: #f1f5f9;">
             <div class="dash-metric__head">
                 <span class="dash-metric__icon"><i class="fa fa-heartbeat"></i></span>
-                <span class="dash-metric__label">任务服务</span>
+                <span class="dash-metric__label">守护进程</span>
                 <span class="dash-metric__official-tag">本机</span>
             </div>
             <div class="dash-metric__main">
@@ -1406,12 +1406,12 @@ $(function () {
     function openServerDescription() {
         layui.layer.open({
             type: 2,
-            title: '后台任务服务说明',
+            title: '守护进程说明',
             skin: 'admin-modal',
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
             shadeClose: true,
-            content: '/admin/home.php?_popup=server_guide'
+            content: '/admin/home.php?popup=server_guide'
         });
     }
 
