@@ -1395,12 +1395,13 @@ $(function () {
     var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
     var __dashServerRunning = <?= $server_run_status ? 'true' : 'false' ?>;
 
-    console.log(__dashServerRunning);
-
     if(__dashServerRunning == false) {
         openServerDescription();
-        return;
     }
+    // 任务服务未运行时：查看详细 → iframe 教程弹窗
+    $('#dashServerDetailBtn').on('click', function () {
+        openServerDescription();
+    });
 
     function openServerDescription() {
         layui.layer.open({
@@ -1824,23 +1825,7 @@ $(function () {
     }
     $('#dashGetLicenseBtn').on('click', function () { dashOpenAgentPopup('获取正版授权码'); });
 
-    // 任务服务未运行时：查看详细 → iframe 教程弹窗
-    $('#dashServerDetailBtn').on('click', function () {
-        if (typeof layui === 'undefined' || !layui.layer) return;
-        if (__dashServerRunning) {
-            layui.layer.msg('任务服务运行正常');
-            return;
-        }
-        layui.layer.open({
-            type: 2,
-            title: '后台任务服务说明',
-            skin: 'admin-modal',
-            maxmin: false,
-            area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
-            shadeClose: true,
-            content: '/admin/home.php?_popup=server_guide'
-        });
-    });
+    
 
     // 下载安装包：从 admin_index_data 返回的 agent.download_url 取下载源，始终用弹层展示，由用户点具体条目后再打开
     $('#dashGetDownloadBtn').on('click', function () {
@@ -1905,10 +1890,7 @@ $(function () {
     $('#dashRefreshLatency').on('click', dashPingLine);
     dashPingLine();
 
-    if (typeof echarts === 'undefined') {
-        console.warn('echarts 未加载');
-        return;
-    }
+    
 
     // 销售趋势折线图：初始化空图表，再用 AJAX 拉数据 + 按日期范围切换
     var elTrend = document.getElementById('dashChartTrend');
