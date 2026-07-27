@@ -8,6 +8,7 @@ defined('EM_ROOT') || exit('access denied!');
  * - $hot_goods         热门商品列表（按销量排序，前5条）
  * - $goods_categories  商品分类列表（含 goods_count）
  */
+$_blockSoldOut = shop_block_sold_out_access();
 ?>
 <aside class="blog-sidebar">
 
@@ -61,7 +62,8 @@ defined('EM_ROOT') || exit('access denied!');
         <div class="sidebar-title">最新商品</div>
         <div class="sidebar-goods-list">
             <?php foreach (array_slice($recent_goods, 0, 5) as $g): ?>
-            <a <?= goods_card_href_attrs($g) ?> class="sidebar-goods-item">
+            <?php $isSoldOut = ((int) ($g['stock'] ?? 0)) === 0; ?>
+            <a <?= goods_card_href_attrs($g) ?> class="sidebar-goods-item<?= $isSoldOut ? ' stock-empty-box' : '' ?><?= ($isSoldOut && $_blockSoldOut) ? ' is-blocked' : '' ?>">
                 <div class="sidebar-goods-img">
                     <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                     <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
@@ -90,7 +92,8 @@ defined('EM_ROOT') || exit('access denied!');
         <div class="sidebar-title">热门商品</div>
         <div class="sidebar-goods-list">
             <?php foreach (array_slice($hot_goods, 0, 5) as $g): ?>
-            <a <?= goods_card_href_attrs($g) ?> class="sidebar-goods-item">
+            <?php $isSoldOut = ((int) ($g['stock'] ?? 0)) === 0; ?>
+            <a <?= goods_card_href_attrs($g) ?> class="sidebar-goods-item<?= $isSoldOut ? ' stock-empty-box' : '' ?><?= ($isSoldOut && $_blockSoldOut) ? ' is-blocked' : '' ?>">
                 <div class="sidebar-goods-img">
                     <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                     <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">

@@ -2,6 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 $_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
 $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
+$_blockSoldOut = shop_block_sold_out_access();
 
 $search_type = trim($_GET['type'] ?? 'all');
 if (!in_array($search_type, ['all', 'goods', 'article'])) {
@@ -46,12 +47,16 @@ if (!in_array($search_type, ['all', 'goods', 'article'])) {
     <?php endif; ?>
     <div class="goods-grid" style="margin-bottom:32px;">
         <?php foreach ($results as $item): ?>
-        <a <?= goods_card_href_attrs($item) ?> class="card goods-card">
+        <?php $isSoldOut = ((int) ($item['stock'] ?? 0)) === 0; ?>
+        <a <?= goods_card_href_attrs($item) ?> class="card goods-card<?= $isSoldOut ? ' stock-empty-box' : '' ?><?= ($isSoldOut && $_blockSoldOut) ? ' is-blocked' : '' ?>">
             <div class="card-img">
                 <?php if (trim((string) ($item['image'] ?? '')) !== ''): ?>
                 <img src="<?= htmlspecialchars($item['image']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
                 <?php else: ?>
                 <div class="goods-no-image" aria-hidden="true"></div>
+                <?php endif; ?>
+                <?php if ($isSoldOut): ?>
+                <span class="goods-soldout-stamp" aria-hidden="true"><span class="goods-soldout-stamp__text">已售罄</span></span>
                 <?php endif; ?>
                 <?php if (($item['delivery_type'] ?? '') === 'auto'): ?>
                 <span class="goods-badge goods-badge--auto">自动发货</span>

@@ -2,6 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 $_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
 $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
+$_blockSoldOut = shop_block_sold_out_access();
 ?>
 <!-- 商城首页 · GoodsController::_index() -->
 
@@ -40,7 +41,7 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('home', $_ann
                 <div class="goods-grid">
                     <?php foreach ($recommended_goods as $g): ?>
                     <?php $isSoldOut = ((int) ($g['stock'] ?? 0)) === 0; ?>
-                    <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $isSoldOut ? ' stock-empty-box' : '' ?>">
+                    <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $isSoldOut ? ' stock-empty-box' : '' ?><?= ($isSoldOut && $_blockSoldOut) ? ' is-blocked' : '' ?>">
                         <div class="card-img">
                             <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                             <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">

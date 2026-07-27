@@ -137,6 +137,7 @@ class GoodsController extends BaseController
         $specs = [];
         $specDims = [];
         $specsJson = '[]';
+        $unavailableReason = '';
 
         if ($id > 0) {
             $row = GoodsModel::getById($id);
@@ -156,8 +157,19 @@ class GoodsController extends BaseController
                 Response::redirect((string) $row['jump_url']);
                 return;
             }
-            // 仅展示已上架、未删除的商品
-            if ($row && (int) $row['status'] === 1 && $row['deleted_at'] === null && (int) $row['is_on_sale'] === 1) {
+            // 仅展示已上架、未删除的商品；开启「售罄禁止访问」且总库存为 0 时不可访问（-1 表示无限）
+            $canView = $row
+                && (int) $row['status'] === 1
+                && $row['deleted_at'] === null
+                && (int) $row['is_on_sale'] === 1;
+            if ($canView
+                && (string) Config::get('shop_block_sold_out_access', '1') !== '0'
+                && (int) ($row['total_stock'] ?? 0) === 0
+            ) {
+                $canView = false;
+                $unavailableReason = 'sold_out';
+            }
+            if ($canView) {
                 // 获取所有规格（价格已自动转换）
                 $rawSpecs = GoodsModel::getSpecsByGoodsId($id);
                 $defaultSpec = null;
@@ -329,15 +341,16 @@ class GoodsController extends BaseController
 
         $this->view->setTitle($goods ? $goods['name'] : '商品详情');
         $this->view->setData([
-            'goods'            => $goods,
-            'specs'            => $specs,
-            'spec_dims'        => $specDims,
-            'specs_json'       => $specsJson,
-            'payment_methods'  => $paymentMethods,
-            'form_sections'    => $formSections,
-            'needs_address'    => $needsAddress,
-            'user_addresses'   => $userAddresses,
+            'goods'              => $goods,
+            'specs'              => $specs,
+            'spec_dims'          => $specDims,
+            'specs_json'         => $specsJson,
+            'payment_methods'    => $paymentMethods,
+            'form_sections'      => $formSections,
+            'needs_address'      => $needsAddress,
+            'user_addresses'     => $userAddresses,
             'default_address_id' => $defaultAddressId,
+            'unavailable_reason' => $unavailableReason,
         ]);
         $this->view->render('goods');
     }

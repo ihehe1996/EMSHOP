@@ -671,6 +671,13 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             </div>
                             <div class="layui-form-mid layui-word-aux">关闭后，前台将隐藏商品销量相关展示</div>
                         </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">已售罄商品禁止访问</label>
+                            <div class="layui-input-block">
+                                <?php echo formSwitch('shop_block_sold_out_access', $cfg['shop_block_sold_out_access'] ?? '1'); ?>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux">开启后，已售罄商品无法打开详情页（列表仍可见）</div>
+                        </div>
                     </div>
 
                     <!-- 店铺公告（TinyMCE 富文本，会显示在前台） -->

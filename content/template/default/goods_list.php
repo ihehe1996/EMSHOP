@@ -2,6 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 $_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
 $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
+$_blockSoldOut = shop_block_sold_out_access();
 
 // $current_category 由 GoodsController 设置：category_id 或 slug 解析后的 id
 $current_category = isset($current_category) ? (int) $current_category : (int) ($_GET['category_id'] ?? 0);
@@ -161,14 +162,15 @@ if (is_array($_announce) && !empty($_announce['html']) && in_array('goods_list',
     <?php if (!empty($goods_list)): ?>
     <div class="goods-grid">
         <?php foreach ($goods_list as $g): ?>
-        <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $g['stock'] <= 0 ? ' stock-empty-box' : '' ?>">
+        <?php $isSoldOut = ((int) ($g['stock'] ?? 0)) === 0; ?>
+        <a <?= goods_card_href_attrs($g) ?> class="card goods-card<?= $isSoldOut ? ' stock-empty-box' : '' ?><?= ($isSoldOut && $_blockSoldOut) ? ' is-blocked' : '' ?>">
             <div class="card-img">
                 <?php if (trim((string) ($g['image'] ?? '')) !== ''): ?>
                 <img src="<?= htmlspecialchars($g['image']) ?>" alt="<?= htmlspecialchars($g['name']) ?>">
                 <?php else: ?>
                 <div class="goods-no-image" aria-hidden="true"></div>
                 <?php endif; ?>
-                <?php if ($g['stock'] <= 0): ?>
+                <?php if ($isSoldOut): ?>
                 <span class="goods-soldout-stamp" aria-hidden="true"><span class="goods-soldout-stamp__text">已售罄</span></span>
                 <?php endif; ?>
                 <?php if (($g['delivery_type'] ?? '') === 'auto'): ?>

@@ -50,14 +50,19 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .pjax-bar.done { width: 100%; transition: width 0.15s ease-in; }
 
 .stock-empty-box{
-    cursor: not-allowed;
     filter: grayscale(100%);
     -webkit-filter: grayscale(100%);
-    pointer-events: none;
 }
 .stock-empty-box:hover {
     box-shadow: none;
     transform: none;
+}
+/* 开启「售罄禁止访问」时禁用点击 */
+.stock-empty-box.is-blocked,
+.goods-card[aria-disabled="true"],
+.sidebar-goods-item[aria-disabled="true"] {
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* 商品列表 · 已售罄水印 */

@@ -83,6 +83,12 @@ function goods_card_href_attrs(array $row): string
     if ($jump !== '') {
         return 'href="' . htmlspecialchars($jump, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="nofollow noopener"';
     }
+    // 已售罄且开启「售罄禁止访问」：不生成详情链接
+    if ((string) Config::get('shop_block_sold_out_access', '1') !== '0'
+        && (int) ($row['stock'] ?? 0) === 0
+    ) {
+        return 'href="javascript:void(0)" aria-disabled="true"';
+    }
     return 'href="' . htmlspecialchars(url_goods((int) ($row['id'] ?? 0)), ENT_QUOTES, 'UTF-8') . '"';
 }
 
@@ -358,6 +364,14 @@ function url_coupon(): string
 function shop_coupon_enabled(): bool
 {
     return (string) Config::get('shop_enable_coupon', '1') !== '0';
+}
+
+/**
+ * 是否禁止访问已售罄商品（后台「商城设置 → 售罄禁止访问」；默认开启）。
+ */
+function shop_block_sold_out_access(): bool
+{
+    return (string) Config::get('shop_block_sold_out_access', '1') !== '0';
 }
 
 /**

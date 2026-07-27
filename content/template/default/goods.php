@@ -390,9 +390,15 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
 
     <?php else: ?>
     <div class="card empty-state">
+        <?php if (($unavailable_reason ?? '') === 'sold_out'): ?>
+        <div class="empty-icon">&#128722;</div>
+        <h3>商品已售罄</h3>
+        <p>该商品暂时缺货，无法购买</p>
+        <?php else: ?>
         <div class="empty-icon">&#128722;</div>
         <h3>商品不存在或已下架</h3>
         <p>该商品可能已被移除</p>
+        <?php endif; ?>
         <a href="<?= url_goods_list() ?>" data-pjax class="btn btn-primary">浏览其他商品</a>
     </div>
     <?php endif; ?>
