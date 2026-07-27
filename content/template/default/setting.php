@@ -305,22 +305,9 @@ function template_setting_view() {
                 success: function(layero) {
                     layero.find('#slideFormPickBtn').on('click', function(){
                         var $input = layero.find('#slideFormImage');
-                        layer.open({
-                            type: 2,
-                            title: '选择图片',
-                            skin: 'admin-modal',
-                            maxmin: true,
-                            area: ['700px', '500px'],
-                            content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                            btn: ['确定', '取消'],
-                            yes: function(idx2, layero2) {
-                                var win = layero2.find('iframe')[0].contentWindow;
-                                var url = win.selectMedia();
-                                if (!url) { layer.msg('请先选择一张图片'); return; }
-                                layer.close(idx2);
-                                $input.val(url);
-                            }
-                        });
+                        emOpenMediaPicker(function(url) {
+                            $input.val(url);
+                        }, { area: ['700px', '500px'] });
                     });
                 }
             });

@@ -489,28 +489,9 @@ $(function(){
         };
 
         $('#profileAvatarPickBtn').on('click', function () {
-            var csrfToken = $('input[name="csrf_token"]').val();
-            pickLayerIndex = layer.open({
-                type: 2,
-                title: '选择图片',
-                maxmin: true,
-                skin: 'admin-modal',
-                area: [window.innerWidth >= 800 ? '700px' : '95%', window.innerHeight >= 500 ? '500px' : '80%'],
-                shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function (index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (url === undefined) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    layer.close(index);
-                    pickLayerIndex = null;
-                    // 调用裁剪流程
-                    window.selectMediaAndCrop(url);
-                }
+            pickLayerIndex = emOpenMediaPicker(function (url) {
+                pickLayerIndex = null;
+                window.selectMediaAndCrop(url);
             });
         });
 

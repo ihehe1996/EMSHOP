@@ -66,11 +66,18 @@ final class UploadService
         // 无重复时执行实际上传
         if (!$isDuplicate) {
             $dateDir = date('Ymd');
-            $uploadDir = EM_ROOT . '/content/uploads/' . $dateDir;
+
+            $baseDir = EM_ROOT . '/content/uploads';
+            $uploadDir = $baseDir . '/' . $dateDir;
 
             if (!is_dir($uploadDir)) {
-                if (!mkdir($uploadDir, 0755, true)) {
-                    throw new RuntimeException('上传目录创建失败');
+                // 先判断父目录是否可写，避免无意义的 mkdir
+                if ((is_dir($baseDir) && !is_writable($baseDir)) || (!is_dir($baseDir) && !is_writable(dirname($baseDir)))) {
+                    throw new RuntimeException('上传目录不可写，请检查 content/uploads 权限');
+                }
+                // @ 抑制 Permission denied 的 Warning；并发下可能已创建成功，再确认一次
+                if (!@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+                    throw new RuntimeException('上传目录创建失败，请检查服务器目录权限');
                 }
             }
 

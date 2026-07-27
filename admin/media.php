@@ -8,7 +8,7 @@ adminRequireLogin();
 
 // GET 请求：渲染媒体选择器页面
 if (Request::isGet()) {
-    include __DIR__ . '/view/media.php';
+    include __DIR__ . '/view/popup/media.php';
     return;
 }
 

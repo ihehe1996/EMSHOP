@@ -411,6 +411,53 @@
     }
     window.updateCsrf = updateCsrf;
 
+    /**
+     * 打开媒体库弹窗（admin/view/popup/media.php）
+     * 选中后由弹窗内「确定」回调 onPick(url)；提示用宿主窗口的 layer.msg。
+     *
+     * @param {function(string):void} onPick 选中回调
+     * @param {Object} [opts] 传给 layer.open 的额外选项（可覆盖 area 等）
+     * @param {Window} [host=window] 在哪个窗口打开（嵌套弹窗场景传 parent）
+     * @returns {*} layer index
+     */
+    function emOpenMediaPicker(onPick, opts, host) {
+        host = host || window;
+        var layerApi = (host.layui && host.layui.layer) ? host.layui.layer : host.layer;
+        if (!layerApi) {
+            return;
+        }
+        host.__emMediaPickCallback = function (url) {
+            host.__emMediaPickCallback = null;
+            if (typeof onPick === 'function') {
+                onPick(url);
+            }
+        };
+        var w = host.innerWidth || 800;
+        var h = host.innerHeight || 600;
+        var mediaUrl = (host.TEMPLATE_MEDIA_URL || window.TEMPLATE_MEDIA_URL || '/admin/media.php');
+        if (typeof mediaUrl === 'string' && mediaUrl.indexOf('?') !== -1) {
+            mediaUrl = mediaUrl.split('?')[0];
+        }
+        var conf = {
+            type: 2,
+            title: '选择图片',
+            skin: 'admin-modal',
+            maxmin: true,
+            area: [w >= 800 ? '700px' : '95%', h >= 500 ? '500px' : '80%'],
+            shadeClose: false,
+            content: mediaUrl
+        };
+        if (opts) {
+            for (var k in opts) {
+                if (Object.prototype.hasOwnProperty.call(opts, k)) {
+                    conf[k] = opts[k];
+                }
+            }
+        }
+        return layerApi.open(conf);
+    }
+    window.emOpenMediaPicker = emOpenMediaPicker;
+
     $(function () {
         initMenuState();
         bindMenuToggle();

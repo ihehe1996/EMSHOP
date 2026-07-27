@@ -1499,27 +1499,9 @@ function formRadio(string $name, array $options, string $selected = ''): string 
         });
 
         $('#' + logoField.pickBtnId).on('click', function () {
-            var csrfToken = $('input[name="csrf_token"]').val();
-            layer.open({
-                type: 2,
-                title: '选择图片',
-                skin: 'admin-modal',
-                maxmin: true,
-                area: CROP_AREA_PICK,
-                shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function (index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (!url) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    layer.close(index);
-                    openCropperForField(logoField, url, false);
-                }
-            });
+            emOpenMediaPicker(function (url) {
+                openCropperForField(logoField, url, false);
+            }, { area: CROP_AREA_PICK });
         });
 
         var $fileInput = $('<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">');
@@ -1583,27 +1565,9 @@ function formRadio(string $name, array $options, string $selected = ''): string 
             updateFieldPreview(faviconField, '');
         });
         $('#' + faviconField.pickBtnId).on('click', function () {
-            var csrfToken = $('input[name="csrf_token"]').val();
-            layer.open({
-                type: 2,
-                title: '选择图片',
-                skin: 'admin-modal',
-                maxmin: true,
-                area: CROP_AREA_PICK,
-                shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function (index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (!url) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    layer.close(index);
-                    updateFieldPreview(faviconField, url);
-                }
-            });
+            emOpenMediaPicker(function (url) {
+                updateFieldPreview(faviconField, url);
+            }, { area: CROP_AREA_PICK });
         });
         var $faviconFileInput = $('<input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.ico,image/x-icon" style="display:none;">');
         $('body').append($faviconFileInput);

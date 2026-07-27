@@ -1009,28 +1009,11 @@ $(function() {
             }
         });
 
-        // 选择按钮：打开媒体库
+        // 选择按钮：打开媒体库（顶层弹出，避免嵌套在商品编辑弹窗内）
         $('#goodsImgPickBtn').on('click', function() {
-            var pickLayerIndex = layer.open({
-                type: 2,
-                title: '选择图片',
-                skin: 'admin-modal',
-                maxmin: true,
-                area: ['700px', '500px'],
-                shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function(index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (!url) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    layer.close(index);
-                    addImageToList(url);
-                }
-            });
+            emOpenMediaPicker(function(url) {
+                addImageToList(url);
+            }, null, parent);
         });
 
         // 上传按钮
@@ -1496,25 +1479,15 @@ $(function() {
         });
         // 选择按钮：打开媒体库
         $(document).on('click', '#specImagesPickBtn', function () {
-            layer.open({
-                type: 2, title: '选择图片', skin: 'admin-modal', maxmin: true,
-                area: ['700px', '500px'], shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function (idx, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia ? win.selectMedia() : '';
-                    if (!url) { layer.msg('请先选择一张图片'); return; }
-                    layer.close(idx);
-                    $('#specImagesPreviewList').append(
-                        '<div class="image-preview-item" data-url="' + url + '">' +
-                            '<img src="' + url + '" class="img-clickable">' +
-                            '<span class="remove-btn" onclick="$(this).closest(&quot;.image-preview-item&quot;).remove();">×</span>' +
-                        '</div>'
-                    );
-                    ensureSpecImagesSortable();
-                }
-            });
+            emOpenMediaPicker(function (url) {
+                $('#specImagesPreviewList').append(
+                    '<div class="image-preview-item" data-url="' + url + '">' +
+                        '<img src="' + url + '" class="img-clickable">' +
+                        '<span class="remove-btn" onclick="$(this).closest(&quot;.image-preview-item&quot;).remove();">×</span>' +
+                    '</div>'
+                );
+                ensureSpecImagesSortable();
+            }, null, parent);
         });
 
         // 刷新规格列表

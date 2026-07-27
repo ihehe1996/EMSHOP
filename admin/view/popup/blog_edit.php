@@ -241,26 +241,9 @@ $(function() {
 
         // 选择按钮：打开媒体库
         $('#blogImgPickBtn').on('click', function() {
-            layer.open({
-                type: 2,
-                title: '选择图片',
-                skin: 'admin-modal',
-                maxmin: true,
-                area: ['700px', '500px'],
-                shadeClose: false,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function(index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (!url) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    layer.close(index);
-                    $('#blogImgUrl').val(url);
-                    $('#blogImgPreview').attr('src', url);
-                }
+            emOpenMediaPicker(function(url) {
+                $('#blogImgUrl').val(url);
+                $('#blogImgPreview').attr('src', url);
             });
         });
 

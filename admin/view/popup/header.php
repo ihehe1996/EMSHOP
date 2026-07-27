@@ -19,7 +19,7 @@ if (!defined('EM_ROOT')) {
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/content/static/lib/cropper.min.js"></script>
     <script src="/content/static/lib/sortable.min.js"></script>
-    <script src="/admin/static/js/admin.js"></script>
+    <script src="/admin/static/js/admin.js?v=<?= EM_VERSION; ?>"></script>
     <script>
     // 弹窗里的模板 / 插件 setting.php 保存 URL 应读 parent.TEMPLATE_SAVE_URL / parent.PLUGIN_SAVE_URL，
     // 而不是硬编码 /admin/template.php /admin/plugin.php —— 这样同一份 setting.php 既能在主站后台弹窗里用，

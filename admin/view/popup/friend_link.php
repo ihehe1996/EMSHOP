@@ -312,26 +312,9 @@ $(function () {
 
         // 选择已有图片
         $('#imagePickBtn').on('click', function () {
-            var csrfToken = $('input[name="csrf_token"]').val();
-            layer.open({
-                type: 2,
-                title: '选择图片',
-                skin: 'admin-modal',
-                area: CROP_AREA_PICK,
-                shadeClose: true,
-                content: '/admin/media.php?_csrf=' + encodeURIComponent(csrfToken),
-                btn: ['确定', '取消'],
-                yes: function (index, layero) {
-                    var win = layero.find('iframe')[0].contentWindow;
-                    var url = win.selectMedia();
-                    if (url === undefined) {
-                        layer.msg('请先选择一张图片');
-                        return;
-                    }
-                    updateFieldPreview(imageCfg, url);
-                    layer.close(index);
-                }
-            });
+            emOpenMediaPicker(function (url) {
+                updateFieldPreview(imageCfg, url);
+            }, { area: CROP_AREA_PICK, shadeClose: true, maxmin: false });
         });
 
         // 清除
