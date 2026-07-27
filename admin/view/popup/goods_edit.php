@@ -43,7 +43,7 @@ include __DIR__ . '/header.php';
         <input type="hidden" name="cover_images" id="coverImagesInput" value='<?php echo $esc($isEdit ? $goods['cover_images'] : '[]'); ?>'>
 
         <!-- 选项卡（em-tabs，切换时联动下方 layui-tab-content 里的面板） -->
-        <div class="em-tabs" id="goodsEditTabs" style="margin-bottom: 0;">
+        <div class="em-tabs em-tabs--scroll" id="goodsEditTabs" style="margin-bottom: 0;">
             <a class="em-tabs__item is-active"><i class="fa fa-cog"></i>基础设置</a>
             <a class="em-tabs__item"><i class="fa fa-image"></i>图片/规格</a>
             <a class="em-tabs__item"><i class="fa fa-file-text-o"></i>详细内容</a>
