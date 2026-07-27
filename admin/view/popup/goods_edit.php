@@ -855,7 +855,7 @@ div.image-preview-list.has-images { display: block; }
     background: #f8f8f8;
 }
 
-/* 附加选项表操作列：横向滚动时固定在右侧 */
+/* 附加选项表操作列：横向滚动时固定在右侧，阴影与规格表一致 */
 .extra-fields-table th.extra-col-actions,
 .extra-fields-table td.extra-col-actions {
     position: sticky;
@@ -867,11 +867,27 @@ div.image-preview-list.has-images { display: block; }
     border-left: 1px solid #e2e8f0;
     box-shadow:
         -4px 0 8px rgba(15, 23, 42, 0.06),
-        -12px 0 20px -4px rgba(15, 23, 42, 0.14);
+        -12px 0 20px -4px rgba(15, 23, 42, 0.14),
+        -20px 0 32px -8px rgba(15, 23, 42, 0.08);
+}
+.extra-fields-table th.extra-col-actions::before,
+.extra-fields-table td.extra-col-actions::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.07));
 }
 .extra-fields-table thead th.extra-col-actions {
     z-index: 3;
     background: #fafafa;
+    box-shadow:
+        -4px 0 8px rgba(15, 23, 42, 0.06),
+        -12px 0 20px -4px rgba(15, 23, 42, 0.14),
+        -20px 0 32px -8px rgba(15, 23, 42, 0.08);
 }
 .extra-fields-table tbody tr:hover td.extra-col-actions {
     background: #f8f8f8;
