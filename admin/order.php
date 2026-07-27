@@ -37,17 +37,21 @@ if (Request::isPost()) {
                 $params = [];
 
                 if ($keyword !== '') {
-                    // 快捷搜索：订单号 / 商品名 / 用户名 / 昵称 / 邮箱 / 手机
+                    // 快捷搜索：订单号 / 商品名 / 用户名 / 昵称 / 邮箱 / 手机 / 游客联系方式 / 订单密码
                     // 商品名用 EXISTS 子查询，避免 LEFT JOIN 导致一单多商品时主表行重复
                     $kw = '%' . $keyword . '%';
                     $where .= ' AND ('
                             . 'o.order_no LIKE ? '
+                            . 'OR o.guest_contact LIKE ? '
+                            . 'OR o.order_password LIKE ? '
                             . 'OR u.username LIKE ? '
                             . 'OR u.nickname LIKE ? '
                             . 'OR u.email LIKE ? '
                             . 'OR u.mobile LIKE ? '
                             . 'OR EXISTS (SELECT 1 FROM ' . $prefix . 'order_goods og2 WHERE og2.order_id = o.id AND og2.goods_title LIKE ?)'
                             . ')';
+                    $params[] = $kw;
+                    $params[] = $kw;
                     $params[] = $kw;
                     $params[] = $kw;
                     $params[] = $kw;

@@ -5,7 +5,12 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $cs = $currencySymbol ?? '¥';
 ?>
-
+<style>
+    .em-quick-search input{
+        width: 420px;
+        padding-right: 0;
+    }
+</style>
 <!-- 订单状态选项卡（每项带图标，和前台"我的订单"状态一致） -->
 <div class="em-tabs" id="orderStatusTabs">
     <a class="em-tabs__item is-active" data-status=""          href="javascript:;"><i class="fa fa-th-large"></i><span>全部</span></a>
@@ -33,7 +38,7 @@ $cs = $currencySymbol ?? '¥';
         </div>
         <div class="em-quick-search">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱，回车搜索" autocomplete="off">
+            <input type="text" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱 / 游客查单项" autocomplete="off">
             <button type="button" class="em-quick-search__clear" id="orderQuickClear" title="清空"><i class="fa fa-times"></i></button>
         </div>
     </div>
