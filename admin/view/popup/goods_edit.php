@@ -308,6 +308,7 @@ include __DIR__ . '/header.php';
                     <blockquote class="layui-elem-quote" style="margin-bottom:15px;">
                         配置下单时需要用户填写的自定义表单字段，如 QQ、性别、手机号等。字段名称和字段标识为必填项。
                     </blockquote>
+                    <div class="spec-table-wrap">
                     <table class="layui-table extra-fields-table" id="extraFieldsTable">
                         <colgroup>
                             <col width="30">
@@ -326,7 +327,7 @@ include __DIR__ . '/header.php';
                                 <th>占位提示</th>
                                 <th>格式验证</th>
                                 <th>必填</th>
-                                <th>操作</th>
+                                <th class="extra-col-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody id="extraFieldsList">
@@ -346,12 +347,13 @@ include __DIR__ . '/header.php';
                                             </select>
                                         </td>
                                         <td style="text-align:center;"><input type="checkbox" name="extra_fields[<?php echo $efIdx; ?>][required]" value="1" lay-skin="switch" lay-text="是|否" <?php echo !empty($ef['required']) ? 'checked' : ''; ?>></td>
-                                        <td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
+                                        <td class="extra-col-actions" style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    </div>
                     <button type="button" class="layui-btn layui-btn-sm" id="addExtraFieldBtn"><i class="fa fa-plus"></i> 添加字段</button>
                     </div>
                 </div>
@@ -762,6 +764,7 @@ div.image-preview-list.has-images { display: block; }
 
 /* 规格/附加选项/满减表格通用样式 */
 .spec-table, .extra-fields-table, .discount-table { margin-bottom: 10px; }
+.extra-fields-table { min-width: 760px; }
 .spec-table th, .spec-table td,
 .extra-fields-table th, .extra-fields-table td,
 .discount-table th, .discount-table td {
@@ -849,6 +852,28 @@ div.image-preview-list.has-images { display: block; }
         -20px 0 32px -8px rgba(15, 23, 42, 0.08);
 }
 .spec-table tbody tr:hover td.spec-col-actions {
+    background: #f8f8f8;
+}
+
+/* 附加选项表操作列：横向滚动时固定在右侧 */
+.extra-fields-table th.extra-col-actions,
+.extra-fields-table td.extra-col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    min-width: 60px !important;
+    width: 60px;
+    background: #fff;
+    border-left: 1px solid #e2e8f0;
+    box-shadow:
+        -4px 0 8px rgba(15, 23, 42, 0.06),
+        -12px 0 20px -4px rgba(15, 23, 42, 0.14);
+}
+.extra-fields-table thead th.extra-col-actions {
+    z-index: 3;
+    background: #fafafa;
+}
+.extra-fields-table tbody tr:hover td.extra-col-actions {
     background: #f8f8f8;
 }
 
@@ -1221,6 +1246,13 @@ $(function() {
             });
         }
 
+        // 规格配置弹窗尺寸：大屏用首选 px，小屏/矮屏按视口百分比自适应
+        function specModalArea(preferW, preferH) {
+            var w = window.innerWidth >= 700 ? (preferW + 'px') : '95%';
+            var h = window.innerHeight >= 640 ? (preferH + 'px') : '80%';
+            return [w, h];
+        }
+
         // 统一入口：点击任意规格行的 3 个动作按钮
         $(document).on('click', '.spec-action-btn[data-action]', function () {
             var action = $(this).data('action');
@@ -1244,7 +1276,7 @@ $(function() {
             layer.open({
                 type: 1, title: '用户等级专属价 — ' + specName,
                 skin: 'admin-modal',
-                area: ['520px', '500px'],
+                area: specModalArea(520, 500),
                 content: $('#specLevelPriceModal'),
                 btn: ['保存', '取消'],
                 yes: function (idx) {
@@ -1292,7 +1324,7 @@ $(function() {
             layer.open({
                 type: 1, title: '用户专属价 — ' + specName,
                 skin: 'admin-modal',
-                area: ['560px', '540px'],
+                area: specModalArea(560, 540),
                 content: $('#specUserPriceModal'),
                 btn: ['保存', '取消'],
                 yes: function (idx) {
@@ -1415,7 +1447,7 @@ $(function() {
             layer.open({
                 type: 1, title: '规格专属图片 — ' + specName,
                 skin: 'admin-modal',
-                area: ['600px', '520px'],
+                area: specModalArea(600, 520),
                 content: $('#specImagesModal'),
                 btn: ['保存', '取消'],
                 yes: function (idx) {
@@ -1560,7 +1592,7 @@ $(function() {
                 type: 1,
                 title: '<i class="fa fa-info-circle"></i> 规格设置教程',
                 skin: 'admin-modal',
-                area: ['520px', 'auto'],
+                area: [window.innerWidth >= 700 ? '520px' : '95%', 'auto'],
                 content: '<div style="padding:20px;line-height:2;font-size:14px;">' +
                     '<p><b>① 单规格：</b>仅需填写一行，规格类型与规格值留空即可</p>' +
                     '<p><b>② 单维规格：</b>例如 【规格类型：时长】 【规格值：周卡、月卡、年卡】有几个就添加几个规格</p>' +
@@ -1589,7 +1621,7 @@ $(function() {
                     '<option value="email">邮箱</option>' +
                 '</select></td>' +
                 '<td style="text-align:center;"><input type="checkbox" name="extra_fields[' + idx + '][required]" value="1" lay-skin="switch" lay-text="是|否"></td>' +
-                '<td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>' +
+                '<td class="extra-col-actions" style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>' +
                 '</tr>';
             $('#extraFieldsList').append(html);
             form.render();
