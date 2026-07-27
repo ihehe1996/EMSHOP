@@ -705,6 +705,33 @@ $activated = $current !== null;
 }
 .lic-btn-danger-outline i { font-size: 12px; }
 
+/* ================================ 添加授权域名弹窗 ================================ */
+.lic-alias-modal {
+    padding: 18px 20px 10px;
+    box-sizing: border-box;
+    max-height: calc(88vh - 120px);
+    overflow-y: auto;
+}
+.lic-alias-modal__input {
+    width: 100%;
+    height: 180px;
+    max-height: min(180px, 36vh);
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+.lic-alias-modal__hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.7;
+}
+
 /* ================================ 响应式 ================================ */
 @media (max-width: 768px) {
     .lic-hero__inner { padding: 26px 22px; flex-direction: column; align-items: flex-start; }
@@ -716,6 +743,8 @@ $activated = $current !== null;
     .lic-activate__title { font-size: 22px; }
     .lic-input-inline__input { padding-right: 118px; }
     .lic-history__table th, .lic-history__table td { padding: 10px 16px; font-size: 12px; }
+    .lic-alias-modal { padding: 14px 14px 8px; }
+    .lic-alias-modal__input { height: 140px; font-size: 12px; }
 }
 </style>
 
@@ -826,15 +855,18 @@ $(function(){
             // textarea 预填当前别名，一行一个
             var cur = <?= json_encode($current['alias_hosts'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
             var textareaValue = (cur || []).join('\n');
+            var aliasW = window.innerWidth >= 640 ? '480px' : '94%';
+            var aliasH = window.innerHeight >= 560 ? 'auto' : '88%';
             layer.open({
                 type: 1,
                 title: '添加授权域名',
-                area: ['480px', 'auto'],
+                skin: 'admin-modal',
+                area: [aliasW, aliasH],
                 shadeClose: true,
                 content:
-                    '<div style="padding:18px 20px 10px;">'
-                  +   '<textarea id="licAliasesInput" style="width:100%;height:180px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:6px;font-family:Consolas,Monaco,monospace;font-size:13px;resize:vertical;outline:none;box-sizing:border-box;" placeholder="一行一个域名，例如：&#10;www.example.com&#10;shop.example.net">' + $('<div/>').text(textareaValue).html() + '</textarea>'
-                  +   '<div style="margin-top:10px;font-size:12px;color:#6b7280;line-height:1.7;">'
+                    '<div class="lic-alias-modal">'
+                  +   '<textarea id="licAliasesInput" class="lic-alias-modal__input" placeholder="一行一个域名，例如：&#10;www.example.com&#10;shop.example.net">' + $('<div/>').text(textareaValue).html() + '</textarea>'
+                  +   '<div class="lic-alias-modal__hint">'
                   +     '仅使用 1 个激活码即可为站点绑定多个域名，避免多次购买。一行一个，最多 <?= LicenseService::MAX_ALIAS_HOSTS ?> 个。<br>'
                   +     '提示：别名域名必须指向本站点服务器，且会和主授权域名使用同一个 <code>emkey</code> 与中心服务通信。'
                   +   '</div>'
@@ -846,7 +878,7 @@ $(function(){
                     post({_action: 'save_aliases', aliases: raw}).done(function (res) {
                         if (res.code === 200) {
                             layer.close(idx);
-                            layer.msg('已保存', {time: 600, icon: 1});
+                            layer.msg('已保存');
                             setTimeout(function () { location.reload(); }, 600);
                         } else {
                             layer.msg(res.msg || '保存失败', {icon: 2});
