@@ -2,6 +2,8 @@
 /**
  * 测试模板 - 注册页
  */
+$requireMobile = !empty($register_require_mobile);
+$requireEmail = !empty($register_require_email);
 ?>
 <div class="auth-page">
     <div class="auth-card">
@@ -18,6 +20,7 @@
                     <input type="text" name="username" placeholder="3-20位字母、数字或下划线" autocomplete="username" required>
                 </div>
             </div>
+            <?php if ($requireMobile): ?>
             <div class="auth-field">
                 <label class="auth-label">手机号</label>
                 <div class="auth-input-wrap">
@@ -25,6 +28,8 @@
                     <input type="tel" name="mobile" placeholder="请输入手机号码" autocomplete="tel" required>
                 </div>
             </div>
+            <?php endif; ?>
+            <?php if ($requireEmail): ?>
             <div class="auth-field">
                 <label class="auth-label">邮箱</label>
                 <div class="auth-input-wrap">
@@ -32,6 +37,7 @@
                     <input type="email" name="email" placeholder="请输入邮箱地址" autocomplete="email" required>
                 </div>
             </div>
+            <?php endif; ?>
             <div class="auth-field">
                 <label class="auth-label">密码</label>
                 <div class="auth-input-wrap">

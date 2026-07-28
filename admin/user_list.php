@@ -69,10 +69,7 @@ if (Request::isPost()) {
                 }
 
                 $email = trim((string) Input::post('email', ''));
-                if ($email === '') {
-                    Response::error('邮箱不能为空');
-                }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     Response::error('邮箱格式不正确');
                 }
 
@@ -91,7 +88,7 @@ if (Request::isPost()) {
                 if ($model->existsUsername($username)) {
                     Response::error('该用户名已被占用');
                 }
-                if ($model->existsEmail($email)) {
+                if ($email !== '' && $model->existsEmail($email)) {
                     Response::error('该邮箱已被占用');
                 }
                 $mobile = trim((string) Input::post('mobile', ''));
@@ -137,10 +134,7 @@ if (Request::isPost()) {
                 }
 
                 $email = trim((string) Input::post('email', ''));
-                if ($email === '') {
-                    Response::error('邮箱不能为空');
-                }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                     Response::error('邮箱格式不正确');
                 }
 
@@ -154,7 +148,7 @@ if (Request::isPost()) {
                 $status = Input::post('status', '1');
                 $status = $status === '1' ? 1 : 0;
 
-                if ($model->existsEmail($email, $id)) {
+                if ($email !== '' && $model->existsEmail($email, $id)) {
                     Response::error('该邮箱已被其他用户占用');
                 }
                 $mobile = trim((string) Input::post('mobile', ''));

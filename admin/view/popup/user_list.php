@@ -52,7 +52,7 @@ include __DIR__ . '/header.php';
             <div class="layui-form-item">
                 <label class="layui-form-label">邮箱</label>
                 <div class="layui-input-block">
-                    <input type="text" class="layui-input" id="userEmail" name="email" maxlength="120" placeholder="用户邮箱地址"
+                    <input type="text" class="layui-input" id="userEmail" name="email" maxlength="120" placeholder="用户邮箱地址（可选）"
                            value="<?php echo $isEdit ? $esc($editUser['email']) : ''; ?>">
                 </div>
             </div>

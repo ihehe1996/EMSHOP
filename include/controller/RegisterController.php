@@ -31,8 +31,13 @@ class RegisterController extends BaseController
             Response::error('当前站点已关闭注册功能');
         }
 
+        $regFieldsRaw = (string) Config::get('user_register_fields', 'mobile,email');
+        $regFields = array_filter(array_map('trim', explode(',', $regFieldsRaw)));
+
         $this->view->setTitle('注册');
         $this->view->setData('csrf_token', Csrf::token());
+        $this->view->setData('register_require_mobile', in_array('mobile', $regFields, true));
+        $this->view->setData('register_require_email', in_array('email', $regFields, true));
         $this->view->render('register');
     }
 
@@ -54,6 +59,19 @@ class RegisterController extends BaseController
         $password = (string) Input::post('password', '');
         $confirm  = (string) Input::post('password_confirm', '');
 
+        $regFieldsRaw = (string) Config::get('user_register_fields', 'mobile,email');
+        $regFields = array_filter(array_map('trim', explode(',', $regFieldsRaw)));
+        $requireMobile = in_array('mobile', $regFields, true);
+        $requireEmail = in_array('email', $regFields, true);
+
+        // 未开启的字段忽略提交值，避免绕过配置写入
+        if (!$requireMobile) {
+            $mobile = '';
+        }
+        if (!$requireEmail) {
+            $email = '';
+        }
+
         // 基础校验
         if ($username === '') {
             Response::error('请输入账号');
@@ -64,17 +82,21 @@ class RegisterController extends BaseController
         if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
             Response::error('账号只能包含字母、数字和下划线，不能包含中文');
         }
-        if ($mobile === '') {
-            Response::error('请输入手机号码');
+        if ($requireMobile) {
+            if ($mobile === '') {
+                Response::error('请输入手机号码');
+            }
+            if (!preg_match('/^1[3-9]\d{9}$/', $mobile)) {
+                Response::error('手机号码格式不正确');
+            }
         }
-        if (!preg_match('/^1[3-9]\d{9}$/', $mobile)) {
-            Response::error('手机号码格式不正确');
-        }
-        if ($email === '') {
-            Response::error('请输入邮箱');
-        }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            Response::error('邮箱格式不正确');
+        if ($requireEmail) {
+            if ($email === '') {
+                Response::error('请输入邮箱');
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                Response::error('邮箱格式不正确');
+            }
         }
         if ($password === '') {
             Response::error('请输入密码');
@@ -91,10 +113,10 @@ class RegisterController extends BaseController
         if ($userModel->existsUsername($username)) {
             Response::error('该账号已被注册');
         }
-        if ($userModel->existsMobile($mobile)) {
+        if ($requireMobile && $userModel->existsMobile($mobile)) {
             Response::error('该手机号已被注册');
         }
-        if ($userModel->existsEmail($email)) {
+        if ($requireEmail && $userModel->existsEmail($email)) {
             Response::error('该邮箱已被注册');
         }
 

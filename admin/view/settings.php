@@ -535,6 +535,26 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             </div>
                         </div>
                         <div class="layui-form-item">
+                            <label class="layui-form-label">注册必填项</label>
+                            <div class="layui-input-block">
+                                <?php
+                                    $regFieldsRaw = $cfg['user_register_fields'] ?? 'mobile,email';
+                                    $regFields = array_filter(array_map('trim', explode(',', (string) $regFieldsRaw)));
+                                ?>
+                                <div class="em-checkbox-group">
+                                    <label class="em-checkbox">
+                                        <input type="checkbox" name="user_register_fields[]" value="mobile" lay-ignore <?= in_array('mobile', $regFields, true) ? 'checked' : '' ?>>
+                                        <span><i class="fa fa-mobile"></i> 手机号</span>
+                                    </label>
+                                    <label class="em-checkbox">
+                                        <input type="checkbox" name="user_register_fields[]" value="email" lay-ignore <?= in_array('email', $regFields, true) ? 'checked' : '' ?>>
+                                        <span><i class="fa fa-envelope"></i> 邮箱</span>
+                                    </label>
+                                </div>
+                                <div class="layui-form-mid layui-word-aux">勾选后注册时须填写对应项；可只开一项、两项都开，或不勾选</div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
                             <label class="layui-form-label">注册邮箱验证</label>
                             <div class="layui-input-block">
                                 <?php echo formSwitch('user_verify_email', $cfg['user_verify_email'] ?? '0'); ?>

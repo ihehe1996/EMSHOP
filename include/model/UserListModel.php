@@ -142,6 +142,9 @@ final class UserListModel
      */
     public function existsEmail(string $email, int $excludeId = 0): bool
     {
+        if ($email === '') {
+            return false;
+        }
         if ($excludeId > 0) {
             $sql = sprintf(
                 'SELECT `id` FROM `%s` WHERE `email` = ? AND `id` != ? AND `role` = \'user\' LIMIT 1',
