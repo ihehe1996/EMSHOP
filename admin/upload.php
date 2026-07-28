@@ -11,7 +11,6 @@ if (!Request::isPost()) {
 }
 
 
-
 if (empty($_FILES['file'])) {
     Response::error('请选择图片文件');
 }

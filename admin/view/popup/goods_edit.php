@@ -1089,7 +1089,7 @@ $(function() {
                 formData.append('file', file);
                 formData.append('csrf_token', csrfToken);
                 formData.append('context', 'goods_image');
-
+                var loadingIdx = layer.load(2);
                 $.ajax({
                     url: '/admin/upload.php',
                     type: 'POST',
@@ -1113,6 +1113,7 @@ $(function() {
                         layer.msg('网络异常，上传失败');
                     },
                     complete: function() {
+                        layer.close(loadingIdx);
                         uploadNext();
                     }
                 });
@@ -1502,8 +1503,16 @@ $(function() {
             $fi.on('change', function () {
                 var files = this.files; if (!files || !files.length) { $fi.remove(); return; }
                 var done = 0, total = files.length;
+                var loadingIdx = layer.load(2);
+                function finishOne() {
+                    done++;
+                    if (done === total) {
+                        layer.close(loadingIdx);
+                        $fi.remove();
+                    }
+                }
                 Array.prototype.forEach.call(files, function (file) {
-                    if (!file.type.match(/image\/(jpeg|png|gif|webp)/i) || file.size > 10 * 1024 * 1024) { done++; if (done === total) $fi.remove(); return; }
+                    if (!file.type.match(/image\/(jpeg|png|gif|webp)/i) || file.size > 10 * 1024 * 1024) { finishOne(); return; }
                     var fd = new FormData();
                     fd.append('file', file); fd.append('csrf_token', csrfToken); fd.append('context', 'spec_image');
                     $.ajax({
@@ -1520,7 +1529,7 @@ $(function() {
                                 ensureSpecImagesSortable();
                             }
                         },
-                        complete: function () { done++; if (done === total) $fi.remove(); }
+                        complete: function () { finishOne(); }
                     });
                 });
             }).trigger('click');
