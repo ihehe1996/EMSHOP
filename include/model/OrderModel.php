@@ -1138,6 +1138,7 @@ class OrderModel
 
     /**
      * 持久化发货内容到明细表。
+     * 大批量卡密时按批 INSERT，避免逐行写入过慢。
      */
     public static function persistDeliveryContent(int $orderGoodsId, string $deliveryContent): bool
     {
@@ -1147,17 +1148,82 @@ class OrderModel
             return false;
         }
         try {
+            $table = self::$orderGoodsDeliveryItemTable;
             Database::execute(
-                "DELETE FROM `" . self::$orderGoodsDeliveryItemTable . "` WHERE `order_goods_id` = ?",
+                "DELETE FROM `{$table}` WHERE `order_goods_id` = ?",
                 [$orderGoodsId]
             );
-            foreach ($lines as $idx => $line) {
-                Database::insert('order_goods_delivery_item', [
-                    'order_goods_id' => $orderGoodsId,
-                    'content'        => $line,
-                    'sort'           => $idx + 1,
-                ]);
+
+            // 卡密内容偏长，每批最多 500 行，兼顾包体积与往返次数
+            $batchSize = 500;
+            $total = count($lines);
+            $orderNo = '';
+            $orderId = 0;
+            try {
+                $meta = Database::fetchOne(
+                    "SELECT og.order_id, o.order_no
+                       FROM `" . self::$orderGoodsTable . "` og
+                       LEFT JOIN `" . self::$orderTable . "` o ON o.id = og.order_id
+                      WHERE og.id = ?
+                      LIMIT 1",
+                    [$orderGoodsId]
+                );
+                if ($meta) {
+                    $orderId = (int) ($meta['order_id'] ?? 0);
+                    $orderNo = (string) ($meta['order_no'] ?? '');
+                }
+            } catch (Throwable $e) {
+                // 仅用于日志，不影响落库
             }
+
+            self::writeSystemLog(
+                'info',
+                '发货内容落库开始',
+                '订单发货明细开始批量写入',
+                [
+                    'order_no' => $orderNo,
+                    'order_id' => $orderId,
+                    'order_goods_id' => $orderGoodsId,
+                    'lines' => $total,
+                    'batch_size' => $batchSize,
+                ]
+            );
+
+            $startedAt = microtime(true);
+            $batchCount = 0;
+            for ($offset = 0; $offset < $total; $offset += $batchSize) {
+                $chunk = array_slice($lines, $offset, $batchSize);
+                $valuesParts = [];
+                $params = [];
+                foreach ($chunk as $i => $line) {
+                    $valuesParts[] = '(?, ?, ?)';
+                    $params[] = $orderGoodsId;
+                    $params[] = $line;
+                    $params[] = $offset + $i + 1;
+                }
+                Database::execute(
+                    "INSERT INTO `{$table}` (`order_goods_id`, `content`, `sort`) VALUES "
+                    . implode(',', $valuesParts),
+                    $params
+                );
+                $batchCount++;
+            }
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+            self::writeSystemLog(
+                'info',
+                '发货内容落库耗时',
+                '订单发货明细批量写入完成',
+                [
+                    'order_no' => $orderNo,
+                    'order_id' => $orderId,
+                    'order_goods_id' => $orderGoodsId,
+                    'lines' => $total,
+                    'batch_size' => $batchSize,
+                    'batches' => $batchCount,
+                    'elapsed_ms' => $elapsedMs,
+                ]
+            );
         } catch (Throwable $e) {
             // 迁移尚未执行时由调用方兜底报错
             return false;
