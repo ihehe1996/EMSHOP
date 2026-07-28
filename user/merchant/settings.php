@@ -110,7 +110,7 @@ if (Request::isPost()) {
                 if ($data !== []) {
                     Database::update('merchant', $data, $merchantId);
                 }
-                Response::success('域名已保存，请确保 DNS 已正确解析', ['csrf_token' => Csrf::refresh()]);
+                Response::success('域名已保存', ['csrf_token' => Csrf::refresh()]);
                 break;
             }
 

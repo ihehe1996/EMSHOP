@@ -326,7 +326,7 @@ $statusMap = [
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/user/static/js/order_delivery_poll.js"></script>
-    <script src="<?= $esc(theme_asset_url('guest_find.js', active_theme_name('test'))) ?>"></script>
+    <script src="<?= $esc(theme_asset_url('guest_find.js', active_theme_name('default'))) ?>"></script>
 </head>
 <body>
 
