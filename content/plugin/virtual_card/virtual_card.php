@@ -664,12 +664,14 @@ addFilter('frontend_order_goods_delivery_html', function ($html, $og) {
         <div class="vc-delivery__list">
             <?php foreach ($visible as $idx => $line): ?>
             <div class="vc-delivery__item">
-                <span class="vc-delivery__idx">#<?= $idx + 1 ?></span>
-                <span class="vc-delivery__code"><?= $esc($line) ?></span>
-                <button type="button" class="vc-delivery__btn vc-delivery__btn--copy"
-                        data-vc-copy="<?= $esc($line) ?>" title="复制本条">
-                    <i class="fa fa-copy"></i>复制
-                </button>
+                <div class="vc-delivery__item-bar">
+                    <span class="vc-delivery__idx">#<?= $idx + 1 ?></span>
+                    <button type="button" class="vc-delivery__btn vc-delivery__btn--copy"
+                            data-vc-copy="<?= $esc($line) ?>" title="复制本条">
+                        <i class="fa fa-copy"></i>复制
+                    </button>
+                </div>
+                <pre class="vc-delivery__code"><?= $esc($line) ?></pre>
             </div>
             <?php endforeach; ?>
         </div>
@@ -693,7 +695,7 @@ addFilter('frontend_order_goods_delivery_html', function ($html, $og) {
     ?>
     <style>
     .vc-delivery {
-        margin: 10px 0 4px;
+        margin: 0;
         border: 1px solid #e5e7eb; border-radius: 10px;
         background: #fff; overflow: hidden;
     }
@@ -704,54 +706,88 @@ addFilter('frontend_order_goods_delivery_html', function ($html, $og) {
     }
     .vc-delivery__title { font-weight: 600; }
     .vc-delivery__title .fa { color: #4f46e5; margin-right: 4px; }
-    .vc-delivery__count { color: #6b7280; font-size: 12px; }
+    .vc-delivery__count { color: #6b7280; font-size: 12px; white-space: nowrap; }
     .vc-delivery__info {
         padding: 8px 14px; background: #fef3c7; color: #92400e;
         font-size: 12px; line-height: 1.6;
         border-bottom: 1px solid #fde68a;
     }
     .vc-delivery__info .fa { color: #d97706; margin-right: 4px; }
-    .vc-delivery__list { padding: 10px 14px; }
+    .vc-delivery__list { padding: 10px 12px; }
+    /* 顶栏（序号+复制）+ 下方全宽卡密，手机多行/长串都不会被挤成竖条 */
     .vc-delivery__item {
-        display: flex; align-items: center; gap: 10px;
-        padding: 8px 10px; margin-bottom: 6px;
-        background: #f9fafb; border: 1px solid #f0f2f5; border-radius: 6px;
-        font-size: 13px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: #f9fafb;
+        border: 1px solid #f0f2f5;
+        border-radius: 8px;
     }
     .vc-delivery__item:last-child { margin-bottom: 0; }
+    .vc-delivery__item-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
     .vc-delivery__idx {
-        flex: 0 0 auto; color: #9ca3af; font-size: 11px;
-        font-family: Menlo,Consolas,monospace;
+        color: #9ca3af; font-size: 11px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
     }
     .vc-delivery__code {
-        flex: 1; min-width: 0;
-        font-family: Menlo,Consolas,monospace; font-size: 12.5px; color: #111827;
-        word-break: break-all; white-space: pre-wrap; line-height: 1.6;
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 13px; color: #111827;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+        line-height: 1.65;
+        padding: 10px 12px;
+        background: #fff;
+        border: 1px solid #eef2f7;
+        border-radius: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .vc-delivery__actions {
         display: flex; gap: 8px; flex-wrap: wrap;
-        padding: 10px 14px; background: #fafbfc; border-top: 1px solid #f0f2f5;
+        padding: 10px 12px; background: #fafbfc; border-top: 1px solid #f0f2f5;
     }
     .vc-delivery__btn {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 6px 12px; border-radius: 5px;
+        display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        padding: 8px 12px; border-radius: 6px;
         border: 1px solid #d1d5db; background: #fff; color: #374151;
-        font-size: 12px; cursor: pointer; text-decoration: none;
+        font-size: 12.5px; cursor: pointer; text-decoration: none;
         transition: all 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
     }
     .vc-delivery__btn:hover { background: #f3f4f6; border-color: #9ca3af; }
     .vc-delivery__btn--copy {
-        padding: 4px 10px; font-size: 11.5px; flex: 0 0 auto;
+        padding: 5px 10px; font-size: 12px; flex-shrink: 0;
     }
     .vc-delivery__btn--primary {
+        flex: 1 1 auto;
+        min-width: 0;
         background: #4f46e5; color: #fff; border-color: #4f46e5;
     }
     .vc-delivery__btn--primary:hover { background: #4338ca; border-color: #4338ca; color: #fff; }
     .vc-delivery__btn--export {
+        flex: 1 1 auto;
         background: #10b981; color: #fff; border-color: #10b981;
     }
     .vc-delivery__btn--export:hover { background: #059669; border-color: #059669; color: #fff; }
     .vc-delivery__btn.is-copied { background: #10b981 !important; color: #fff !important; border-color: #10b981 !important; }
+
+    @media (min-width: 640px) {
+        .vc-delivery__list { padding: 10px 14px; }
+        .vc-delivery__actions { padding: 10px 14px; }
+        .vc-delivery__btn--primary,
+        .vc-delivery__btn--export { flex: 0 0 auto; }
+    }
     </style>
     <script>
     (function () {

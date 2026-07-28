@@ -444,121 +444,284 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     font-size: 11px;
 }
 
-/* ============ 订单详情页 ============ */
-.fo-detail { padding: 0; }
-.fo-detail__header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 22px 28px;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: #fff;
+/* ============ 订单详情页（分卡片堆叠，手机优先） ============ */
+.fo-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
-.fo-detail__title {
-    font-size: 18px; font-weight: 700; letter-spacing: 0.5px;
-    display: inline-flex; align-items: center; gap: 8px;
-}
-.fo-detail__title i { font-size: 18px; opacity: 0.9; }
-.fo-detail__back {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 7px 14px;
-    font-size: 13px; color: #fff;
-    background: rgba(255, 255, 255, 0.18);
-    border-radius: 999px;
-    transition: background 0.15s;
-}
-.fo-detail__back:hover { background: rgba(255, 255, 255, 0.28); }
 
-/* 元信息表 —— 双栏 row 紧凑布局 */
-.fo-detail__meta {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    column-gap: 24px;
-    padding: 4px 28px 12px;
+/* 返回导航：独立一行，不和状态抢空间 */
+.fo-detail__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-start;
+    padding: 6px 2px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    transition: color 0.15s;
+}
+.fo-detail__nav i { font-size: 15px; line-height: 1; }
+.fo-detail__nav:hover { color: #4338ca; }
+
+/* 状态总览卡 */
+.fo-detail__hero {
     background: #fff;
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    border: 1px solid rgba(99, 102, 241, 0.08);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04),
+                0 8px 32px rgba(15, 23, 42, 0.06);
 }
-@media (max-width: 640px) { .fo-detail__meta { grid-template-columns: 1fr; column-gap: 0; } }
-.fo-detail__row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 0;
+.fo-detail__hero--awaiting {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04),
+                0 0 0 1px rgba(99, 102, 241, 0.12),
+                0 8px 32px rgba(99, 102, 241, 0.08);
+}
+.fo-detail__hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.fo-detail__hero-amount {
+    font-size: 22px;
+    font-weight: 700;
+    color: #4f46e5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+    flex-shrink: 0;
+}
+.fo-detail__hero-desc {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+}
+.fo-detail__hero-no {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f0;
+}
+.fo-detail__hero-no-label {
+    font-size: 12px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+.fo-detail__hero-no-val {
+    font-size: 12.5px;
+    color: #334155;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 5px;
+    word-break: break-all;
+}
+
+/* 状态 pill */
+.fo-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 999px;
+    letter-spacing: 0.2px;
+}
+.fo-status-pill--awaiting { gap: 6px; }
+.fo-status-pill__spin { font-size: 12px; opacity: 0.9; }
+
+/* 信息区块卡 */
+.fo-detail__block {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px 18px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.fo-detail__block-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+}
+.fo-detail__block-title i {
+    color: #6366f1;
+    font-size: 13px;
+}
+
+/* 键值列表：手机上标签在上、值在下，更易扫读 */
+.fo-detail__kv {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+.fo-detail__kv-item {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 8px 12px;
+    align-items: baseline;
+    padding: 10px 0;
     border-bottom: 1px solid #f1f5f9;
-    gap: 14px;
 }
-.fo-detail__row:nth-last-child(-n+2) { border-bottom: 0; }
-.fo-detail__label { font-size: 12.5px; color: #94a3b8; flex-shrink: 0; }
-.fo-detail__value {
-    font-size: 13px; color: #1f2937; font-weight: 500;
-    text-align: right; word-break: break-all;
+.fo-detail__kv-item:first-child { padding-top: 0; }
+.fo-detail__kv-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
 }
-.fo-detail__amount {
-    font-size: 16px !important;
-    font-weight: 700 !important;
+.fo-detail__kv-item dt {
+    margin: 0;
+    font-size: 12.5px;
+    color: #94a3b8;
+    font-weight: 400;
+}
+.fo-detail__kv-item dd {
+    margin: 0;
+    font-size: 13.5px;
+    color: #1f2937;
+    font-weight: 500;
+    word-break: break-word;
+    text-align: right;
+}
+.fo-detail__kv-amount {
     color: #4f46e5 !important;
+    font-weight: 700 !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-/* 详情页彩色 status pill */
-.fo-status-pill {
-    display: inline-flex; align-items: center;
-    padding: 3px 12px;
-    font-size: 12.5px; font-weight: 600;
-    border-radius: 11px;
-    letter-spacing: 0.3px;
+/* 收货地址 */
+.fo-detail__addr-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-bottom: 6px;
+}
+.fo-detail__addr-head strong {
+    font-size: 14px;
+    color: #0f172a;
+}
+.fo-detail__addr-head span {
+    font-size: 13px;
+    color: #64748b;
+}
+.fo-detail__addr-text {
+    margin: 0;
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.7;
+    word-break: break-word;
 }
 
-/* 信息分区（收货地址 / 商品明细 / 备注）—— 用浅灰大间隔分隔区块 */
-.fo-detail__section {
-    padding: 16px 28px;
-    border-top: 8px solid #f5f7fb;
+/* 商品明细：主信息一行，发货内容另起全宽，避免手机端挤扁 */
+.fo-detail__goods-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
-.fo-detail__section-title {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 14px; font-weight: 600; color: #1f2937;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.fo-detail__section-title i { color: #6366f1; font-size: 13px; }
-
-/* 商品明细 */
 .fo-detail__goods {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 14px 0;
-    border-bottom: 1px dashed #f1f5f9;
-}
-.fo-detail__goods:last-child { border-bottom: 0; }
-.fo-detail__goods-cover {
-    width: 56px; height: 56px;
-    border-radius: 8px; object-fit: cover;
-    background: #f1f5f9; flex-shrink: 0;
+    padding: 12px;
+    background: #fafbfc;
     border: 1px solid #f1f5f9;
+    border-radius: 10px;
+}
+.fo-detail__goods--has-delivery {
+    background: #fff;
+    border-color: #e2e8f0;
+}
+.fo-detail__goods-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.fo-detail__goods-cover {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f1f5f9;
+    flex-shrink: 0;
+    border: 1px solid #eef2f7;
 }
 .fo-detail__goods-cover--empty {
-    display: flex; align-items: center; justify-content: center;
-    color: #cbd5e1; font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    font-size: 18px;
 }
-.fo-detail__goods-body { flex: 1; min-width: 0; }
+.fo-detail__goods-body {
+    flex: 1;
+    min-width: 0;
+}
 .fo-detail__goods-title {
-    font-size: 14px; color: #1f2937; font-weight: 500;
-    line-height: 1.4;
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 500;
+    line-height: 1.45;
+    word-break: break-word;
 }
-.fo-detail__goods-spec { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.fo-detail__goods-spec {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 1px 7px;
+    font-size: 11.5px;
+    color: #6366f1;
+    background: #eef2ff;
+    border-radius: 4px;
+}
+.fo-detail__goods-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 8px;
+}
 .fo-detail__goods-price {
-    font-size: 13.5px; color: #4f46e5; font-weight: 600;
-    flex-shrink: 0;
-    text-align: right; line-height: 1.5;
+    font-size: 14px;
+    color: #4f46e5;
+    font-weight: 600;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.fo-detail__goods-qty {
+    font-size: 12.5px;
+    color: #94a3b8;
+}
+
+.fo-detail__goods-delivery {
+    margin-top: 12px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+.fo-detail__goods-delivery .vc-delivery {
+    width: 100%;
+    max-width: 100%;
 }
 
 /* 发货内容（卡密 / 链接等） */
 .fo-detail__delivery {
-    margin-top: 8px;
+    margin-top: 12px;
     padding: 10px 12px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 8px;
 }
 .fo-detail__delivery-label {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 12px; color: #4338ca; font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #4338ca;
+    font-weight: 500;
     margin-bottom: 6px;
 }
 .fo-detail__delivery-content {
@@ -566,23 +729,23 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     font-size: 12.5px;
     color: #1f2937;
     background: #fff;
-    padding: 8px 10px;
-    border-radius: 4px;
+    padding: 10px;
+    border-radius: 6px;
     border: 1px solid #f1f5f9;
     margin: 0;
     white-space: pre-wrap;
     word-break: break-all;
     max-height: 240px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* 使用教程（购买后可见，富文本；位于商品明细上方） */
-.fo-detail__section--guide { padding-top: 4px; }
+/* 使用教程 */
 .fo-detail__guide {
-    padding: 10px 12px;
+    padding: 12px;
     background: #f5f7ff;
     border: 1px solid #e0e7ff;
-    border-radius: 6px;
+    border-radius: 8px;
 }
 .fo-detail__guide + .fo-detail__guide { margin-top: 10px; }
 .fo-detail__guide-goods {
@@ -597,33 +760,106 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     line-height: 1.8;
     word-break: break-word;
 }
-.fo-detail__guide-body.detail-body img { max-width: 100%; height: auto; }
-
-/* 异步发货中：状态角标旁转圈 */
-.fo-status-pill--awaiting {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.fo-status-pill__spin {
-    font-size: 13px;
-    opacity: 0.9;
+.fo-detail__guide-body.detail-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
 }
 
 /* 备注 */
 .fo-detail__remark {
-    padding: 10px 14px;
+    padding: 12px 14px;
     background: #fffbeb;
     border-left: 3px solid #fcd34d;
     color: #78350f;
     font-size: 13px;
-    border-radius: 4px;
+    border-radius: 0 8px 8px 0;
     line-height: 1.7;
+    word-break: break-word;
 }
 
-/* 移动端 */
+/* 拒绝 / 空状态 */
+.fo-detail__empty {
+    background: #fff;
+    border-radius: 14px;
+    padding: 36px 22px;
+    text-align: center;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+.fo-detail__empty-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #94a3b8;
+    font-size: 22px;
+}
+.fo-detail__empty-title {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+}
+.fo-detail__empty-text {
+    margin: 0 0 6px;
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.7;
+}
+.fo-detail__empty-hint {
+    margin: 0 0 20px;
+    font-size: 12.5px;
+    color: #94a3b8;
+    line-height: 1.7;
+}
+.fo-detail__empty-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #fff;
+    background: #4f46e5;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+.fo-detail__empty-btn:hover { background: #4338ca; }
+
+/* 桌面端加宽详情区留白 */
+@media (min-width: 641px) {
+    .fo-detail { gap: 14px; }
+    .fo-detail__hero { padding: 22px 24px 18px; }
+    .fo-detail__hero-amount { font-size: 26px; }
+    .fo-detail__block { padding: 18px 22px; }
+    .fo-detail__kv-item {
+        grid-template-columns: 100px 1fr;
+        padding: 11px 0;
+    }
+    .fo-detail__goods { padding: 14px; }
+    .fo-detail__goods-cover { width: 72px; height: 72px; }
+}
+
+/* 超窄屏：键值改为上下排列，避免长值挤压 */
+@media (max-width: 380px) {
+    .fo-detail__kv-item {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    .fo-detail__kv-item dd { text-align: left; }
+    .fo-detail__hero-top { align-items: flex-start; flex-direction: column; }
+}
+
+/* 查单列表页移动端 */
 @media (max-width: 640px) {
-    .fo-wrap { margin-top: 16px; padding: 0 12px; }
+    .fo-wrap { margin-top: 12px; padding: 0 12px; margin-bottom: 48px; }
+    .fo-header-inner { padding: 0 14px; }
+    .fo-header-title { display: none; }
     .fo-hero { padding: 22px 20px 18px 22px; }
     .fo-hero::before { top: 22px; bottom: 18px; }
     .fo-hero__title { font-size: 16px; }
@@ -633,8 +869,4 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .find-order-tabs { gap: 4px; padding: 4px; }
     .find-order-tab { padding: 8px 8px; font-size: 12.5px; }
     .find-order-tab i { display: none; }
-    .fo-detail__header { padding: 18px 18px; flex-wrap: wrap; gap: 10px; }
-    .fo-detail__title { font-size: 16px; }
-    .fo-detail__meta,
-    .fo-detail__section { padding-left: 18px; padding-right: 18px; }
 }

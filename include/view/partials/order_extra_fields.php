@@ -16,15 +16,17 @@ $layout = $layout ?? 'uc';
 $esc = static fn (string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 ?>
 <?php if ($layout === 'fo'): ?>
-<div class="fo-detail__section">
-    <div class="fo-detail__section-title"><i class="fa fa-list-alt"></i> 附加选项</div>
-    <?php foreach ($extraPairs as $label => $val): ?>
-    <div class="fo-detail__row">
-        <span class="fo-detail__label"><?= $esc((string) $label) ?></span>
-        <span class="fo-detail__value"><?= $esc((string) $val) ?></span>
-    </div>
-    <?php endforeach; ?>
-</div>
+<section class="fo-detail__block">
+    <h3 class="fo-detail__block-title"><i class="fa fa-list-alt"></i> 附加选项</h3>
+    <dl class="fo-detail__kv">
+        <?php foreach ($extraPairs as $label => $val): ?>
+        <div class="fo-detail__kv-item">
+            <dt><?= $esc((string) $label) ?></dt>
+            <dd><?= $esc((string) $val) ?></dd>
+        </div>
+        <?php endforeach; ?>
+    </dl>
+</section>
 <?php else: ?>
 <div class="uc-form-card" style="margin-bottom:16px;">
     <div class="uc-section-title"><i class="fa fa-list-alt"></i> 附加选项</div>

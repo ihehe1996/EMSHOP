@@ -30,8 +30,8 @@ $showTitles = count($orderGoods) > 1;
 ?>
 
 <?php if ($layout === 'fo'): ?>
-<div class="fo-detail__section fo-detail__section--guide">
-    <div class="fo-detail__section-title"><i class="fa fa-book"></i> 使用教程</div>
+<section class="fo-detail__block fo-detail__block--guide">
+    <h3 class="fo-detail__block-title"><i class="fa fa-book"></i> 使用教程</h3>
     <?php foreach ($itemsWithGuide as $item): ?>
     <div class="fo-detail__guide">
         <?php if ($showTitles && $item['title'] !== ''): ?>
@@ -40,7 +40,7 @@ $showTitles = count($orderGoods) > 1;
         <div class="fo-detail__guide-body detail-body"><?= $item['guide'] ?></div>
     </div>
     <?php endforeach; ?>
-</div>
+</section>
 <?php else: ?>
 <div class="uc-form-card uc-order-guide-section" style="margin-bottom:16px;">
     <div class="uc-section-title"><i class="fa fa-book"></i> 使用教程</div>
