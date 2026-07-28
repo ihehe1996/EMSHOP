@@ -46,6 +46,7 @@ final class UpdateService
         '.claude',             // 开发工具配置
         '.idea',               // IDE 配置
         '.git',                // 版本控制
+        'base.php',            // EMSHOP代理配置文件
     ];
 
     /** 写权限抽查的关键目录（preflight 校验） */
