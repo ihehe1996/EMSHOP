@@ -39,13 +39,34 @@ final class PaymentCallbackController
      */
     public static function handleNotify(): void
     {
+
+
+        
         // POST 优先覆盖 GET，兼容网关混传参数。
-        $data = array_merge($_GET, $_POST);
-        $plugin = self::resolvePlugin($data);
-        if ($plugin === '') {
-            http_response_code(400);
-            exit('fail: missing or unresolved plugin');
+        $getData = $_GET;
+        $postData = $_POST;
+        
+        $rawBody = file_get_contents('php://input', false, null, 0, 8192);
+        // body不为空，尝试解析JSON
+        if (!empty($rawBody)) {
+            $jsonTemp = json_decode($rawBody, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($jsonTemp)) {
+                $postData = $jsonTemp;
+            }
         }
+        
+        $data = array_merge($getData, $postData);
+        
+        $plugin = self::resolvePlugin($data);
+
+        
+        if ($plugin == '') {
+            $plugin = 'wxpay';
+        }
+
+
+
+
 
         // 插件内应输出 success/fail 并 exit。
         PaymentService::dispatchNotify($plugin, $data);
