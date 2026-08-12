@@ -68,6 +68,16 @@ final class CliServerManager
 
     private static function cmdStart(): int
     {
+        // 0) proc_open 被禁用时服务无法拉起 worker，提前失败退出
+        $disabled = (string) ini_get('disable_functions');
+        
+        if (stripos(',' . str_replace(' ', '', $disabled) . ',', ',proc_open,') != false) {
+            $msg = '进程依赖proc_open函数，请在php设置的禁用函数中删除proc_open';
+            CliServer::log('启动失败：' . $msg);
+            echo $msg . "\n";
+            return 1;
+        }
+
         // 1) 防并发：两个 start 同时跑时，后到的会退出
         self::$startLockFp = CliServer::acquireStartLock();
 
@@ -284,6 +294,10 @@ final class CliServerManager
             'worker',
             '--type=' . $type,
         ];
+
+        // print_r($cmd);
+        // echo "正在拉起 worker {$type}（{$label}）…\n";
+
 
         // pipes：0=stdin，1=stdout，2=stderr；主进程读 1/2 用来打日志
         $proc = @proc_open(

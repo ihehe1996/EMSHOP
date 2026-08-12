@@ -26,3 +26,4 @@ CLAUDE.md
 /content/server/logs/
 *.log
 /logs/
+url.html
