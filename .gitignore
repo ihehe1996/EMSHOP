@@ -3,7 +3,9 @@
 tmp
 .cursor/
 .claude/
+.agents/
 CLAUDE.md
+AGENTS.md
 
 # 勿提交 Swoole 升级硬重启标记文件（根目录 .server）
 .server

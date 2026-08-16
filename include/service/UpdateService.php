@@ -82,6 +82,12 @@ final class UpdateService
             $errors[] = '当前 PHP 版本 ' . PHP_VERSION . ' 过低，升级需要 PHP 7.4 及以上';
         }
 
+        // 数据库版本：建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP，MySQL 5.6.5 起才支持
+        if (!Database::mysqlVersionOk()) {
+            $errors[] = '数据库版本过低：需要 MySQL ' . Database::MIN_MYSQL_VERSION
+                . ' 及以上（或 MariaDB），当前 ' . Database::serverVersion();
+        }
+
         // 必需扩展
         foreach (['zip', 'curl'] as $ext) {
             if (!extension_loaded($ext)) {
@@ -495,12 +501,18 @@ final class UpdateService
     private static function ensureMigrationsTable(): void
     {
         $table = Database::prefix() . 'migrations';
+
+        // 防御性兜底：MySQL < 5.6.5 不支持 DATETIME DEFAULT CURRENT_TIMESTAMP。
+        // 正常流程里 install/upgrade 的版本守卫已先拦截，这里仅兜底。本表只有一个
+        // applied_at 自增列，换成 TIMESTAMP 在 5.5 下也安全。
+        $appliedAtType = Database::mysqlVersionOk() ? 'DATETIME' : 'TIMESTAMP';
+
         Database::statement(
             'CREATE TABLE IF NOT EXISTS `' . $table . '` (
                 `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `filename`   VARCHAR(255) NOT NULL,
                 `batch`      INT UNSIGNED NOT NULL DEFAULT 0,
-                `applied_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `applied_at` ' . $appliedAtType . ' NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `checksum`   CHAR(64)     NOT NULL DEFAULT \'\',
                 PRIMARY KEY (`id`),
                 KEY `idx_batch` (`batch`)

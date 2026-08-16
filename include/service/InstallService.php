@@ -24,6 +24,15 @@ final class InstallService
             $config['dbname']
         ), true);
 
+        // 建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP（MySQL 5.6.5 起才支持），
+        // 低于此版本（如 5.5）建表会报 Invalid default value，这里提前给出明确提示。
+        if (!Database::mysqlVersionOk()) {
+            throw new RuntimeException(
+                '数据库版本过低：需要 MySQL ' . Database::MIN_MYSQL_VERSION . ' 及以上（或 MariaDB），'
+                . '当前 ' . Database::serverVersion() . '。请升级数据库后重试安装。'
+            );
+        }
+
         // 系统配置表
         Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (

@@ -11,6 +11,12 @@ declare(strict_types=1);
 final class Database
 {
     /**
+     * 建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP，MySQL 5.6.5 起才支持。
+     * 低于此版本（如 5.5）建表会报 Invalid default value，安装/升级流程据此拦截。
+     */
+    public const MIN_MYSQL_VERSION = '5.6.5';
+
+    /**
      * @var array<string, mixed>
      */
     private static $config = [];
@@ -193,6 +199,53 @@ final class Database
         }
 
         throw new RuntimeException('当前 PHP 环境既不支持 mysqli，也不支持 pdo_mysql，无法连接数据库');
+    }
+
+    /**
+     * 返回 MySQL/MariaDB 服务端版本号（如 "5.5.62"、"8.0.36"、"10.4.28-MariaDB"）。
+     *
+     * 用 `SELECT VERSION()` 而非连接句柄的 `server_info`：MariaDB 在握手阶段会给
+     * 老客户端伪造一个 "5.5.5-" 前缀（兼容性补丁），`server_info` 拿到的是带前缀的
+     * 假版本，会干扰版本判断；`SELECT VERSION()` 返回真实版本号。
+     *
+     * @return string 版本号；查询失败时返回空串
+     */
+    public static function serverVersion(): string
+    {
+        static $version = null;
+        if ($version !== null) {
+            return $version;
+        }
+
+        try {
+            $row = self::fetchOne('SELECT VERSION() AS `v`');
+            $version = (string) ($row['v'] ?? '');
+        } catch (Throwable $e) {
+            $version = '';
+        }
+
+        return $version;
+    }
+
+    /**
+     * 判断当前数据库是否满足建表所需的最低 MySQL 版本。
+     *
+     * 建表 DDL 用到 DATETIME DEFAULT CURRENT_TIMESTAMP，MySQL 5.6.5 起才支持。
+     * MariaDB 已支持该特性（本项目要求的 10.3+ 必然满足），故对 MariaDB 一律视为兼容。
+     * 版本探测失败（空串）视为兼容，不阻断安装/升级，交给后续建表报错兜底。
+     *
+     * @return bool
+     */
+    public static function mysqlVersionOk(): bool
+    {
+        $version = self::serverVersion();
+        if ($version === '') {
+            return true;
+        }
+        if (stripos($version, 'mariadb') !== false) {
+            return true;
+        }
+        return version_compare($version, self::MIN_MYSQL_VERSION, '>=');
     }
 
     /**
