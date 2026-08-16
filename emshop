@@ -3,7 +3,322 @@
 
 declare(strict_types=1);
 
+/**
+ * EMSHOP 命令行管理工具箱
+ *
+ * 自包含的单文件 CLI（不加载 init.php / Autoloader，仅依赖 config.php + PasswordHash.php）。
+ * 提供：查看管理员账号、重置管理员密码。输出带 ANSI 彩色、CJK 等宽对齐、盒状表格，
+ * 自动探测终端能力（Windows VT / NO_COLOR / 重定向），不支持时优雅降级为纯文本。
+ *
+ * 用法：
+ *   php emshop                 打开交互菜单
+ *   php emshop admin:list      查看管理员账号
+ *   php emshop admin:password  修改管理员密码
+ *   php emshop help            查看帮助
+ */
 
+// ---------------------------------------------------------------------------
+// 终端样式层（颜色 / 等宽 / 盒状绘制）
+// ---------------------------------------------------------------------------
+
+const EMO_RESET   = "\033[0m";
+const EMO_BOLD    = "\033[1m";
+const EMO_DIM     = "\033[2m";
+const EMO_RED     = "\033[31m";
+const EMO_GREEN   = "\033[32m";
+const EMO_YELLOW  = "\033[33m";
+const EMO_BLUE    = "\033[34m";
+const EMO_MAGENTA = "\033[35m";
+const EMO_CYAN    = "\033[36m";
+const EMO_GRAY    = "\033[90m";
+const EMO_BG_CYAN = "\033[46m";
+const EMO_BG_BLUE = "\033[44m";
+
+/**
+ * 初始化终端：决定是否启用颜色，写入全局标志。
+ */
+function emo_init_terminal(): void
+{
+    $GLOBALS['emo_color'] = emo_color_enabled();
+}
+
+/**
+ * 是否启用 ANSI 颜色。
+ */
+function emo_color_enabled(): bool
+{
+    if (getenv('NO_COLOR') !== false) {
+        return false;
+    }
+    // 输出被重定向（如 php emshop admin:list > file）时，不写颜色码
+    if (function_exists('stream_isatty') && @stream_isatty(STDOUT) === false) {
+        return false;
+    }
+    if (PHP_OS_FAMILY === 'Windows') {
+        // 启用 VT 成功才允许颜色，避免老式 conhost 输出乱码
+        if (function_exists('sapi_windows_vt100_support')) {
+            return @sapi_windows_vt100_support(STDOUT, true) === true;
+        }
+        return getenv('ANSICON') !== false || getenv('ConEmuANSI') === 'ON';
+    }
+    return getenv('TERM') !== 'dumb';
+}
+
+/**
+ * 用 ANSI 码包裹文本；颜色被禁用时原样返回。
+ */
+function emo_paint(string $text, string $code): string
+{
+    if (empty($GLOBALS['emo_color'])) {
+        return $text;
+    }
+    return $code . $text . EMO_RESET;
+}
+
+function emo_bold(string $t): string    { return emo_paint($t, EMO_BOLD); }
+function emo_dim(string $t): string     { return emo_paint($t, EMO_DIM); }
+function emo_red(string $t): string     { return emo_paint($t, EMO_RED); }
+function emo_green(string $t): string   { return emo_paint($t, EMO_GREEN); }
+function emo_yellow(string $t): string  { return emo_paint($t, EMO_YELLOW); }
+function emo_cyan(string $t): string    { return emo_paint($t, EMO_CYAN); }
+function emo_magenta(string $t): string { return emo_paint($t, EMO_MAGENTA); }
+function emo_gray(string $t): string    { return emo_paint($t, EMO_GRAY); }
+
+function emo_ok(string $t): string   { return emo_paint('✓', EMO_GREEN) . ' ' . $t; }
+function emo_fail(string $t): string { return emo_paint('✗', EMO_RED) . ' ' . emo_red($t); }
+function emo_info(string $t): string { return emo_paint('ℹ', EMO_CYAN) . ' ' . emo_dim($t); }
+function emo_warn(string $t): string { return emo_paint('⚠', EMO_YELLOW) . ' ' . emo_yellow($t); }
+
+/**
+ * 输出一行（自带换行）。
+ */
+function emo_out(string $text = ''): void
+{
+    echo $text . PHP_EOL;
+}
+
+/**
+ * 剥离 ANSI 转义序列，用于计算显示宽度。
+ */
+function emo_strip_ansi(string $text): string
+{
+    return (string) preg_replace('/\033\[[0-9;]*m/', '', $text);
+}
+
+/**
+ * 判断单个码点是否为东亚宽字符（占两个终端列）。
+ */
+function emo_char_is_wide(int $cp): bool
+{
+    return ($cp >= 0x1100 && $cp <= 0x115F)
+        || ($cp >= 0x2E80 && $cp <= 0x303E)
+        || ($cp >= 0x3041 && $cp <= 0x33FF)
+        || ($cp >= 0x3400 && $cp <= 0x4DBF)
+        || ($cp >= 0x4E00 && $cp <= 0x9FFF)
+        || ($cp >= 0xA000 && $cp <= 0xA4CF)
+        || ($cp >= 0xAC00 && $cp <= 0xD7A3)
+        || ($cp >= 0xF900 && $cp <= 0xFAFF)
+        || ($cp >= 0xFE10 && $cp <= 0xFE19)
+        || ($cp >= 0xFE30 && $cp <= 0xFE6F)
+        || ($cp >= 0xFF00 && $cp <= 0xFF60)
+        || ($cp >= 0xFFE0 && $cp <= 0xFFE6)
+        || ($cp >= 0x1F300 && $cp <= 0x1FAFF)
+        || ($cp >= 0x20000 && $cp <= 0x3FFFD);
+}
+
+/**
+ * 把 UTF-8 字符串拆成 [字符, 码点, 显示宽度] 列表。
+ *
+ * @return list<array{0: string, 1: int, 2: int}>
+ */
+function emo_chars(string $text): array
+{
+    $chars = [];
+    $len = strlen($text);
+    $i = 0;
+    while ($i < $len) {
+        $c = ord($text[$i]);
+        if ($c < 0x80) {
+            $adv = 1;
+            $cp = $c;
+        } elseif (($c & 0xE0) === 0xC0) {
+            $adv = 2;
+            $cp = (($c & 0x1F) << 6) | (ord($text[$i + 1]) & 0x3F);
+        } elseif (($c & 0xF0) === 0xE0) {
+            $adv = 3;
+            $cp = (($c & 0x0F) << 12) | ((ord($text[$i + 1]) & 0x3F) << 6) | (ord($text[$i + 2]) & 0x3F);
+        } else {
+            $adv = 4;
+            $cp = (($c & 0x07) << 18) | ((ord($text[$i + 1]) & 0x3F) << 12) | ((ord($text[$i + 2]) & 0x3F) << 6) | (ord($text[$i + 3]) & 0x3F);
+        }
+        if ($i + $adv > $len) {
+            $adv = $len - $i;
+        }
+        $chars[] = [substr($text, $i, $adv), $cp, emo_char_is_wide($cp) ? 2 : 1];
+        $i += $adv;
+    }
+    return $chars;
+}
+
+/**
+ * 计算字符串的终端显示宽度（CJK 记 2 列）。
+ */
+function emo_str_width(string $text): int
+{
+    if (function_exists('mb_strwidth')) {
+        return (int) mb_strwidth($text, 'UTF-8');
+    }
+    $w = 0;
+    foreach (emo_chars($text) as $ch) {
+        $w += $ch[2];
+    }
+    return $w;
+}
+
+/**
+ * 按显示宽度截断，超出部分以 … 结尾。
+ */
+function emo_truncate(string $text, int $maxWidth): string
+{
+    if (emo_str_width($text) <= $maxWidth) {
+        return $text;
+    }
+    $out = '';
+    $w = 0;
+    foreach (emo_chars($text) as $ch) {
+        if ($w + $ch[2] > $maxWidth - 1) {
+            break;
+        }
+        $out .= $ch[0];
+        $w += $ch[2];
+    }
+    return $out . '…';
+}
+
+/**
+ * 绘制盒状边框（用于菜单等）。
+ *
+ * @param list<string> $lines
+ */
+function emo_box(array $lines, string $style = 'round', string $borderColor = EMO_GRAY, int $pad = 1): void
+{
+    $sets = [
+        'single' => ['┌', '┐', '└', '┘', '─', '│'],
+        'double' => ['╔', '╗', '╚', '╝', '═', '║'],
+        'round'  => ['╭', '╮', '╰', '╯', '─', '│'],
+    ];
+    [$tl, $tr, $bl, $br, $hz, $vt] = $sets[$style] ?? $sets['round'];
+
+    $inner = 0;
+    foreach ($lines as $line) {
+        $w = emo_str_width(emo_strip_ansi($line));
+        if ($w > $inner) {
+            $inner = $w;
+        }
+    }
+    $inner += $pad * 2;
+
+    emo_out(emo_paint($tl . str_repeat($hz, $inner) . $tr, $borderColor));
+    foreach ($lines as $line) {
+        $w = emo_str_width(emo_strip_ansi($line));
+        $content = str_repeat(' ', $pad) . $line . str_repeat(' ', $inner - $pad - $w);
+        emo_out(emo_paint($vt, $borderColor) . $content . emo_paint($vt, $borderColor));
+    }
+    emo_out(emo_paint($bl . str_repeat($hz, $inner) . $br, $borderColor));
+}
+
+/**
+ * 绘制表格（盒状边框 + 列对齐）。
+ *
+ * @param list<string>            $headers 表头（纯文本）
+ * @param list<list<string>>      $rows    数据行（单元格可为已着色字符串）
+ * @param list<string>            $aligns  每列对齐 left/right/center
+ */
+function emo_table(array $headers, array $rows, array $aligns = []): void
+{
+    $cols = count($headers);
+    $widths = [];
+    for ($i = 0; $i < $cols; $i++) {
+        $w = emo_str_width($headers[$i]);
+        foreach ($rows as $row) {
+            $cell = (string) ($row[$i] ?? '');
+            $cw = emo_str_width(emo_strip_ansi($cell));
+            if ($cw > $w) {
+                $w = $cw;
+            }
+        }
+        $widths[$i] = $w;
+    }
+
+    emo_table_border($widths, '┌', '┬', '┐');
+    emo_table_row($headers, $widths, $aligns, true);
+    emo_table_border($widths, '├', '┼', '┤');
+    foreach ($rows as $row) {
+        emo_table_row($row, $widths, $aligns, false);
+    }
+    emo_table_border($widths, '└', '┴', '┘');
+}
+
+/**
+ * @param list<int> $widths
+ */
+function emo_table_border(array $widths, string $left, string $mid, string $right): void
+{
+    $line = $left;
+    foreach ($widths as $i => $w) {
+        if ($i > 0) {
+            $line .= $mid;
+        }
+        $line .= str_repeat('─', $w + 2);
+    }
+    $line .= $right;
+    emo_out(emo_paint($line, EMO_GRAY));
+}
+
+/**
+ * @param list<string>   $cells
+ * @param list<int>      $widths
+ * @param list<string>   $aligns
+ */
+function emo_table_row(array $cells, array $widths, array $aligns, bool $header): void
+{
+    $parts = [];
+    foreach ($widths as $i => $w) {
+        $raw = (string) ($cells[$i] ?? '');
+        $plain = emo_strip_ansi($raw);
+        $pad = $w - emo_str_width($plain);
+        $align = $aligns[$i] ?? 'left';
+        if ($align === 'right') {
+            $cell = str_repeat(' ', $pad) . $raw;
+        } elseif ($align === 'center') {
+            $l = intdiv($pad, 2);
+            $cell = str_repeat(' ', $l) . $raw . str_repeat(' ', $pad - $l);
+        } else {
+            $cell = $raw . str_repeat(' ', $pad);
+        }
+        $parts[] = ' ' . $cell . ' ';
+    }
+    $line = '│' . implode('│', $parts) . '│';
+    if ($header) {
+        $line = emo_paint($line, EMO_BOLD);
+    }
+    emo_out($line);
+}
+
+/**
+ * 品牌横幅。
+ */
+function emo_banner(): void
+{
+    emo_out();
+    emo_out('  ' . emo_paint(' EMSHOP ', EMO_BOLD . EMO_BG_CYAN) . ' ' . emo_paint(' 管理工具箱 ', EMO_BOLD . EMO_BG_BLUE));
+    emo_out('  ' . emo_dim('命令行账号管理 · 查看 / 重置管理员'));
+    emo_out();
+}
+
+// ---------------------------------------------------------------------------
+// 前置检查
+// ---------------------------------------------------------------------------
 
 $root = __DIR__;
 $lockFile = $root . '/install/install.lock';
@@ -28,6 +343,10 @@ if (!is_array($config) || empty($config['db']) || !is_array($config['db'])) {
     fwrite(STDERR, "config.php 中缺少数据库配置。\n");
     exit(1);
 }
+
+// ---------------------------------------------------------------------------
+// 数据库访问
+// ---------------------------------------------------------------------------
 
 final class EmshopCliDb
 {
@@ -175,35 +494,58 @@ function emshop_table_name(array $dbConfig, string $name): string
     return '`' . $table . '`';
 }
 
+// ---------------------------------------------------------------------------
+// 交互提示
+// ---------------------------------------------------------------------------
+
 function emshop_prompt(string $label, string $default = ''): string
 {
     $suffix = $default === '' ? '' : ' [' . $default . ']';
+    // readline 的提示串带 ANSI 码会导致行编辑游标错位，故此处用纯文本
+    $plainPrompt = '› ' . $label . $suffix . '：';
     if (function_exists('readline')) {
-        $value = readline($label . $suffix . '：');
-    } else {
-        echo $label . $suffix . '：';
-        $value = fgets(STDIN);
+        $value = readline($plainPrompt);
+        $value = trim((string) $value);
+        if ($value !== '') {
+            @readline_add_history($value);
+        }
+        return $value === '' ? $default : $value;
     }
 
-    $value = trim((string) $value);
+    $prompt = emo_paint('›', EMO_CYAN) . ' ' . emo_bold($label) . emo_dim($suffix) . '：';
+    echo $prompt;
+    $value = trim((string) fgets(STDIN));
     return $value === '' ? $default : $value;
 }
 
+/**
+ * 密码输入：Unix 下用 stty -echo 隐藏回显，结束后恢复。
+ */
 function emshop_prompt_password(string $label): string
 {
-    echo $label . '：';
-    $sttyMode = trim((string) shell_exec('stty -g 2>/dev/null'));
-    
+    echo emo_paint('›', EMO_CYAN) . ' ' . emo_bold($label) . '：';
+
+    $sttyMode = '';
+    if (PHP_OS_FAMILY !== 'Windows' && function_exists('shell_exec')) {
+        $sttyMode = trim((string) shell_exec('stty -g 2>/dev/null'));
+        if ($sttyMode !== '') {
+            @shell_exec('stty -echo');
+        }
+    }
 
     $value = rtrim((string) fgets(STDIN), "\r\n");
 
     if ($sttyMode !== '') {
-        system('stty ' . escapeshellarg($sttyMode));
+        @shell_exec('stty ' . escapeshellarg($sttyMode));
     }
     echo PHP_EOL;
 
     return $value;
 }
+
+// ---------------------------------------------------------------------------
+// 业务：管理员账号
+// ---------------------------------------------------------------------------
 
 /**
  * @return array<int, array<string, mixed>>
@@ -221,32 +563,38 @@ function emshop_show_admins(EmshopCliDb $db, string $userTable): void
 {
     $admins = emshop_admins($db, $userTable);
     if ($admins === []) {
-        echo "未找到管理员账号。\n";
+        emo_out(emo_warn('未找到管理员账号。'));
         return;
     }
 
-    echo "\n管理员账号：\n";
+    emo_out();
+    emo_out('  ' . emo_bold('管理员账号') . '  ' . emo_dim('（共 ' . count($admins) . ' 个）'));
+    emo_out();
+
+    $headers = ['ID', '账号', '昵称', '邮箱', '状态', '最后登录时间'];
+    $rows = [];
     foreach ($admins as $admin) {
-        echo "----------------------------------------\n";
-        echo 'ID：' . (int) $admin['id'] . "\n";
-        echo '账号：' . (string) $admin['username'] . "\n";
-        echo '昵称：' . ((string) $admin['nickname'] !== '' ? (string) $admin['nickname'] : '-') . "\n";
-        echo '邮箱：' . ((string) $admin['email'] !== '' ? (string) $admin['email'] : '-') . "\n";
-        echo '手机：' . ((string) $admin['mobile'] !== '' ? (string) $admin['mobile'] : '-') . "\n";
-        echo '状态：' . ((int) $admin['status'] === 1 ? '正常' : '禁用') . "\n";
-        echo '最后登录IP：' . ((string) $admin['last_login_ip'] !== '' ? (string) $admin['last_login_ip'] : '-') . "\n";
-        echo '最后登录时间：' . ((string) $admin['last_login_at'] !== '' ? (string) $admin['last_login_at'] : '-') . "\n";
-        echo '创建时间：' . ((string) $admin['created_at'] !== '' ? (string) $admin['created_at'] : '-') . "\n";
-        echo '更新时间：' . ((string) $admin['updated_at'] !== '' ? (string) $admin['updated_at'] : '-') . "\n";
+        $status = ((int) $admin['status'] === 1)
+            ? emo_green('正常')
+            : emo_red('禁用');
+        $rows[] = [
+            (string) (int) $admin['id'],
+            (string) $admin['username'],
+            emo_truncate((string) $admin['nickname'] !== '' ? (string) $admin['nickname'] : '-', 12),
+            emo_truncate((string) $admin['email'] !== '' ? (string) $admin['email'] : '-', 28),
+            $status,
+            (string) $admin['last_login_at'] !== '' ? (string) $admin['last_login_at'] : '-',
+        ];
     }
-    echo "----------------------------------------\n";
+    emo_table($headers, $rows, ['right', 'left', 'left', 'left', 'left', 'left']);
+    emo_out();
 }
 
 function emshop_find_admin_for_password(EmshopCliDb $db, string $userTable): ?array
 {
     $admins = emshop_admins($db, $userTable);
     if ($admins === []) {
-        echo "未找到管理员账号。\n";
+        emo_out(emo_warn('未找到管理员账号。'));
         return null;
     }
 
@@ -254,7 +602,7 @@ function emshop_find_admin_for_password(EmshopCliDb $db, string $userTable): ?ar
     while (true) {
         $input = emshop_prompt('请输入要修改密码的管理员 ID');
         if ($input === '') {
-            echo "请选择要修改密码的管理员 ID。\n";
+            emo_out(emo_warn('请选择要修改密码的管理员 ID。'));
             continue;
         }
 
@@ -264,7 +612,7 @@ function emshop_find_admin_for_password(EmshopCliDb $db, string $userTable): ?ar
             }
         }
 
-        echo "未找到 ID 为 {$input} 的管理员，请重新输入。\n";
+        emo_out(emo_fail('未找到 ID 为 ' . $input . ' 的管理员，请重新输入。'));
     }
 }
 
@@ -275,19 +623,22 @@ function emshop_change_admin_password(EmshopCliDb $db, string $userTable): void
         return;
     }
 
+    emo_out();
+    emo_out(emo_info('即将重置管理员「' . emo_bold((string) $admin['username']) . '」的密码'));
+
     $password = emshop_prompt_password('请输入新密码');
     $confirmPassword = emshop_prompt_password('请再次输入新密码');
 
     if ($password === '') {
-        echo "密码不能为空。\n";
+        emo_out(emo_fail('密码不能为空。'));
         return;
     }
     if (strlen($password) < 6) {
-        echo "密码长度不能少于 6 位。\n";
+        emo_out(emo_fail('密码长度不能少于 6 位。'));
         return;
     }
     if ($password !== $confirmPassword) {
-        echo "两次输入的密码不一致。\n";
+        emo_out(emo_fail('两次输入的密码不一致。'));
         return;
     }
 
@@ -302,18 +653,76 @@ function emshop_change_admin_password(EmshopCliDb $db, string $userTable): void
         [$hash, (int) $admin['id'], 'admin']
     );
 
-    echo "管理员「" . (string) $admin['username'] . "」密码已修改。\n";
+    emo_out();
+    emo_out(emo_ok('管理员「' . (string) $admin['username'] . '」密码已修改。'));
+    emo_out();
 }
+
+// ---------------------------------------------------------------------------
+// 帮助 / 菜单 / 主流程
+// ---------------------------------------------------------------------------
 
 function emshop_help(): void
 {
-    echo "EMSHOP CLI\n";
-    echo "用法：\n";
-    echo "  emshop                 打开交互菜单\n";
-    echo "  emshop admin:list      查看管理员账号\n";
-    echo "  emshop admin:password  修改管理员密码\n";
-    echo "  emshop help            查看帮助\n";
+    emo_banner();
+    emo_out('  ' . emo_bold('用法'));
+    emo_out('    ' . emo_cyan('php emshop') . '                 ' . emo_dim('打开交互菜单'));
+    emo_out('    ' . emo_cyan('php emshop admin:list') . '      ' . emo_dim('查看管理员账号'));
+    emo_out('    ' . emo_cyan('php emshop admin:password') . '  ' . emo_dim('修改管理员密码'));
+    emo_out('    ' . emo_cyan('php emshop help') . '            ' . emo_dim('查看帮助'));
+    emo_out();
+    emo_out('  ' . emo_dim('提示：设置环境变量 NO_COLOR=1 可禁用彩色输出。'));
+    emo_out();
 }
+
+function emshop_menu(): void
+{
+    emo_banner();
+    emo_box([
+        emo_bold(emo_cyan('[1]')) . '  ' . '查看管理员账号',
+        emo_bold(emo_cyan('[2]')) . '  ' . '修改管理员密码',
+        emo_bold(emo_gray('[h]')) . '  ' . emo_dim('查看帮助'),
+        emo_bold(emo_gray('[0]')) . '  ' . emo_dim('退出'),
+    ], 'round', EMO_GRAY, 1);
+    emo_out();
+}
+
+function emshop_run_menu(EmshopCliDb $db, string $userTable): void
+{
+    while (true) {
+        emshop_menu();
+        $choice = strtolower(emshop_prompt('请选择操作'));
+
+        if ($choice === '') {
+            emo_out(emo_warn('请输入选项。'));
+            continue;
+        }
+        if ($choice === '1' || $choice === 'list') {
+            emshop_show_admins($db, $userTable);
+            continue;
+        }
+        if ($choice === '2' || $choice === 'password') {
+            emshop_change_admin_password($db, $userTable);
+            continue;
+        }
+        if ($choice === 'h' || $choice === 'help') {
+            emshop_help();
+            continue;
+        }
+        if ($choice === '0' || $choice === 'q' || $choice === 'exit') {
+            emo_out(emo_ok('已退出，再见，好兄弟！'));
+            exit(0);
+        }
+
+        emo_out(emo_fail('无效选项：' . $choice . '，请重新选择。'));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 入口
+// ---------------------------------------------------------------------------
+
+emo_init_terminal();
 
 try {
     if ($command === 'help' || $command === '--help' || $command === '-h') {
@@ -321,7 +730,8 @@ try {
         exit(0);
     }
     if ($command !== '' && !in_array($command, ['admin:list', 'admin:password'], true)) {
-        fwrite(STDERR, "未知命令：{$command}\n\n");
+        emo_out(emo_fail('未知命令：' . $command));
+        emo_out();
         emshop_help();
         exit(1);
     }
@@ -337,33 +747,10 @@ try {
         emshop_change_admin_password($db, $userTable);
         exit(0);
     }
-    while (true) {
-        echo "\nEMSHOP 管理工具\n";
-        echo "1. 查看管理员账号\n";
-        echo "2. 修改管理员密码\n";
-        echo "0. 退出\n";
-        $choice = emshop_prompt('请选择');
-        if ($choice === '') {
-            echo "请输入选项。\n";
-            continue;
-        }
 
-        if ($choice === '1') {
-            emshop_show_admins($db, $userTable);
-            continue;
-        }
-        if ($choice === '2') {
-            emshop_change_admin_password($db, $userTable);
-            continue;
-        }
-        if ($choice === '0' || strtolower($choice) === 'q' || strtolower($choice) === 'exit') {
-            echo "已退出。\n";
-            exit(0);
-        }
-
-        echo "无效选项，请重新选择。\n";
-    }
+    emshop_run_menu($db, $userTable);
 } catch (Throwable $e) {
-    fwrite(STDERR, "执行失败：" . $e->getMessage() . "\n");
+    emo_out();
+    emo_out(emo_fail('执行失败：' . $e->getMessage()));
     exit(1);
 }
