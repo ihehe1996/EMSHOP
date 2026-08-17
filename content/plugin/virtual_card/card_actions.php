@@ -78,9 +78,13 @@ if ($action === 'card_list') {
     $totalCount = (int)($total[0]['cnt'] ?? 0);
 
     $cards = Database::query(
-        "SELECT * FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id DESC LIMIT {$offset}, {$limit}",
+        "SELECT * FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC LIMIT {$offset}, {$limit}",
         $params
     );
+    // 全局序号（跨页连续，序号 1 = 最早入库），与导出区间一一对应
+    foreach ($cards as $i => $c) {
+        $cards[$i]['seq'] = $offset + $i + 1;
+    }
 
     // 统计各状态数量（供前端选项卡和规格库存卡片刷新）
     $statsRows = Database::query(
@@ -389,7 +393,14 @@ if ($action === 'card_export') {
         exit('商品不存在');
     }
 
-    $status = $_GET['status'] ?? '';
+    // 筛选口径与 card_list 一致：状态 / 关键字 / 规格
+    $status  = (string)($_GET['status'] ?? '');
+    $keyword = trim((string)($_GET['keyword'] ?? ''));
+    $specId  = (int)($_GET['spec_id'] ?? 0);
+    // 序号区间（1 起，与列表「序号」列对应；0 表示该端不限制）
+    $from = max(0, (int)($_GET['from'] ?? 0));
+    $to   = max(0, (int)($_GET['to'] ?? 0));
+
     $conditions = ['goods_id = ?'];
     $params = [$goodsId];
 
@@ -397,31 +408,63 @@ if ($action === 'card_export') {
         $conditions[] = 'status = ?';
         $params[] = (int)$status;
     }
+    if ($keyword !== '') {
+        $conditions[] = '(card_no LIKE ? OR remark LIKE ?)';
+        $kw = '%' . $keyword . '%';
+        $params[] = $kw;
+        $params[] = $kw;
+    }
+    if ($specId > 0) {
+        $conditions[] = 'spec_id = ?';
+        $params[] = $specId;
+    }
 
     $whereSql = 'WHERE ' . implode(' AND ', $conditions);
+
+    // 序号区间 → LIMIT offset, count（序号 1 = 最早入库，与列表页排序一致）
+    $limitSql = '';
+    if ($from > 0 || $to > 0) {
+        $offset = $from > 0 ? $from - 1 : 0;
+        $limitCount = null;
+        if ($to > 0) {
+            $start = $from > 0 ? $from : 1;
+            $limitCount = max(0, $to - $start + 1);
+        }
+        $limitSql = ' LIMIT ' . $offset . ', ' . ($limitCount !== null ? $limitCount : '18446744073709551615');
+    }
+
+    $prefix = Database::prefix();
     $cards = Database::query(
-        "SELECT card_no FROM " . Database::prefix() . "goods_virtual_card {$whereSql} ORDER BY id ASC",
+        "SELECT card_no FROM {$prefix}goods_virtual_card {$whereSql} ORDER BY id ASC{$limitSql}",
         $params
     );
 
+    // 一行一个卡密
     $lines = [];
     foreach ($cards as $card) {
-        $no = (string) ($card['card_no'] ?? '');
+        $no = trim((string)($card['card_no'] ?? ''));
         if ($no === '') {
             continue;
         }
         $lines[] = $no;
     }
-    $output = implode("\n", $lines);
+    $output = implode("\r\n", $lines);
     $count = count($lines);
+
     $title = (string) ($goods['title'] ?? '');
     $placeYmd = virtual_card_datetime_to_ymd((string) ($goods['created_at'] ?? ''));
     $filename = virtual_card_build_export_filename($title, $count, $placeYmd);
 
+    // 清空输出缓冲，避免前面 PHP 误输出污染下载内容
+    while (ob_get_level() > 0) { ob_end_clean(); }
+
+    $body = "\xEF\xBB\xBF" . $output; // 带 BOM，Windows 记事本正确识别 UTF-8
     header('Content-Type: text/plain; charset=utf-8');
     header('Content-Disposition: ' . virtual_card_export_disposition($filename));
+    header('Content-Length: ' . strlen($body));
+    header('Cache-Control: no-store');
 
-    echo $output;
+    echo $body;
     exit;
 }
 

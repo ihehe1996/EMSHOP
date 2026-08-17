@@ -159,6 +159,7 @@ if (!defined('EM_ROOT')) {
         <div class="va-toolbar__actions">
             <button type="button" class="em-btn em-reset-btn" id="cardRefreshBtn"><i class="fa fa-refresh"></i>刷新</button>
             <button type="button" class="em-btn em-save-btn" id="cardImportBtn"><i class="fa fa-upload"></i>导入卡密</button>
+            <button type="button" class="em-btn em-save-btn" id="cardExportBtn"><i class="fa fa-download"></i>导出卡密</button>
             <button type="button" class="em-btn em-red-btn em-disabled-btn" id="cardBatchDeleteBtn"><i class="fa fa-trash"></i>批量删除</button>
             <button type="button" class="em-btn em-red-btn" id="cardClearStockBtn"><i class="fa fa-eraser"></i>清空库存</button>
         </div>
@@ -217,6 +218,7 @@ var csrfToken      = <?= json_encode($csrfToken) ?>;
 var goodsId        = <?= $goodsId ?>;
 var specMap        = <?= json_encode($specMap, JSON_UNESCAPED_UNICODE) ?>;
 var currentTabStatus = '1';
+var currentTotal = 0;
 
 $(function(){
     'use strict';
@@ -267,6 +269,7 @@ $(function(){
         function getTableCols(){
             var cols = [
                 {type:'checkbox', width:50},
+                {field:'seq', title:'序号', width:70, align:'center'},
                 {field:'card_no', title:'卡号', minWidth:200, templet:'#cardNoTpl'},
                 {field:'spec_id', title:'规格', width:150, templet: specTplFn},
                 {field:'status', title:'状态', width:110, align:'center', templet:'#cardStatusTpl'}
@@ -302,6 +305,7 @@ $(function(){
             done: function(res){
                 if (res.csrf_token) csrfToken = res.csrf_token;
                 if (res.stats) updateStats(res.stats);
+                if (typeof res.count === 'number') currentTotal = res.count;
                 initRowDropdowns();
             }
         });
@@ -374,6 +378,50 @@ $(function(){
         $('#cardRefreshBtn').on('click', function () { table.reload('cardTableId'); });
 
         $('#cardImportBtn').on('click', function () { openImport(); });
+
+        $('#cardExportBtn').on('click', function () {
+            var html = '<div style="padding:20px;">'
+                + '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:4px;">起始序号</label>'
+                + '<input type="number" id="exportFrom" min="1" class="layui-input" placeholder="留空 = 从第 1 个开始"></div>'
+                + '<div style="margin-bottom:14px;"><label style="display:block;font-size:13px;color:#6b7280;margin-bottom:4px;">结束序号</label>'
+                + '<input type="number" id="exportTo" min="1" class="layui-input" placeholder="留空 = 到最后一个"></div>'
+                + '<div style="font-size:12px;color:#9ca3af;">序号即列表「序号」列（当前共 ' + currentTotal + ' 条）；起始 / 结束都留空则导出全部。</div>'
+                + '</div>';
+            layer.open({
+                type: 1,
+                title: '导出卡密',
+                skin: 'admin-modal',
+                area: ['380px', 'auto'],
+                content: html,
+                btn: ['导出', '取消'],
+                yes: function (idx) {
+                    var from = Math.max(0, parseInt($('#exportFrom').val(), 10) || 0);
+                    var to = Math.max(0, parseInt($('#exportTo').val(), 10) || 0);
+                    if (from > 0 && to > 0 && from > to) {
+                        layer.msg('起始序号不能大于结束序号');
+                        return;
+                    }
+                    var url = cardUrl('card_export');
+                    url += '&goods_id=' + encodeURIComponent(goodsId);
+                    url += '&status=' + encodeURIComponent(currentTabStatus);
+                    var keyword = $('#cardSearchKeyword').val() || '';
+                    var specId = $('#cardSearchSpec').val() || '';
+                    if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+                    if (specId) url += '&spec_id=' + encodeURIComponent(specId);
+                    if (from > 0) url += '&from=' + from;
+                    if (to > 0) url += '&to=' + to;
+                    layer.close(idx);
+                    // 后台返回 Content-Disposition: attachment，新窗口打开即触发下载
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            });
+        });
 
         $('#cardBatchDeleteBtn').on('click', function () {
             if ($(this).hasClass('em-disabled-btn')) return;
