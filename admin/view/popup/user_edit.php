@@ -28,6 +28,12 @@ include __DIR__ . '/header.php';
                     <div class="layui-form-mid layui-word-aux">账号不可修改</div>
                 </div>
             </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">密码</label>
+                <div class="layui-input-block">
+                    <input type="password" class="layui-input" name="password" maxlength="50" placeholder="留空则不修改密码（至少6位）" autocomplete="new-password" value="">
+                </div>
+            </div>
             <?php } else { ?>
             <div class="layui-form-item">
                 <label class="layui-form-label">账号</label>

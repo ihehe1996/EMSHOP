@@ -156,16 +156,30 @@ if (Request::isPost()) {
                     Response::error('该手机号已被其他用户占用');
                 }
 
-                $model->update($id, [
+                $updateData = [
                     'email' => $email,
                     'mobile' => $mobile,
                     'nickname' => $nickname,
                     'avatar' => $avatar,
                     'status' => $status,
-                ]);
+                ];
+
+                $password = (string) Input::post('password', '');
+                if ($password !== '') {
+                    if (mb_strlen($password) < 6) {
+                        Response::error('密码至少6个字符');
+                    }
+                    if (mb_strlen($password) > 50) {
+                        Response::error('密码最多50个字符');
+                    }
+                    $hasher = new PasswordHash(8, true);
+                    $updateData['password'] = $hasher->HashPassword($password);
+                }
+
+                $model->update($id, $updateData);
 
                 $csrfToken = Csrf::refresh();
-                Response::success('用户更新成功', ['csrf_token' => $csrfToken]);
+                Response::success('操作成功', ['csrf_token' => $csrfToken]);
                 break;
 
             case 'toggle':

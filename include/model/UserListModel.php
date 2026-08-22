@@ -192,7 +192,7 @@ final class UserListModel
      */
     public function update(int $id, array $data): bool
     {
-        $fields = ['nickname', 'email', 'mobile', 'avatar', 'status', 'secret', 'level_id'];
+        $fields = ['nickname', 'email', 'mobile', 'avatar', 'status', 'secret', 'level_id', 'password'];
 
         $sets = [];
         $params = [];
