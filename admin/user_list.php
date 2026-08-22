@@ -502,7 +502,7 @@ if ($popupType === '1') {
         return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
     };
 
-    include __DIR__ . '/view/popup/user_list.php';
+    include __DIR__ . '/view/popup/user_edit.php';
     return;
 }
 

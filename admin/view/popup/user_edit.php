@@ -22,15 +22,15 @@ include __DIR__ . '/header.php';
         <div class="popup-section">
             <?php if ($isEdit) { ?>
             <div class="layui-form-item">
-                <label class="layui-form-label">用户名</label>
+                <label class="layui-form-label">账号</label>
                 <div class="layui-input-block">
                     <input type="text" class="layui-input layui-disabled" disabled value="<?php echo $esc($editUser['username']); ?>">
-                    <div class="layui-form-mid layui-word-aux">用户名（账号）不可修改</div>
+                    <div class="layui-form-mid layui-word-aux">账号不可修改</div>
                 </div>
             </div>
             <?php } else { ?>
             <div class="layui-form-item">
-                <label class="layui-form-label">用户名</label>
+                <label class="layui-form-label">账号</label>
                 <div class="layui-input-block">
                     <input type="text" class="layui-input" id="userUsername" name="username" maxlength="50" placeholder="用户登录账号" value="">
                 </div>
