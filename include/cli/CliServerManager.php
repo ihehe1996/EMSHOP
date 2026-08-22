@@ -70,12 +70,36 @@ final class CliServerManager
     {
         // 0) proc_open 被禁用时服务无法拉起 worker，提前失败退出
         $disabled = (string) ini_get('disable_functions');
+
         
-        if (stripos(',' . str_replace(' ', '', $disabled) . ',', ',proc_open,') != false) {
-            $msg = '进程依赖proc_open函数，请在php设置的禁用函数中删除proc_open';
-            CliServer::log('启动失败：' . $msg);
-            echo $msg . "\n";
-            return 1;
+        if (stripos(',' . str_replace(' ', '', $disabled) . ',', ',proc_open,') !== false) {
+            $msg = 'EMShop 任务服务依赖 proc_open 函数拉起 worker 子进程';
+            $fix = '请在 宝塔 - 软件商店 - PHP - 设置 - 禁用函数 中删除 proc_open 后重新启动';
+            CliServer::log('启动失败：' . $msg . '；' . $fix);
+
+            $c = self::consoleColors();
+
+            // 按内容最宽一行确定 = 边框长度（颜色码不计入宽度）
+            $plain = ['  ✖ 启动失败：' . $msg, '  ' . $fix];
+            if ($disabled !== '') {
+                $plain[] = '  当前禁用函数：' . $disabled;
+            }
+            $width = 0;
+            foreach ($plain as $l) {
+                $width = max($width, function_exists('mb_strwidth') ? mb_strwidth($l) : strlen($l));
+            }
+            $border = str_repeat('=', $width);
+
+            echo PHP_EOL;
+            echo $c['red'] . $border . $c['reset'] . PHP_EOL;
+            echo $c['bold'] . $c['red'] . '  ✖ 启动失败：' . $c['reset'] . $msg . PHP_EOL;
+            echo '  ' . $fix . PHP_EOL;
+            if ($disabled !== '') {
+                echo '  当前禁用函数：' . $c['yellow'] . $disabled . $c['reset'] . PHP_EOL;
+            }
+            echo $c['red'] . $border . $c['reset'] . PHP_EOL;
+            echo PHP_EOL;
+            return 1; 
         }
 
         // 1) 防并发：两个 start 同时跑时，后到的会退出
@@ -533,6 +557,35 @@ final class CliServerManager
                 self::$reloadRequested = true;
             });
         }
+    }
+
+    /**
+     * 终端输出是否支持 ANSI 颜色（自动检测）。
+     *
+     * 终端（TTY）或设置 FORCE_COLOR 时启用；输出被重定向到文件、落到 Supervisor
+     * 日志，或设置 NO_COLOR 时全部返回空串，避免日志里混入转义符乱码。
+     *
+     * @return array{red: string, bold: string, yellow: string, reset: string}
+     */
+    private static function consoleColors(): array
+    {
+        $useColor = (string) getenv('FORCE_COLOR') !== ''
+            || (defined('STDOUT') && function_exists('stream_isatty') && stream_isatty(STDOUT));
+
+        if ((string) getenv('NO_COLOR') !== '') {
+            $useColor = false;
+        }
+
+        if (!$useColor) {
+            return ['red' => '', 'bold' => '', 'yellow' => '', 'reset' => ''];
+        }
+
+        return [
+            'red'    => "\033[31m",
+            'bold'   => "\033[1m",
+            'yellow' => "\033[33m",
+            'reset'  => "\033[0m",
+        ];
     }
 
     private static function printHelp(): void
