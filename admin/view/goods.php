@@ -256,6 +256,16 @@ $(function(){
         var $goodsTabs = $('#goodsTabs');
 
         // ============================================================
+        // 分页每页条数：localStorage 记忆，刷新后保持
+        // ============================================================
+        var PAGE_LIMITS = [10, 20, 50, 100];
+        var pageLimitKey = 'goods_page_limit';
+        function getSavedLimit() {
+            var v = parseInt(localStorage.getItem(pageLimitKey), 10);
+            return PAGE_LIMITS.indexOf(v) !== -1 ? v : 10;
+        }
+
+        // ============================================================
         // 渲染表格
         // 列顺序：商品分类、封面图、商品名称、商品类型、价格区间、库存、销量、浏览量、推荐、上架、创建时间、操作
         // ============================================================
@@ -269,8 +279,8 @@ $(function(){
             defaultToolbar: [],
             lineStyle: 'height: 70px;',
             page: true,
-            limit: 10,
-            limits: [10, 20, 50, 100],
+            limit: getSavedLimit(),
+            limits: PAGE_LIMITS,
             cellMinWidth: 80,
             cols: [[
                 {type: 'checkbox', width: 50},
@@ -372,6 +382,14 @@ $(function(){
             var checked = table.checkStatus('goodsTableId').data.length > 0;
             var $btns = $('[lay-event="batchDelete"], #saleDropdownBtn, #recommendDropdownBtn, #moreActionDropdownBtn');
             $btns.toggleClass('em-disabled-btn', !checked);
+        });
+
+        // 分页每页条数变更时写入 localStorage（layui 分页下拉无 table.on 事件，用委托监听 change）
+        $(document).on('change.admGoods', '.layui-laypage-limits select', function () {
+            var v = parseInt($(this).val(), 10);
+            if (PAGE_LIMITS.indexOf(v) !== -1) {
+                localStorage.setItem(pageLimitKey, v);
+            }
         });
 
         // ============================================================

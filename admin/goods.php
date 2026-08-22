@@ -189,9 +189,9 @@ if ($action === 'batch') {
         GoodsTagModel::refreshAllCounts();
     }
     if ($failed === 0) {
-        Response::success('批量操作成功', ['csrf_token' => Csrf::token()]);
+        Response::success('操作成功', ['csrf_token' => Csrf::token()]);
     } else {
-        Response::error('批量操作部分失败（' . $failed . '/' . count($ids) . '）');
+        Response::error('操作失败');
     }
 }
 
