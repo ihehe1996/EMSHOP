@@ -20,7 +20,7 @@ if (!defined('EM_ROOT')) {
         <div class="uc-rebate-card uc-rebate-card--primary">
             <div class="uc-rebate-card__label"><i class="fa fa-lock"></i> 冻结佣金</div>
             <div class="uc-rebate-card__value"><?= htmlspecialchars($commissionFrozenDisplay) ?></div>
-            <div class="uc-rebate-card__desc">订单完成后 <?= (int) $freezeDays ?> 天内不可提现</div>
+            <div class="uc-rebate-card__desc"><?php if ((int) $freezeDays > 0): ?>订单完成后 <?= (int) $freezeDays ?> 天内不可提现<?php else: ?>当前无冷却期，佣金入账后可立即提现<?php endif; ?></div>
         </div>
         <div class="uc-rebate-card uc-rebate-card--success">
             <div class="uc-rebate-card__label"><i class="fa fa-check-circle"></i> 可提现</div>

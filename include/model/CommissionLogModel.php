@@ -85,13 +85,22 @@ class CommissionLogModel
     {
         $prefix = Database::prefix();
         $now = date('Y-m-d H:i:s');
+        $freezeDays = RebateService::freezeDays();
 
-        // 先取出要迁移的记录（用于统计总额）
-        $rows = Database::query(
-            "SELECT id, amount FROM {$this->table}
-             WHERE user_id = ? AND status = ? AND frozen_until IS NOT NULL AND frozen_until <= ?",
-            [$userId, self::STATUS_FROZEN, $now]
-        );
+        // 冷却期 = 0：历史冻结也应立即转可提现（配置变更后惰性迁移）
+        if ($freezeDays === 0) {
+            $rows = Database::query(
+                "SELECT id, amount FROM {$this->table}
+                 WHERE user_id = ? AND status = ?",
+                [$userId, self::STATUS_FROZEN]
+            );
+        } else {
+            $rows = Database::query(
+                "SELECT id, amount FROM {$this->table}
+                 WHERE user_id = ? AND status = ? AND frozen_until IS NOT NULL AND frozen_until <= ?",
+                [$userId, self::STATUS_FROZEN, $now]
+            );
+        }
         if (empty($rows)) return 0;
 
         $total = 0;

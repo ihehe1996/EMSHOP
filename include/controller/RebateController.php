@@ -63,6 +63,8 @@ class RebateController extends BaseController
         $user = $this->requireLogin();
         $userId = (int) $user['id'];
 
+        (new CommissionLogModel())->promoteMatured($userId);
+
         $page = max(1, (int) Input::get('page', 1));
         $perPage = max(1, min(50, (int) Input::get('limit', 20)));
         $status = (string) Input::get('status', '');
