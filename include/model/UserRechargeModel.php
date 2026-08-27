@@ -194,6 +194,35 @@ class UserRechargeModel
     }
 
     /**
+     * 删除单条充值单（仅删记录，已到账余额不回滚）。
+     */
+    public function delete(int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+        return Database::execute("DELETE FROM {$this->table} WHERE id = ? LIMIT 1", [$id]) > 0;
+    }
+
+    /**
+     * 批量删除充值单。
+     *
+     * @param array<int> $ids
+     */
+    public function deleteBatch(array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn($id) => $id > 0)));
+        if ($ids === []) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        return (int) Database::execute(
+            "DELETE FROM {$this->table} WHERE id IN ({$placeholders})",
+            $ids
+        );
+    }
+
+    /**
      * 生成唯一充值单号：R + yyyymmddHHiiss + 4 位随机。
      */
     private function generateOrderNo(): string

@@ -5,9 +5,9 @@ declare(strict_types=1);
 require __DIR__ . '/global.php';
 
 /**
- * 后台 - 钱包充值订单（只读查看）。
+ * 后台 - 钱包充值订单。
  *
- * POST _action = list / cancel
+ * POST _action = list / summary / cancel / delete / batch_delete
  */
 adminRequireLogin();
 $user = $adminUser;
@@ -18,6 +18,13 @@ if (Request::isPost()) {
         $action = (string) Input::post('_action', '');
         $model = new UserRechargeModel();
         $rechargeTable = Database::prefix() . 'user_recharge';
+
+        // 写操作校验 CSRF（list / summary 只读，免校验）
+        if (!in_array($action, ['list', 'summary'], true)) {
+            if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+                Response::error('令牌失效，请刷新后重试');
+            }
+        }
 
         if ($action === 'list') {
             $page    = max(1, (int) Input::post('page', 1));
@@ -109,9 +116,6 @@ if (Request::isPost()) {
 
         if ($action === 'cancel') {
             // 管理员手动取消 pending 单（只改状态，不退款——pending 单本就没扣过钱）
-            if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
-                Response::error('令牌失效，请刷新后重试');
-            }
             $id = (int) Input::post('id', 0);
             $row = $model->findById($id);
             if (!$row) Response::error('记录不存在');
@@ -122,7 +126,41 @@ if (Request::isPost()) {
                 'UPDATE ' . Database::prefix() . 'user_recharge SET status = ? WHERE id = ? AND status = ?',
                 [UserRechargeModel::STATUS_CANCELLED, $id, UserRechargeModel::STATUS_PENDING]
             );
-            Response::success('已取消');
+            Response::success('已取消', ['csrf_token' => Csrf::refresh()]);
+        }
+
+        // 删除单条：仅删充值记录，已到账余额不回滚
+        if ($action === 'delete') {
+            $id = (int) Input::post('id', 0);
+            if ($id <= 0) Response::error('无效的记录');
+            if ($model->findById($id) === null) Response::error('记录不存在');
+            if (!$model->delete($id)) Response::error('删除失败');
+            Response::success('删除成功', ['csrf_token' => Csrf::refresh()]);
+        }
+
+        // 批量删除
+        if ($action === 'batch_delete') {
+            $raw = Input::post('ids', '');
+            $ids = [];
+            if (is_array($raw)) {
+                foreach ($raw as $v) {
+                    $v = (int) $v;
+                    if ($v > 0) $ids[] = $v;
+                }
+            } else {
+                foreach (explode(',', (string) $raw) as $v) {
+                    $v = (int) trim($v);
+                    if ($v > 0) $ids[] = $v;
+                }
+            }
+            $ids = array_values(array_unique($ids));
+            if ($ids === []) Response::error('请选择要删除的充值单');
+
+            $deleted = $model->deleteBatch($ids);
+            Response::success('已删除 ' . $deleted . ' 条', [
+                'deleted'    => $deleted,
+                'csrf_token' => Csrf::refresh(),
+            ]);
         }
 
         Response::error('未知操作');

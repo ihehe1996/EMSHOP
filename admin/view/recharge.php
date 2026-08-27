@@ -55,8 +55,12 @@ $csrfToken = Csrf::token();
         </button>
     </div>
 
-    <!-- 工具条：搜索（form 包裹，兼容移动端软键盘「搜索」键） -->
+    <!-- 工具条：批量操作 + 搜索 -->
     <form class="rch-toolbar em-list-search" id="rchSearchForm" data-em-search-btn="#rchSearchBtn" autocomplete="off">
+        <div class="rch-toolbar__actions">
+            <button type="button" class="em-btn em-sm-btn em-reset-btn" id="rchRefreshBtn"><i class="fa fa-refresh"></i>刷新</button>
+            <button type="button" class="em-btn em-sm-btn em-red-btn em-disabled-btn" id="rchBatchDelBtn"><i class="fa fa-trash"></i>批量删除</button>
+        </div>
         <div class="rch-toolbar__field">
             <i class="fa fa-search"></i>
             <input type="search" name="keyword" id="rchKeyword" class="rch-input" placeholder="单号 / 用户名 / 昵称" enterkeyhint="search">
@@ -125,6 +129,9 @@ $csrfToken = Csrf::token();
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 12px 14px; margin: 0 0 14px;
     background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+}
+.rch-toolbar__actions {
+    display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
 }
 .rch-toolbar__field {
     display: inline-flex; align-items: center; gap: 6px;
@@ -267,11 +274,12 @@ $csrfToken = Csrf::token();
 </script>
 
 <script type="text/html" id="rchActionTpl">
-    {{# if (d.status === 'pending') { }}
-    <a class="em-btn em-sm-btn em-warm-btn" lay-event="cancel"><i class="fa fa-ban"></i>取消</a>
-    {{# } else { }}
-    <span class="rch-empty"></span>
-    {{# } }}
+    <div class="layui-clear-space" style="display:inline-flex;gap:6px;justify-content:center;">
+        {{# if (d.status === 'pending') { }}
+        <a class="em-btn em-sm-btn em-warm-btn" lay-event="cancel"><i class="fa fa-ban"></i>取消</a>
+        {{# } }}
+        <a class="em-btn em-sm-btn em-red-btn" lay-event="del"><i class="fa fa-trash"></i>删除</a>
+    </div>
 </script>
 
 <script>
@@ -308,7 +316,8 @@ $(function () {
             cellMinWidth: 80,
             lineStyle: 'height: 56px;',
             cols: [[
-                { field: 'id',           title: 'ID',        width: 70,  align: 'center' },
+                { type: 'checkbox', width: 50, align: 'center' },
+                { type: 'numbers',   title: '序号', width: 70, align: 'center' },
                 { field: 'order_no',     title: '充值单号',   width: 220, align: 'center', templet: '#rchOrderNoTpl' },
                 { field: 'user_id',      title: '用户',       width: 150, templet: '#rchUserTpl' },
                 { field: 'amount',       title: '金额',       width: 130, align: 'right',  templet: '#rchAmountTpl' },
@@ -317,8 +326,11 @@ $(function () {
                 { field: 'status',       title: '状态',       width: 110, align: 'center', templet: '#rchStatusTpl' },
                 { field: 'created_at',   title: '创建时间',   width: 150, align: 'center', templet: '#rchCreatedAtTpl' },
                 { field: 'paid_at',      title: '支付时间',   width: 150, align: 'center', templet: '#rchPaidAtTpl' },
-                { title: '操作', width: 100, align: 'center', toolbar: '#rchActionTpl' }
+                { title: '操作', width: 180, align: 'center', toolbar: '#rchActionTpl' }
             ]],
+            done: function () {
+                $('#rchBatchDelBtn').addClass('em-disabled-btn');
+            },
             parseData: function (res) {
                 if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                 // tabs 的状态徽章数字一并刷新（list 接口顺手返回了 status_counts）
@@ -338,21 +350,88 @@ $(function () {
             }
         });
 
-        // 取消 pending 充值单
+        // 勾选联动批量删除按钮
+        table.on('checkbox(rechargeTable)', function () {
+            var checked = table.checkStatus('rechargeTableId').data.length > 0;
+            $('#rchBatchDelBtn').toggleClass('em-disabled-btn', !checked);
+        });
+
+        // 行内：取消 / 删除
         table.on('tool(rechargeTable)', function (obj) {
-            if (obj.event !== 'cancel') return;
-            layer.confirm('确认取消该笔待支付充值单？', function (idx) {
+            if (obj.event === 'cancel') {
+                layer.confirm('确认取消该笔待支付充值单？', function (idx) {
+                    layer.close(idx);
+                    $.post('/admin/recharge.php', { _action: 'cancel', id: obj.data.id, csrf_token: csrfToken }, function (res) {
+                        if (res.code === 200) {
+                            if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                            layer.msg(res.msg || '已取消');
+                            refreshTable();
+                            loadSummary();
+                        } else {
+                            layer.msg(res.msg || '操作失败');
+                        }
+                    }, 'json');
+                });
+                return;
+            }
+            if (obj.event === 'del') {
+                var tip = '确定删除该充值单吗？此操作不可恢复。';
+                if (obj.data.status === 'paid') {
+                    tip = '该单已充值到账。删除仅移除订单记录，不会回滚用户余额。确定继续？';
+                }
+                layer.confirm(tip, function (idx) {
+                    layer.close(idx);
+                    $.post('/admin/recharge.php', { _action: 'delete', id: obj.data.id, csrf_token: csrfToken }, function (res) {
+                        if (res.code === 200) {
+                            if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                            layer.msg(res.msg || '删除成功');
+                            refreshTable();
+                            loadSummary();
+                        } else {
+                            layer.msg(res.msg || '删除失败');
+                        }
+                    }, 'json');
+                });
+            }
+        });
+
+        // 批量删除
+        $(document).on('click.admRecharge', '#rchBatchDelBtn', function () {
+            if ($(this).hasClass('em-disabled-btn')) return;
+            var checked = table.checkStatus('rechargeTableId');
+            if (!checked.data.length) {
+                layer.msg('请先勾选要删除的充值单');
+                return;
+            }
+            var ids = checked.data.map(function (row) { return row.id; });
+            var hasPaid = checked.data.some(function (row) { return row.status === 'paid'; });
+            var tip = '确定删除选中的 ' + ids.length + ' 条充值单吗？此操作不可恢复。';
+            if (hasPaid) {
+                tip = '选中记录含已充值订单。删除仅移除订单记录，不会回滚用户余额。确定删除 ' + ids.length + ' 条？';
+            }
+            layer.confirm(tip, function (idx) {
                 layer.close(idx);
-                $.post('/admin/recharge.php', { _action: 'cancel', id: obj.data.id, csrf_token: csrfToken }, function (res) {
+                $.post('/admin/recharge.php', {
+                    _action: 'batch_delete',
+                    ids: ids.join(','),
+                    csrf_token: csrfToken
+                }, function (res) {
                     if (res.code === 200) {
-                        layer.msg(res.msg || '已取消');
+                        if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                        layer.msg(res.msg || '删除成功');
                         refreshTable();
                         loadSummary();
                     } else {
-                        layer.msg(res.msg || '操作失败');
+                        layer.msg(res.msg || '删除失败');
                     }
                 }, 'json');
             });
+        });
+
+        // 刷新
+        $(document).on('click.admRecharge', '#rchRefreshBtn', function () {
+            table.reload('rechargeTableId', { where: buildWhere() });
+            loadSummary();
         });
 
         // chips 切换状态
