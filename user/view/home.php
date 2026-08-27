@@ -178,43 +178,43 @@ $hasAvatar = !empty($frontUser['avatar']);
             </header>
             <div class="uc-home-quick">
                 <a href="/user/profile.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-user"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--indigo"><i class="fa fa-user"></i></span>
                     <span class="uc-home-quick__text">个人资料</span>
                 </a>
                 <a href="/user/order.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-list-alt"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--blue"><i class="fa fa-list-alt"></i></span>
                     <span class="uc-home-quick__text">我的订单</span>
                 </a>
                 <a href="/user/wallet.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-credit-card"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--emerald"><i class="fa fa-credit-card"></i></span>
                     <span class="uc-home-quick__text">我的钱包</span>
                 </a>
                 <a href="/user/balance_log.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-exchange"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--teal"><i class="fa fa-exchange"></i></span>
                     <span class="uc-home-quick__text">余额明细</span>
                 </a>
                 <?php if (shop_coupon_enabled()): ?>
                 <a href="/user/coupon.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-ticket"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--rose"><i class="fa fa-ticket"></i></span>
                     <span class="uc-home-quick__text">优惠券</span>
                 </a>
                 <?php endif; ?>
                 <?php if (MerchantContext::currentId() === 0): ?>
                 <a href="/user/rebate.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-share-alt"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--amber"><i class="fa fa-share-alt"></i></span>
                     <span class="uc-home-quick__text">我的推广</span>
                 </a>
                 <?php endif; ?>
                 <a href="/user/address.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-map-marker"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--violet"><i class="fa fa-map-marker"></i></span>
                     <span class="uc-home-quick__text">收货地址</span>
                 </a>
                 <a href="/user/api.php" data-pjax="#userContent" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-plug"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--slate"><i class="fa fa-plug"></i></span>
                     <span class="uc-home-quick__text">API 对接</span>
                 </a>
                 <a href="/user/find_order.php" class="uc-home-quick__item">
-                    <span class="uc-home-quick__icon"><i class="fa fa-search"></i></span>
+                    <span class="uc-home-quick__icon uc-home-quick__icon--cyan"><i class="fa fa-search"></i></span>
                     <span class="uc-home-quick__text">订单查询</span>
                 </a>
             </div>
