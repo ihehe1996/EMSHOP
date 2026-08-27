@@ -6,7 +6,7 @@ declare(strict_types=1);
  * 在线升级服务。
  *
  * 升级流水线（由 admin/update.php 按顺序调度 AJAX 调用）：
- *   1. preflight       —— 预检：写权限 / 磁盘空间 / PHP 版本 / 锁文件 / 源版本兼容
+ *   1. preflight       —— 预检：写权限 / 磁盘空间 / PHP 版本 / 源版本兼容
  *   2. download        —— 下载升级包到临时 cache（校验 SHA256）
  *   3. extract         —— 解压到 tmp/update/extract/，成功后删除 zip
  *   4. apply           —— 用解压出来的文件替换项目内容（不备份旧文件）
@@ -21,14 +21,10 @@ declare(strict_types=1);
  */
 final class UpdateService
 {
-    /** 升级流水线临时根目录（相对 EM_ROOT）—— 统一放在 content/ 下，避免污染项目根 */
-    private const UPDATE_DIR    = '/content/tmp/update';
     /** 下载的 zip 存放处 */
     private const CACHE_DIR     = '/content/tmp/update/cache';
     /** zip 解压目标 */
     private const EXTRACT_DIR   = '/content/tmp/update/extract';
-    /** 锁文件（升级进行中 = 存在） */
-    private const LOCK_FILE     = '/content/tmp/update/lock';
     /** 当前批次的 apply 文件清单（回滚时用） */
     private const MANIFEST_FILE = '/content/tmp/update/manifest.json';
 
@@ -65,17 +61,6 @@ final class UpdateService
     {
         $errors = [];
         $warnings = [];
-
-        // 锁文件检测：存在表示另一次升级正在进行，拒绝重复启动
-        if (file_exists(EM_ROOT . self::LOCK_FILE)) {
-            $lockAge = time() - filemtime(EM_ROOT . self::LOCK_FILE);
-            if ($lockAge < 1800) {
-                $errors[] = '检测到另一个升级正在进行（锁文件更新于 ' . $lockAge . ' 秒前）';
-            } else {
-                // 半小时以上的锁认为是异常遗留，允许覆盖
-                $warnings[] = '发现过期锁文件（' . $lockAge . ' 秒），将被忽略';
-            }
-        }
 
         // PHP 版本：升级 1.2+ 起要求 7.4，这里保守检查
         if (version_compare(PHP_VERSION, '7.4', '<')) {
@@ -157,7 +142,6 @@ final class UpdateService
         $packageUrl = self::resolvePackageUrl($packageUrl);
 
         self::ensureDir(self::CACHE_DIR);
-        self::writeLock();
 
         $filename = 'package_' . date('YmdHis') . '_' . substr(md5($packageUrl), 0, 8) . '.zip';
         $localPath = EM_ROOT . self::CACHE_DIR . '/' . $filename;
@@ -449,8 +433,6 @@ final class UpdateService
             Config::set('last_update_at', (string) time());
         }
 
-        self::releaseLock();
-
         return ['ok' => true];
     }
 
@@ -472,7 +454,6 @@ final class UpdateService
             $restored = self::rollbackFromManifest($manifest);
         }
 
-        self::releaseLock();
         return ['ok' => true, 'restored_files' => $restored];
     }
 
@@ -655,17 +636,6 @@ final class UpdateService
             if (is_dir($f)) self::removeDir($f);
             else @unlink($f);
         }
-    }
-
-    private static function writeLock(): void
-    {
-        self::ensureDir(self::UPDATE_DIR);
-        @file_put_contents(EM_ROOT . self::LOCK_FILE, (string) time());
-    }
-
-    private static function releaseLock(): void
-    {
-        @unlink(EM_ROOT . self::LOCK_FILE);
     }
 
     private static function formatBytes(int $bytes): string
