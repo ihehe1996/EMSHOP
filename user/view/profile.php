@@ -11,22 +11,6 @@ $csrfToken = $csrfToken ?? Csrf::token();
     </div>
 
     <div class="uc-form-card">
-        <!-- 头像 -->
-        <div class="uc-form-avatar">
-            <div class="uc-form-avatar-img">
-                <?php if (!empty($frontUser['avatar'])): ?>
-                <img src="<?= htmlspecialchars($frontUser['avatar']) ?>" alt="" id="avatarPreview">
-                <?php else: ?>
-                <span class="uc-form-avatar--default" id="avatarPreview"><i class="fa fa-user"></i></span>
-                <?php endif; ?>
-            </div>
-            <div class="uc-form-avatar-info">
-                <div class="uc-form-avatar-name"><?= htmlspecialchars($frontUser['nickname'] ?? $frontUser['username'] ?? '') ?></div>
-                <div class="uc-form-avatar-hint">建议上传 200x200 像素的正方形图片</div>
-            </div>
-        </div>
-
-        <!-- 资料表单 -->
         <form id="profileForm" class="uc-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <input type="hidden" name="action" value="profile">

@@ -9,19 +9,26 @@ if (!defined('EM_ROOT')) {
         <p class="uc-page-desc">查看余额、充值与提现</p>
     </div>
 
-    <!-- 余额卡片（渐变突出）—— 按访客当前展示货币渲染 -->
-    <div class="uc-wallet-balance-card">
-        <div class="uc-wallet-balance-label"><i class="fa fa-credit-card"></i> 账户余额</div>
-        <div class="uc-wallet-balance-amount">
-            <span class="uc-wallet-balance-value"><?= Currency::displayAmount((int) ($frontUser['money'] ?? 0)) ?></span>
-        </div>
-        <div class="uc-wallet-balance-actions">
-            <button type="button" class="uc-wallet-btn" id="rechargeBtn">
-                <i class="fa fa-plus-circle"></i> 充值
-            </button>
-            <button type="button" class="uc-wallet-btn uc-wallet-btn--ghost" id="withdrawBtn">
-                <i class="fa fa-sign-out"></i> 提现
-            </button>
+    <!-- 余额卡片 -->
+    <div class="uc-wallet-hero uc-glass-card">
+        <div class="uc-wallet-hero__glow" aria-hidden="true"></div>
+        <div class="uc-wallet-hero__inner">
+            <div class="uc-wallet-hero__main">
+                <div class="uc-wallet-hero__icon"><i class="fa fa-credit-card"></i></div>
+                <div class="uc-wallet-hero__info">
+                    <span class="uc-wallet-hero__label">账户余额</span>
+                    <div class="uc-wallet-hero__amount"><?= Currency::displayAmount((int) ($frontUser['money'] ?? 0)) ?></div>
+                    <p class="uc-wallet-hero__desc">可用余额 · 支持在线充值与提现到收款账户</p>
+                </div>
+            </div>
+            <div class="uc-wallet-hero__actions">
+                <button type="button" class="uc-wallet-hero__btn uc-wallet-hero__btn--primary" id="rechargeBtn">
+                    <i class="fa fa-plus-circle"></i> 充值
+                </button>
+                <button type="button" class="uc-wallet-hero__btn" id="withdrawBtn">
+                    <i class="fa fa-sign-out"></i> 提现
+                </button>
+            </div>
         </div>
     </div>
 
