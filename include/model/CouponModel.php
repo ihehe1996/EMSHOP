@@ -124,7 +124,7 @@ class CouponModel
         $now = date('Y-m-d H:i:s');
         $rows = Database::query(
             "SELECT * FROM {$this->table}
-             WHERE deleted_at IS NULL AND is_enabled = 1
+             WHERE deleted_at IS NULL AND is_enabled = 1 AND show_on_front = 1
                AND (start_at IS NULL OR start_at <= ?)
                AND (end_at IS NULL OR end_at >= ?)
                AND (total_usage_limit = -1 OR used_count < total_usage_limit)
@@ -162,6 +162,17 @@ class CouponModel
         $current = $this->findById($id);
         if (!$current) return false;
         return Database::update('coupon', ['is_enabled' => $current['is_enabled'] ? 0 : 1], $id) > 0;
+    }
+
+    /**
+     * 切换「前台领券中心展示」开关。
+     */
+    public function toggleShowOnFront(int $id): bool
+    {
+        $current = $this->findById($id);
+        if (!$current) return false;
+        $next = (int) ($current['show_on_front'] ?? 1) === 1 ? 0 : 1;
+        return Database::update('coupon', ['show_on_front' => $next, 'updated_at' => date('Y-m-d H:i:s')], $id) > 0;
     }
 
     public function existsCode(string $code, int $excludeId = 0): bool
@@ -211,7 +222,7 @@ class CouponModel
             'code', 'name', 'title', 'description',
             'type', 'apply_scope',
             'start_at', 'end_at',
-            'total_usage_limit', 'is_enabled', 'owner_id', 'sort',
+            'total_usage_limit', 'is_enabled', 'show_on_front', 'owner_id', 'sort',
         ];
         foreach ($passThrough as $k) {
             if (array_key_exists($k, $data)) $out[$k] = $data[$k];

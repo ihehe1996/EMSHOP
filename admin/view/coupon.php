@@ -105,6 +105,11 @@ $typeOptions = CouponModel::typeOptions();
     <input type="checkbox" name="status" value="{{d.id}}" lay-skin="switch" lay-text="启用|禁用" lay-filter="couponStatusFilter" {{d.is_enabled == 1 ? 'checked' : ''}}>
 </script>
 
+<!-- 前台展示开关 -->
+<script type="text/html" id="couponShowFrontTpl">
+    <input type="checkbox" name="show_on_front" value="{{d.id}}" lay-skin="switch" lay-text="展示|隐藏" lay-filter="couponShowFrontFilter" {{d.show_on_front == 1 ? 'checked' : ''}}>
+</script>
+
 <script>
 $(function(){
     // PJAX 防重复绑定：清掉本页历史 .admCoupon handler，避免事件成倍触发
@@ -156,6 +161,7 @@ $(function(){
                 { field: 'min_amount', title: '门槛', width: 90, align: 'center', templet: function(d){ return d.min_amount > 0 ? '满 ¥'+d.min_amount : '无门槛'; } },
                 { field: 'usage', title: '使用次数', width: 110, align: 'center', templet: '#couponUsageTpl' },
                 { field: 'valid', title: '有效期', width: 160, align: 'center', templet: '#couponValidTpl' },
+                { field: 'show_on_front', title: '前台显示', width: 100, align: 'center', templet: '#couponShowFrontTpl' },
                 { field: 'is_enabled', title: '状态', width: 90, align: 'center', templet: '#couponStatusTpl' },
                 { title: '操作', width: 200, templet: '#couponRowActionTpl', align: 'center', fixed: 'right' }
             ]],
@@ -200,6 +206,30 @@ $(function(){
             $.ajax({
                 url: '/admin/coupon.php', type: 'POST', dataType: 'json',
                 data: { csrf_token: csrfToken, _action: 'toggle', id: id },
+                success: function (res) {
+                    if (res.code === 200) {
+                        if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
+                        layer.msg(res.msg || '已更新');
+                    } else {
+                        obj.elem.checked = !obj.elem.checked;
+                        form.render('switch');
+                        layer.msg(res.msg || '更新失败');
+                    }
+                },
+                error: function () {
+                    obj.elem.checked = !obj.elem.checked;
+                    form.render('switch');
+                    layer.msg('网络异常');
+                }
+            });
+        });
+
+        // 前台显示切换
+        form.on('switch(couponShowFrontFilter)', function (obj) {
+            var id = this.value;
+            $.ajax({
+                url: '/admin/coupon.php', type: 'POST', dataType: 'json',
+                data: { csrf_token: csrfToken, _action: 'toggle_show_front', id: id },
                 success: function (res) {
                     if (res.code === 200) {
                         if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;

@@ -153,6 +153,15 @@ if (Request::isPost()) {
                 Response::success('状态已更新', ['csrf_token' => $csrfToken]);
                 break;
 
+            case 'toggle_show_front':
+                $id = (int) Input::post('id', 0);
+                if ($id <= 0) Response::error('无效的 ID');
+                if ($model->findById($id) === null) Response::error('优惠券不存在');
+                $model->toggleShowOnFront($id);
+                $csrfToken = Csrf::refresh();
+                Response::success('前台显示状态已更新', ['csrf_token' => $csrfToken]);
+                break;
+
             default:
                 Response::error('未知操作');
         }
@@ -197,6 +206,7 @@ function collectCouponInput(): array
         'end_at'            => trim((string) Input::post('end_at', '')) ?: null,
         'total_usage_limit' => (int) Input::post('total_usage_limit', -1),
         'is_enabled'        => (int) Input::post('is_enabled', 1),
+        'show_on_front'     => (int) Input::post('show_on_front', 1),
         'sort'              => (int) Input::post('sort', 100),
     ];
 }

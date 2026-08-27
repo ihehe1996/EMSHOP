@@ -86,6 +86,9 @@ class CouponController extends BaseController
         $coupon = $couponModel->findById($couponId);
         if (!$coupon) Response::error('优惠券不存在');
         if (!$coupon['is_enabled']) Response::error('优惠券已下架');
+        if ((int) ($coupon['show_on_front'] ?? 1) !== 1) {
+            Response::error('该优惠券不可在领券中心领取');
+        }
 
         $now = time();
         if (!empty($coupon['start_at']) && strtotime((string) $coupon['start_at']) > $now) {

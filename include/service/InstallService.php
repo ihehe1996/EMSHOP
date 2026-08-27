@@ -195,6 +195,7 @@ final class InstallService
                 `total_usage_limit` INT NOT NULL DEFAULT -1 COMMENT \'总使用次数上限 -1=无限\',
                 `used_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'已使用次数缓存\',
                 `is_enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'启用状态\',
+                `show_on_front` TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'前台领券中心展示：1=展示 0=私下发放\',
                 `owner_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'所属者：0=主站，其他=分站\',
                 `sort` INT NOT NULL DEFAULT 100 COMMENT \'排序\',
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -34,6 +34,22 @@ WHERE NOT EXISTS (
     SELECT 1 FROM `__PREFIX__config` WHERE `config_name` = 'shop_enable_coupon' LIMIT 1
 );
 
+-- 优惠券：前台领券中心展示开关（默认展示）
+SET @has_coupon_show_on_front := (
+    SELECT COUNT(*)
+    FROM `information_schema`.`COLUMNS`
+    WHERE `TABLE_SCHEMA` = DATABASE()
+      AND `TABLE_NAME` = '__PREFIX__coupon'
+      AND `COLUMN_NAME` = 'show_on_front'
+);
+
+SET @ddl_add_coupon_show_on_front := IF(
+    @has_coupon_show_on_front > 0,
+    'SELECT 1',
+    'ALTER TABLE `__PREFIX__coupon` ADD COLUMN `show_on_front` TINYINT(1) NOT NULL DEFAULT 1 COMMENT \'前台领券中心展示：1=展示 0=私下发放\' AFTER `is_enabled`'
+);
+PREPARE stmt FROM @ddl_add_coupon_show_on_front; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 -- 本版本发布：迁移时 bump 一次以触发 Swoole 热重载
 UPDATE `__PREFIX__config`
 SET `config_value` = CAST(UNIX_TIMESTAMP() AS CHAR)
