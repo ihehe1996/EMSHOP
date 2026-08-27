@@ -26,6 +26,9 @@
                     <button type="button" class="auth-eye" tabindex="-1"><i class="fa fa-eye-slash"></i></button>
                 </div>
             </div>
+            <div class="auth-forgot">
+                <a href="?c=login&a=forgot" data-pjax>忘记密码？</a>
+            </div>
             <button type="submit" class="auth-submit" id="loginBtn">登 录</button>
         </form>
         <?php if (!empty($user_register_enabled)): ?>

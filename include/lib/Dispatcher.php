@@ -42,6 +42,7 @@ final class Dispatcher
         'order' => true,
         'login' => true,
         'register' => true,
+        'forgot_password' => true,
         'blog_index' => true,
         'blog_comment' => true,  // 评论 API
         'goods_index' => true,
@@ -80,8 +81,9 @@ final class Dispatcher
         'page'        => 'Page',        // 自定义页面 /p/{slug}
         'search'      => 'Search',
         'order'       => 'Order',
-        'login'       => 'Login',
-        'register'    => 'Register',
+        'login'           => 'Login',
+        'register'        => 'Register',
+        'forgot_password' => 'ForgotPassword',
         'password'    => 'Password',
         'plugin'      => 'Plugin',
         'callback'    => 'Callback',
@@ -590,7 +592,17 @@ final class Dispatcher
         }
 
         $pathinfo = $_SERVER['PATH_INFO'] ?? $_SERVER['ORIG_PATH_INFO'] ?? '';
-        if ($pathinfo !== '' && $pathinfo !== '/') {
+
+        // 显式 ?c= 且为已知控制器时，强制走 query string 模式。
+        // 部分环境下 PATH_INFO 非空会吞掉 ?c=forgot_password&a=reset 等参数，导致 404。
+        $cParam = trim((string) ($_GET['c'] ?? ''));
+        $sanitizedC = $this->sanitize($cParam);
+        if ($cParam !== '' && isset(self::CONTROLLER_MAP[$sanitizedC])) {
+            $this->rawController = $cParam;
+            $this->controller = $sanitizedC;
+            $this->action = $this->sanitize(trim(Input::get('a', self::DEFAULT_ACTION)));
+            $this->pathArgs = array_diff_key($_GET, array_flip(['c', 'a']));
+        } elseif ($pathinfo !== '' && $pathinfo !== '/') {
             // pathinfo 模式：/goods_list、/goods/1、/blog_index
             $segments = array_values(array_filter(explode('/', trim($pathinfo, '/')), 'strlen'));
             $this->rawController = !empty($segments[0]) ? $this->sanitize($segments[0]) : self::DEFAULT_CONTROLLER;

@@ -302,6 +302,12 @@ final class View
             return $path;
         }
 
+        // 核心视图回退（include/view/），供各模板共用
+        $corePath = EM_ROOT . '/include/view/' . $file;
+        if (is_file($corePath)) {
+            return $corePath;
+        }
+
         return null;
     }
 

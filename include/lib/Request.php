@@ -40,4 +40,30 @@ final class Request
     {
         return !empty($_SERVER['HTTP_X_PJAX']);
     }
+
+    /**
+     * 当前请求的站点根地址（协议 + 域名 + 子目录），用于生成邮件链接等。
+     * 例：http://example.com 或 https://example.com/shop
+     */
+    public static function baseUrl(): string
+    {
+        $protocol = 'http';
+        if (
+            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+        ) {
+            $protocol = 'https';
+        }
+
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php');
+        $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+
+        $url = $protocol . '://' . $host;
+        if ($basePath !== '' && $basePath !== '/') {
+            $url .= $basePath;
+        }
+
+        return $url;
+    }
 }

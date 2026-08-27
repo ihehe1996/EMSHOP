@@ -5,9 +5,13 @@ declare(strict_types=1);
 /**
  * 前台登录控制器。
  *
- * GET  ?c=login        显示登录表单
- * POST ?c=login        处理登录请求（AJAX JSON）
- * GET  ?c=login&a=logout  退出登录
+ * GET  ?c=login              显示登录表单
+ * POST ?c=login              处理登录请求（AJAX JSON）
+ * GET  ?c=login&a=logout     退出登录
+ * GET  ?c=login&a=forgot       找回密码（申请重置邮件）
+ * POST ?c=login&a=forgot       发送重置邮件 / 刷新验证码
+ * GET  ?c=login&a=reset&token  重置密码表单
+ * POST ?c=login&a=reset         提交新密码
  */
 class LoginController extends BaseController
 {
@@ -127,5 +131,110 @@ class LoginController extends BaseController
 
         header('Location: ?');
         exit;
+    }
+
+    /**
+     * 找回密码：申请发送重置邮件。
+     */
+    public function forgot(): void
+    {
+        if (Request::isPost()) {
+            $action = (string) Input::post('action', '');
+            if ($action === 'refresh_captcha') {
+                Response::success('', ['expr' => Captcha::issue('forgot_password')]);
+            }
+            $this->handleForgotSendRequest();
+            return;
+        }
+
+        if (!empty($_SESSION['em_front_user'])) {
+            header('Location: ?c=user');
+            exit;
+        }
+
+        if ((string) Config::get('user_login', '1') !== '1') {
+            Response::error('当前站点已关闭登录功能');
+        }
+
+        $this->view->setTitle('找回密码');
+        $this->view->setData([
+            'csrf_token' => Csrf::token(),
+            'captcha_expr' => Captcha::issue('forgot_password'),
+        ]);
+        $this->view->render('auth/forgot_password');
+    }
+
+    /**
+     * 重置密码（邮件链接进入）。
+     */
+    public function reset(): void
+    {
+        if (Request::isPost()) {
+            $this->handleResetSubmit();
+            return;
+        }
+
+        $token = trim((string) $this->getArg('token', ''));
+        $service = new PasswordResetService();
+        $valid = $service->validateToken($token);
+
+        $this->view->setTitle('重置密码');
+        $this->view->setData([
+            'csrf_token' => Csrf::token(),
+            'token' => $token,
+            'token_valid' => $valid !== null,
+        ]);
+        $this->view->render('auth/reset_password');
+    }
+
+    private function handleForgotSendRequest(): void
+    {
+        if ((string) Config::get('user_login', '1') !== '1') {
+            Response::error('当前站点已关闭登录功能');
+        }
+
+        $csrf = Input::post('csrf_token', '');
+        if (!Csrf::validate((string) $csrf)) {
+            Response::error('请求已失效，请刷新页面后重试');
+        }
+
+        $email = trim(Input::post('email', ''));
+        $captcha = trim(Input::post('captcha', ''));
+
+        $service = new PasswordResetService();
+        $result = $service->requestReset($email, $captcha);
+
+        if (!$result['ok']) {
+            $data = [];
+            if (!empty($result['captcha_expr'])) {
+                $data['captcha_expr'] = $result['captcha_expr'];
+            }
+            Response::error($result['msg'], $data);
+        }
+
+        Csrf::refresh();
+        Response::success($result['msg']);
+    }
+
+    private function handleResetSubmit(): void
+    {
+        $csrf = Input::post('csrf_token', '');
+        if (!Csrf::validate((string) $csrf)) {
+            Response::error('请求已失效，请刷新页面后重试');
+        }
+
+        $token = trim(Input::post('token', ''));
+        $password = (string) Input::post('password', '');
+        $confirm = (string) Input::post('password_confirm', '');
+
+        $service = new PasswordResetService();
+        $result = $service->resetPassword($token, $password, $confirm);
+
+        if (!$result['ok']) {
+            Response::error($result['msg']);
+        }
+
+        Csrf::refresh();
+        Response::success($result['msg']);
     }
 }
