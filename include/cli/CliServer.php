@@ -55,11 +55,6 @@ final class CliServer
         return self::runtimeDir() . '/server.heartbeat';
     }
 
-    public static function startLockFile(): string
-    {
-        return self::runtimeDir() . '/server.start.lock';
-    }
-
     public static function workersStateFile(): string
     {
         return self::runtimeDir() . '/workers.json';
@@ -260,6 +255,26 @@ final class CliServer
     }
 
     /**
+     * 等待进程退出，超时返回 false。
+     */
+    public static function waitForProcessExit(int $pid, int $timeoutSeconds = 15): bool
+    {
+        if ($pid < 1) {
+            return true;
+        }
+
+        $deadline = time() + max(1, $timeoutSeconds);
+        while (time() < $deadline) {
+            if (!self::isProcessAlive($pid)) {
+                return true;
+            }
+            usleep(200000);
+        }
+
+        return !self::isProcessAlive($pid);
+    }
+
+    /**
      * 启动前探测数据库：临时连接，成功后立即关闭。
      */
     public static function probeMysql(): void
@@ -304,30 +319,5 @@ final class CliServer
         }
 
         throw new RuntimeException('当前 PHP 环境既不支持 mysqli，也不支持 pdo_mysql，无法探测数据库连接');
-    }
-
-    /**
-     * 获取 start 互斥锁，避免并发重复启动。
-     *
-     * @return resource
-     */
-    public static function acquireStartLock()
-    {
-        self::ensureRuntimeDir();
-        $fp = @fopen(self::startLockFile(), 'c+');
-        if ($fp === false) {
-            echo '无法打开启动锁文件：' . self::startLockFile() . "\n";
-            exit(1);
-        }
-
-        if (!@flock($fp, LOCK_EX | LOCK_NB)) {
-            echo "检测到另一个启动进程正在执行，已阻止重复启动。（如果刚刚关闭进程，请等待片刻后再试）\n";
-            exit(1);
-        }
-
-        @ftruncate($fp, 0);
-        @fwrite($fp, (string) getmypid());
-        @fflush($fp);
-        return $fp;
     }
 }

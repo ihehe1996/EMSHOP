@@ -20,9 +20,6 @@ final class CliServerManager
     /** 收到 reload 标记 / SIGUSR1 后置为 true，主循环据此重启全部 worker */
     private static $reloadRequested = false;
 
-    /** start 互斥锁文件句柄（进程结束会自动释放） */
-    private static $startLockFp = null;
-
     /**
      * 主进程入口：根据命令分发。
      *
@@ -45,8 +42,6 @@ final class CliServerManager
             case 'reload':
                 return self::cmdReload();
             case 'restart':
-                self::cmdStop();
-                sleep(1);
                 return self::cmdStart();
             case 'help':
             case '-h':
@@ -102,17 +97,22 @@ final class CliServerManager
             return 1; 
         }
 
-        // 1) 防并发：两个 start 同时跑时，后到的会退出
-        self::$startLockFp = CliServer::acquireStartLock();
-
-        // 2) 已在跑则直接退出（Supervisor 重试时也不会重复起两套）
+        // 1) 已有实例在跑则先停旧再起新
         $runningPid = CliServer::readPid();
         if ($runningPid > 0 && CliServer::isProcessAlive($runningPid)) {
-            echo "检测到 EMSHOP 任务服务（PID {$runningPid}）已在运行中！\n";
-            return 0;
+            echo "检测到 EMSHOP 任务服务（PID {$runningPid}）已在运行，正在停止旧进程…\n";
+            CliServer::stopProcess($runningPid);
+            if (!CliServer::waitForProcessExit($runningPid, 15)) {
+                CliServer::log("启动失败：旧主进程 PID {$runningPid} 停止超时");
+                echo "旧进程（PID {$runningPid}）未能及时退出，启动中止。\n";
+                return 1;
+            }
+            CliServer::clearPid();
+            echo "旧进程已停止，正在启动新实例…\n";
+            CliServer::log("启动：已停止旧主进程 PID {$runningPid}，准备拉起新实例");
         }
 
-        // 3) 启动前探一下数据库；连不上就失败退出，交给 Supervisor 稍后重试
+        // 2) 启动前探一下数据库；连不上就失败退出，交给 Supervisor 稍后重试
         try {
             CliServer::probeMysql();
             CliServer::log('数据库连接成功，准备启动 CLI 任务服务');
@@ -123,14 +123,14 @@ final class CliServerManager
             return 1;
         }
 
-        // 4) 升级包若放了空文件 `.server`（提示硬重启），启动时清掉
+        // 3) 升级包若放了空文件 `.server`（提示硬重启），启动时清掉
         $dotServer = EM_ROOT . '/.server';
         if (is_file($dotServer)) {
             @unlink($dotServer);
             CliServer::log('已移除升级标记文件 .server');
         }
 
-        // 5) 写下主进程 PID，供 stop/status/reload 找到我们
+        // 4) 写下主进程 PID，供 stop/status/reload 找到我们
         $masterPid = (int) getmypid();
         CliServer::writePid($masterPid);
         self::installSignalHandlers();
@@ -593,11 +593,11 @@ final class CliServerManager
         echo <<<TXT
 EMSHOP CLI 后台任务服务（多进程）
 
-  php server start     前台启动主进程，并自动拉起全部 worker（宝塔 Supervisor 用这条）
+  php server start     前台启动主进程（若已有实例则先停止旧进程再启动）
   php server stop      停止主进程及全部 worker
   php server status    查看运行状态
   php server reload    重启全部 worker（主进程不退出）
-  php server restart   先 stop 再 start
+  php server restart   停止旧主进程并重新启动（等同 start）
 
   说明：worker 子进程只由主进程自动拉起，无需也不能当作日常命令手动执行。
 
