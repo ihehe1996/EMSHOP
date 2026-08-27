@@ -372,6 +372,15 @@ $(function(){
             });
         }
 
+        // 弹窗尺寸：大屏用首选 px，小屏按视口百分比自适应（库存管理在 iframe 内）
+        function cardModalArea(preferW) {
+            var w = window.innerWidth >= preferW + 40 ? (preferW + 'px') : '95%';
+            return [w, 'auto'];
+        }
+        function cardModalMaxH() {
+            return Math.max(280, Math.floor(window.innerHeight * 0.9));
+        }
+
         // ============================================================
         //  操作栏事件
         // ============================================================
@@ -391,7 +400,8 @@ $(function(){
                 type: 1,
                 title: '导出卡密',
                 skin: 'admin-modal',
-                area: ['380px', 'auto'],
+                area: cardModalArea(380),
+                maxHeight: cardModalMaxH(),
                 content: html,
                 btn: ['导出', '取消'],
                 yes: function (idx) {
@@ -540,10 +550,10 @@ $(function(){
                 2: '<span class="em-tag em-tag--amber"><span class="em-tag__dot"></span>标记售出</span>'
             };
             var row = function(label, val){
-                return '<tr><td style="padding:9px 12px;color:#6b7280;white-space:nowrap;width:80px;font-size:13px;">' + label
-                     + '</td><td style="padding:9px 12px;font-size:13px;">' + val + '</td></tr>';
+                return '<tr><td style="padding:9px 12px;color:#6b7280;white-space:nowrap;width:80px;font-size:13px;vertical-align:top;">' + label
+                     + '</td><td style="padding:9px 12px;font-size:13px;word-break:break-all;">' + val + '</td></tr>';
             };
-            var html = '<div style="padding:16px 20px;">'
+            var html = '<div style="padding:16px 20px;box-sizing:border-box;">'
                 // 卡号高亮区
                 + '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:16px;">'
                 + '<div style="font-size:12px;color:#9ca3af;margin-bottom:4px;">卡号</div>'
@@ -565,7 +575,8 @@ $(function(){
                 type: 1,
                 title: '卡密详情',
                 skin: 'admin-modal',
-                area: ['460px', 'auto'],
+                area: cardModalArea(460),
+                maxHeight: cardModalMaxH(),
                 content: html,
                 shadeClose: true
             });
@@ -580,7 +591,7 @@ $(function(){
                 specOpts += '<option value="' + sid + '"' + (card.spec_id == sid ? ' selected' : '') + '>' + esc(specMap[sid]) + '</option>';
             }
             var lbl = 'display:block;font-size:13px;color:#6b7280;margin-bottom:4px;';
-            var html = '<div style="padding:20px;">'
+            var html = '<div style="padding:20px;box-sizing:border-box;">'
                 + '<div style="margin-bottom:14px;"><label style="' + lbl + '">卡号</label>'
                 + '<input type="text" class="layui-input" id="editCardNo" value="' + escAttr(card.card_no) + '"></div>'
                 + '<div style="margin-bottom:14px;"><label style="' + lbl + '">密码</label>'
@@ -594,7 +605,8 @@ $(function(){
                 type: 1,
                 title: '编辑卡密',
                 skin: 'admin-modal',
-                area: ['420px', 'auto'],
+                area: cardModalArea(420),
+                maxHeight: cardModalMaxH(),
                 content: html,
                 btn: ['保存', '取消'],
                 yes: function(idx){
