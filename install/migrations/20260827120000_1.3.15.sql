@@ -26,6 +26,14 @@ SET @ddl_create_password_reset := IF(
 );
 PREPARE stmt FROM @ddl_create_password_reset; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
+-- 商城设置：启用优惠券（老站缺配置时补默认开启）
+INSERT INTO `__PREFIX__config` (`config_name`, `config_value`, `description`)
+SELECT 'shop_enable_coupon', '1', '启用优惠券'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM `__PREFIX__config` WHERE `config_name` = 'shop_enable_coupon' LIMIT 1
+);
+
 -- 本版本发布：迁移时 bump 一次以触发 Swoole 热重载
 UPDATE `__PREFIX__config`
 SET `config_value` = CAST(UNIX_TIMESTAMP() AS CHAR)

@@ -671,6 +671,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             <div class="layui-input-block">
                                 <?php echo formSwitch('shop_enable_coupon', $cfg['shop_enable_coupon'] ?? '1'); ?>
                             </div>
+                            <div class="layui-form-mid layui-word-aux">关闭后，前台商品详情页隐藏优惠券区域，个人中心隐藏「我的优惠券」，领券中心 URL 不可访问</div>
                         </div>
                     </div>
 

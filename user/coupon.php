@@ -13,14 +13,10 @@ require_once __DIR__ . '/global.php';
 userRequireLogin();
 
 if (!shop_coupon_enabled()) {
-    if (Request::isPjax()) {
-        echo '<div id="userContent" class="uc-content">';
-        include __DIR__ . '/view/coupon_disabled.php';
-        echo '</div>';
-    } else {
-        $userContentView = __DIR__ . '/view/coupon_disabled.php';
-        require __DIR__ . '/index.php';
+    if (Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+        Response::error('优惠券功能未启用');
     }
+    header('Location: /user/home.php');
     exit;
 }
 
