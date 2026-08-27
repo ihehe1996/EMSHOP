@@ -239,7 +239,7 @@ final class UserExperienceService
     private static function isDuplicateKey(Throwable $e): bool
     {
         $msg = $e->getMessage();
-        if (str_contains($msg, '1062') || str_contains($msg, 'Duplicate entry')) {
+        if (strpos($msg, '1062') !== false || strpos($msg, 'Duplicate entry') !== false) {
             return true;
         }
         $prev = $e->getPrevious();
