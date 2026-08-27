@@ -37,6 +37,10 @@ class RebateController extends BaseController
     {
         if (!Request::isPost()) Response::error('无效请求');
 
+        if (MerchantContext::currentId() > 0) {
+            Response::error('商户站不支持推广返佣');
+        }
+
         $user = $this->requireLogin();
         $userId = (int) $user['id'];
 

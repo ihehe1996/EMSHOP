@@ -189,6 +189,60 @@ class CommissionLogModel
     }
 
     /**
+     * 从一条 available 明细中划出指定金额作为已提现；余下保留 available。
+     * 若 takeAmount 等于整条金额，则直接标记 withdrawn。
+     */
+    public function splitWithdraw(int $logId, int $takeAmount, int $withdrawId): void
+    {
+        if ($takeAmount <= 0) {
+            return;
+        }
+
+        $row = Database::fetchOne(
+            "SELECT * FROM {$this->table} WHERE id = ? AND status = ? FOR UPDATE",
+            [$logId, self::STATUS_AVAILABLE]
+        );
+        if (!$row) {
+            throw new RuntimeException('佣金明细不存在');
+        }
+
+        $amt = (int) $row['amount'];
+        if ($takeAmount > $amt) {
+            throw new RuntimeException('佣金明细金额异常');
+        }
+
+        if ($takeAmount === $amt) {
+            Database::execute(
+                "UPDATE {$this->table} SET status = ?, withdraw_id = ?, updated_at = NOW() WHERE id = ?",
+                [self::STATUS_WITHDRAWN, $withdrawId, $logId]
+            );
+            return;
+        }
+
+        $remain = $amt - $takeAmount;
+        Database::execute(
+            "UPDATE {$this->table} SET amount = ?, updated_at = NOW() WHERE id = ?",
+            [$remain, $logId]
+        );
+        Database::insert('commission_log', [
+            'user_id'      => (int) $row['user_id'],
+            'order_id'     => (int) $row['order_id'],
+            'order_no'     => (string) $row['order_no'],
+            'from_user_id' => (int) ($row['from_user_id'] ?? 0),
+            'level'        => (int) $row['level'],
+            'amount'       => $takeAmount,
+            'rate'         => (int) $row['rate'],
+            'basis_amount' => (int) ($row['basis_amount'] ?? 0),
+            'status'       => self::STATUS_WITHDRAWN,
+            'frozen_until' => null,
+            'withdraw_id'  => $withdrawId,
+            'remark'       => (string) ($row['remark'] ?? ''),
+            'created_at'   => date('Y-m-d H:i:s'),
+            'updated_at'   => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
      * 订单退款时：倒扣与该订单有关的全部佣金记录。
      * 策略：
      *   - frozen → reverted：直接把记录标记并扣 user.commission_frozen

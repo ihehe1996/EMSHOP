@@ -285,43 +285,46 @@ class RebateService
         (new CommissionLogModel())->promoteMatured($userId);
 
         $prefix = Database::prefix();
-        $user = Database::find('user', $userId);
-        if (!$user) throw new RuntimeException('用户不存在');
-        $available = (int) ($user['commission_available'] ?? 0);
-        if ($amountRaw > $available) {
-            throw new RuntimeException('可提现佣金不足');
-        }
-
         $logModel = new CommissionLogModel();
         $withdrawModel = new CommissionWithdrawModel();
 
         Database::begin();
         try {
+            $user = Database::fetchOne(
+                "SELECT commission_available FROM {$prefix}user WHERE id = ? FOR UPDATE",
+                [$userId]
+            );
+            if (!$user) {
+                throw new RuntimeException('用户不存在');
+            }
+            $available = (int) ($user['commission_available'] ?? 0);
+            if ($amountRaw > $available) {
+                throw new RuntimeException('可提现佣金不足');
+            }
+
             // 按时间顺序消耗 available 明细，直到凑够金额
             $todo = $amountRaw;
             $logs = $logModel->listAvailableForWithdraw($userId, 1000);
-            $consumed = [];
+            $fullIds = [];
+            $partial = null;
             foreach ($logs as $l) {
-                if ($todo <= 0) break;
+                if ($todo <= 0) {
+                    break;
+                }
                 $id  = (int) $l['id'];
                 $amt = (int) $l['amount'];
                 if ($amt <= $todo) {
-                    $consumed[] = $id;
+                    $fullIds[] = $id;
                     $todo -= $amt;
                 } else {
-                    // 最后一条可能需要拆分：为简单起见，将该条整条消耗（差额会变成已提现超过请求金额？）
-                    // 解决：这里严格按请求金额；剩余的直接标记
-                    $consumed[] = $id;
+                    $partial = ['id' => $id, 'take' => $todo];
                     $todo = 0;
-                    break;
                 }
             }
             if ($todo > 0) {
-                // 理论上不该发生（user.commission_available 与 log 数据不一致）
                 throw new RuntimeException('佣金明细数据不一致，请联系管理员');
             }
 
-            // 插入提现记录
             $withdrawId = $withdrawModel->insert([
                 'user_id'        => $userId,
                 'amount'         => $amountRaw,
@@ -331,35 +334,35 @@ class RebateService
                 'remark'         => '佣金提现到余额',
             ]);
 
-            // 标记消耗的明细为 withdrawn
-            if ($consumed) {
-                $in = implode(',', array_fill(0, count($consumed), '?'));
+            if ($fullIds) {
+                $in = implode(',', array_fill(0, count($fullIds), '?'));
                 Database::execute(
                     "UPDATE {$prefix}commission_log
                      SET status = ?, withdraw_id = ?, updated_at = NOW()
-                     WHERE id IN ({$in})",
-                    array_merge([CommissionLogModel::STATUS_WITHDRAWN, $withdrawId], $consumed)
+                     WHERE id IN ({$in}) AND status = ?",
+                    array_merge([CommissionLogModel::STATUS_WITHDRAWN, $withdrawId], $fullIds, [CommissionLogModel::STATUS_AVAILABLE])
                 );
             }
+            if ($partial !== null) {
+                $logModel->splitWithdraw((int) $partial['id'], (int) $partial['take'], $withdrawId);
+            }
 
-            // 扣 commission_available，加 money
             Database::execute(
                 "UPDATE {$prefix}user
-                 SET commission_available = GREATEST(commission_available - ?, 0),
-                     money = money + ?
+                 SET commission_available = GREATEST(commission_available - ?, 0)
                  WHERE id = ?",
-                [$amountRaw, $amountRaw, $userId]
+                [$amountRaw, $userId]
             );
 
-            // 写余额变动日志（复用 UserBalanceLogModel）
-            if (class_exists('UserBalanceLogModel')) {
-                (new UserBalanceLogModel())->increase(
-                    $userId,
-                    $amountRaw,
-                    '佣金提现',
-                    0,
-                    '系统'
-                );
+            $ok = (new UserBalanceLogModel())->increase(
+                $userId,
+                $amountRaw,
+                '佣金提现',
+                0,
+                '系统'
+            );
+            if (!$ok) {
+                throw new RuntimeException('余额入账失败');
             }
 
             Database::commit();
