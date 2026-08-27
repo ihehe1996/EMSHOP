@@ -88,6 +88,7 @@ $csrfToken = Csrf::token();
             <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
         </div>
         <div class="em-filter__body">
+            <form class="em-filter__form" data-em-search-btn="#logSearchBtn" autocomplete="off">
             <div class="em-filter__grid">
                 <div class="em-filter__field">
                     <label>日志级别</label>
@@ -111,13 +112,14 @@ $csrfToken = Csrf::token();
                 </div>
                 <div class="em-filter__field">
                     <label>关键词</label>
-                    <input type="text" id="logKeyword" placeholder="操作名称 / 消息内容 / 用户名" autocomplete="off">
+                    <input type="search" id="logKeyword" placeholder="操作名称 / 消息内容 / 用户名" enterkeyhint="search">
                 </div>
             </div>
             <div class="em-filter__actions">
                 <button type="button" class="em-btn em-reset-btn" id="logResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
                 <button type="button" class="em-btn em-save-btn" id="logSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
             </div>
+            </form>
         </div>
     </div>
 
@@ -297,11 +299,6 @@ $(function () {
                 page: {curr: 1},
                 where: {_action: 'list', level: '', type: '', keyword: ''}
             });
-        });
-
-        // 回车搜索
-        $('#logKeyword').on('keydown', function (e) {
-            if (e.keyCode === 13) doSearch();
         });
 
         // 刷新

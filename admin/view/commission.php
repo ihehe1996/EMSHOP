@@ -21,10 +21,10 @@ $tab = (string) ($tab ?? 'log');
     </div>
 
     <!-- 工具条：搜索 -->
-    <div class="cmm-toolbar">
+    <form class="cmm-toolbar em-list-search" data-em-search-btn="#commissionSearchBtn" autocomplete="off">
         <div class="cmm-toolbar__field">
             <i class="fa fa-user"></i>
-            <input type="number" id="commissionSearchUid" class="cmm-input" placeholder="按归属用户 ID">
+            <input type="number" id="commissionSearchUid" class="cmm-input" placeholder="按归属用户 ID" data-em-search-input>
         </div>
         <?php if ($tab === 'log'): ?>
         <div class="cmm-toolbar__field">
@@ -44,13 +44,13 @@ $tab = (string) ($tab ?? 'log');
             </select>
         </div>
         <?php endif; ?>
-        <button class="em-btn em-sm-btn em-save-btn" id="commissionSearchBtn">
+        <button type="button" class="em-btn em-sm-btn em-save-btn" id="commissionSearchBtn">
             <i class="fa fa-search"></i>搜索
         </button>
         <button type="button" class="em-btn em-sm-btn em-reset-btn" id="commissionResetBtn">
             <i class="fa fa-rotate-left"></i>重置
         </button>
-    </div>
+    </form>
 
     <table id="commissionTable" lay-filter="commissionTable"></table>
 </div>
@@ -58,7 +58,7 @@ $tab = (string) ($tab ?? 'log');
 <style>
 .cmm-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 12px 14px; margin-bottom: 14px;
+    padding: 12px 14px; margin: 0 0 14px;
     background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
 }
 .cmm-toolbar__field {
@@ -304,9 +304,6 @@ $(function () {
 
         $(document).on('click.admCommission', '#commissionSearchBtn', function () {
             table.reload('commissionTableId', { page: { curr: 1 }, where: buildWhere() });
-        });
-        $(document).on('keypress.admCommission', '#commissionSearchUid', function (e) {
-            if (e.which === 13) $('#commissionSearchBtn').click();
         });
         $(document).on('click.admCommission', '#commissionResetBtn', function () {
             $('#commissionSearchUid').val('');

@@ -25,11 +25,11 @@ $csrfToken = Csrf::token();
             <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
             <a class="em-btn em-reset-btn em-disabled-btn" id="pageStatusDropdownBtn"><i class="fa fa-eye"></i>发布/草稿 <i class="layui-icon layui-icon-down layui-font-12"></i></a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="pageQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="pageSearchKeyword" placeholder="搜索标题或 slug，回车" autocomplete="off">
+            <input type="search" id="pageSearchKeyword" placeholder="搜索标题或 slug，回车" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="pageQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -202,8 +202,8 @@ $(function(){
                 page: {curr: 1}
             });
         }
-        $(document).on('keypress.admPage', '#pageSearchKeyword', function (e) {
-            if (e.which === 13) { e.preventDefault(); doQuickSearch(); }
+        $(document).on('em:search.admPage', '#pageQuickSearchForm', function () {
+            doQuickSearch();
         });
         $(document).on('click.admPage', '#pageQuickClear', function () {
             pageSearchKeywordCache = '';

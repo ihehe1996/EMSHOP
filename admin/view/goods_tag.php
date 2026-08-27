@@ -17,11 +17,11 @@ $csrfToken = Csrf::token();
             <a class="em-btn em-save-btn" id="goodsTagAddBtn"><i class="fa fa-plus-circle"></i>新增标签</a>
             <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="goodsTagQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="goodsTagSearchKeyword" placeholder="搜索标签名，回车" autocomplete="off">
+            <input type="search" id="goodsTagSearchKeyword" placeholder="搜索标签名，回车" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="goodsTagQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -114,8 +114,8 @@ $(function(){
                 page: {curr: 1}
             });
         }
-        $(document).on('keypress.admGoodsTag', '#goodsTagSearchKeyword', function (e) {
-            if (e.which === 13) { e.preventDefault(); doQuickSearch(); }
+        $(document).on('em:search.admGoodsTag', '#goodsTagQuickSearchForm', function () {
+            doQuickSearch();
         });
         $(document).on('click.admGoodsTag', '#goodsTagQuickClear', function () {
             goodsTagSearchKeywordCache = '';

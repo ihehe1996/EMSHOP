@@ -12,10 +12,11 @@ $typeOptions = CouponModel::typeOptions();
         <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
     </div>
     <div class="em-filter__body">
+        <form class="em-filter__form" data-em-search-btn="#couponSearchBtn" autocomplete="off">
         <div class="em-filter__grid">
             <div class="em-filter__field">
                 <label>关键字</label>
-                <input type="text" id="couponSearchKeyword" placeholder="名称 / 券码 / 标题" autocomplete="off">
+                <input type="search" id="couponSearchKeyword" placeholder="名称 / 券码 / 标题" enterkeyhint="search">
             </div>
             <div class="em-filter__field">
                 <label>类型</label>
@@ -39,6 +40,7 @@ $typeOptions = CouponModel::typeOptions();
             <button type="button" class="em-btn em-reset-btn" id="couponResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
             <button type="button" class="em-btn em-save-btn" id="couponSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
         </div>
+        </form>
     </div>
 </div>
 

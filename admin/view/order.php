@@ -36,11 +36,11 @@ $cs = $currencySymbol ?? '¥';
             <a class="em-btn em-red-btn" lay-event="clearPending"><i class="fa fa-clock-o"></i>清空未支付订单</a>
             <a class="em-btn em-red-btn" lay-event="clearExpired"><i class="fa fa-hourglass-end"></i>清空已过期订单</a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="orderQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱 / 游客查单项" autocomplete="off">
+            <input type="search" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱 / 游客查单项" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="orderQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -254,9 +254,7 @@ $(function () {
         $(document).on('input', '#orderQuickSearch', function () { orderQuickSearchCache = $(this).val(); });
         // 快捷搜索：回车触发；清空按钮立即刷新
         // ============================================================
-        $(document).on('keypress.admOrder', '#orderQuickSearch', function (e) {
-            if (e.which !== 13) return;
-            e.preventDefault();
+        $(document).on('em:search.admOrder', '#orderQuickSearchForm', function () {
             doReload();
         });
         $(document).on('click.admOrder', '#orderQuickClear', function () {

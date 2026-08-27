@@ -11,16 +11,18 @@ $csrfToken = Csrf::token();
         <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
     </div>
     <div class="em-filter__body">
+        <form class="em-filter__form" data-em-search-btn="#catSearchBtn" autocomplete="off">
         <div class="em-filter__grid">
             <div class="em-filter__field">
                 <label>分类名称</label>
-                <input type="text" id="catSearchKeyword" placeholder="搜索分类名称" autocomplete="off">
+                <input type="search" id="catSearchKeyword" placeholder="搜索分类名称" enterkeyhint="search">
             </div>
         </div>
         <div class="em-filter__actions">
             <button type="button" class="em-btn em-reset-btn" id="catResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
             <button type="button" class="em-btn em-save-btn" id="catSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
         </div>
+        </form>
     </div>
 </div>
 <div class="admin-page">

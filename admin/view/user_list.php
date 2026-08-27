@@ -18,11 +18,11 @@ $csrfToken = Csrf::token();
             <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加用户</a>
             <a class="em-btn em-red-btn em-disabled-btn" id="userBatchDelBtn"><i class="fa fa-trash"></i>批量删除</a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="userQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="userQuickSearch" placeholder="用户名 / 昵称 / 邮箱，回车搜索" autocomplete="off">
+            <input type="search" id="userQuickSearch" placeholder="用户名 / 昵称 / 邮箱，回车搜索" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="userQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -282,9 +282,7 @@ $(function(){
         $(document).on('input', '#userQuickSearch', function () { userQuickSearchCache = $(this).val(); });
 
         // 快捷搜索：回车触发
-        $(document).on('keypress.admUserList', '#userQuickSearch', function (e) {
-            if (e.which !== 13) return;
-            e.preventDefault();
+        $(document).on('em:search.admUserList', '#userQuickSearchForm', function () {
             doSearchReload();
         });
         // 清空按钮：清空输入 + 立即刷新

@@ -384,11 +384,21 @@
     height: 45px;
 }
 
+form.em-quick-search,
+form.em-filter__form,
+form.em-list-search {
+    margin: 0;
+}
 .em-quick-search {
     position: relative;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
+}
+form.em-quick-search input[type="search"]::-webkit-search-cancel-button,
+.em-filter__field input[type="search"]::-webkit-search-cancel-button,
+form.em-list-search input[type="search"]::-webkit-search-cancel-button {
+    display: none;
 }
 .em-quick-search__ico {
     position: absolute;

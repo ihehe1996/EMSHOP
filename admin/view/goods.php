@@ -11,10 +11,11 @@ $csrfToken = Csrf::token();
         <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
     </div>
     <div class="em-filter__body">
+        <form class="em-filter__form" data-em-search-btn="#goodsSearchBtn" autocomplete="off">
         <div class="em-filter__grid">
             <div class="em-filter__field">
                 <label>商品名称 / 编码</label>
-                <input type="text" id="goodsSearchKeyword" placeholder="标题 / 编码 / 简介" autocomplete="off">
+                <input type="search" id="goodsSearchKeyword" placeholder="标题 / 编码 / 简介" enterkeyhint="search">
             </div>
             <div class="em-filter__field">
                 <label>商品分类</label>
@@ -55,6 +56,7 @@ $csrfToken = Csrf::token();
             <button type="button" class="em-btn em-reset-btn" id="goodsResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
             <button type="button" class="em-btn em-save-btn" id="goodsSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
         </div>
+        </form>
     </div>
 </div>
 
@@ -91,13 +93,13 @@ $csrfToken = Csrf::token();
                 <i class="layui-icon layui-icon-down layui-font-12"></i>
             </a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="goodsQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="goodsQuickSearch" placeholder="输入商品名称后回车搜索" autocomplete="off">
+            <input type="search" id="goodsQuickSearch" placeholder="输入商品名称后回车搜索" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="goodsQuickClear" title="清空">
                 <i class="fa fa-times"></i>
             </button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -474,10 +476,8 @@ $(function(){
         });
 
         // 快捷搜索（工具栏内）：回车触发；同步关键词到完整搜索面板
-        $(document).on('keypress.admGoods', '#goodsQuickSearch', function (e) {
-            if (e.which !== 13) return;
-            e.preventDefault();
-            $('#goodsSearchKeyword').val($(this).val());
+        $(document).on('em:search.admGoods', '#goodsQuickSearchForm', function () {
+            $('#goodsSearchKeyword').val($(this).find('#goodsQuickSearch').val());
             doSearchReload();
         });
 

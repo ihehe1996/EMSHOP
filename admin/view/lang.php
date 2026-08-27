@@ -12,6 +12,7 @@ $languagesJson = json_encode($languages);
         <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
     </div>
     <div class="em-filter__body">
+        <form class="em-filter__form" data-em-search-btn="#langTransSearchBtn" autocomplete="off">
         <div class="em-filter__grid">
             <div class="em-filter__field">
                 <label>语言类型</label>
@@ -21,13 +22,14 @@ $languagesJson = json_encode($languages);
             </div>
             <div class="em-filter__field">
                 <label>关键词</label>
-                <input type="text" id="langTransSearchKeyword" placeholder="搜索翻译语句或翻译内容" autocomplete="off">
+                <input type="search" id="langTransSearchKeyword" placeholder="搜索翻译语句或翻译内容" enterkeyhint="search">
             </div>
         </div>
         <div class="em-filter__actions">
             <button type="button" class="em-btn em-reset-btn" id="langTransResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
             <button type="button" class="em-btn em-save-btn" id="langTransSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
         </div>
+        </form>
     </div>
 </div>
 

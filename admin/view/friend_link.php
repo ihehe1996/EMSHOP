@@ -17,11 +17,11 @@ $csrfToken = Csrf::token();
             <a class="em-btn em-save-btn" lay-event="add"><i class="fa fa-plus-circle"></i>添加友链</a>
             <a class="em-btn em-red-btn em-disabled-btn" lay-event="batchDelete"><i class="fa fa-trash"></i>批量删除</a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="linkQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="linkSearchKeyword" placeholder="搜索名称 / 地址 / 描述，回车" autocomplete="off">
+            <input type="search" id="linkSearchKeyword" placeholder="搜索名称 / 地址 / 描述，回车" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="linkQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -158,8 +158,8 @@ $(function(){
                 where: { _action: 'list', keyword: $.trim($('#linkSearchKeyword').val() || '') }
             });
         }
-        $(document).on('keypress.admFriendLink', '#linkSearchKeyword', function (e) {
-            if (e.which === 13) { e.preventDefault(); doQuickSearch(); }
+        $(document).on('em:search.admFriendLink', '#linkQuickSearchForm', function () {
+            doQuickSearch();
         });
         $(document).on('click.admFriendLink', '#linkQuickClear', function () {
             linkSearchKeywordCache = '';

@@ -29,20 +29,20 @@ $csrfToken = Csrf::token();
 
     <!-- 搜索栏 -->
     <div class="cat-search-bar">
-        <div class="layui-form layui-row layui-col-space12">
+        <form class="layui-form layui-row layui-col-space12 em-list-search" data-em-search-btn="#catSearchBtn" lay-filter="cat-search-form" autocomplete="off">
             <div class="layui-col-md4">
                 <div class="layui-input-wrap">
                     <div class="layui-input-prefix">
                         <i class="layui-icon layui-icon-search"></i>
                     </div>
-                    <input type="text" name="keyword" id="catSearchKeyword" placeholder="搜索分类名称" class="layui-input" autocomplete="off">
+                    <input type="search" name="keyword" id="catSearchKeyword" placeholder="搜索分类名称" class="layui-input" enterkeyhint="search">
                 </div>
             </div>
             <div class="layui-col-md2">
-                <button class="layui-btn" id="catSearchBtn" lay-filter="cat-search" lay-submit><i class="layui-icon layui-icon-search"></i> 搜索</button>
+                <button type="button" class="layui-btn" id="catSearchBtn" lay-filter="cat-search" lay-submit><i class="layui-icon layui-icon-search"></i> 搜索</button>
                 <button type="reset" class="layui-btn layui-btn-primary" id="catSearchReset">重置</button>
             </div>
-        </div>
+        </form>
     </div>
 
     <!-- 表格容器 -->

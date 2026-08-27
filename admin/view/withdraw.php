@@ -25,11 +25,11 @@ $csrfToken = Csrf::token();
         <div class="em-table-toolbar__actions layui-btn-container">
             <a class="em-btn em-reset-btn" id="withdrawRefreshBtn"><i class="fa fa-refresh"></i>刷新</a>
         </div>
-        <div class="em-quick-search">
+        <form class="em-quick-search" id="withdrawQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="text" id="withdrawQuickSearch" placeholder="姓名 / 账号 / 用户名 / 昵称，回车搜索" autocomplete="off">
+            <input type="search" id="withdrawQuickSearch" placeholder="姓名 / 账号 / 用户名 / 昵称，回车搜索" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="withdrawQuickClear" title="清空"><i class="fa fa-times"></i></button>
-        </div>
+        </form>
     </div>
 </script>
 
@@ -201,9 +201,7 @@ $(function () {
         $(document).on('input', '#withdrawQuickSearch', function () { withdrawQuickSearchCache = $(this).val(); });
         // 快捷搜索：回车触发；清空按钮立即刷新
         // ============================================================
-        $(document).on('keypress.admWithdraw', '#withdrawQuickSearch', function (e) {
-            if (e.which !== 13) return;
-            e.preventDefault();
+        $(document).on('em:search.admWithdraw', '#withdrawQuickSearchForm', function () {
             doReload();
         });
         $(document).on('click.admWithdraw', '#withdrawQuickClear', function () {

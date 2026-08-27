@@ -8,7 +8,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
 .admin-page-merchant-market { padding: 8px 4px 40px; background: unset; }
 
 .mm-toolbar {
-    display: flex; gap: 10px; align-items: center; margin-bottom: 12px;
+    display: flex; gap: 10px; align-items: center; margin: 0 0 12px;
     flex-wrap: wrap;
 }
 .mm-toolbar .layui-input, .mm-toolbar .layui-select {
@@ -74,10 +74,10 @@ $csrfToken = $csrfToken ?? Csrf::token();
 </style>
 
 <div class="admin-page-merchant-market">
-    <div class="mm-toolbar">
+    <form class="mm-toolbar em-list-search" id="mmSearchForm" autocomplete="off">
         <div class="mm-toolbar__search">
             <i class="fa fa-search"></i>
-            <input id="mmSearch" placeholder="搜索应用名称 / 标识符" autocomplete="off">
+            <input type="search" id="mmSearch" placeholder="搜索应用名称 / 标识符" enterkeyhint="search">
         </div>
         <select id="mmType" class="layui-select">
             <option value="">全部类型</option>
@@ -92,7 +92,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
         <div class="mm-toolbar__hint">
             上架新应用 → <a href="/admin/appstore.php?tab=merchant" class="layui-text-blue">应用商店 · 分站货架</a>
         </div>
-    </div>
+    </form>
 
     <table id="mmTableId" lay-filter="mmTable"></table>
 </div>
@@ -208,6 +208,10 @@ layui.use(['table', 'layer', 'form'], function () {
     $('#mmSearch').on('input', function () {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(reloadTable, 300);
+    });
+    $(document).on('em:search', '#mmSearchForm', function () {
+        clearTimeout(searchTimer);
+        reloadTable();
     });
     form.on('select(mmType)', reloadTable);
     form.on('select(mmListed)', reloadTable);

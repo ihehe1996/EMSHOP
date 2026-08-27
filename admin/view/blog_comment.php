@@ -11,16 +11,18 @@ $csrfToken = Csrf::token();
         <span class="em-filter__toggle"><i class="fa fa-angle-down"></i><span class="em-filter__toggle-text">展开</span></span>
     </div>
     <div class="em-filter__body">
+        <form class="em-filter__form" data-em-search-btn="#commentSearchBtn" autocomplete="off">
         <div class="em-filter__grid">
             <div class="em-filter__field">
                 <label>评论内容</label>
-                <input type="text" id="commentSearchKeyword" placeholder="搜索评论内容" autocomplete="off">
+                <input type="search" id="commentSearchKeyword" placeholder="搜索评论内容" enterkeyhint="search">
             </div>
         </div>
         <div class="em-filter__actions">
             <button type="button" class="em-btn em-reset-btn" id="commentResetBtn"><i class="fa fa-undo mr-5"></i>重置</button>
             <button type="button" class="em-btn em-save-btn" id="commentSearchBtn"><i class="fa fa-search mr-5"></i>搜索</button>
         </div>
+        </form>
     </div>
 </div>
 

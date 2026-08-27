@@ -39,10 +39,10 @@ if (!defined('EM_ROOT')) {
 <div class="admin-page admin-page-app-order">
     <h1 class="admin-page__title">应用订单</h1>
 
-    <div class="ao-toolbar">
+    <form class="ao-toolbar em-list-search" id="aoSearchForm" autocomplete="off">
         <div class="ao-search">
             <i class="fa fa-search"></i>
-            <input type="text" id="aoKeyword" placeholder="订单号 / 应用 / 商户 / 用户">
+            <input type="search" id="aoKeyword" placeholder="订单号 / 应用 / 商户 / 用户" enterkeyhint="search">
         </div>
         <select id="aoType" class="layui-select">
             <option value="">全部类型</option>
@@ -50,7 +50,7 @@ if (!defined('EM_ROOT')) {
             <option value="template">模板</option>
         </select>
         <button type="button" class="em-btn em-sm-btn em-reset-btn" id="aoRefreshBtn"><i class="fa fa-refresh"></i> 刷新</button>
-    </div>
+    </form>
 
     <table id="aoTable" lay-filter="aoTable"></table>
 </div>
@@ -141,6 +141,10 @@ $(function () {
     $('#aoKeyword').on('input', function () {
         clearTimeout(timer);
         timer = setTimeout(function () { reloadTable(true); }, 260);
+    });
+    $(document).on('em:search', '#aoSearchForm', function () {
+        clearTimeout(timer);
+        reloadTable(true);
     });
     $('#aoType').on('change', function () { reloadTable(true); });
     $('#aoRefreshBtn').on('click', function () { reloadTable(false); });

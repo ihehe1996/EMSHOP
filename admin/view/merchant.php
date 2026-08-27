@@ -9,12 +9,12 @@ $levels = $levels ?? [];
     <div class="layui-colla-item">
         <div class="layui-colla-title"><i class="fa fa-filter"></i> 搜索条件</div>
         <div class="layui-colla-content">
-            <div class="layui-form layui-row layui-col-space12">
+            <form class="layui-form layui-row layui-col-space12 em-list-search" data-em-search-btn="#mchSearchBtn" autocomplete="off">
                 <div class="layui-col-md4">
                     <div class="layui-form-item">
                         <label class="layui-form-label">店铺名</label>
                         <div class="layui-input-block">
-                            <input type="text" id="mchSearchKeyword" placeholder="按店铺名搜索" class="layui-input" autocomplete="off">
+                            <input type="search" id="mchSearchKeyword" placeholder="按店铺名搜索" class="layui-input" enterkeyhint="search">
                         </div>
                     </div>
                 </div>
@@ -44,10 +44,10 @@ $levels = $levels ?? [];
                     </div>
                 </div>
                 <div class="layui-form-item search-btn-group">
-                    <button class="layui-btn" id="mchSearchBtn"><i class="fa fa-search mr-6"></i>搜索</button>
+                    <button type="button" class="layui-btn" id="mchSearchBtn"><i class="fa fa-search mr-6"></i>搜索</button>
                     <button type="button" class="layui-btn layui-btn-primary" id="mchResetBtn"><i class="fa fa-rotate-left mr-6"></i>重置</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>

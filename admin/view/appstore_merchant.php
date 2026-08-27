@@ -25,7 +25,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    margin-bottom: 12px;
+    margin: 0 0 12px;
 }
 .appstore-search {
     position: relative;
@@ -279,10 +279,10 @@ $csrfToken = $csrfToken ?? Csrf::token();
     </div>
 
     <!-- 工具条：右侧快捷搜索 -->
-    <div class="appstore-toolbar">
+    <form class="appstore-toolbar em-list-search" id="appstoreSearchForm" autocomplete="off">
         <div class="appstore-search">
             <i class="fa fa-search"></i>
-            <input type="text" id="appstoreSearch" placeholder="搜索应用名称 / 描述…" autocomplete="off">
+            <input type="search" id="appstoreSearch" placeholder="搜索应用名称 / 描述…" enterkeyhint="search">
             <button type="button" class="appstore-search__clear" id="appstoreSearchClear" title="清空">
                 <i class="fa fa-times"></i>
             </button>
@@ -290,7 +290,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
         <button type="button" class="em-btn em-sm-btn em-reset-btn appstore-refresh-btn" id="appstoreRefreshBtn">
             <i class="fa fa-refresh"></i>刷新
         </button>
-    </div>
+    </form>
 
     <table id="appstoreTable" lay-filter="appstoreTable"></table>
 </div>
@@ -478,6 +478,10 @@ $(function () {
         $('#appstoreSearch').on('input', function () {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(reloadTable, 300);
+        });
+        $(document).on('em:search', '#appstoreSearchForm', function () {
+            clearTimeout(searchTimer);
+            reloadTable();
         });
         $('#appstoreSearchClear').on('click', function () {
             $('#appstoreSearch').val('').trigger('input').focus();

@@ -458,6 +458,31 @@
     }
     window.emOpenMediaPicker = emOpenMediaPicker;
 
+    /**
+     * 列表页搜索表单：统一处理回车 / 移动端软键盘「搜索」键，避免焦点跳到 layui 分页跳转框。
+     * - form.em-quick-search / form.em-filter__form / form.em-list-search
+     * - data-em-search-btn="#searchBtnId" 时提交后触发对应按钮 click（搜索钮请用 type="button"）
+     * - 无 data-em-search-btn 时触发 form 上的 em:search 自定义事件
+     */
+    function bindListSearchForms() {
+        $(document).on('submit.emListSearch', 'form.em-quick-search, form.em-filter__form, form.em-list-search', function (e) {
+            e.preventDefault();
+            var $form = $(this);
+            $form.find('input[type="search"], input[data-em-search-input]').first().blur();
+            var btnSel = $form.attr('data-em-search-btn');
+            if (btnSel) {
+                $(btnSel).trigger('click');
+            } else {
+                $form.trigger('em:search');
+            }
+        });
+
+        $(document).on('keydown.emListSearch', 'form.em-quick-search input, form.em-filter__form input[type="search"], form.em-list-search input[type="search"], form.em-list-search input[data-em-search-input]', function (e) {
+            if (e.key !== 'Enter' && e.which !== 13) return;
+            if (e.originalEvent && e.originalEvent.isComposing) e.preventDefault();
+        });
+    }
+
     $(function () {
         initMenuState();
         bindMenuToggle();
@@ -466,6 +491,7 @@
         bindLangSwitch();
         bindClearCache();
         bindImagePreview();
+        bindListSearchForms();
         initPjax();
 
         // 手机端加载时，清除服务端渲染的 PC 折叠状态

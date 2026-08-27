@@ -55,15 +55,15 @@ $csrfToken = Csrf::token();
         </button>
     </div>
 
-    <!-- 工具条：搜索 -->
-    <div class="rch-toolbar">
+    <!-- 工具条：搜索（form 包裹，兼容移动端软键盘「搜索」键） -->
+    <form class="rch-toolbar em-list-search" id="rchSearchForm" data-em-search-btn="#rchSearchBtn" autocomplete="off">
         <div class="rch-toolbar__field">
             <i class="fa fa-search"></i>
-            <input type="text" id="rchKeyword" class="rch-input" placeholder="单号 / 用户名 / 昵称">
+            <input type="search" name="keyword" id="rchKeyword" class="rch-input" placeholder="单号 / 用户名 / 昵称" enterkeyhint="search">
         </div>
         <button type="button" class="em-btn em-sm-btn em-save-btn" id="rchSearchBtn"><i class="fa fa-search"></i>搜索</button>
         <button type="button" class="em-btn em-sm-btn em-reset-btn" id="rchResetBtn"><i class="fa fa-rotate-left"></i>重置</button>
-    </div>
+    </form>
 
     <table id="rechargeTable" lay-filter="rechargeTable"></table>
 </div>
@@ -123,7 +123,7 @@ $csrfToken = Csrf::token();
 /* ============ 工具条 ============ */
 .rch-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 12px 14px; margin-bottom: 14px;
+    padding: 12px 14px; margin: 0 0 14px;
     background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
 }
 .rch-toolbar__field {
@@ -139,7 +139,9 @@ $csrfToken = Csrf::token();
     border: 0; outline: none; background: transparent;
     height: 30px; font-size: 13px; color: #374151;
     flex: 1; min-width: 120px;
+    -webkit-appearance: none;
 }
+.rch-input::-webkit-search-cancel-button { display: none; }
 .rch-input::placeholder { color: #9ca3af; }
 
 /* ============ 表格行内组件 ============ */
@@ -361,14 +363,12 @@ $(function () {
             refreshTable();
         });
 
-        // 搜索 / 重置
-        $(document).on('click.admRecharge', '#rchSearchBtn', function () {
+        // 搜索
+        function doSearch() {
             currentKeyword = $.trim($('#rchKeyword').val());
             refreshTable();
-        });
-        $(document).on('keypress.admRecharge', '#rchKeyword', function (e) {
-            if (e.which === 13) $('#rchSearchBtn').click();
-        });
+        }
+        $(document).on('click.admRecharge', '#rchSearchBtn', doSearch);
         $(document).on('click.admRecharge', '#rchResetBtn', function () {
             $('#rchKeyword').val('');
             currentKeyword = '';

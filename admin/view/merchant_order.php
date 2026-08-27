@@ -74,7 +74,7 @@ $csrfToken = Csrf::token();
     </div>
 
     <!-- 工具条：商户筛选 + 关键字 -->
-    <div class="mo-toolbar">
+    <form class="mo-toolbar em-list-search" id="moSearchForm" data-em-search-btn="#moSearchBtn" autocomplete="off">
         <div class="mo-toolbar__field">
             <i class="fa fa-building"></i>
             <select id="moMerchantFilter" class="mo-input">
@@ -83,11 +83,11 @@ $csrfToken = Csrf::token();
         </div>
         <div class="mo-toolbar__field mo-toolbar__field--grow">
             <i class="fa fa-search"></i>
-            <input type="text" id="moKeyword" class="mo-input" placeholder="单号 / 用户名 / 昵称 / 商户名 / 商品名">
+            <input type="search" id="moKeyword" class="mo-input" placeholder="单号 / 用户名 / 昵称 / 商户名 / 商品名" enterkeyhint="search">
         </div>
         <button type="button" class="em-btn em-sm-btn em-save-btn" id="moSearchBtn"><i class="fa fa-search"></i>搜索</button>
         <button type="button" class="em-btn em-sm-btn em-reset-btn" id="moResetBtn"><i class="fa fa-rotate-left"></i>重置</button>
-    </div>
+    </form>
 
     <table id="moTable" lay-filter="moTable"></table>
 </div>
@@ -147,7 +147,7 @@ $csrfToken = Csrf::token();
 /* ============ 工具条 ============ */
 .mo-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 12px 14px; margin-bottom: 14px;
+    padding: 12px 14px; margin: 0 0 14px;
     background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
 }
 .mo-toolbar__field {
@@ -415,9 +415,6 @@ $(function () {
         $(document).on('click.admMerchantOrder', '#moSearchBtn', function () {
             currentKeyword = $.trim($('#moKeyword').val());
             refreshTable();
-        });
-        $(document).on('keypress.admMerchantOrder', '#moKeyword', function (e) {
-            if (e.which === 13) $('#moSearchBtn').click();
         });
         $(document).on('click.admMerchantOrder', '#moResetBtn', function () {
             $('#moKeyword').val('');
