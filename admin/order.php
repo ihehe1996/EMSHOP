@@ -265,9 +265,9 @@ if (Request::isPost()) {
                 ]);
                 break;
 
-            // 管理员手工标记已支付（仅待支付订单）
+            // 管理员手工标记已支付（待支付 / 已过期订单补单）
             // 行为对齐正常支付回调：
-            //   1) pending -> paid
+            //   1) pending|expired -> paid
             //   2) 写一条 order_payment 成功流水（manual）
             //   3) 触发发货队列
             case 'mark_paid': {
@@ -280,8 +280,8 @@ if (Request::isPost()) {
                 if (!$order) {
                     Response::error('订单不存在');
                 }
-                if ((string) ($order['status'] ?? '') !== 'pending') {
-                    Response::error('仅待付款订单可执行此操作');
+                if (!in_array((string) ($order['status'] ?? ''), ['pending', 'expired'], true)) {
+                    Response::error('仅待付款或已过期订单可执行此操作');
                 }
 
                 Database::begin();

@@ -245,7 +245,7 @@ if ($canManualShip) {
     }
 }
 $showShipBtn = $canManualShip && $hasUnshipped;
-$showMarkPaidBtn = ((string) $order['status'] === 'pending');
+$showMarkPaidBtn = in_array((string) $order['status'], ['pending', 'expired'], true);
 ?>
 <div class="popup-inner">
     <!-- ======== Hero：订单概览 ======== -->
@@ -475,7 +475,7 @@ $(function () {
             .filter('[data-panel="' + idx + '"]').addClass('is-active');
     });
 
-    // 手工标记已支付：仅待付款订单显示按钮
+    // 手工标记已支付：待付款 / 已过期订单显示按钮
     $('#odMarkPaidBtn').on('click', function () {
         var $btn = $(this);
         var orderId = $btn.data('order-id');

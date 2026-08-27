@@ -26,8 +26,8 @@ class OrderModel
         'delivery_failed'  => ['refunding', 'delivering'],
         'completed'        => ['refunding'],
         'refunding'        => ['refunded'],
-        // 终态不可流转
-        'expired'          => [],
+        // expired 允许管理员手工补单 → paid；其余终态不可流转
+        'expired'          => ['paid'],
         'cancelled'        => [],
         'refunded'         => [],
         'failed'           => ['refunding'],
