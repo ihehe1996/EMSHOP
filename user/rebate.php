@@ -32,7 +32,11 @@ $userId = (int) $frontUser['id'];
 $row = Database::find('user', $userId);
 $frozen = (int) ($row['commission_frozen'] ?? 0);
 $available = (int) ($row['commission_available'] ?? 0);
-$inviteCode = (string) ($row['invite_code'] ?? '');
+$inviteCode = trim((string) ($row['invite_code'] ?? ''));
+if ($inviteCode === '') {
+    $inviteCode = InviteToken::generateUniqueCode();
+    Database::update('user', ['invite_code' => $inviteCode], $userId);
+}
 
 // 统计
 $prefix = Database::prefix();
