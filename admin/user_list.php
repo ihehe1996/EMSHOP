@@ -34,12 +34,14 @@ if (Request::isPost()) {
                 $page = (int) Input::post('page', 1);
                 $limit = (int) Input::post('limit', 15);
                 $keyword = trim((string) Input::post('keyword', ''));
+                $sortField = (string) Input::post('field', 'id');
+                $sortOrder = strtolower((string) Input::post('order', 'desc'));
 
                 if ($page < 1) $page = 1;
                 if ($limit < 1 || $limit > 100) $limit = 15;
 
                 $model = new UserListModel();
-                $result = $model->getAll($page, $limit, $keyword);
+                $result = $model->getAll($page, $limit, $keyword, $sortField, $sortOrder);
 
                 Response::success('', [
                     'data' => array_values($result['data']),

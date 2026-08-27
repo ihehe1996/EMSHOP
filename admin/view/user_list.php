@@ -218,19 +218,26 @@ $(function(){
 
     layui.use(['layer', 'form', 'table'], function () {
         var userQuickSearchCache = '';
+        var currentSort = {field: 'id', type: 'desc'};
         var layer = layui.layer;
         var form = layui.form;
         var table = layui.table;
 
-        // 搜索参数收集器：只用 quick search 的关键词
+        // 搜索参数收集器：关键词 + 服务端排序
         function buildWhere() {
             return {
                 _action: 'list',
-                keyword: $.trim($('#userQuickSearch').val() || '')
+                keyword: $.trim($('#userQuickSearch').val() || ''),
+                field: currentSort.field,
+                order: currentSort.type
             };
         }
         function doSearchReload() {
-            table.reload('userTableId', { page: {curr: 1}, where: buildWhere() });
+            table.reload('userTableId', {
+                initSort: currentSort,
+                page: {curr: 1},
+                where: buildWhere()
+            });
         }
 
         // 渲染表格
@@ -240,7 +247,7 @@ $(function(){
             url: '/admin/user_list.php',
             headers: {csrf: csrfToken},
             method: 'POST',
-            where: {_action: 'list'},
+            where: buildWhere(),
             page: true,
             limit: 10,
             limits: [10, 20, 50, 100],
@@ -248,6 +255,7 @@ $(function(){
             defaultToolbar: [],
             lineStyle: 'height: 60px;',
             initSort: {field: 'id', type: 'desc'},
+            autoSort: false,
             cols: [[
                 {type: 'checkbox', width: 50, align: 'center'},
                 {field: 'avatar', title: '头像', width: 70, templet: '#userAvatarTpl', align: 'center'},
@@ -280,6 +288,16 @@ $(function(){
             }
         });
         $(document).on('input', '#userQuickSearch', function () { userQuickSearchCache = $(this).val(); });
+
+        // 表头排序：请求接口按全量数据排序
+        table.on('sort(userTable)', function (obj) {
+            currentSort = {field: obj.field, type: obj.type};
+            table.reload('userTableId', {
+                initSort: obj,
+                page: {curr: 1},
+                where: buildWhere()
+            });
+        });
 
         // 快捷搜索：回车触发
         $(document).on('em:search.admUserList', '#userQuickSearchForm', function () {
@@ -408,7 +426,7 @@ $(function(){
 
         // 刷新按钮
         $(document).on('click.admUserList', '#userRefreshBtn', function () {
-            table.reload('userTableId');
+            table.reload('userTableId', {where: buildWhere()});
         });
 
         // 批量删除

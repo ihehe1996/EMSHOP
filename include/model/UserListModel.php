@@ -36,11 +36,11 @@ final class UserListModel
     }
 
     /**
-     * 获取所有用户，支持分页和关键词搜索。
+     * 获取所有用户，支持分页、关键词搜索与服务端排序。
      *
      * @return array{data: array<int, array<string, mixed>>, total: int}
      */
-    public function getAll(int $page, int $limit, string $keyword = ''): array
+    public function getAll(int $page, int $limit, string $keyword = '', string $sortField = 'id', string $sortOrder = 'desc'): array
     {
         $offset = ($page - 1) * $limit;
 
@@ -64,6 +64,8 @@ final class UserListModel
         $countRow = Database::fetchOne($countSql, $params);
         $total = $countRow !== null ? (int) $countRow['cnt'] : 0;
 
+        $orderBy = $this->buildListOrderBy($sortField, $sortOrder);
+
         // 数据（左连商户 + 商户等级 + 用户等级；用户等级影响买家折扣）
         $merchantTable = Database::prefix() . 'merchant';
         $merchantLevelTable = Database::prefix() . 'merchant_level';
@@ -80,7 +82,7 @@ final class UserListModel
              LEFT JOIN `%s` ml ON ml.`id` = m.`level_id`
              LEFT JOIN `%s` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
              WHERE %s
-             ORDER BY u.`id` DESC
+             ORDER BY %s
              LIMIT %d OFFSET %d',
             $this->userStatsSelectSql(),
             $this->table,
@@ -88,6 +90,7 @@ final class UserListModel
             $merchantLevelTable,
             $userLevelTable,
             $where,
+            $orderBy,
             $limit,
             $offset
         );
@@ -95,6 +98,38 @@ final class UserListModel
         $rows = Database::query($sql, $params);
 
         return ['data' => $rows, 'total' => $total];
+    }
+
+    /**
+     * 列表排序白名单（仅允许 u 表字段，防 SQL 注入）。
+     */
+    private function buildListOrderBy(string $field, string $order): string
+    {
+        $dir = strtolower($order) === 'asc' ? 'ASC' : 'DESC';
+        $hasStats = self::$hasExperienceFields;
+        if ($hasStats === null) {
+            $hasStats = Database::columnExists($this->table, 'total_consumption')
+                && Database::columnExists($this->table, 'experience');
+            self::$hasExperienceFields = $hasStats;
+        }
+
+        $allowed = [
+            'id' => 'u.`id`',
+            'total_consumption' => $hasStats ? 'u.`total_consumption`' : '0',
+            'experience' => $hasStats ? 'u.`experience`' : '0',
+            'created_at' => 'u.`created_at`',
+        ];
+
+        if (!isset($allowed[$field])) {
+            $field = 'id';
+        }
+
+        $col = $allowed[$field];
+        if ($field !== 'id') {
+            return sprintf('%s %s, u.`id` DESC', $col, $dir);
+        }
+
+        return sprintf('%s %s', $col, $dir);
     }
 
     /**
