@@ -30,7 +30,7 @@ include __DIR__ . '/header.php';
             <code>php82 server start</code>
         </div>
         <div class="layui-word-aux" style="margin-top: 10px;">
-            若任务服务已启动（运行模式为 CLI），仅需重启即可。
+            任务服务当前正在运行（运行模式为 CLI），重启后新代码即生效。
         </div>
     </div>
 </div>

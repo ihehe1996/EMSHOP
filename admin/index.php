@@ -48,8 +48,15 @@ if ($freshUser) {
 
 $siteName = Config::get('sitename', 'EMSHOP');
 
-// 升级包根目录 `.server` 空文件：存在则提示管理员硬重启任务服务（主进程启动后由 server 入口删除）
-$emServerHardRestartPending = is_file(EM_ROOT . '/.server');
+// 升级包根目录 `.server` 空文件：存在则提示管理员硬重启任务服务（主进程启动后由 server 入口删除）。
+//
+// 必须叠加宿主心跳：这个文件**只**由 CliServerManager::start() 删除，纯 FPM 站根本没有
+// 常驻进程需要重启，文件却会永久残留 —— 于是每次整页加载都弹一次「需要重启任务服务」，
+// 而用户照做也无从照做（他没跑过 php server start）。没有进程在跑时就不该提醒。
+//
+// 判据用宿主心跳（有进程在跑）而不是首页那张卡的 CAPABILITY_DELIVERY（有发货消费者）：
+// 管家活着、发货 worker 卡死时卡片显示的是 FPM，但那恰恰是最该硬重启的场景。
+$emServerHardRestartPending = is_file(EM_ROOT . '/.server') && WorkerHeartbeat::hostAlive();
 
 // 获取语言列表供顶部导航渲染
 $langModel = new LanguageModel();
