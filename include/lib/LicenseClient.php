@@ -18,38 +18,34 @@ declare(strict_types=1);
 final class LicenseClient
 {
     /**
-     * 授权激活（POST /api/auth.php）。
+     * 授权激活：把激活码绑到域名上（POST /api/open/v1/em/license/bind）。
+     *
+     * 请求参数（与解绑一致）：
+     *   code    激活码
+     *   domain  要绑定的域名
      *
      * 服务端响应 data：
-     *   type: 1=VIP / 2=SVIP / 3=至尊
-     *   host: 归一化后的域名（写入 em_site_license.bound_domain）
+     *   bound              true=本次绑定成功；false=这个码本来就绑在这个域名上，**同样算成功**
+     *   code_masked        打码后的激活码（仅供展示，**不能**当 code 回传）
+     *   domain             归一之后的授权域名
+     *   license_type       档位数字：1=VIP / 2=SVIP / 3=至尊
+     *   license_type_label 档位文本
      *
-     * 失败场景（msg 原样由服务端返回并抛给调用方）：
-     *   激活码不能为空 / 域名不能为空 / 域名格式错误 / 激活码不存在 / 该激活码已被其他域名使用
+     * 已绑了别的域名 / 码不存在 / 已作废 → HTTP 400 + {code:400, message}，
+     * 由 postForm() 抛出（不重试），message 会原样呈现给用户。
      *
-     * @return array{level:string, host:string, extra:array}
+     * 重试：绑定是幂等的（重复绑同一个域名返回 bound=false + 成功），
+     * 所以和 unbind 一样开 3 次尝试，没有重复提交的副作用。
+     *
+     * @return array{bound?:bool, code_masked?:string, domain?:string, license_type?:string, license_type_label?:string}
      * @throws RuntimeException
      */
-    public static function activate(string $licenseCode, string $domain, string $adminEmail = ''): array
+    public static function bind(string $code, string $domain): array
     {
-        $data = self::postForm('api/auth.php', [
-            'emkey' => $licenseCode,
-            'host'  => $domain,
-        ], 10);
-
-        $typeMap = [1 => 'vip', 2 => 'svip', 3 => 'supreme'];
-        $type = (int) ($data['type'] ?? 0);
-        $level = $typeMap[$type] ?? '';
-
-        if ($level === '') {
-            throw new RuntimeException('授权服务器返回了未知等级（type=' . $type . '）');
-        }
-
-        return [
-            'level' => $level,
-            'host'  => (string) ($data['host'] ?? $domain),
-            'extra' => $data,
-        ];
+        return self::postForm('api/open/v1/em/license/bind', [
+            'code'   => $code,
+            'domain' => $domain,
+        ], 8, 3);
     }
 
     /**
@@ -109,111 +105,97 @@ final class LicenseClient
     }
 
     /**
-     * 校验站点授权状态（POST /api/check.php）。
+     * 校验域名是否已授权（POST /api/open/v1/em/license/status）。
      *
-     * 服务端只按 host 查记录；如果传了 emkey，要求 host 与 emkey **同时**匹配同一条记录。
+     * 请求参数只有 domain —— 按域名判，不需要激活码。
      *
-     * @param string $licenseCode 激活码
-     * @param string $host        当前站点域名
-     * @return array{level:string, type:int}
-     * @throws LicenseRevokedException 服务端明确判定"未激活 / 激活码不存在"等（调用方应删除本地记录）
-     * @throws RuntimeException 其它错误（网络不可达 / 格式异常等）——调用方应保守保留本地状态
+     * 服务端响应 data：
+     *   authorized          true=这个域名已授权 / false=没授权
+     *   domain              归一之后的域名
+     *   license_type        档位数字：1=VIP / 2=SVIP / 3=至尊；没授权时是 null
+     *   license_type_label  档位文本；没授权时是 null
+     *
+     * ⚠️ 没授权也是 HTTP 200 的**成功响应**，不是调用失败 —— 调用方要看 authorized
+     * 这个布尔值决定清不清本地记录，别把它当异常处理。
+     *
+     * 重试：只读检查、幂等，开 3 次尝试（与 base-data / bind / unbind 一致）。
+     *
+     * @return array{authorized?:bool, domain?:string, license_type?:string|null, license_type_label?:string|null}
+     * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public static function verify(string $licenseCode, string $host): array
+    public static function status(string $domain): array
     {
-        try {
-            $data = self::postForm('api/check.php', [
-                'emkey' => $licenseCode,
-                'host'  => $host,
-            ], 10);
-        } catch (RuntimeException $e) {
-            // 服务端业务错误（非网络层）→ 转成专用异常，让调用方可按"撤销"处理
-            $msg = $e->getMessage();
-            if (self::isRevokedMessage($msg)) {
-                throw new LicenseRevokedException($msg);
-            }
-            throw $e;
-        }
-
-        $typeMap = [1 => 'vip', 2 => 'svip', 3 => 'supreme'];
-        $type = (int) ($data['type'] ?? 0);
-        $level = $typeMap[$type] ?? '';
-        if ($level === '') {
-            // 服务端响应 200 但 type 异常 —— 视为未激活以避免误状态
-            throw new LicenseRevokedException('授权服务器返回未知等级（type=' . $type . '）');
-        }
-
-        return ['level' => $level, 'type' => $type];
+        return self::postForm('api/open/v1/em/license/status', [
+            'domain' => $domain,
+        ], 8, 3);
     }
 
     /**
-     * 服务端错误 msg 是否表示"未激活"类业务错误。
-     */
-    private static function isRevokedMessage(string $msg): bool
-    {
-        // 匹配服务端在 check.php / auth.php 约定的几种 msg
-        foreach (['未激活', '不存在', '已被其他域名'] as $kw) {
-            if (mb_strpos($msg, $kw) !== false) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 解除域名授权（POST /api/unbind.php）。
+     * 解除域名与授权码的绑定（POST /api/open/v1/em/license/unbind）。
      *
-     * 服务端规则：host + emkey 双重匹配才清空记录的 host；匹配不到也按成功返回（幂等）。
-     * 因此从本方法的角度：只有参数层错误（msg: 域名/激活码不能为空 / 域名格式错误）才算失败。
+     * 请求参数：
+     *   code    授权码
+     *   domain  要解绑的授权域名
      *
+     * 服务端响应 data：{unbound: bool, code_masked: string, domain: string}
+     *   unbound=true  —— 本次解绑成功
+     *   unbound=false —— 这个授权码本来就没绑域名，**同样算成功**（幂等）
+     *
+     * 域名和授权码不是同一条 / 码不存在 / 已作废 → HTTP 400 + {code:400, message}，
+     * 由 postForm() 当业务错误抛出（不重试）。
+     *
+     * 重试：解绑是幂等的（重复清同一个绑定结果一样），所以放心开 3 次尝试，
+     * 不会像下单那样有重复提交的副作用。超时/次数与 baseData() 保持一致。
+     *
+     * @return array{unbound?:bool, code_masked?:string, domain?:string} 服务端 data
      * @throws RuntimeException 参数错误 / 网络错误
      */
-    public static function unbind(string $licenseCode, string $host): void
+    public static function unbind(string $code, string $domain): array
     {
-        self::postForm('api/unbind.php', [
-            'emkey' => $licenseCode,
-            'host'  => $host,
-        ], 10);
-        // 成功时服务端返回 data=null；不关心返回内容，只要 postForm 没抛异常就是成功
+        return self::postForm('api/open/v1/em/license/unbind', [
+            'code'   => $code,
+            'domain' => $domain,
+        ], 8, 3);
     }
 
     /**
-     * 后台首页聚合数据（POST /api/admin_index.php）。
+     * 后台基础数据聚合（POST /api/open/v1/em/base-data）。
      *
-     * 一次性拉取四块：
-     *   update[]  —— 高于客户端版本的升级记录（传 version 为空则不返回）
-     *     每项字段：
-     *       - version          版本号（如 "1.2.0"）
-     *       - content          更新日志 HTML
-     *       - update_time      发布时间（YYYY-MM-DD）
-     *       - package_url      升级包下载 URL（.zip）     —— 在线升级功能依赖
-     *       - package_size     包大小（字节，展示用）
-     *       - package_sha256   包 SHA256 校验码（下载后比对）
-     *       - min_from_version 最低可升级源版本（低于此版本禁止直升）
-     *       - is_forced        是否强制更新（0/1，先预留）
-     *   notice[]  —— 官方公告
-     *   ad[]      —— 代理商广告（按 service_token 归属；查不到时服务端回退默认代理商）
-     *   agent     —— 代理商联系方式 + 下载源
+     * 一次请求拿到授权状态 + 代理配置 + 公告 + 广告位 + 版本信息，是后台首页与
+     * 代理商弹窗唯一的数据源（原 api/admin_index.php、api/agent_config.php 已退场）。
      *
-     * @return array{update:array<int,array>, notice:array<int,array>, ad:array<int,array>, agent:array}
-     * @throws RuntimeException
+     * 请求参数：
+     *   identity  代理商身份标识（base.php 的 SERVICE_TOKEN）。匹配不到不算错误：
+     *             服务端会回 identity_matched=false + used_fallback=true，并用站长那份配置兜底
+     *   domain    本机正在跑的域名（可传完整地址，服务端归一成顶级域名后查授权）
+     *   version   客户端当前版本号（形如 1.3.18，开头的 v 可有可无）
+     *
+     * 返回 data 的字段（原样交给 LicenseService::fetchBaseData() 归一化）：
+     *   domain / authorized / license_type / license_type_label
+     *   identity_matched / used_fallback
+     *   has_new_version / latest_version / force_update / min_version / patch_package_url
+     *   buy_links[] / download_links[]（[{name,url}]）
+     *   contact{qq_service,qq_group,wechat_service,wechat_qr,tg_service,tg_group_url}
+     *   announcements[] / ad_slots[]
+     *
+     * 注意：域名未授权、身份标识匹配不到都是 **成功响应**（HTTP 200 / code 200），
+     * 分别看 authorized 与 identity_matched，不要当成调用失败。
+     *
+     * 开了 3 次尝试：线路被墙/抖动是偶发的，重试一次往往就过去了。这是只读接口，
+     * 重试无副作用。单次超时取 8s（不是默认的 10s）是为了把最坏耗时压在
+     * 3*8 + 1s 退避 ≈ 25s，低于常见的 PHP max_execution_time=30s；
+     * 配套地，前端 loadDashIndex() 的 AJAX timeout 要 ≥ 这个预算（现为 40s）。
+     *
+     * @return array 服务端 data 整段
+     * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public static function adminIndex(string $licenseCode, string $host, string $version): array
+    public static function baseData(string $identity, string $domain, string $version): array
     {
-        $token = defined('SERVICE_TOKEN') ? SERVICE_TOKEN : '';
-        $data = self::postForm('api/admin_index.php', [
-            'emkey'         => $licenseCode,
-            'host'          => $host,
-            'version'       => $version,
-            'service_token' => $token,
-        ], 10);
-
-        return [
-            'update' => isset($data['update']) && is_array($data['update']) ? $data['update'] : [],
-            'notice' => isset($data['notice']) && is_array($data['notice']) ? $data['notice'] : [],
-            'ad'     => isset($data['ad'])     && is_array($data['ad'])     ? $data['ad']     : [],
-            'agent'  => isset($data['agent'])  && is_array($data['agent'])  ? $data['agent']  : [],
-        ];
+        return self::postForm('api/open/v1/em/base-data', [
+            'identity' => $identity,
+            'domain'   => $domain,
+            'version'  => $version,
+        ], 8, 3);
     }
 
     /**
@@ -437,20 +419,6 @@ final class LicenseClient
         return is_array($data) ? array_values($data) : [];
     }
 
-    /**
-     * 获取代理商配置（/api/agent_config.php）。
-     *
-     * 请求体携带 base.php 里定义的 SERVICE_TOKEN；未传 / 查不到时服务端会回退默认代理商。
-     *
-     * @return array 服务端返回的 data 整段（含 service_qq / buy_url[] / download_url[] 等）
-     * @throws RuntimeException
-     */
-    public static function agentConfig(): array
-    {
-        $token = defined('SERVICE_TOKEN') ? SERVICE_TOKEN : '';
-        return self::postForm('api/agent_config.php', ['service_token' => $token], 10);
-    }
-
     // --------------------------------------------------------
     // 内部
     // --------------------------------------------------------
@@ -536,47 +504,76 @@ final class LicenseClient
     /**
      * 通用表单 POST → 解析 { code, msg, data } → 返回 data / 抛异常。
      *
-     * 用于所有返回 {code:200, msg, data} 格式的现网接口（/api/auth.php、/api/agent_config.php 等）。
+     * 用于所有返回 {code:200, msg, data} 格式的现网接口（/api/open/v1/em/* 等）。
+     * 错误文案字段两种都有：老接口用 msg，新接口（/api/open/v1/*）用 message，取到哪个用哪个。
+     *
+     * 重试（$maxAttempts > 1）：只针对**网络层失败**——连不上 / 超时 / 网关错误 / 被中间设备
+     * 换成非 JSON 响应（线路被墙时的典型表现）。业务响应（能解出 JSON）一律不重试，
+     * 因为调用方里有下单、购买、领取应用这类**重复提交有副作用**的接口。
+     * 所以默认 1 次（不重试），只在明确的只读调用点上显式开启。
+     *
+     * 预算：总耗时约 $maxAttempts * $timeout + 退避，调用方要保证它落在
+     * PHP max_execution_time 与前端 AJAX timeout 之内（见 baseData() 的取值说明）。
      *
      * @param array<string, mixed> $payload
+     * @param int $maxAttempts 最多尝试次数（含首次）；1 = 不重试
      * @return array 返回 data（保证是数组）
      * @throws RuntimeException
      */
-    private static function postForm(string $path, array $payload, int $timeout = 10): array
+    private static function postForm(string $path, array $payload, int $timeout = 10, int $maxAttempts = 1): array
     {
         $url = self::baseUrl() . ltrim($path, '/');
+
         $body = http_build_query($payload);
+        $maxAttempts = max(1, $maxAttempts);
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/x-www-form-urlencoded',
-                'Accept: application/json',
-                'X-Em-Client: emshop-' . EM_VERSION,
-            ],
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
-        ] + self::tlsOptions());
-        $resp = curl_exec($ch);
-        $err = curl_error($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $lastError = '';
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            // 退避：抖动/丢包往往连着来几秒，隔一下再试比立刻重打成功率高
+            if ($attempt === 2) usleep(300000);   // 300ms
+            if ($attempt === 3) usleep(700000);   // 700ms
 
-        if ($resp === false) {
-            throw new RuntimeException('当前使用线路请求失败，请切换其他线路后重试，错误信息：' . $err);
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'Accept: application/json',
+                    'X-Em-Client: emshop-' . EM_VERSION,
+                ],
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ] + self::tlsOptions());
+            $resp = curl_exec($ch);
+            $err = curl_error($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($resp === false) {
+                $lastError = '当前使用线路请求失败，请切换其他线路后重试，错误信息：' . $err;
+                continue;
+            }
+
+            $json = json_decode($resp, true);
+            if (!is_array($json)) {
+                // 4xx 是请求本身的问题，重试没意义；其余（5xx / 0）按线路故障重试
+                if ($httpCode >= 400 && $httpCode < 500) {
+                    throw new RuntimeException('响应格式异常（HTTP ' . $httpCode . '）');
+                }
+                $lastError = '响应格式异常（HTTP ' . $httpCode . '）';
+                continue;
+            }
+
+            // 能解出业务响应 → 不管成功失败都不再重试（避免重复下单等副作用）
+            if ((int) ($json['code'] ?? 0) !== 200) {
+                throw new RuntimeException((string) ($json['msg'] ?? $json['message'] ?? '请求失败'));
+            }
+            return is_array($json['data'] ?? null) ? $json['data'] : [];
         }
 
-        $json = json_decode($resp, true);
-        if (!is_array($json)) {
-            throw new RuntimeException('响应格式异常（HTTP ' . $httpCode . '）');
-        }
-        if ((int) ($json['code'] ?? 0) !== 200) {
-            throw new RuntimeException((string) ($json['msg'] ?? '请求失败'));
-        }
-        return is_array($json['data'] ?? null) ? $json['data'] : [];
+        throw new RuntimeException($lastError !== '' ? $lastError : '请求失败');
     }
 
     /**

@@ -85,14 +85,6 @@ if (Request::isPost()) {
                 ]);
                 break;
 
-            case 'agent_config':
-                $data = LicenseService::fetchAgentConfig();
-                Response::success('', [
-                    'agent' => $data,
-                    'csrf_token' => Csrf::refresh(),
-                ]);
-                break;
-
             default:
                 Response::error('未知操作');
         }
@@ -105,12 +97,13 @@ if (Request::isPost()) {
 
 // ============================================================
 // 弹窗：获取正版授权码（渲染完整 HTML，layer.open type:2 加载）
+// 数据源是 base-data：购买地址 buy_links、下载地址 download_links、联系方式 contact
 // ============================================================
 if ((string) Input::get('_popup', '') === 'agent') {
     $agent = null;
     $agentError = null;
     try {
-        $agent = LicenseService::fetchAgentConfig();
+        $agent = LicenseService::fetchBaseData();
     } catch (Throwable $e) {
         $agentError = $e->getMessage() ?: '获取授权信息失败';
     }

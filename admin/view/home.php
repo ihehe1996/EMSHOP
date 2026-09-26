@@ -987,60 +987,143 @@ $__runModeDesc   = $__deliveryAsync
     .dash-update__item { padding: 12px 12px; }
     .dash-update__head { flex-wrap: wrap; align-items: flex-start; }
     .dash-wizard__hero { padding: 12px 14px; gap: 10px; }
-    .dash-wizard__hero i { font-size: 22px; }
+    .dash-wizard__hero-ico { width: 34px; height: 34px; font-size: 16px; }
     .dash-wizard__hero-title { font-size: 14px; }
-    .dash-wizard__log { max-height: 140px; padding: 10px 12px; }
+    .dash-wizard__log { padding: 9px 10px; }
+    .dash-wizard__logwrap { min-height: 72px; }
 }
 
 /* ---------- 升级向导弹窗 ---------- */
 .layui-layer.dash-wizard-modal .layui-layer-content { padding: 0 !important; height: 100% !important; }
 .layui-layer.dash-wizard-modal .popup-wrap { display: flex; flex-direction: column; height: 100%; }
 .layui-layer.dash-wizard-modal .popup-inner {
-    flex: 1; min-height: 0; overflow-y: auto;
-    padding: 20px 24px;
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 16px 18px 0;
     background: #f8fafc;
 }
 .layui-layer.dash-wizard-modal .popup-footer {
     flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-    padding: 12px 16px; background: #fff; border-top: 1px solid #f0f0f0;
+    padding: 12px 18px; background: #fff; border-top: 1px solid #eef0f4;
 }
 
-/* 步骤列表：纵向流式展示 7 步 */
-.dash-wizard__steps { list-style: none; margin: 0; padding: 0; }
+/* Hero：目标版本 + 进度条 */
+.dash-wizard__hero {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #7c6cf5 100%);
+    color: #fff; border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.22);
+}
+.dash-wizard__hero-ico {
+    flex-shrink: 0; width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 11px; font-size: 19px;
+    background: rgba(255, 255, 255, 0.18);
+}
+.dash-wizard__hero-main { flex: 1; min-width: 0; }
+.dash-wizard__hero-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 500;
+}
+.dash-wizard__hero-title b { font-weight: 700; letter-spacing: 0.3px; }
+.dash-wizard__hero-count {
+    margin-left: auto; flex-shrink: 0;
+    padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+}
+.dash-wizard__hero-sub { font-size: 12px; opacity: 0.82; margin-top: 3px; }
+.dash-wizard__progress {
+    height: 4px; margin-top: 10px;
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 999px; overflow: hidden;
+}
+.dash-wizard__progress i {
+    display: block; height: 100%; width: 0;
+    background: #fff; border-radius: 999px;
+    transition: width 0.35s ease;
+}
+.dash-wizard__progress.is-fail i { background: #fecaca; }
+
+/* 主体：步骤时间轴（定高）+ 日志（占满剩余） */
+.dash-wizard__body {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column;
+    padding: 14px 0 16px;
+    overflow-y: auto;   /* 窗口极矮时兜底，避免时间轴/日志被裁掉 */
+}
+
+/* 时间轴：去掉每步的卡片边框，用左侧竖线 + 圆点表达流程 */
+.dash-wizard__steps { list-style: none; margin: 0; padding: 0; flex-shrink: 0; }
 .dash-wizard__step {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 10px 14px; margin-bottom: 6px;
-    background: #fff; border-radius: 8px;
-    border: 1px solid #e5e7eb;
+    position: relative;
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 5px 6px 5px 2px;
+    border-radius: 8px;
+}
+/* 连接线：最后一步不画 */
+.dash-wizard__step:not(:last-child)::before {
+    content: ''; position: absolute;
+    left: 12px; top: 26px; bottom: -6px;
+    width: 1.5px; background: #e2e6ee;
 }
 .dash-wizard__step-ico {
+    position: relative; z-index: 1;
     flex-shrink: 0; width: 22px; height: 22px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; font-size: 12px;
-    background: #f3f4f6; color: #9ca3af;
+    border-radius: 50%; font-size: 11px; font-weight: 600;
+    background: #fff; color: #9aa3b2;
+    border: 1.5px solid #e2e6ee;
+    transition: all 0.2s ease;
 }
-.dash-wizard__step-body { flex: 1; min-width: 0; }
-.dash-wizard__step-title { font-size: 13px; color: #374151; font-weight: 500; }
-.dash-wizard__step-msg { font-size: 12px; color: #6b7280; margin-top: 2px; word-break: break-all; }
-/* 状态：pending / running / done / fail */
-.dash-wizard__step.is-pending .dash-wizard__step-ico { background: #f3f4f6; color: #9ca3af; }
-.dash-wizard__step.is-running { border-color: #c7d2fe; background: #eef2ff; }
-.dash-wizard__step.is-running .dash-wizard__step-ico { background: #4f46e5; color: #fff; }
+.dash-wizard__step-body { flex: 1; min-width: 0; padding-top: 1px; }
+.dash-wizard__step-title { font-size: 13px; color: #6b7280; line-height: 1.5; }
+.dash-wizard__step-msg {
+    font-size: 12px; color: #9aa3b2; margin-top: 1px;
+    line-height: 1.5; word-break: break-all;
+}
+/* 进行中 */
+.dash-wizard__step.is-running { background: #eef2ff; }
+.dash-wizard__step.is-running .dash-wizard__step-ico {
+    background: #4f46e5; border-color: #4f46e5; color: #fff;
+}
 .dash-wizard__step.is-running .dash-wizard__step-title { color: #4338ca; font-weight: 600; }
-.dash-wizard__step.is-done { border-color: #bbf7d0; background: #f0fdf4; }
-.dash-wizard__step.is-done .dash-wizard__step-ico { background: #10b981; color: #fff; }
-.dash-wizard__step.is-fail { border-color: #fecaca; background: #fef2f2; }
-.dash-wizard__step.is-fail .dash-wizard__step-ico { background: #ef4444; color: #fff; }
-.dash-wizard__step.is-fail .dash-wizard__step-title { color: #991b1b; }
-/* 日志区 */
+.dash-wizard__step.is-running .dash-wizard__step-msg { color: #6366f1; }
+/* 已完成 */
+.dash-wizard__step.is-done .dash-wizard__step-ico {
+    background: #10b981; border-color: #10b981; color: #fff;
+}
+.dash-wizard__step.is-done .dash-wizard__step-title { color: #374151; }
+.dash-wizard__step.is-done .dash-wizard__step-msg { color: #10b981; }
+/* 失败 */
+.dash-wizard__step.is-fail { background: #fef2f2; }
+.dash-wizard__step.is-fail .dash-wizard__step-ico {
+    background: #ef4444; border-color: #ef4444; color: #fff;
+}
+.dash-wizard__step.is-fail .dash-wizard__step-title { color: #991b1b; font-weight: 600; }
+.dash-wizard__step.is-fail .dash-wizard__step-msg { color: #ef4444; }
+
+/* 日志：不再写死 max-height，改为撑满剩余空间，避免步骤多时溢出弹窗 */
+.dash-wizard__logwrap {
+    flex: 1 1 auto; min-height: 96px;
+    display: flex; flex-direction: column;
+    margin-top: 12px;
+}
+.dash-wizard__loghead {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 5px;
+    font-size: 11px; color: #9aa3b2; letter-spacing: 0.5px;
+}
 .dash-wizard__log {
-    margin-top: 14px;
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
     background: #0f172a; color: #cbd5e1;
     font-family: Consolas, "Cascadia Code", Monaco, monospace;
     font-size: 12px; line-height: 1.7;
-    border-radius: 8px;
-    padding: 12px 14px;
-    max-height: 200px; overflow-y: auto;
+    border-radius: 10px;
+    padding: 10px 12px;
     white-space: pre-wrap; word-break: break-all;
 }
 .dash-wizard__log-line { padding: 1px 0; }
@@ -1048,31 +1131,26 @@ $__runModeDesc   = $__deliveryAsync
 .dash-wizard__log-line.is-ok { color: #86efac; }
 .dash-wizard__log-line.is-info { color: #93c5fd; }
 
-.dash-wizard__hero {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 18px; margin-bottom: 14px;
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-    color: #fff; border-radius: 10px;
-}
-.dash-wizard__hero i { font-size: 28px; }
-.dash-wizard__hero-title { font-size: 15px; font-weight: 600; }
-.dash-wizard__hero-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-
-/* 底部按钮（em-btn 风格） */
+/* 底部按钮：统一一套（原来「开始升级」混用了 em-btn，和另两个不一致） */
 .dash-wizard__btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    height: 32px; padding: 0 14px;
-    border: 1px solid #e5e7eb; border-radius: 6px;
+    height: 34px; padding: 0 16px;
+    border: 1px solid #e5e7eb; border-radius: 8px;
     background: #fff; color: #374151;
     font-size: 13px; font-weight: 500; cursor: pointer;
     transition: all 0.15s ease;
 }
-.dash-wizard__btn:hover:not(:disabled) { background: #f9fafb; }
-.dash-wizard__btn--primary { background: #1e9fff; color: #fff; border-color: #1e9fff; }
-.dash-wizard__btn--primary:hover:not(:disabled) { filter: brightness(0.95); }
-.dash-wizard__btn--danger { background: #ef4444; color: #fff; border-color: #ef4444; }
-.dash-wizard__btn--danger:hover:not(:disabled) { filter: brightness(0.95); }
-.dash-wizard__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dash-wizard__btn:hover:not(:disabled) { background: #f9fafb; border-color: #d8dde6; }
+.dash-wizard__btn--primary {
+    background: #4f46e5; color: #fff; border-color: #4f46e5;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+}
+.dash-wizard__btn--primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca; }
+.dash-wizard__btn--danger { background: #fff; color: #dc2626; border-color: #fecaca; }
+.dash-wizard__btn--danger:hover:not(:disabled) { background: #fef2f2; border-color: #fca5a5; }
+/* 回滚是破坏性操作，放最左边和其他按钮拉开距离 */
+.dash-wizard__btn--left { margin-right: auto; }
+.dash-wizard__btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 /* ---------- 卡片通用 ---------- */
 .dash-card {
@@ -1177,6 +1255,22 @@ $__runModeDesc   = $__deliveryAsync
     color: #cbd5e1; font-size: 13px;
     flex-shrink: 0;
 }
+
+/* ---------- 公告 / 广告位的富文本正文（content 来自官方接口，按 HTML 注入） ---------- */
+/* 有正文时整条改顶部对齐，标签与箭头都贴第一行，否则多行正文会把它们挤到垂直居中 */
+.dash-announce__item--rich { align-items: flex-start; }
+.dash-announce__desc {
+    margin-top: 4px;
+    font-size: 12.5px; line-height: 1.6;
+    white-space: normal; word-break: break-word;
+}
+.dash-announce__desc p { margin: 0 0 6px; }
+.dash-announce__desc p:last-child { margin-bottom: 0; }
+.dash-announce__desc img { max-width: 100%; height: auto; border-radius: 6px; }
+.dash-announce__desc ul,
+.dash-announce__desc ol { margin: 6px 0; padding-left: 18px; }
+.dash-announce__desc a { color: #6366f1; }
+.dash-announce__desc strong { color: #374151; }
 
 /* ---------- Chart 容器 ---------- */
 .dash-chart { width: 100%; }
@@ -1411,41 +1505,89 @@ $(function () {
             return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
         });
     }
+    // 标签色由服务端下发（label_color）。它会被拼进 style 属性，所以只接受
+    // 十六进制与 rgb/rgba 这两种「不含引号/分号/括号逃逸」的写法，其余一律回退默认色。
+    function safeColor(v, fallback) {
+        var s = String(v || '').trim();
+        if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
+        if (/^rgba?\([0-9.,%\s]+\)$/.test(s)) return s;
+        return fallback;
+    }
+    // 正文里不能出现交互元素：整条是「外层 <a> 包一切」的结构，而服务端下发的富文本
+    // 经常自带链接（如 <p><strong>标题</strong><a href="...">网址</a></p>）。
+    // <a> 套 <a> 是非法 HTML，浏览器解析时会触发「收养算法」提前闭合外层 <a> ——
+    // 表现为标签独占一行、正文掉到下面整行、箭头被挤成列表外的独立一行（列表是 flex 列）。
+    // 所以这里把正文里的交互标签剥掉，只留文字与内联样式；整条仍统一跳 link_url。
+    function stripInteractive(html) {
+        return String(html || '').replace(/<\/?(?:a|button|form|input|select|textarea|label|iframe)\b[^>]*>/gi, '');
+    }
+    // 公告 / 广告位共用一条的渲染：label 作彩色标签、content 是富文本 HTML。
+    // content 来自官方接口，按约定直接按 HTML 注入（不转义）—— 见 LicenseService::normalizeEntries 的说明。
+    // 一行只有标签 + 正文两段：title / created_at / expires_on 都不渲染
+    // （字段仍保留在数据里，要用随时加回来）。
+    function renderFeedItem(item, defaultLabel, defaultColor) {
+        var color = safeColor(item.label_color, defaultColor);
+        var label = item.label || defaultLabel;
+        var url = String(item.link_url || '');
+        var external = url.indexOf('#') !== 0 && url !== '';
+        var body = '';
+        if (item.content) {
+            body += '<div class="dash-announce__desc">' + stripInteractive(item.content) + '</div>';
+        }
+        var inner = '<span class="dash-announce__tag" style="background:' + color + '1a;color:' + color + ';">' +
+                    escapeHtml(label) + '</span>' +
+                    '<div class="dash-announce__body">' + body + '</div>';
+        var cls = 'dash-announce__item' + (item.content ? ' dash-announce__item--rich' : '');
+        if (url === '') {
+            return '<div class="' + cls + '">' + inner + '</div>';
+        }
+        return '<a href="' + escapeHtml(url) + '"' + (external ? ' target="_blank"' : '') + ' class="' + cls + '">' +
+               inner + '<i class="fa fa-angle-right dash-announce__arrow"></i></a>';
+    }
     function renderNoticeList(data) {
         var $list = $('#dashNoticeList');
         var html = '';
-        var agent = data.agent || {};
-        var hasAgent = !!(agent.service_qq || agent.qq_group || agent.tg_group_url);
+        var c = data.contact || {};
+        var hasContact = !!(c.qq_service || c.wechat_service || c.qq_group || c.tg_service || c.tg_group_url || c.wechat_qr);
 
-        if (hasAgent) {
+        if (hasContact) {
             html += '<div class="dash-announce__item dash-announce__contact">' +
                 '<span class="dash-announce__tag" style="background:#eef2ff;color:#6366f1;">联系</span>' +
                 '<div class="dash-announce__body"><div class="dash-contact-row">';
-            if (agent.service_qq) {
-                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(agent.service_qq) + '" title="点击复制">' +
-                    '<i class="fa fa-qq" style="color:#1296db;"></i> 客服QQ <b>' + escapeHtml(agent.service_qq) + '</b></span>';
+            if (c.qq_service) {
+                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(c.qq_service) + '" title="点击复制">' +
+                    '<i class="fa fa-qq" style="color:#1296db;"></i> 客服QQ <b>' + escapeHtml(c.qq_service) + '</b></span>';
             }
-            if (agent.qq_group) {
-                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(agent.qq_group) + '" title="点击复制">' +
-                    '<i class="fa fa-users" style="color:#ec4899;"></i> 官方QQ群 <b>' + escapeHtml(agent.qq_group) + '</b></span>';
+            if (c.wechat_service) {
+                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(c.wechat_service) + '" title="点击复制">' +
+                    '<i class="fa fa-weixin" style="color:#07c160;"></i> 微信 <b>' + escapeHtml(c.wechat_service) + '</b></span>';
             }
-            if (agent.tg_group_url) {
-                html += '<a href="' + escapeHtml(agent.tg_group_url) + '" target="_blank" class="dash-contact-chip dash-contact-chip--link">' +
+            if (c.qq_group) {
+                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(c.qq_group) + '" title="点击复制">' +
+                    '<i class="fa fa-users" style="color:#ec4899;"></i> 官方QQ群 <b>' + escapeHtml(c.qq_group) + '</b></span>';
+            }
+            if (c.tg_service) {
+                html += '<span class="dash-contact-chip" data-copy="' + escapeHtml(c.tg_service) + '" title="点击复制">' +
+                    '<i class="fa fa-paper-plane" style="color:#229ed9;"></i> TG客服 <b>' + escapeHtml(c.tg_service) + '</b></span>';
+            }
+            if (c.tg_group_url) {
+                html += '<a href="' + escapeHtml(c.tg_group_url) + '" target="_blank" class="dash-contact-chip dash-contact-chip--link">' +
                     '<i class="fa fa-paper-plane" style="color:#229ed9;"></i> TG群</a>';
+            }
+            if (c.wechat_qr) {
+                html += '<a href="' + escapeHtml(c.wechat_qr) + '" target="_blank" class="dash-contact-chip dash-contact-chip--link">' +
+                    '<i class="fa fa-qrcode" style="color:#07c160;"></i> 微信二维码</a>';
             }
             html += '</div></div></div>';
         }
 
-        var notices = data.notice || [];
-        if (!hasAgent && notices.length === 0) {
+        // 键名跟服务端接口一致：announcements / ad_slots（别再写成老接口的 notice / ad）
+        var notices = data.announcements || [];
+        if (!hasContact && notices.length === 0) {
             html = '<div class="dash-announce__empty"><i class="fa fa-inbox"></i> 暂无公告</div>';
         } else {
             notices.forEach(function (n) {
-                var external = String(n.link_url || '#').indexOf('#') !== 0;
-                html += '<a href="' + escapeHtml(n.link_url || '#') + '"' + (external ? ' target="_blank"' : '') + ' class="dash-announce__item">' +
-                    '<span class="dash-announce__tag" style="background:#eef2ff;color:#6366f1;">公告</span>' +
-                    '<div class="dash-announce__body"><div class="dash-announce__title">' + escapeHtml(n.content) + '</div></div>' +
-                    '<i class="fa fa-angle-right dash-announce__arrow"></i></a>';
+                html += renderFeedItem(n, '公告', '#6366f1');
             });
         }
         $list.html(html);
@@ -1458,14 +1600,8 @@ $(function () {
         }
         var html = '';
         ads.forEach(function (a) {
-            var external = String(a.link_url || '#').indexOf('#') !== 0;
-            var tag = a.is_top ? '置顶' : '推广';
-            var tagColor = a.is_top ? '#e11d48' : '#6366f1';
-            var boldStyle = a.is_bold ? ' style="font-weight:700;"' : '';
-            html += '<a href="' + escapeHtml(a.link_url || '#') + '"' + (external ? ' target="_blank"' : '') + ' class="dash-announce__item">' +
-                '<span class="dash-announce__tag" style="background:' + tagColor + '1a;color:' + tagColor + ';">' + tag + '</span>' +
-                '<div class="dash-announce__body"><div class="dash-announce__title"' + boldStyle + '>' + escapeHtml(a.content) + '</div></div>' +
-                '<i class="fa fa-angle-right dash-announce__arrow"></i></a>';
+            // 不显示有效期：接口会给 expires_on，但列表里只当排序/有效性由服务端保证，不外露
+            html += renderFeedItem(a, '推广', '#6366f1');
         });
         $list.html(html);
     }
@@ -1473,8 +1609,10 @@ $(function () {
         var $label = $('#dashVersionLabel');
         var $btn = $('#dashCheckUpdate');
         $btn.prop('disabled', false);
-        var updates = data.updates || [];
-        if (updates.length > 0) {
+        var u = data.update || {};
+        if (u.has_new) {
+            // 只写「发现新版本」：版本号与是否强制都不在卡片上占位置
+            // （目标版本在升级向导标题里，force 标记暂不外露；数据里都还在）
             $label.html('<i class="fa fa-bell" style="margin-right:4px;"></i>发现新版本')
                   .css({ color: '#e11d48', fontWeight: 600 });
             $btn.addClass('dash-version-btn--alert').html('<i class="fa fa-cloud-download"></i> 立即更新');
@@ -1487,87 +1625,86 @@ $(function () {
         $('#dashVersionLabel').html('<i class="fa fa-exclamation-circle" style="color:#9ca3af;margin-right:4px;"></i>检测失败');
         $('#dashCheckUpdate').prop('disabled', false);
     }
+    // 线路延迟：直接用 admin_index_data 这次请求自身的往返耗时（不再单独 ping 接口）
+    function renderLatency(ms) {
+        var $latency = $('#dashLineLatency');
+        if (!$latency.length) return;
+        $latency.removeClass('dash-latency--ok dash-latency--warn dash-latency--bad');
+        ms = parseInt(ms, 10);
+        if (isNaN(ms) || ms < 0) {
+            $latency.addClass('dash-latency--bad').text('无法连接');
+            return;
+        }
+        // 分档配色：<150ms 绿 / 150-500ms 橙 / ≥500ms 红
+        var cls = ms < 150 ? 'dash-latency--ok' : (ms < 500 ? 'dash-latency--warn' : 'dash-latency--bad');
+        $latency.addClass(cls).text(ms + ' ms');
+    }
 
     function loadDashIndex() {
+        var $refresh = $('#dashRefreshLatency');
+        $refresh.addClass('is-loading');
         $.ajax({
             url: '/admin/home.php',
             method: 'GET',
             data: { _action: 'admin_index_data', _t: Date.now() },
             dataType: 'json',
-            timeout: 15000
+            // 要给后端的重试留足预算（baseData 最多 3 次 * 8s + 退避 ≈ 25s），
+            // 否则线路抖动时前端先断，后端还在跑，等于白重试
+            timeout: 40000
         }).done(function (resp) {
             if (!resp || resp.code !== 200 || !resp.data) {
                 renderVersionError();
+                renderLatency(-1);
                 $('#dashNoticeList').html('<div class="dash-announce__empty"><i class="fa fa-inbox"></i> 加载失败</div>');
                 $('#dashAdList').html('<div class="dash-announce__empty"><i class="fa fa-inbox"></i> 加载失败</div>');
                 return;
             }
             __dashIndexData = resp.data;
             renderNoticeList(resp.data);
-            renderAdList(resp.data.ad);
+            renderAdList(resp.data.ad_slots);
             renderVersion(resp.data);
+            renderLatency(resp.data.latency_ms);
         }).fail(function () {
             renderVersionError();
+            renderLatency(-1);
             $('#dashNoticeList').html('<div class="dash-announce__empty"><i class="fa fa-inbox"></i> 加载失败</div>');
             $('#dashAdList').html('<div class="dash-announce__empty"><i class="fa fa-inbox"></i> 加载失败</div>');
+        }).always(function () {
+            $refresh.removeClass('is-loading');
         });
     }
     loadDashIndex();
 
-    // 系统版本卡片：有新版本 → 弹窗展示所有高于当前版本的更新日志；否则触发一次刷新
+    // 「刷新延迟」= 重拉一次首页数据（延迟与公告/广告/版本一起刷新，重渲染是幂等的）
+    $('#dashRefreshLatency').on('click', loadDashIndex);
+
+    // 系统版本卡片：有新版本 → 直接进升级流程（新接口不再提供逐版本更新日志）；
+    // 否则触发一次重新检测
     $(document).on('click.dashHome', '#dashCheckUpdate:not(:disabled)', function () {
         if (typeof layui === 'undefined' || !layui.layer) return;
-        var updates = (__dashIndexData && __dashIndexData.updates) || [];
-        if (updates.length > 0) {
-            var items = updates.map(function (u) {
-                return '<div class="dash-update__item">' +
-                    '<div class="dash-update__head">' +
-                        '<span class="dash-update__ver"><i class="fa fa-tag"></i> v' + escapeHtml(u.version) + '</span>' +
-                        (u.update_time ? '<span class="dash-update__time"><i class="fa fa-clock-o"></i> ' + escapeHtml(u.update_time) + '</span>' : '') +
-                    '</div>' +
-                    // content 来自授权/升级接口（远程数据）。同级的 version / update_time 都过了
-                    // escapeHtml，唯独它此前原样注入 —— 等于把「往后台首页注入任意 JS」的开关
-                    // 交给了授权服务器，链路被中间人劫持时后果更直接。
-                    // 转义后用 <br> 保留换行，仍可读但不再能执行脚本。
-                    '<div class="dash-update__body">' +
-                        escapeHtml(u.content || '').replace(/\r?\n/g, '<br>') +
-                    '</div>' +
-                '</div>';
-            }).join('');
-            // 用项目统一的 popup-footer / popup-btn 风格（与用户等级弹窗一致）
-            var html = '<div class="popup-wrap">' +
-                '<div class="popup-inner"><div class="dash-update__list">' + items + '</div></div>' +
-                '<div class="popup-footer">' +
-                    '<button type="button" class="popup-btn popup-btn--default" id="dashUpdateCancel"><i class="fa fa-times"></i> 稍后再说</button>' +
-                    '<button type="button" class="popup-btn popup-btn--primary" id="dashUpdateGo"><i class="fa fa-cloud-download mr-5"></i>开始在线升级</button>' +
-                '</div>' +
-            '</div>';
-            var idx = layui.layer.open({
-                type: 1, title: '发现 ' + updates.length + ' 个新版本', skin: 'admin-modal dash-update-modal',
-                area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '560px' : '88%'],
-                shadeClose: true, content: html
-            });
-            $(document).off('click.dashUpdate').on('click.dashUpdate', '#dashUpdateCancel', function () {
-                layui.layer.close(idx);
-            }).on('click.dashUpdate', '#dashUpdateGo', function () {
-                if (!__dashLicenseActivated) {
-                    layui.layer.msg('未激活版本不支持在线升级');
-                    return;
-                }
-                // 取最新的一条作为本次升级目标（updates 已按版本降序）
-                var target = updates[0];
-                if (!target || !target.package_url) {
-                    layui.layer.msg('该版本暂未提供在线升级包，请使用下载安装包手动升级');
-                    return;
-                }
-                layui.layer.close(idx);
-                startUpdateWizard(target);
-            });
-        } else {
+        var u = (__dashIndexData && __dashIndexData.update) || {};
+        if (!u.has_new) {
             $('#dashVersionLabel').html('<i class="fa fa-spinner fa-spin" style="margin-right:4px;"></i>检测中…');
             $('#dashCheckUpdate').prop('disabled', true);
             loadDashIndex();
+            return;
         }
+        if (!__dashLicenseActivated) {
+            layui.layer.msg('未激活版本不支持在线升级');
+            return;
+        }
+        // package_url 非空 = 服务端给了增量包且当前版本满足 min_version，可走在线升级
+        if (u.package_url) {
+            startUpdateWizard(u);
+            return;
+        }
+        var tip = u.min_version
+            ? '当前版本低于最低可升级版本 v' + u.min_version + '，只能下载完整安装包手动升级。'
+            : '该版本暂未提供在线升级包，请下载安装包手动升级。';
+        layui.layer.confirm(tip, function (idx) {
+            layui.layer.close(idx);
+            $('#dashGetDownloadBtn').trigger('click');
+        });
     });
 
     // ==================================================================
@@ -1578,8 +1715,8 @@ $(function () {
             layui.layer.msg('未激活版本不支持在线升级');
             return;
         }
-        // target 字段来自服务端 updates[]，必要字段：
-        //   version / package_url / package_sha256 / package_size / min_from_version
+        // target 是服务端 admin_index_data 的 update 对象，必要字段：
+        //   version / package_url / min_version（package_url 已由服务端保证满足 min_version）
         var STEPS = [
             { id: 'preflight', name: '环境预检' },
             { id: 'download',  name: '下载升级包' },
@@ -1598,7 +1735,7 @@ $(function () {
             return bytes.toFixed(2) + ' ' + u[i];
         }
 
-        // 组装步骤列表 + 初始按钮区
+        // 组装步骤时间轴 + 初始按钮区
         var stepsHtml = STEPS.map(function (s, i) {
             return '<li class="dash-wizard__step is-pending" data-step="' + s.id + '">' +
                 '<span class="dash-wizard__step-ico">' + (i + 1) + '</span>' +
@@ -1611,29 +1748,38 @@ $(function () {
         var html = '<div class="popup-wrap">' +
             '<div class="popup-inner">' +
                 '<div class="dash-wizard__hero">' +
-                    '<i class="fa fa-cloud-download"></i>' +
-                    '<div>' +
-                        '<div class="dash-wizard__hero-title">正在升级到 v' + escapeHtml(target.version || '') + '</div>' +
-                        '<div class="dash-wizard__hero-sub">升级过程请不要关闭浏览器或离开本页</div>' +
+                    '<span class="dash-wizard__hero-ico"><i class="fa fa-cloud-download"></i></span>' +
+                    '<div class="dash-wizard__hero-main">' +
+                        '<div class="dash-wizard__hero-title">' +
+                            '<span>升级到 <b>v' + escapeHtml(target.version || '') + '</b></span>' +
+                            '<span class="dash-wizard__hero-count" id="dashWizardCount">0 / ' + STEPS.length + '</span>' +
+                        '</div>' +
+                        '<div class="dash-wizard__hero-sub" id="dashWizardHint">升级过程请不要关闭浏览器或离开本页</div>' +
+                        '<div class="dash-wizard__progress" id="dashWizardProgress"><i id="dashWizardBar"></i></div>' +
                     '</div>' +
                 '</div>' +
-                '<ul class="dash-wizard__steps">' + stepsHtml + '</ul>' +
-                '<div class="dash-wizard__log" id="dashWizardLog"></div>' +
+                '<div class="dash-wizard__body">' +
+                    '<ul class="dash-wizard__steps">' + stepsHtml + '</ul>' +
+                    '<div class="dash-wizard__logwrap">' +
+                        '<div class="dash-wizard__loghead"><i class="fa fa-terminal"></i> 运行日志</div>' +
+                        '<div class="dash-wizard__log" id="dashWizardLog"></div>' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
             '<div class="popup-footer">' +
+                '<button type="button" class="dash-wizard__btn dash-wizard__btn--danger dash-wizard__btn--left" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 删除本次新增文件</button>' +
                 '<button type="button" class="dash-wizard__btn" id="dashWizardClose">关闭</button>' +
-                '<button type="button" class="dash-wizard__btn dash-wizard__btn--danger" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 删除本次新增文件</button>' +
-                '<button type="button" class="em-btn em-save-btn" id="dashWizardStart"><i class="fa fa-play"></i> 开始升级</button>' +
+                '<button type="button" class="dash-wizard__btn dash-wizard__btn--primary" id="dashWizardStart"><i class="fa fa-play"></i> 开始升级</button>' +
             '</div>' +
         '</div>';
 
         var idx = layui.layer.open({
-            type: 1, 
-            title: '在线升级', 
+            type: 1,
+            title: '在线升级',
             skin: 'admin-modal dash-wizard-modal',
-            area: [window.innerWidth >= 640 ? '640px' : '94%', window.innerHeight >= 640 ? '620px' : '90%'],
-            shadeClose: false, 
-            closeBtn: 0,  // 不允许点遮罩/右上角关
+            area: [window.innerWidth >= 640 ? '620px' : '94%', window.innerHeight >= 640 ? '600px' : '90%'],
+            shadeClose: false,
+            closeBtn: 0,  // 运行中不允许点遮罩/右上角关，只能走底部按钮
             content: html
         });
 
@@ -1643,6 +1789,13 @@ $(function () {
             $log.append('<div class="dash-wizard__log-line is-' + (type || 'info') + '">[' + t + '] ' + escapeHtml(msg) + '</div>');
             $log.scrollTop($log[0].scrollHeight);
         }
+        // 进度 = 已完成步数 / 总步数
+        function setProgress(failed) {
+            var done = $('.dash-wizard__step.is-done').length;
+            $('#dashWizardCount').text(done + ' / ' + STEPS.length);
+            $('#dashWizardBar').css('width', Math.round(done / STEPS.length * 100) + '%');
+            if (failed) $('#dashWizardProgress').addClass('is-fail');
+        }
         function setStep(stepId, status, msg) {
             var $s = $('.dash-wizard__step[data-step="' + stepId + '"]');
             $s.removeClass('is-pending is-running is-done is-fail').addClass('is-' + status);
@@ -1651,6 +1804,7 @@ $(function () {
             if      (status === 'done')    ic.html('<i class="fa fa-check"></i>');
             else if (status === 'fail')    ic.html('<i class="fa fa-times"></i>');
             else if (status === 'running') ic.html('<i class="fa fa-spinner fa-spin"></i>');
+            setProgress(status === 'fail');
         }
         function callStep(action, data) {
             return $.ajax({
@@ -1666,8 +1820,9 @@ $(function () {
                 setStep('preflight', 'running', '检查写权限 / 磁盘空间 / PHP 版本');
                 return callStep('preflight', {
                     version: target.version || '',
-                    min_from_version: target.min_from_version || '',
-                    package_size: target.package_size || 0
+                    min_from_version: target.min_version || '',
+                    // 服务端不再下发包大小，传 0 让预检走 50MB 保底
+                    package_size: 0
                 }).then(function (res) {
                     if (res.code !== 200) throw new Error(res.msg || '预检失败');
                     var d = res.data || {};
@@ -1681,13 +1836,13 @@ $(function () {
             download: function () {
                 setStep('download', 'running', '下载中…');
                 log('开始下载：' + target.package_url);
+                // 服务端不下发 SHA256，完整性靠后端「https + 授权线路同域」白名单把关
                 return callStep('download', {
-                    package_url: target.package_url,
-                    package_sha256: target.package_sha256 || ''
+                    package_url: target.package_url
                 }).then(function (res) {
                     if (res.code !== 200) throw new Error(res.msg || '下载失败');
                     state.zip_path = res.data.path;
-                    setStep('download', 'done', formatBytes(res.data.size) + ' · SHA256 已校验');
+                    setStep('download', 'done', formatBytes(res.data.size));
                     log('下载完成 · 大小 ' + formatBytes(res.data.size), 'ok');
                 });
             },
@@ -1752,6 +1907,7 @@ $(function () {
             $start.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 升级中…');
             $close.prop('disabled', true);
             runAll().then(function () {
+                $('#dashWizardHint').text('升级完成，请刷新页面验证新版本');
                 $start.hide();
                 $close.prop('disabled', false).addClass('dash-wizard__btn--primary')
                       .html('<i class="fa fa-refresh"></i> 刷新页面');
@@ -1759,6 +1915,7 @@ $(function () {
             }, function (err) {
                 var msg = (err && (err.message || err.statusText)) || '升级失败';
                 log(msg, 'err');
+                $('#dashWizardHint').text('升级失败，可查看下方日志排查');
                 $('.dash-wizard__step.is-running').each(function () {
                     setStep($(this).data('step'), 'fail', msg);
                 });
@@ -1824,14 +1981,14 @@ $(function () {
 
     
 
-    // 下载安装包：从 admin_index_data 返回的 agent.download_url 取下载源，始终用弹层展示，由用户点具体条目后再打开
+    // 下载安装包：从 admin_index_data 返回的 download_links 取下载源，始终用弹层展示，由用户点具体条目后再打开
     $('#dashGetDownloadBtn').on('click', function () {
         if (typeof layui === 'undefined' || !layui.layer) return;
         if (!__dashIndexData) {
             layui.layer.msg('下载信息加载中，请稍候…');
             return;
         }
-        var urls = (__dashIndexData.agent && __dashIndexData.agent.download_url) || [];
+        var urls = __dashIndexData.download_links || [];
         if (!urls.length) {
             layui.layer.msg('暂未提供下载链接，请联系客服获取');
             return;
@@ -1854,40 +2011,6 @@ $(function () {
             content: '<div class="dash-dl-wrap">' + items + '</div>'
         });
     });
-
-    // 线路状态卡：ping 当前授权线路的延迟（ms）
-    function dashPingLine() {
-        var $latency = $('#dashLineLatency');
-        var $refresh = $('#dashRefreshLatency');
-        if (!$latency.length) return;
-        $latency.removeClass('dash-latency--ok dash-latency--warn dash-latency--bad')
-                .html('<i class="fa fa-spinner fa-spin" style="margin-right:4px;"></i>--');
-        $refresh.addClass('is-loading');
-        $.ajax({
-            url: '/admin/home.php',
-            method: 'GET',
-            data: { _action: 'ping_line', _t: Date.now() },
-            dataType: 'json',
-            timeout: 12000
-        }).done(function (resp) {
-            var ms = (resp && resp.data) ? parseInt(resp.data.latency_ms, 10) : -1;
-            if (isNaN(ms) || ms < 0) {
-                $latency.addClass('dash-latency--bad').text('无法连接');
-            } else {
-                // 分档配色：<150ms 绿 / 150-500ms 橙 / ≥500ms 红
-                var cls = ms < 150 ? 'dash-latency--ok' : (ms < 500 ? 'dash-latency--warn' : 'dash-latency--bad');
-                $latency.addClass(cls).text(ms + ' ms');
-            }
-        }).fail(function () {
-            $latency.addClass('dash-latency--bad').text('无法连接');
-        }).always(function () {
-            $refresh.removeClass('is-loading');
-        });
-    }
-    $('#dashRefreshLatency').on('click', dashPingLine);
-    dashPingLine();
-
-    
 
     // 销售趋势折线图：初始化空图表，再用 AJAX 拉数据 + 按日期范围切换
     var elTrend = document.getElementById('dashChartTrend');

@@ -12,10 +12,12 @@ declare(strict_types=1);
  *   license_alias_hosts   其它允许访问的域名 JSON 数组（纯本地概念，不通知中心服务）
  *
  * 行为约定：
- *   - 激活：调 /api/auth.php 成功 → 写 emkey / emkey_type / main_host 到 Config
+ *   - 激活：调 /api/open/v1/em/license/bind（code + domain）成功 → 写 emkey / emkey_type / main_host 到 Config
  *   - 解绑：只清 main_host + emkey_type；emkey 和 alias 保留
  *   - isActivated 判据：main_host 已配置
  *   - 访问别名域名时，isActivated 仍返 true；所有中心服务调用的 host 参数一律用 main_host
+ *   - 授权状态由 activate(=bind) 写入，由 api/open/v1/em/license/status 周期核对。
+ *     fetchBaseData() 仅供后台首页展示（公告/广告/版本/代理商），不参与授权判定
  */
 final class LicenseService
 {
@@ -125,10 +127,13 @@ final class LicenseService
     }
 
     /**
-     * 激活：向中心服务提交激活码，成功后把 emkey / type / main_host 写进 Config。
+     * 激活：把激活码绑到当前域名（code + domain），成功后把 emkey / type / main_host 写进 Config。
+     *
+     * 服务端对"本来就绑在这个域名上"也返回成功（bound=false），所以这里不需要区分，
+     * 两种都当作激活成功处理。
      *
      * @return array{level:string, level_label:string, bound_domain:string}
-     * @throws RuntimeException
+     * @throws RuntimeException 激活码为空 / 已绑别的域名 / 码不存在 / 网络错误
      */
     public static function activate(string $licenseCode): array
     {
@@ -138,17 +143,23 @@ final class LicenseService
         }
 
         $domain = self::currentDomain();
-        $result = LicenseClient::activate($licenseCode, $domain);
-        $level = (string) ($result['level'] ?? '');
-        if (!isset(self::LEVEL_TO_TYPE[$level])) {
-            throw new RuntimeException('服务端返回的等级无效：' . $level);
+        $result = LicenseClient::bind($licenseCode, $domain);
+
+        // license_type 是数字档位（1=VIP / 2=SVIP / 3=至尊），转成内部 level 字符串
+        $type = (int) ($result['license_type'] ?? 0);
+        $level = self::TYPE_TO_LEVEL[$type] ?? '';
+        if ($level === '') {
+            throw new RuntimeException('服务端返回的等级无效：' . var_export($result['license_type'] ?? null, true));
         }
 
-        // 主授权域名以中心服务归一化后的为准（去协议、端口、尾斜杠）
-        $mainHost = !empty($result['host']) ? (string) $result['host'] : $domain;
+        // 主授权域名以中心服务归一化后的为准（顶级域名）
+        $mainHost = trim((string) ($result['domain'] ?? ''));
+        if ($mainHost === '') {
+            $mainHost = $domain;
+        }
 
         Config::set('license_emkey', $licenseCode);
-        Config::set('license_emkey_type', (string) self::LEVEL_TO_TYPE[$level]);
+        Config::set('license_emkey_type', (string) $type);
         Config::set('license_main_host', $mainHost);
 
         return [
@@ -160,20 +171,26 @@ final class LicenseService
 
     /**
      * 解绑当前主授权域名。
-     * 流程：远程解绑 → 只清 main_host + emkey_type；保留 emkey 和 alias_hosts。
+     * 流程：远程解绑（code + domain）→ 只清 main_host + emkey_type；保留 emkey 和 alias_hosts。
      *
-     * @throws RuntimeException
+     * 正常情况下 main_host 和 emkey 是 activate() 一起写进去的，两个都在。
+     * emkey 为空只可能是配置被手工改坏 —— 这时没有可提交的授权码，
+     * 跳过远程、只清本地，免得把一个坏配置卡死在这里。
+     *
+     * @throws RuntimeException 未激活 / 接口判定域名与授权码不匹配 / 网络错误
      */
     public static function unbind(): void
     {
         $emkey = (string) Config::get('license_emkey', '');
         $mainHost = (string) Config::get('license_main_host', '');
-        if ($emkey === '' || $mainHost === '') {
+        if ($mainHost === '') {
             throw new RuntimeException('当前未激活，无需解绑');
         }
 
-        // 远程解绑；网络失败直接抛，本地不动
-        LicenseClient::unbind($emkey, $mainHost);
+        if ($emkey !== '') {
+            // 远程解绑；网络失败/域名与码不匹配直接抛，本地不动
+            LicenseClient::unbind($emkey, $mainHost);
+        }
 
         Config::set('license_main_host', '');
         Config::set('license_emkey_type', '0');
@@ -182,33 +199,214 @@ final class LicenseService
     /**
      * 周期性校验当前激活状态（进入 license 页或后台首页时触发）。
      *
-     *  - 未激活 → 跳过
-     *  - 中心服务判定未激活（LicenseRevokedException）→ 清 main_host + emkey_type，等同解绑
-     *  - 网络异常 → 保守保留
-     *  - 成功且等级有变 → 同步更新 emkey_type
+     * 走 api/open/v1/em/license/status（只传 domain）：
+     *  - 本地没绑域名（未激活）→ 跳过，不发请求
+     *  - authorized === false → 服务端明确判定该域名没授权 → 清 main_host + emkey_type，等同解绑
+     *  - authorized === true  → 档位与服务端不一致就以服务端为准（改本地 emkey_type）
+     *  - 字段缺失 / 网络异常  → 保守保留，不动本地
+     *
+     * 注意：base-data 的 authorized 字段**不参与**本地授权判定 —— 它只用于首页展示
+     * （公告/广告/版本/代理商那几块）。判定只看这个专用接口。
      */
     public static function revalidateCurrent(): void
     {
-        $mainHost = (string) Config::get('license_main_host', '');
-        $emkey = (string) Config::get('license_emkey', '');
-        if ($mainHost === '' || $emkey === '') {
+        if ((string) Config::get('license_main_host', '') === '') {
             return;
         }
-        try {
-            $result = LicenseClient::verify($emkey, $mainHost);
 
-            $newLevel = (string) ($result['level'] ?? '');
-            if ($newLevel !== '' && isset(self::LEVEL_TO_TYPE[$newLevel])) {
-                $cur = (int) Config::get('license_emkey_type', '0');
-                $next = self::LEVEL_TO_TYPE[$newLevel];
-                if ($cur !== $next) Config::set('license_emkey_type', (string) $next);
-            }
-        } catch (LicenseRevokedException $e) {
-            // 服务端明确判定未激活 → 等同解绑（清 main_host + emkey_type）
-            Config::set('license_main_host', '');
-            Config::set('license_emkey_type', '0');
+        try {
+            $result = LicenseClient::status(self::effectiveHost());
         } catch (Throwable $e) {
             // 网络异常 / 服务端 500 等 → 保守保留
+            return;
+        }
+
+        $authorized = $result['authorized'] ?? null;
+
+        if ($authorized === false) {
+            // 服务端明确判定该域名未授权 → 等同解绑（清 main_host + emkey_type）
+            Config::set('license_main_host', '');
+            Config::set('license_emkey_type', '0');
+            return;
+        }
+
+        if ($authorized !== true) {
+            return; // 字段缺失（老服务端 / 响应异常）→ 不动本地，别误清
+        }
+
+        // 已授权：档位以服务端返回的为准（没授权时它是 null，走不到这里）
+        $type = (int) ($result['license_type'] ?? 0);
+        if (!isset(self::TYPE_TO_LEVEL[$type])) {
+            return; // 授权有效但档位没给全 → 保留本地原值，不误清
+        }
+        if ((int) Config::get('license_emkey_type', '0') !== $type) {
+            Config::set('license_emkey_type', (string) $type);
+        }
+    }
+
+    /**
+     * 拉取后台基础数据（授权 / 代理商 / 公告 / 广告位 / 版本）并归一化。
+     *
+     * 数据源是 POST /api/open/v1/em/base-data（LicenseClient::baseData）。
+     * 后台首页 `_action=admin_index_data` 与代理商弹窗（admin/license.php?_popup=agent）
+     * 共用这里的输出结构，所以字段名以本方法为准，调用方不要再各自解析原始响应。
+     *
+     * 返回结构：
+     *   domain / license_type / license_label / identity_matched / used_fallback
+     *   authorized  三态：true=已授权 / false=服务端明确判定未授权 / null=字段缺失
+     *               —— 仅作展示与排查用，**不参与**本地授权判定（那只看激活码那条链路）
+     *   update      {has_new, version, force, min_version, package_url}
+     *   buy_links / download_links   [{name, url}]
+     *   contact     固定 6 个键，wechat_qr 已补成完整图片地址
+     *   announcements / ad_slots     公告与广告位（content 是富文本 HTML）
+     *
+     * @return array<string, mixed>
+     * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
+     */
+    public static function fetchBaseData(): array
+    {
+        $data = LicenseClient::baseData(
+            defined('SERVICE_TOKEN') ? (string) SERVICE_TOKEN : '',
+            self::effectiveHost(),
+            defined('EM_VERSION') ? (string) EM_VERSION : ''
+        );
+
+        // echo '<pre>'; print_r($data);die;
+
+        return [
+            'domain'           => (string) ($data['domain'] ?? ''),
+            'authorized'       => array_key_exists('authorized', $data) ? ($data['authorized'] === true) : null,
+            'license_type'     => (string) ($data['license_type'] ?? ''),
+            'license_label'    => (string) ($data['license_type_label'] ?? ''),
+            'identity_matched' => ($data['identity_matched'] ?? null) === true,
+            'used_fallback'    => ($data['used_fallback'] ?? null) === true,
+            'buy_links'        => self::normalizeLinks($data['buy_links'] ?? []),
+            'download_links'   => self::normalizeLinks($data['download_links'] ?? []),
+            'contact'          => self::normalizeContact($data['contact'] ?? []),
+            'announcements'    => self::normalizeEntries($data['announcements'] ?? [], false),
+            'ad_slots'         => self::normalizeEntries($data['ad_slots'] ?? [], true),
+            'update'           => self::normalizeUpdate($data),
+        ];
+    }
+
+    /**
+     * 整理版本更新信息。
+     *
+     * 关键：min_version 不影响「有没有新版本」，只决定能不能用增量包 ——
+     * 当前版本低于它时只能下完整安装包，因此这时把 package_url 置空，
+     * 让前端退回「手动下载」（前端只认 package_url 非空 = 可以走在线升级）。
+     *
+     * @param array<string, mixed> $data 服务端 data 原文
+     * @return array{has_new:bool, version:string, force:bool, min_version:string, package_url:string}
+     */
+    private static function normalizeUpdate(array $data): array
+    {
+        $hasNew     = ($data['has_new_version'] ?? null) === true;
+        $minVersion = trim((string) ($data['min_version'] ?? ''));
+        $patchUrl   = self::toAbsoluteUrl(trim((string) ($data['patch_package_url'] ?? '')));
+
+        $current = defined('EM_VERSION') ? (string) EM_VERSION : '';
+        $patchOk = $hasNew
+            && $patchUrl !== ''
+            && ($minVersion === '' || $current === '' || version_compare($current, $minVersion, '>='));
+
+        return [
+            'has_new'     => $hasNew,
+            'version'     => (string) ($data['latest_version'] ?? ''),
+            'force'       => ($data['force_update'] ?? null) === true,
+            'min_version' => $minVersion,
+            'package_url' => $patchOk ? $patchUrl : '',
+        ];
+    }
+
+    /**
+     * 归一化 [{name, url}] 链接列表：丢掉空 url，name 缺失时回退成 url。
+     *
+     * @param mixed $raw
+     * @return array<int, array{name:string, url:string}>
+     */
+    private static function normalizeLinks($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $item) {
+            if (!is_array($item)) continue;
+            $url = trim((string) ($item['url'] ?? ''));
+            if ($url === '') continue;
+            $name = trim((string) ($item['name'] ?? ''));
+            $out[] = ['name' => $name !== '' ? $name : $url, 'url' => $url];
+        }
+        return $out;
+    }
+
+    /**
+     * 归一化联系方式：固定 6 个键，没填的补空串。
+     * wechat_qr 是相对地址（/uploads/...），补上线路域名才是能直接用的图片地址。
+     *
+     * @param mixed $raw
+     * @return array<string, string>
+     */
+    private static function normalizeContact($raw): array
+    {
+        $raw = is_array($raw) ? $raw : [];
+        $out = [];
+        foreach (['qq_service', 'qq_group', 'wechat_service', 'wechat_qr', 'tg_service', 'tg_group_url'] as $key) {
+            $out[$key] = trim((string) ($raw[$key] ?? ''));
+        }
+        if ($out['wechat_qr'] !== '') {
+            $out['wechat_qr'] = self::toAbsoluteUrl($out['wechat_qr']);
+        }
+        return $out;
+    }
+
+    /**
+     * 归一化公告 / 广告位列表。广告位多一个 expires_on。
+     *
+     * content 是服务端已过滤的富文本 HTML，前端按 HTML 渲染 —— 这里不转义、不清洗，
+     * 与项目其余「远程数据一律转义」的做法不同，是有意为之（见计划里的取舍说明）。
+     *
+     * @param mixed $raw
+     * @return array<int, array<string, mixed>>
+     */
+    private static function normalizeEntries($raw, bool $withExpires): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $item) {
+            if (!is_array($item)) continue;
+            $row = [
+                'id'          => (int) ($item['id'] ?? 0),
+                'title'       => (string) ($item['title'] ?? ''),
+                'label'       => (string) ($item['label'] ?? ''),
+                'label_color' => (string) ($item['label_color'] ?? ''),
+                'content'     => (string) ($item['content'] ?? ''),
+                'link_url'    => (string) ($item['link_url'] ?? ''),
+                'created_at'  => (string) ($item['created_at'] ?? ''),
+            ];
+            if ($withExpires) {
+                $row['expires_on'] = (string) ($item['expires_on'] ?? '');
+            }
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /**
+     * 相对地址 → 补当前线路域名（线路没配好 / 解析失败时原样返回，不打断渲染）。
+     */
+    private static function toAbsoluteUrl(string $url): string
+    {
+        if ($url === '') {
+            return '';
+        }
+        try {
+            return UpdateService::resolvePackageUrl($url);
+        } catch (Throwable $e) {
+            return $url;
         }
     }
 
@@ -310,11 +508,6 @@ final class LicenseService
         Config::set('license_line_index', (string) $idx);
     }
 
-    /** 拉取当前线路的代理商配置（售后联系方式、购买地址等）。 */
-    public static function fetchAgentConfig(): array
-    {
-        return LicenseClient::agentConfig();
-    }
 
     /** 取当前请求域名（去端口）。*/
     private static function currentDomain(): string

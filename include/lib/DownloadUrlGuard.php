@@ -22,12 +22,16 @@ final class DownloadUrlGuard
      * 该下载地址是否被允许。
      *
      * 规则：
-     *   1) 必须是 https（明文链路可被替换，等于白名单失效）
+     *   1) 协议默认只允许 https；$allowInsecureHttp=true 时才额外放行 http
+     *      （明文链路可被替换，等于白名单失效，所以默认关着，由调用方按场景显式开）
      *   2) 不允许 userinfo（user:pass@host）—— 最容易骗过肉眼与前缀比较
      *   3) host 必须与 baseUrl 的 host **完全相等**（不做子域通配，避免 *.example.com 被滥用）
-     *   4) 端口若显式给出，必须与 baseUrl 的端口一致（默认 443）
+     *   4) 端口必须与 baseUrl 的有效端口一致（不显式写就按协议默认端口算）
+     *
+     * @param bool $allowInsecureHttp 是否放行 http。升级包下载会开：授权线路里可能有
+     *                                http + IP 的备用线路，而那正是域名被墙时的兜底线路
      */
-    public static function isAllowed(string $url, string $baseUrl): bool
+    public static function isAllowed(string $url, string $baseUrl, bool $allowInsecureHttp = false): bool
     {
         $u = parse_url($url);
         $b = parse_url($baseUrl);
@@ -36,7 +40,9 @@ final class DownloadUrlGuard
             return false;
         }
 
-        if (strtolower((string) ($u['scheme'] ?? '')) !== 'https') {
+        $scheme = strtolower((string) ($u['scheme'] ?? ''));
+        $baseScheme = strtolower((string) ($b['scheme'] ?? ''));
+        if ($scheme !== 'https' && !($allowInsecureHttp && $scheme === 'http')) {
             return false;
         }
 
@@ -50,12 +56,17 @@ final class DownloadUrlGuard
             return false;
         }
 
-        // 端口：URL 显式指定时必须与基准一致
-        if (isset($u['port'])) {
-            $basePort = isset($b['port']) ? (int) $b['port'] : 443;
-            if ((int) $u['port'] !== $basePort) {
+        // 端口：
+        //   基准线路显式带了端口 → URL 必须显式带同一个端口
+        //   基准没带端口       → URL 可以不带，也可以带该协议的默认端口，但不能指向别的端口
+        // 此前只在「URL 显式写了端口」时才比对 —— 于是基准线路带 :10000 时，不带端口的地址
+        // （默认 80/443）会被判为合法，等于把同一主机的其他端口放进来。
+        if (isset($b['port'])) {
+            if (!isset($u['port']) || (int) $u['port'] !== (int) $b['port']) {
                 return false;
             }
+        } elseif (isset($u['port']) && (int) $u['port'] !== ($scheme === 'https' ? 443 : 80)) {
+            return false;
         }
 
         return true;

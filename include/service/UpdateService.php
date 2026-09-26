@@ -151,11 +151,15 @@ final class UpdateService
     // ================================================================
 
     /**
-     * 下载升级包到 cache 目录并校验 SHA256。
+     * 下载升级包到 cache 目录；给了 SHA256 就比对，没给就跳过。
+     *
+     * 注意：base-data 接口（含 patch_package_url）不提供 SHA256，因此正常链路下这里
+     * 拿不到校验值 —— 完整性完全依赖下面 isAllowedPackageHost() 的「授权线路同域 + 同端口」
+     * 白名单。若服务端将来补上校验值，传进来即可自动生效，不需要改调用方。
      *
      * @return array{ok:bool, path:string, size:int, sha256:string, error?:string}
      */
-    public static function download(string $packageUrl, string $expectedSha256): array
+    public static function download(string $packageUrl, string $expectedSha256 = ''): array
     {
         if ($packageUrl === '') {
             return ['ok' => false, 'path' => '', 'size' => 0, 'sha256' => '', 'error' => '升级包 URL 为空'];
@@ -165,26 +169,18 @@ final class UpdateService
         // 不加这一层 cURL 对相对路径会直接 HTTP 0 失败
         $packageUrl = self::resolvePackageUrl($packageUrl);
 
-        // 完整性校验值必须存在且格式正确。
-        //
-        // 此前是「服务端有给就比对，没给就跳过」，而 sha256 由前端从接口响应里取 ——
-        // 于是「下载 URL 无校验 + sha256 可为空」叠加，等于中间人或被劫持的授权响应
-        // 可以下发任意升级包，且不被任何完整性检查拦住，直接覆盖整站代码。
+        // 有校验值才比对；空值 / 格式不合法一律按「没给」处理
         $expectedSha256 = strtolower(trim($expectedSha256));
-        if (preg_match('/^[a-f0-9]{64}$/', $expectedSha256) !== 1) {
-            return [
-                'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
-                'error' => '升级包缺少有效的 SHA256 校验值，已拒绝下载（请刷新后重试，或联系技术支持）',
-            ];
-        }
+        $hasSha256 = preg_match('/^[a-f0-9]{64}$/', $expectedSha256) === 1;
 
-        // 下载地址白名单：必须 https 且 host 属于已配置的授权线路。
-        // 此前完全没有校验，配合下面开启的 FOLLOWLOCATION，可用于探测/拉取任意地址（SSRF）
-        // 并把任意内容落到 content/cache 里。
+        // 下载地址白名单：host + 端口必须属于已配置的授权线路。
+        // 没有这一层时，可以借这里探测/拉取任意地址（SSRF），并把任意内容落到 content/cache。
+        // 协议放行 http 与 https：授权线路里可能有 http + IP 的备用线路，
+        // 而那正是域名被墙时的兜底线路，只认 https 会把这条路堵死。
         if (!self::isAllowedPackageHost($packageUrl)) {
             return [
                 'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
-                'error' => '升级包地址非法：必须为 https 且与授权服务器同一域名',
+                'error' => '升级包地址非法：必须与授权服务器同一域名（含端口）',
             ];
         }
 
@@ -230,8 +226,8 @@ final class UpdateService
         $size = filesize($localPath);
         $sha256 = hash_file('sha256', $localPath);
 
-        // SHA256 校验（服务端有给就严格比对，没给则跳过）
-        if ($expectedSha256 !== '' && !hash_equals(strtolower($expectedSha256), $sha256)) {
+        // SHA256 校验（有有效校验值才比对）
+        if ($hasSha256 && !hash_equals($expectedSha256, $sha256)) {
             @unlink($localPath);
             return [
                 'ok' => false, 'path' => '', 'size' => (int) $size, 'sha256' => $sha256,
@@ -248,6 +244,9 @@ final class UpdateService
      * 升级包只应从授权服务器下载，因此白名单就是 license_urls 里的全部线路
      * （多线路时逐一比对，而不是只认第一条）。判定逻辑复用 DownloadUrlGuard，
      * 避免又写成「字符串前缀比较」那种可被 subdomain / userinfo 绕过的形式。
+     *
+     * 这里显式放行 http：只认 https 的话，线路里那条 http + IP 的备用线路就用不了，
+     * 而它恰恰是域名被墙时唯一能下载的线路。host + 端口仍必须与线路完全一致。
      */
     private static function isAllowedPackageHost(string $url): bool
     {
@@ -257,7 +256,7 @@ final class UpdateService
 
         foreach (LicenseClient::lines() as $line) {
             $base = rtrim((string) ($line['url'] ?? ''), '/');
-            if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base)) {
+            if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base, true)) {
                 return true;
             }
         }
@@ -588,12 +587,14 @@ final class UpdateService
     /**
      * 规范化升级包 URL：相对路径自动补授权服务器域名。
      *
-     * 服务端返的 package_url 有两种常见形态：
+     * 服务端返的 URL 有两种常见形态：
      *   1. 完整 URL（http:// 或 https:// 开头）—— 直接用
-     *   2. 相对路径（/content/uploads/...）—— 前面补上当前授权服务器域名
+     *   2. 相对路径（/api/versions/em/3/download、/content/uploads/...）—— 前面补当前授权服务器域名
      * 没这一层，cURL 对相对路径直接 HTTP 0 失败。
+     *
+     * public 是给 LicenseService::fetchBaseData() 用的（base-data 的 patch_package_url 就是相对路径）。
      */
-    private static function resolvePackageUrl(string $url): string
+    public static function resolvePackageUrl(string $url): string
     {
         $url = trim($url);
         if ($url === '') return $url;
