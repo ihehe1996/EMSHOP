@@ -1,0 +1,15 @@
+# EMSHOP 伪静态规则（Apache / LiteSpeed 用；Nginx 不读本文件，IIS 读同目录 web.config）
+#
+# @emshop-managed
+# 上面这行标识用于升级程序判断文件归属：带它才会被升级覆盖
+# 站点装在子目录时，取消下面一行注释并改成实际目录：
+# RewriteBase /shop/
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 命中真实存在的文件（图片/CSS/JS 等）或目录时不重写，静态资源不受影响
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>

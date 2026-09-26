@@ -481,7 +481,9 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                                 <strong>文件格式：</strong> <code>/post-1.html</code> · <code>/blog-1.html</code> · <code>/post-list.html</code><br>
                                 <strong>目录格式①：</strong> <code>/post/1</code> · <code>/blog/1</code> · <code>/post/list</code><br>
                                 <strong>目录格式②：</strong> <code>/buy/1</code> · <code>/blog/1</code> · <code>/buy/list</code><br>
-                                <span style="color:#f59e0b;">⚠ 文件格式 / 目录格式需要启用服务器 rewrite。详见 <code>install/rewrite/</code> 目录提供的 <code>.htaccess</code> 和 Nginx 片段。</span>
+                                <span style="color:#f59e0b;">⚠ 文件格式 / 目录格式需要启用服务器 rewrite（未配置时支付回调可能收不到）。
+                                    <a href="javascript:void(0);" id="urlFormatRewriteHelp" style="color:#2563eb;">查看 Nginx / Apache / IIS 配置规则</a>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -1318,6 +1320,21 @@ function formRadio(string $name, array $options, string $selected = ''): string 
         form.render('checkbox');
         form.render('switch');
         form.render('radio');
+
+        // 链接格式旁的 rewrite 说明：原先指向 install/rewrite/ 目录，而那目录并不存在。
+        // 改成直接打开后台首页那个伪静态弹窗（按 SERVER_SOFTWARE 预选 Nginx/Apache/IIS）。
+        // 用 document 委托 + 命名空间，SEO tab 无论何时被渲染出来都能点到，也不会重复绑定。
+        $(document).off('click.rewriteHelp').on('click.rewriteHelp', '#urlFormatRewriteHelp', function () {
+            layer.open({
+                type: 2,
+                title: '伪静态配置说明',
+                skin: 'admin-modal',
+                maxmin: false,
+                area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '600px' : '88%'],
+                shadeClose: true,
+                content: '/admin/home.php?popup=rewrite'
+            });
+        });
 
         // ============================================================
         // 常量

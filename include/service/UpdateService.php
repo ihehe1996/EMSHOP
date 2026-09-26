@@ -45,6 +45,30 @@ final class UpdateService
         'base.php',            // EMSHOP代理配置文件
     ];
 
+    /**
+     * 随包发布的 Web 服务器配置：相对路径 => 文件内的归属标识。
+     *
+     * 这两份必须能被升级覆盖 —— 否则伪静态规则以后有改动（新增回调路径、修 bug），
+     * 已经装好的站点永远收不到，只能让站长手动去改，等于白发布。
+     *
+     * 但「覆盖」不能无条件做：站长很可能自己写了一份 .htaccess（SSL 强制跳转、
+     * 防盗链、同目录其它程序的规则都堆在里面），覆盖等于直接抹掉人家的配置。
+     *
+     * 所以按归属判断：文件里带我们的标识 → 是我们放的，照常覆盖（覆盖前留一份 .emshop-bak）；
+     * 不带 → 是人家的文件，一个字都不动。
+     *
+     * 只认根目录这一层。包里的 `admin/.htaccess` 之类不在此列 —— 那是随功能走的文件。
+     */
+    private const MANAGED_SERVER_CONFIG = [
+        '.htaccess'  => '@emshop-managed',
+        'web.config' => '@emshop-managed',
+    ];
+
+    /** 归属判定的三种处置 */
+    private const CONFIG_AS_USUAL   = 'usual';    // 不在清单里 → 按常规覆盖
+    private const CONFIG_OVERWRITE  = 'overwrite';// 我们放的 → 覆盖，覆盖前备份
+    private const CONFIG_LEAVE      = 'leave';    // 人家的文件 → 跳过
+
     /** 写权限抽查的关键目录（preflight 校验） */
     private const CHECK_WRITABLE = ['admin', 'include', 'install', 'user', 'content/static'];
 
@@ -314,6 +338,15 @@ final class UpdateService
                 if (self::isPreserved($rel)) { $skipped++; continue; }
 
                 $dst = EM_ROOT . '/' . $rel;
+
+                // 服务器配置类文件按归属决定：不是我们放的就跳过（详见 MANAGED_SERVER_CONFIG）
+                $disposition = self::serverConfigDisposition($rel, $dst);
+                if ($disposition === self::CONFIG_LEAVE) { $skipped++; continue; }
+                if ($disposition === self::CONFIG_OVERWRITE) {
+                    // 覆盖前留一份，万一是站长在我们这份基础上追加过自己的规则
+                    @copy($dst, $dst . '.emshop-bak');
+                }
+
                 $isNew = !is_file($dst);
 
                 if (!is_dir(dirname($dst))) {
@@ -606,6 +639,27 @@ final class UpdateService
             }
         }
         return false;
+    }
+
+    /**
+     * 服务器配置文件的覆盖处置（见 MANAGED_SERVER_CONFIG）。
+     *
+     * 只读文件开头一段做归属判定就够了，标识本来就在最前面的注释里；
+     * 顺带避免把一个几 MB 的文件整个读进来。
+     */
+    private static function serverConfigDisposition(string $rel, string $dst): string
+    {
+        $rel = str_replace('\\', '/', $rel);
+        $marker = self::MANAGED_SERVER_CONFIG[$rel] ?? null;
+        if ($marker === null) {
+            return self::CONFIG_AS_USUAL;
+        }
+        // 还没有这份文件 → 直接放，不存在覆盖谁的问题
+        if (!is_file($dst)) {
+            return self::CONFIG_AS_USUAL;
+        }
+        $head = (string) @file_get_contents($dst, false, null, 0, 1024);
+        return strpos($head, $marker) !== false ? self::CONFIG_OVERWRITE : self::CONFIG_LEAVE;
     }
 
     /**
