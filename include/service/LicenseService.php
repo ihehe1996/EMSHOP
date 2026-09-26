@@ -427,7 +427,7 @@ final class LicenseService
     /**
      * 给所有中心服务调用用的 "有效 host"：优先 Config 里配的主授权域名，没配则回退当前 HTTP_HOST。
      *
-     * 用法示例：`LicenseClient::appStoreList(['host' => LicenseService::effectiveHost(), ...])`
+     * 用法示例：`LicenseClient::appList(['domain' => LicenseService::effectiveHost(), ...])`
      */
     public static function effectiveHost(): string
     {

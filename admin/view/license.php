@@ -42,6 +42,13 @@ $activated = $current !== null;
                     获取正版授权 <i class="fa fa-arrow-right"></i>
                 </a>
             </div>
+
+            <!-- 未激活时也要能找到客服：购买咨询、激活失败、域名被占用等都会用到 -->
+            <div class="lic-activate__actions">
+                <button type="button" class="lic-btn-ghost-primary js-lic-contact">
+                    <i class="fa fa-headphones"></i> 联系客服
+                </button>
+            </div>
         </div>
 
         <?php else: ?>
@@ -107,7 +114,7 @@ $activated = $current !== null;
                 <button type="button" class="lic-btn-danger-outline" id="btnUnbind">
                     <i class="fa fa-unlink"></i> 解绑当前主授权域名
                 </button>
-                <button type="button" class="lic-btn-ghost-primary" id="btnContactSupport">
+                <button type="button" class="lic-btn-ghost-primary js-lic-contact" id="btnContactSupport">
                     <i class="fa fa-headphones"></i> 联系客服
                 </button>
             </div>
@@ -356,6 +363,11 @@ $activated = $current !== null;
 }
 .lic-activate__link:hover i {
     transform: translateX(3px);
+}
+/* 未激活态的操作区（联系客服）；按钮复用已激活卡片的 lic-btn-ghost-primary */
+.lic-activate__actions {
+    display: flex; justify-content: center;
+    margin-top: 18px;
 }
 
 /* ================================ 历史 ================================ */
@@ -801,8 +813,9 @@ $(function(){
 
         // 线路切换已迁移到后台 toolbar 全局（admin/view/index.php），此页不再承载
 
-        // ============= 获取正版授权码（页面级弹窗） =============
-        function openAgentPopup(title) {
+        // ============= 页面级弹窗：获取授权码 / 联系客服 =============
+        // mode 决定弹窗内容：agent=购买渠道，contact=客服联系方式（两者不共用内容）
+        function openAgentPopup(title, mode) {
             layer.open({
                 type: 2,
                 title: title || '获取正版授权码',
@@ -810,18 +823,18 @@ $(function(){
                 maxmin: false,
                 area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '580px' : '88%'],
                 shadeClose: true,
-                content: '/admin/license.php?_popup=agent'
+                content: '/admin/license.php?_popup=' + (mode === 'contact' ? 'contact' : 'agent')
             });
         }
 
         $('#btnGetLicense').on('click', function (e) {
             e.preventDefault();
-            openAgentPopup('获取正版授权码');
+            openAgentPopup('获取正版授权码', 'agent');
         });
 
-        // 已激活卡片：联系客服
-        $('#btnContactSupport').on('click', function () {
-            openAgentPopup('联系客服');
+        // 联系客服：已激活卡片和未激活卡片各有一个入口，用同一个类一起兜住
+        $(document).on('click', '.js-lic-contact', function () {
+            openAgentPopup('联系客服', 'contact');
         });
 
         // 已激活卡片：解绑当前主授权域名

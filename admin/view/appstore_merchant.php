@@ -4,15 +4,14 @@ if (!defined('EM_ROOT')) {
 }
 
 // 应用收费由中心服务端统一以人民币结算，这里固定用 ¥ 不读站点主货币
-// 分类 tabs 由 PHP 直接渲染(基于 PluginModel::MAIN_PLUGIN_CATEGORIES);列表仍走 /admin/appstore.php?_action=list 异步加载
+// 分类 tabs 由 PHP 直接渲染(基于 PluginModel::MERCHANT_PLUGIN_CATEGORIES);列表走
+// /admin/appstore.php?_action=list（服务端 app-list，scope=branch），可购状态来自响应的 can_buy
 
 // 应用图片（封面 / 内容图）统一基于 license_urls 第 0 个线路拼接 —— 永远是第一个，
 // 不跟随用户切换的线路；以此保证资源 URL 在全站稳定、可被浏览器缓存
 $__appstoreLines = LicenseClient::lines();
 $appstoreAssetHost = $__appstoreLines ? rtrim($__appstoreLines[0]['url'], '/') : '';
 
-// 当前站点是否已激活授权 —— 未激活时付费应用不允许安装/购买，引导到授权页
-$appstoreLicensed = LicenseService::isActivated();
 $csrfToken = $csrfToken ?? Csrf::token();
 ?>
 <style>
@@ -263,16 +262,25 @@ $csrfToken = $csrfToken ?? Csrf::token();
         </div>
     </div>
 
-    <!-- 分类选项卡：服务端直接渲染（"全部" + PluginModel::MERCHANT_PLUGIN_CATEGORIES），分站不展示模板主题 -->
+    <!--
+        分类选项卡：全部由 PHP 渲染 —— "全部" + PluginModel::MERCHANT_PLUGIN_CATEGORIES +
+        硬编码的"未归类" / "已购买"。分站用的分类与主站同一套服务端 id，
+        但常量里已排除分站用不上的模板主题 / 支付插件 / 商品类型 / 共享店铺。
+        分类 tab 的 data-filter 带 cat:1 标记（未归类的 id 就是 0，和"全部"撞号，
+        靠标记才能区分出"要按未归类筛"）。
+    -->
     <div class="em-tabs" id="appstoreTabs">
         <a class="em-tabs__item is-active" data-filter='{"type":"all","id":0}'>
             <i class="fa fa-th-large"></i>全部<em class="em-tabs__count"></em>
         </a>
         <?php foreach (PluginModel::MERCHANT_PLUGIN_CATEGORIES as $__cid => $__cname): ?>
-        <a class="em-tabs__item" data-filter='<?= htmlspecialchars(json_encode(['type' => '', 'id' => (int) $__cid]), ENT_QUOTES, 'UTF-8') ?>'>
+        <a class="em-tabs__item" data-filter='<?= htmlspecialchars(json_encode(['cat' => 1, 'id' => (int) $__cid]), ENT_QUOTES, 'UTF-8') ?>'>
             <i class="fa fa-folder-o"></i><?= htmlspecialchars((string) $__cname, ENT_QUOTES, 'UTF-8') ?><em class="em-tabs__count"></em>
         </a>
         <?php endforeach; ?>
+        <a class="em-tabs__item" data-filter='{"cat":1,"id":0}'>
+            <i class="fa fa-folder-o"></i>未归类<em class="em-tabs__count"></em>
+        </a>
         <a class="em-tabs__item" data-filter='{"type":"all","id":0,"list_mode":"purchased"}'>
             <i class="fa fa-check-circle"></i>已购买<em class="em-tabs__count"></em>
         </a>
@@ -305,72 +313,99 @@ $csrfToken = $csrfToken ?? Csrf::token();
             </span>
             <span class="appstore-title__name">{{ d.name_cn || d.name_en || '-' }}</span>
         </div>
-        <div class="appstore-title__desc" title="{{ (d.content || '').replace(/<[^>]+>/g, '').trim() || '该应用未配置描述信息' }}">
-            {{ (d.content || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() || '该应用未配置描述信息' }}
+        <div class="appstore-title__desc" title="{{ (d.description || '').replace(/<[^>]+>/g, '').trim() || '该应用未配置描述信息' }}">
+            {{ (d.description || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() || '该应用未配置描述信息' }}
         </div>
     </div>
 </script>
 
 <script type="text/html" id="appstoreInstallTpl">
-    <span style="font-family:Menlo,Consolas,monospace;color:#374151;">{{ (Number(d.install_num) || 0).toLocaleString() }}</span>
+    <span style="font-family:Menlo,Consolas,monospace;color:#374151;">{{ (Number(d.install_count) || 0).toLocaleString() }}</span>
 </script>
 
-<!-- 至尊价格：统一免费 -->
-<script type="text/html" id="appstorePriceSupremeTpl">
-    <span class="appstore-chip appstore-chip--free" title="至尊会员全场免费">免费</span>
-</script>
-
-<!-- SVIP 价格 -->
-<script type="text/html" id="appstorePriceSvipTpl">
-    {{# if(parseFloat(d.svip_price || 0) <= 0){ }}
+<!--
+    价格：price 是「按你当前档位算出来的实际价」，price_vip / price_svip 是两档原价（做对比用）。
+    未授权时 price 等于 VIP 门槛价、且 can_buy 为 false。
+-->
+<!-- 我的价格 -->
+<script type="text/html" id="appstorePriceMineTpl">
+    {{# if(parseFloat(d.price || 0) <= 0){ }}
         <span class="appstore-chip appstore-chip--free">免费</span>
     {{# } else { }}
         <span class="appstore-chip appstore-chip--paid">
-            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.svip_price).toFixed(2) }}
+            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.price).toFixed(2) }}
         </span>
     {{# } }}
 </script>
 
-<!-- VIP 价格 -->
-<script type="text/html" id="appstorePriceVipTpl">
-    {{# if(parseFloat(d.vip_price || 0) <= 0){ }}
+<!-- SVIP 原价 -->
+<script type="text/html" id="appstorePriceSvipTpl">
+    {{# if(parseFloat(d.price_svip || 0) <= 0){ }}
         <span class="appstore-chip appstore-chip--free">免费</span>
     {{# } else { }}
         <span class="appstore-chip appstore-chip--paid">
-            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.vip_price).toFixed(2) }}
+            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.price_svip).toFixed(2) }}
+        </span>
+    {{# } }}
+</script>
+
+<!-- VIP 原价 -->
+<script type="text/html" id="appstorePriceVipTpl">
+    {{# if(parseFloat(d.price_vip || 0) <= 0){ }}
+        <span class="appstore-chip appstore-chip--free">免费</span>
+    {{# } else { }}
+        <span class="appstore-chip appstore-chip--paid">
+            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.price_vip).toFixed(2) }}
         </span>
     {{# } }}
 </script>
 
 <!--
     操作按钮分支(tab=main / tab=merchant 共用模板,文案按 window.APPSTORE_TAB 切换):
-    - 已装/已上架                        → 灰色"已安装"
-    - 未装 · 未激活 · 付费                → 紫色"先激活授权"
-    - 未装 · 免费                         → 蓝色"安装" / "采购上架"
-    - 未装 · 付费                         → 红色"购买 ¥my_price" / "采购 ¥my_price"
+    - 已装/已上架                 → 灰色"已安装"
+    - 未装 · 免费                 → 蓝色"安装" / "采购上架"
+    - 未装 · 付费 · can_buy=false → 紫色"先激活授权"
+    - 未装 · 付费 · can_buy=true  → 红色"购买 ¥price" / "采购 ¥price"
+    判定以服务端为准（can_buy），不再靠本地 APPSTORE_LICENSED 推断。
 -->
 <script type="text/html" id="appstoreActionTpl">
     {{# var tab = window.APPSTORE_TAB || 'main';
        var L = tab === 'merchant'
            ? { installed: '已安装', install: '安装', buy: '采购' }
            : { installed: '已安装', install: '安装',     buy: '购买' };
-       var effectiveFree = (d.is_free == 1) || (parseFloat(d.my_price || 0) <= 0); }}
+       var free = parseFloat(d.price || 0) <= 0;
+       var canBuy = (d.can_buy === true || d.can_buy === 1 || d.can_buy === '1'); }}
     {{# if (d.is_installed == 1) { }}
         <a class="em-btn em-sm-btn em-reset-btn em-disabled-btn"><i class="fa fa-check"></i>{{ L.installed }}</a>
-    {{# } else if (effectiveFree) { }}
+    {{# } else if (free) { }}
         <a class="em-btn em-sm-btn em-save-btn" lay-event="install"><i class="fa fa-download"></i>{{ L.install }}</a>
-    {{# } else if (!window.APPSTORE_LICENSED) { }}
+    {{# } else if (!canBuy) { }}
         <a class="em-btn em-sm-btn em-purple-btn" lay-event="needLicense"><i class="fa fa-shield"></i>先激活授权</a>
     {{# } else { }}
-        <a class="em-btn em-sm-btn em-red-btn" lay-event="buy"><i class="fa fa-shopping-cart"></i>{{ L.buy }} ¥{{ parseFloat(d.my_price || 0).toFixed(2) }}</a>
+        <a class="em-btn em-sm-btn em-red-btn" lay-event="buy"><i class="fa fa-shopping-cart"></i>{{ L.buy }} ¥{{ parseFloat(d.price || 0).toFixed(2) }}</a>
     {{# } }}
 </script>
 
 <script>
+// HTML 转义（顶层作用域，供本页各处使用）。
+// 应用名、封面地址等来自中心服务器 / 应用作者，属于外部可控数据；
+// 而 layer.msg / layer.confirm 与 HTML 属性都是按 HTML 渲染的，必须转义。
+// （本页此前没有这个函数，封面图是直接拼进 src 的 —— 一并补上）
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 资源 host（由 PHP 注入）：始终取 license_urls[0].url，不跟随线路切换
+// 注意：只用于展示类资源（封面图）；应用包下载地址不要用它拼，那个要跟随当前线路，
+// 由后端 appstore_resolve_download_url() 解析
 var APPSTORE_ASSET_HOST = <?= json_encode($appstoreAssetHost, JSON_UNESCAPED_SLASHES) ?>;
-// 当前站点是否已激活授权（templet 通过 window.APPSTORE_LICENSED 读取）
-window.APPSTORE_LICENSED = <?= $appstoreLicensed ? 'true' : 'false' ?>;
+// 是否已授权不看本地了 —— 服务端在列表响应里给了 license + can_buy，按钮判定用 can_buy
 // CSRF token（安装 action 校验）
 var APPSTORE_CSRF = <?= json_encode($csrfToken) ?>;
 // 当前 tab(main / merchant):决定调服务端哪个货架接口、装到主站本地还是落分站市场
@@ -405,8 +440,12 @@ $(function () {
                 where.list_mode = 'purchased';
                 return where;
             }
+            // 分类 tab：看显式标记，不看 id>0 —— 未归类的 id 就是 0
+            if (f.cat) {
+                where.category_id = parseInt(f.id, 10) || 0;
+                return where;
+            }
             if (f.type && f.type !== 'all') where.type = f.type;
-            if (!f.type && f.id > 0)        where.category_id = f.id;
             return where;
         }
 
@@ -424,31 +463,34 @@ $(function () {
             lineStyle: 'height: 62px;',
             parseData: function (res) {
                 var d = res && res.data ? res.data : {};
+                var meta = d.meta || {};
                 return {
                     code: res.code === 200 ? 0 : (res.code || 500),
                     msg:  res.msg || '',
-                    count: d.count || 0,
-                    data:  d.list || []
+                    count: meta.total || 0,
+                    data:  d.data || []
                 };
             },
             request: { pageName: 'page', limitName: 'limit' },
             cols: [[
                 {
-                    field: 'cover', title: '封面', width: 80, align: 'center', unresize: true,
+                    field: 'screenshots', title: '封面', width: 80, align: 'center', unresize: true,
                     templet: function (d) {
-                        if (!d.cover) {
+                        var shots = Array.isArray(d.screenshots) ? d.screenshots : [];
+                        var urls = shots.map(function (s) { return (s && s.url) ? s.url : ''; }).filter(Boolean);
+                        if (!urls.length) {
                             return '<span class="appstore-cover appstore-cover--empty"><i class="fa fa-cube"></i></span>';
                         }
-                        var imgs = (Array.isArray(d.images) && d.images.length > 0 ? d.images : [d.cover]).map(appstoreAbsUrl);
-                        return '<img class="appstore-cover appstore-cover--zoom" src="' + appstoreAbsUrl(d.cover) +
-                               '" alt="" data-imgs="' + encodeURIComponent(JSON.stringify(imgs)) + '">';
+                        var imgs = urls.map(appstoreAbsUrl);
+                        return '<img class="appstore-cover appstore-cover--zoom" src="' + emEsc(imgs[0]) +
+                               '" alt="" data-imgs="' + emEsc(encodeURIComponent(JSON.stringify(imgs))) + '">';
                     }
                 },
                 { field: 'name_cn', title: '应用名称', minWidth: 240, templet: '#appstoreTitleTpl' },
-                { field: 'install_num', title: '安装量', width: 100, templet: '#appstoreInstallTpl', align: 'center', sort: true },
-                { title: '至尊授权', width: 120, templet: '#appstorePriceSupremeTpl', align: 'center' },
-                { field: 'svip_price', title: 'SVIP 授权', width: 130, templet: '#appstorePriceSvipTpl', align: 'center' },
-                { field: 'vip_price', title: 'VIP 授权', width: 130, templet: '#appstorePriceVipTpl', align: 'center' },
+                { field: 'install_count', title: '安装量', width: 100, templet: '#appstoreInstallTpl', align: 'center', sort: true },
+                { title: '我的价格', width: 120, templet: '#appstorePriceMineTpl', align: 'center' },
+                { field: 'price_vip', title: 'VIP 原价', width: 130, templet: '#appstorePriceVipTpl', align: 'center' },
+                { field: 'price_svip', title: 'SVIP 原价', width: 130, templet: '#appstorePriceSvipTpl', align: 'center' },
                 { title: '操作', width: 200, align: 'center', toolbar: '#appstoreActionTpl' }
             ]]
         });
@@ -521,11 +563,14 @@ $(function () {
                 csrf_token: APPSTORE_CSRF,
                 name:       d.name_en,
                 type:       d.type === 'template' ? 'template' : 'plugin',
-                file_path:  d.file_path || '',
+                // 原样传服务端给的（可能是相对路径）—— 由后端补当前线路域名，
+                // 前端不要用 APPSTORE_ASSET_HOST 拼，那个固定是 license_urls[0]，会拼错线路
+                package_url: d.package_url || '',
                 version:    d.version || '',
+                min_version: d.min_version || '',
                 // tab=merchant 时后端会走 MainAppPurchaseService 落 em_app_market
                 tab:           window.APPSTORE_TAB || 'main',
-                cost_per_unit: Math.round((parseFloat(d.my_price || 0)) * 1000000),
+                cost_per_unit: Math.round((parseFloat(d.price || 0)) * 1000000),
                 remote_app_id: d.id || 0
             }).done(function (res) {
                 layer.close(loadingIdx);

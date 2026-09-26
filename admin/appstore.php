@@ -19,17 +19,95 @@ $csrfToken = Csrf::token();
  * 若不可写则直接返回明确文案，避免 zip/解压/curl 等底层错误难以理解。
  */
 /**
- * 断言应用下载地址合法，否则返回错误响应。
+ * 断言应用包下载地址合法，否则返回错误响应。
  *
- * 真正的判定在 DownloadUrlGuard::isAllowed()（纯函数、有单测覆盖）：
- * 必须是 https、不允许 userinfo、host 与授权服务器完全一致。
- * 这里只负责把判定结果转成页面响应。
+ * 判定在 DownloadUrlGuard::isAllowed()（纯函数）：不允许 userinfo、host + 端口必须与
+ * **已配置的授权线路之一**完全一致（多线路时逐一比对，不是只认第一条）。
+ *
+ * 显式放行 http：线路里有 http + IP 的备用线路，只认 https 会让那条线路上的应用包下不了
+ * （与升级包下载同一口径）。
  */
-function appstore_assert_download_url(string $url, string $baseUrl): void
+function appstore_assert_download_url(string $url): void
 {
-    if (!DownloadUrlGuard::isAllowed($url, $baseUrl)) {
-        Response::error('下载地址非法（必须为 https 且与授权服务器同一域名）');
+    foreach (LicenseClient::lines() as $line) {
+        $base = rtrim((string) ($line['url'] ?? ''), '/');
+        if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base, true)) {
+            return;
+        }
     }
+    Response::error('下载地址非法（必须与授权服务器同一域名）');
+}
+
+/**
+ * 把服务端给的应用包地址规范成绝对 URL（安装 / 更新两个动作共用）。
+ *
+ * 相对路径（如 /api/open/v1/em/app/4/download）补上**当前生效线路**的域名 ——
+ * 这个地址本来就是那条线路返回的；绝对地址则走白名单校验。
+ * 非法时直接输出错误响应并结束请求。
+ */
+function appstore_resolve_download_url(string $url): string
+{
+    if ($url === '') {
+        Response::error('缺少下载地址');
+    }
+    if (stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) {
+        appstore_assert_download_url($url);
+        return $url;
+    }
+    if (!LicenseClient::lines()) {
+        Response::error('未配置授权服务器地址');
+    }
+    return rtrim(LicenseClient::currentBaseUrl(), '/') . '/' . ltrim($url, '/');
+}
+
+/**
+ * 把旧 app_purchased_list.php 的条目映射成 app-list 的字段名。
+ *
+ * 「已购买」tab 暂时还走旧接口，但前端只认一套字段，所以在这里适配一次，
+ * 免得两个视图里到处写 `d.price || d.my_price` 这种双名兼容。
+ *
+ * 已购买 = 已拥有，所以 price 归零、can_buy 为 true（按钮会走到"安装"分支，
+ * 而不是"先激活授权"）；两个档位的原价仍保留，界面还能做对比。
+ */
+function appstore_map_legacy_item(array $app): array
+{
+    $cover = trim((string) ($app['cover'] ?? ''));
+    $shots = [];
+    foreach ((array) ($app['images'] ?? []) as $img) {
+        if (is_string($img) && $img !== '') $shots[] = ['url' => $img];
+    }
+    if ($shots === [] && $cover !== '') $shots[] = ['url' => $cover];
+
+    return $app + [
+        'description'   => (string) ($app['content'] ?? ''),
+        'price'         => '0.00',
+        'price_vip'     => (string) ($app['vip_price'] ?? '0'),
+        'price_svip'    => (string) ($app['svip_price'] ?? '0'),
+        'can_buy'       => true,
+        'package_url'   => (string) ($app['file_path'] ?? ''),
+        'install_count' => (int) ($app['install_num'] ?? 0),
+        'screenshots'   => $shots,
+    ];
+}
+
+/**
+ * 把旧接口的分页结构包成 app-list 的信封 { license, categories, meta, data }，
+ * 让前端的 parseData 只需要一套写法。
+ */
+function appstore_legacy_envelope(array $legacy): array
+{
+    $list = is_array($legacy['list'] ?? null) ? $legacy['list'] : [];
+    return [
+        'license'    => [],
+        'categories' => [],
+        'meta'       => [
+            'page'      => (int) ($legacy['page']    ?? 1),
+            'per_page'  => (int) ($legacy['pageNum'] ?? 10),
+            'total'     => (int) ($legacy['count']   ?? 0),
+            'last_page' => 0,
+        ],
+        'data'       => array_map('appstore_map_legacy_item', $list),
+    ];
 }
 
 function appstore_require_writable_path(string $path): void
@@ -61,13 +139,9 @@ function appstore_require_writable_path(string $path): void
 
 
 
-// 应用商店分类清单 SSOT 在 PluginModel 常量;在此引用确保跨页面口径一致
-// 改清单只需改 PluginModel::MAIN_PLUGIN_CATEGORIES / MERCHANT_PLUGIN_CATEGORIES
-$main_plugin_category     = PluginModel::MAIN_PLUGIN_CATEGORIES;
-$merchant_plugin_category = PluginModel::MERCHANT_PLUGIN_CATEGORIES;
-
-
-// 分类清单不再走服务端 —— 由 view 直接渲染(基于 PluginModel::MAIN_PLUGIN_CATEGORIES 常量 + 硬编码 "全部" / "模板主题")
+// 分类清单 SSOT 在 PluginModel::MAIN_PLUGIN_CATEGORIES / MERCHANT_PLUGIN_CATEGORIES，
+// 两个视图直接引用那两个常量渲染 tab（"全部" / "未归类" / "已购买" 硬编码在视图里）。
+// tab 带的是**服务端**的分类 id，服务端改了分类表就要同步改常量。
 
 // AJAX：拉取已启用的支付方式（/api/pay_methods.php）。兼容旧购买弹窗
 if ((string) Input::get('_action', '') === 'pay_methods') {
@@ -140,11 +214,12 @@ if ((string) Input::get('_action', '') === 'app_detail') {
     }
 }
 
-// AJAX：拉取应用列表（/api/app_store.php）。由 layui table 分页驱动；失败返回空列表不挂页
+// AJAX：拉取应用列表（/api/open/v1/em/app-list）。由 layui table 分页驱动；失败返回错误不挂页
 //
-// tab=main     → 拉服务端"主站货架"(scope=1),主站自己用,合并 em_plugin/em_template 已装状态
-// tab=merchant → 拉服务端"分站货架"(scope=2),主站为分站采购,合并 em_app_market 已上架状态
-// list_mode=purchased → 拉服务端"已购买应用"(app_purchased_list.php)，携带 emkey + scope
+// tab=main     → scope=main,主站自己用,合并 em_plugin/em_template 已装状态
+// tab=merchant → scope=branch,主站为分站采购,合并 em_app_market 已上架状态
+// list_mode=purchased → 仍走旧接口 app_purchased_list.php（新接口没有"已购买"这个概念），
+//                       返回结构在下面适配成 app-list 的信封，前端只认一套
 if ((string) Input::get('_action', '') === 'list') {
     LicenseService::revalidateCurrent(); // 获取最新授权状态
     // 取当前激活码和域名用于服务端计算 my_price（未激活时 emkey 为空，服务端会按 VIP 价返回）
@@ -157,36 +232,52 @@ if ((string) Input::get('_action', '') === 'list') {
     if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
     $listMode = (string) Input::get('list_mode', '');
     if (!in_array($listMode, ['', 'purchased'], true)) $listMode = '';
+    $isPurchasedList = ($listMode === 'purchased');
 
-
-    $params = [
-        'page'        => max(1, (int) Input::get('page', 1)),
-        'pageNum'     => min(100, max(1, (int) Input::get('limit', 10))),
-        'type'        => (string) Input::get('type', ''),
-        'category_id' => (int) Input::get('category_id', 0),
-        'keyword'     => (string) Input::get('keyword', ''),
-        'emkey'       => $emkey,
-        'host'        => $host,
+    // 两个接口的参数名不一样，别混：
+    //   app-list（新）            → domain + code + per_page（服务端上限 50）
+    //   app_purchased_list（旧）  → host + emkey + pageNum（「已购买」tab 还在用）
+    $page  = max(1, (int) Input::get('page', 1));
+    $limit = max(1, (int) Input::get('limit', $isPurchasedList ? 10 : 20));
+    $common = [
+        'page'    => $page,
+        'type'    => (string) Input::get('type', ''),
+        'keyword' => (string) Input::get('keyword', ''),
     ];
-    // 已购买列表依赖 emkey；未激活时直接返回空列表，避免打断页面
-    if ($listMode === 'purchased' && $emkey === '') {
+    // category_id 必须"客户端传了才带"，不能在服务端补 0：
+    //   「全部」  → 客户端不传 → 请求里也不能出现 category_id，否则服务端会当成"只看未归类"
+    //   「未归类」→ 客户端传 0  → 原样带上
+    // 所以取默认值 null 来区分"没传"和"传了 0"，不要用 (int) 兜底。
+    $categoryId = Input::get('category_id', null);
+    if ($categoryId !== null && $categoryId !== '') {
+        $common['category_id'] = (int) $categoryId;
+    }
+    $params = $isPurchasedList
+        ? $common + ['pageNum' => min(100, $limit), 'emkey' => $emkey, 'host' => $host]
+        : $common + ['per_page' => min(50, $limit), 'domain' => $host, 'code' => $emkey];
+
+    // 已购买列表依赖 emkey；未激活时直接返回空页，避免打断页面
+    if ($isPurchasedList && $emkey === '') {
         Response::success('', [
-            'list'    => [],
-            'count'   => 0,
-            'page'    => (int) $params['page'],
-            'pageNum' => (int) $params['pageNum'],
+            'license'    => [],
+            'categories' => [],
+            'meta'       => ['page' => $page, 'per_page' => $limit, 'total' => 0, 'last_page' => 0],
+            'data'       => [],
         ]);
     }
+
     try {
-        $isPurchasedList = $listMode === 'purchased';
         if ($isPurchasedList) {
-            $result = $tab === 'merchant'
+            $legacy = $tab === 'merchant'
                 ? LicenseClient::merchantAppPurchasedList($params)
                 : LicenseClient::mainAppPurchasedList($params);
+            // 旧接口的字段名/分页结构与 app-list 不同，在这里适配一次，前端只认一套
+            $result = appstore_legacy_envelope($legacy);
         } else {
-            // 阶段 8:走拆分后的 mainAppList / merchantAppList(scope/audience/member_code 由方法内部固定)
+            // scope 由镜像方法注入：mainAppList → 'main' / merchantAppList → 'branch'
             $result = $tab === 'merchant' ? LicenseClient::merchantAppList($params) : LicenseClient::mainAppList($params);
         }
+
         if ($tab === 'main') {
             // tab=main:主站自用,合并已装状态
             //   插件:磁盘有目录 = 已装(version 走 parseHeader);em_plugin 表已废弃,启用列表在 em_config
@@ -200,7 +291,7 @@ if ((string) Input::get('_action', '') === 'list') {
                 $installedThemes[$slug] = (string) ($info['version'] ?? '');
             }
             // 主站应用商店只标记是否已安装;installed_version 不再注入,is_installed 仅用于显示"已安装"灰按钮
-            foreach ($result['list'] as &$app) {
+            foreach ($result['data'] as &$app) {
                 $slug = (string) ($app['name_en'] ?? '');
                 $type = (string) ($app['type'] ?? '');
                 $map = $type === 'template' ? $installedThemes : $installedPlugins;
@@ -210,7 +301,7 @@ if ((string) Input::get('_action', '') === 'list') {
         } else {
             // tab=merchant:主站为分站采购,应用商店只需要合并是否已上架
             $marketModel = new AppMarketModel();
-            foreach ($result['list'] as &$app) {
+            foreach ($result['data'] as &$app) {
                 $slug = (string) ($app['name_en'] ?? '');
                 $type = (string) ($app['type'] ?? '');
                 $market = $slug !== '' ? $marketModel->findByAppCode($slug, $type) : null;
@@ -248,16 +339,7 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         appstore_require_writable_path($tmpRoot);
         appstore_require_writable_path($targetDir);
 
-        $lines = LicenseClient::lines();
-        if (!$lines) Response::error('未配置授权服务器地址');
-        $baseHost = rtrim((string) $lines[0]['url'], '/');
-        $downloadUrl = '';
-        if (stripos($filePath, 'http://') === 0 || stripos($filePath, 'https://') === 0) {
-            appstore_assert_download_url($filePath, $baseHost);
-            $downloadUrl = $filePath;
-        } else {
-            $downloadUrl = $baseHost . '/' . ltrim($filePath, '/');
-        }
+        $downloadUrl = appstore_resolve_download_url($filePath);
 
         if (!is_dir($tmpRoot)) @mkdir($tmpRoot, 0755, true);
         $tmpZip = $tmpRoot . '/zip_u_' . uniqid() . '.zip';
@@ -371,7 +453,8 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
 
         $name    = trim((string) Input::post('name', ''));
         $type    = (string) Input::post('type', 'plugin');
-        $filePath = trim((string) Input::post('file_path', ''));
+        // 应用包地址来自 app-list 的 package_url（可能是相对路径）
+        $packageUrl = trim((string) Input::post('package_url', ''));
         // tab=main      → 主站自用,装到 content/plugin|template/{name}/(磁盘=装,无 DB 行)
         // tab=merchant  → 主站为分站采购,下载解压共用,注册落 em_app_market(走 MainAppPurchaseService)
         $tab = (string) Input::post('tab', 'main');
@@ -384,6 +467,12 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
             Response::error('未知应用类型');
         }
 
+        // 应用要求的主程序最低版本：本地太低就别装，装上也是坏的
+        $minVersion = trim((string) Input::post('min_version', ''));
+        if ($minVersion !== '' && defined('EM_VERSION') && version_compare((string) EM_VERSION, $minVersion, '<')) {
+            Response::error('该应用要求 EMSHOP ' . $minVersion . ' 及以上，当前版本 ' . EM_VERSION . ' 过低，请先升级主程序');
+        }
+
         $targetRoot = $type === 'template' ? EM_ROOT . '/content/template' : EM_ROOT . '/content/plugin';
         $targetDir  = $targetRoot . '/' . $name;
 
@@ -392,23 +481,10 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
         //   当前 scope 此时只在 DB 里新增一行记录即可，不碰物理文件。
         $localAlreadyExists = is_dir($targetDir);
 
-        // 非本地快捷安装时才要求 file_path
-        if (!$localAlreadyExists && $filePath === '') {
-            Response::error('缺少下载地址');
-        }
-
-        // 统一把 file_path 规范为绝对 URL；始终基于 license_urls[0]，只允许这个主 host
+        // 非本地快捷安装时才要求应用包地址（目录已在磁盘上的走本地快捷安装，不用下载）
         $downloadUrl = '';
         if (!$localAlreadyExists) {
-            $lines = LicenseClient::lines();
-            if (!$lines) Response::error('未配置授权服务器地址');
-            $baseHost = rtrim($lines[0]['url'], '/');
-            if (stripos($filePath, 'http://') === 0 || stripos($filePath, 'https://') === 0) {
-                appstore_assert_download_url($filePath, $baseHost);
-                $downloadUrl = $filePath;
-            } else {
-                $downloadUrl = $baseHost . '/' . ltrim($filePath, '/');
-            }
+            $downloadUrl = appstore_resolve_download_url($packageUrl);
         }
 
         // 本地快捷安装：目录已存在，跳过下载/解压，直接进入 REGISTER

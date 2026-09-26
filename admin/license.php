@@ -96,10 +96,14 @@ if (Request::isPost()) {
 }
 
 // ============================================================
-// 弹窗：获取正版授权码（渲染完整 HTML，layer.open type:2 加载）
-// 数据源是 base-data：购买地址 buy_links、下载地址 download_links、联系方式 contact
+// 弹窗（渲染完整 HTML，layer.open type:2 加载），数据源都是 base-data：
+//   ?_popup=agent    获取正版授权码 —— 只放购买渠道 buy_links
+//   ?_popup=contact  联系客服       —— 只放联系方式 contact
+// 两者内容刻意不重叠：授权页上这是两个语义不同的按钮，早先共用一份内容时
+// 「联系客服」点开看到的是购买链接，属于用错内容。
 // ============================================================
-if ((string) Input::get('_popup', '') === 'agent') {
+$popupMode = (string) Input::get('_popup', '');
+if ($popupMode === 'agent' || $popupMode === 'contact') {
     $agent = null;
     $agentError = null;
     try {

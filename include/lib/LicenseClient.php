@@ -199,30 +199,60 @@ final class LicenseClient
     }
 
     /**
-     * 应用商店 - 应用列表（POST /api/app_store.php）。
+     * 应用商店 · 应用列表（POST /api/open/v1/em/app-list）。
      *
-     * 服务端分页，返回 { list, count, page, pageNum }。
-     * 每项字段详见接口文档（name_cn / cover / vip_price / svip_price / my_price / is_free 等）。
+     * 主站货架与分站货架合并成一个接口，用 scope 区分（main 主站 / branch 分站）。
+     * 授权信息与分类一并返回，不用再单独请求。
      *
-     * @param array{page?:int,pageNum?:int,type?:string,category_id?:int,keyword?:string,scope?:int,emkey?:string,host?:string} $params
-     * @return array{list:array<int,array>,count:int,page:int,pageNum:int}
+     * 请求参数：
+     *   domain      本机在跑的域名（必填，服务端归一成顶级域名）
+     *   code        授权码；不传 = 未授权。传了必须是有效的、且绑的就是 domain，
+     *               否则一律按未授权算（服务端会回 VIP 门槛价 + can_buy=false）
+     *   page        第几页，从 1 开始
+     *   per_page    每页条数，默认 20、最多 50
+     *   type        template / plugin，不传是全部
+     *   scope       main 主站使用 / branch 分站使用，不传是两种都返回
+     *   category_id 分类 id，取值从返回的 categories 拿
+     *   keyword     按中文名 / 英文名 / 作者模糊搜
+     *
+     * 返回：
+     *   license     {authorized, domain, type, type_label, all_free, code_masked}
+     *   categories  [{id, name}]
+     *   meta        {page, per_page, total, last_page}
+     *   data[]      应用列表（price / price_vip / price_svip / can_buy / package_url / screenshots 等）
+     *
+     * 注意：`name_en` 仍被调用方当作本地安装目录名（slug）使用，不是纯展示字段。
+     *
+     * 重试：只读、幂等，开 3 次尝试。
+     *
+     * @param array{domain?:string,code?:string,page?:int,per_page?:int,type?:string,scope?:string,category_id?:int,keyword?:string} $params
+     * @return array{license:array<string,mixed>,categories:array<int,array>,meta:array<string,int>,data:array<int,array>}
      * @throws RuntimeException
      */
-    public static function appStoreList(array $params): array
+    public static function appList(array $params): array
     {
-        $data = self::postForm('api/app_store.php', $params, 15);
+        // print_r($params);die;
+        $data = self::postForm('api/open/v1/em/app-list', $params, 15, 3);
+
+        $meta = is_array($data['meta'] ?? null) ? $data['meta'] : [];
         return [
-            'list'    => is_array($data['list'] ?? null) ? array_values($data['list']) : [],
-            'count'   => (int) ($data['count']   ?? 0),
-            'page'    => (int) ($data['page']    ?? 1),
-            'pageNum' => (int) ($data['pageNum'] ?? 10),
+            'license'    => is_array($data['license'] ?? null) ? $data['license'] : [],
+            'categories' => is_array($data['categories'] ?? null) ? array_values($data['categories']) : [],
+            'meta'       => [
+                'page'      => (int) ($meta['page']      ?? 1),
+                'per_page'  => (int) ($meta['per_page']  ?? 20),
+                'total'     => (int) ($meta['total']     ?? 0),
+                'last_page' => (int) ($meta['last_page'] ?? 0),
+            ],
+            'data'       => is_array($data['data'] ?? null) ? array_values($data['data']) : [],
         ];
     }
 
     /**
      * 应用商店 - 已购买应用列表（POST /api/app_purchased_list.php）。
      *
-     * 返回结构与 appStoreList 保持一致：{ list, count, page, pageNum }。
+     * 走的是旧接口 api/app_purchased_list.php（新接口 app-list 没有"已购买"这个概念），
+     * 所以返回结构仍是老的 { list, count, page, pageNum }，别和 appList() 的 meta/data 混了。
      *
      * @param array{page?:int,pageNum?:int,type?:string,category_id?:int,keyword?:string,scope?:int,emkey?:string,host?:string} $params
      * @return array{list:array<int,array>,count:int,page:int,pageNum:int}
@@ -240,79 +270,11 @@ final class LicenseClient
     }
 
     /**
-     * 验证站点已购买应用（POST /api/app_purchased.php）。
-     *
-     * 给定一批应用的 name_en，返回本站点（emkey + member_code）**已购买或免费可用**的子集。
-     *
-     * @param array<int,string> $appList    要验证的应用 name_en 数组
-     * @param string            $memberCode 商户分站标识符；主站 = ''（服务端按 main_site 查）
-     * @return array<int,string>            返回 appList 的子集；查不到的应用会被静默忽略
-     * @throws RuntimeException             网络失败 / 授权码未设置 / 接口报错 都抛异常
-     */
-    public static function appPurchased(array $appList, string $memberCode, int $scope): array
-    {
-        if (!in_array($scope, [1, 2], true)) {
-            throw new RuntimeException('非法的 scope（1=主站 / 2=商户）');
-        }
-        $emkey = '';
-        $licenseRow = LicenseService::currentLicense();
-        if ($licenseRow) {
-            $emkey = (string) ($licenseRow['license_code'] ?? '');
-        }
-        if ($emkey === '') {
-            throw new RuntimeException('当前站点未激活授权码');
-        }
-        // 去重 + 过滤空 / 非字符串
-        $appList = array_values(array_unique(array_filter(
-            array_map('strval', $appList),
-            static fn(string $v): bool => $v !== ''
-        )));
-        if ($appList === []) return [];
-
-        $data = self::postForm('api/app_purchased.php', [
-            'emkey'       => $emkey,
-            'member_code' => $memberCode,
-            'app_list'    => $appList,
-            'scope'       => $scope,
-        ], 10);
-
-        // 服务端 data 形如 ["default","tips","alipay"]
-        if (!is_array($data)) return [];
-        return array_values(array_filter(
-            array_map('strval', $data),
-            static fn(string $v): bool => $v !== ''
-        ));
-    }
-
-    /**
-     * 应用商店 - 分类列表（POST /api/app_categories.php）。
-     *
-     * 服务端按 scope（1=主站/2=商户）过滤 app.scope IN (0, :scope) 再统计 count，
-     * 保证分类的数字只体现当前角色能看到的应用。
-     * 每项结构：{ id, name, type, count }
-     *   - id: 自定义分类数据库主键；系统分类固定为 0
-     *   - type: 系统分类标识（all / template / plugin）；自定义分类为空字符串
-     *
-     * @param int $scope 1=主站 / 2=商户
-     * @return array<int, array{id:int, name:string, type:string, count:int}>
-     * @throws RuntimeException
-     */
-    public static function appCategories(int $scope): array
-    {
-        if (!in_array($scope, [1, 2], true)) {
-            throw new RuntimeException('非法的 scope（1=主站 / 2=商户）');
-        }
-        $data = self::postForm('api/app_categories.php', ['scope' => $scope], 10);
-        // postForm 返回的是 data 节；这里接口 data 本身就是数组列表
-        return is_array($data) ? array_values($data) : [];
-    }
-
-    /**
      * 按 id 获取单个应用的详情（/api/app_detail.php），一次返回 app + pay_methods。
      *
-     * 价格计算与 /api/app_store.php 完全一致：
-     *   - 未传 emkey / 校验失败 → my_price = vip_price
-     *   - VIP → vip_price、SVIP → svip_price、至尊 → 0；my_price <= 0 时 is_free = 1
+     * 价格计算与 app-list 一致：
+     *   - 未传 emkey / 校验失败 → price = price_vip（VIP 门槛价）、can_buy = false
+     *   - VIP → price_vip、SVIP → price_svip、至尊 → 0
      *
      * @param int    $appId      应用 id
      * @param string $emkey      激活码；空串时按 VIP 价返回
@@ -336,7 +298,7 @@ final class LicenseClient
     /**
      * 按 name_en 批量查询最新版本（/api/app_latest_versions.php），用于本地已装应用的更新检测。
      *
-     * 只返版本 / 下载地址相关字段，不含价格 / 描述等无关数据；比 /api/app_store.php 更轻。
+     * 只返版本 / 下载地址相关字段，不含价格 / 描述等无关数据；比应用列表接口更轻。
      *
      * @param string[] $names 本地已装的 name_en 列表（最多 50 个，超出截断）
      * @param string   $type  'template' / 'plugin'（必填，避免跨类型同名歧义）
@@ -628,43 +590,38 @@ final class LicenseClient
     // 应用商店重构:按 audience 拆出的镜像方法(mainApp* / merchantApp*)
     //
     // 服务端将来计划把"主站货架"和"分站货架"拆成两组独立接口。当前服务端还没就绪,
-    // 这一组方法暂时委托给老 appStoreList / appDetail / appBuy / appLatestVersions,
-    // 通过 scope + audience 字段透传给服务端做兼容区分。
-    //
-    // 调用方迁移后,服务端拆接口只需改下面 8 个方法的 endpoint 即可,业务代码无感。
+    // 这一组方法负责区分"主站货架"和"分站货架",历史上服务端是两组接口。
+    // 现在 app-list 已合成一个接口,用 scope(main/branch) 区分,这里就只注入 scope。
     //
     // 使用约定:
     //   - mainApp*     主站为自己采购(落 em_plugin / em_template scope='main')
     //   - merchantApp* 主站为分站采购(落 em_app_market;不再以分站身份直连服务端)
-    //   - 两边 member_code 都为空 —— 始终是"主站站长身份"调,跟分站登录态无关
     // ============================================================================
 
     /**
      * 主站货架 · 应用列表。
      *
-     * @param array{page?:int,pageNum?:int,type?:string,category_id?:int,keyword?:string,emkey?:string,host?:string} $params
-     * @return array{list:array<int,array>,count:int,page:int,pageNum:int}
+     * @param array{domain?:string,code?:string,page?:int,per_page?:int,type?:string,category_id?:int,keyword?:string} $params
+     * @return array{license:array<string,mixed>,categories:array<int,array>,meta:array<string,int>,data:array<int,array>}
      */
     public static function mainAppList(array $params): array
     {
-        $params['scope']    = 1;
-        $params['audience'] = 'main';
-        $params['member_code'] = '';
-        return self::appStoreList($params);
+        $params['scope'] = 'main';
+        return self::appList($params);
     }
 
     /**
      * 分站货架 · 应用列表(主站后台为分站采购时拉)。
      *
-     * @param array{page?:int,pageNum?:int,type?:string,category_id?:int,keyword?:string,emkey?:string,host?:string} $params
-     * @return array{list:array<int,array>,count:int,page:int,pageNum:int}
+     * 注意 scope 的取值是 `branch`（分站），不是 merchant —— 服务端那边用词是 branch。
+     *
+     * @param array{domain?:string,code?:string,page?:int,per_page?:int,type?:string,category_id?:int,keyword?:string} $params
+     * @return array{license:array<string,mixed>,categories:array<int,array>,meta:array<string,int>,data:array<int,array>}
      */
     public static function merchantAppList(array $params): array
     {
-        $params['scope']    = 2;
-        $params['audience'] = 'merchant';
-        $params['member_code'] = '';
-        return self::appStoreList($params);
+        $params['scope'] = 'branch';
+        return self::appList($params);
     }
 
     /**

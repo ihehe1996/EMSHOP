@@ -21,27 +21,39 @@ declare(strict_types=1);
 final class PluginModel
 {
     /**
-     * 主站后台应用商店可见的所有分类(id => 名称)。
-     * 单一来源(SSOT):admin/appstore.php 引用本常量。
+     * 主站后台应用商店的分类(id => 名称)。
+     *
+     * ⚠️ 这里的 id 是**服务端**分类表的 id：admin/view/appstore.php 渲染成分类 tab，
+     * 原样作为 category_id 传给 app-list 接口，所以必须与服务端的 categories 一致，
+     * 本地不能自己编号（曾经本地 1 是"支付插件"、服务端 1 是"模板主题"，分类筛选全错）。
+     *
+     * 名称另有用途：本地插件归类是拿 parseHeader 的 Category 去比对 SYSTEM_PLUGINS 的
+     * **名称**（见 getEnabled / isSystemPlugin），所以这些名称不要改，改了插件分类就失效。
+     *
+     * 「未归类」(id=0) 与「已购买」不在这里，它们是各视图里额外硬编码的 tab。
      */
     public const MAIN_PLUGIN_CATEGORIES = [
-        1  => '支付插件',
-        2  => '商品类型',
-        3  => '共享店铺',
-        4  => '功能扩展',
-        5  => '消息通知',
-        6  => '系统美化',
-        99 => '未归类',
+        1  => '模板主题',
+        2  => '支付插件',
+        10 => '商品类型',
+        11 => '共享店铺',
+        12 => '功能扩展',
+        13 => '消息通知',
+        14 => '系统美化',
+        15 => '营销工具',
     ];
 
     /**
-     * 商户后台插件市场可见的分类(id => 名称)。
+     * 分站(主站为分站采购)应用商店可见的分类(id => 名称)。
+     *
+     * 与主站同一套服务端 id，但排除分站用不上的四类：模板主题 / 支付插件 /
+     * 商品类型 / 共享店铺 —— 这些属于商城底层能力，由主站统一管理，分站不能独立装启停。
      */
     public const MERCHANT_PLUGIN_CATEGORIES = [
-        1  => '功能扩展',
-        2  => '消息通知',
-        3  => '系统美化',
-        99 => '未归类',
+        12 => '功能扩展',
+        13 => '消息通知',
+        14 => '系统美化',
+        15 => '营销工具',
     ];
 
     /**
@@ -51,12 +63,13 @@ final class PluginModel
      * 商户站不能独立装/启停 —— init.php 加载商户 scope 时,会按主站启用名单中
      * category 命中本常量的部分自动注入,商户继承使用。
      *
-     * id 与 MAIN_PLUGIN_CATEGORIES 的 category id 对齐。
+     * id 与 MAIN_PLUGIN_CATEGORIES 的 category id 对齐（键本身不参与逻辑，
+     * 比对一律用名称，见 getEnabled()；对齐只是为了让两处读起来一致）。
      */
     public const SYSTEM_PLUGINS = [
-        1 => '支付插件',
-        2 => '商品类型',
-        3 => '共享店铺',
+        2  => '支付插件',
+        10 => '商品类型',
+        11 => '共享店铺',
     ];
 
     /** 主站启用列表的 config key */
