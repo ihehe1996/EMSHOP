@@ -21,6 +21,14 @@ $siteName = Config::get('sitename', 'EMSHOP');
 
 if (Request::isPost()) {
     try {
+        // 本分支的动作全是写操作（激活 / 解绑 / 重新校验 / 保存别名 / 购买 / 切换线路 /
+        // 代理配置），都会改动授权状态，必须校验 CSRF。
+        // 前端（admin/view/license.php 的 post() 包装、admin/view/index.php 的线路切换）
+        // 都已经在请求里带上 csrf_token。
+        if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+            Response::error('请求已失效，请刷新页面后重试');
+        }
+
         $action = (string) Input::post('_action', '');
 
         switch ($action) {

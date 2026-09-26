@@ -81,9 +81,8 @@ final class LicenseClient
             CURLOPT_HEADER => true,
             CURLOPT_TIMEOUT => 10,
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT => 'emshop-' . EM_VERSION,
-        ]);
+        ] + self::tlsOptions());
         $resp = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
@@ -466,6 +465,34 @@ final class LicenseClient
     }
 
     /**
+     * TLS 校验选项（三个请求入口共用）。
+     *
+     * 默认**开启**证书与主机名校验。此前 postForm() 为了绕过「SSL error 60」
+     * （证书链问题）把校验整个关掉了，而这条通道传的是授权与升级元数据：
+     * 关掉校验意味着链路中间人可以篡改响应、把升级包地址换成任意主机。
+     *
+     * 若你的授权服务器确实是自签证书或证书链不全、且暂时无法修好证书，
+     * 可将配置项 license_insecure_tls 置为 '1' 显式降级 ——
+     * 但请清楚这等于放弃该通道对中间人攻击的防护。
+     *
+     * @return array<int, mixed>
+     */
+    private static function tlsOptions(): array
+    {
+        if ((string) Config::get('license_insecure_tls', '0') === '1') {
+            return [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+            ];
+        }
+
+        return [
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+    }
+
+    /**
      * 返回当前生效的线路 URL。
      *
      * 线路配置从 EM_CONFIG['license_urls'] 读取；
@@ -532,10 +559,7 @@ final class LicenseClient
             ],
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => 5,
-            // 修复 SSL 错误 60
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-        ]);
+        ] + self::tlsOptions());
         $resp = curl_exec($ch);
         $err = curl_error($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -581,8 +605,7 @@ final class LicenseClient
             ],
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
+        ] + self::tlsOptions());
         $resp = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);

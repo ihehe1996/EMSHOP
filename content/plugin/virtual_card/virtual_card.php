@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 虚拟卡密商品类型
-Version: 1.1.2
+Version: 1.1.3
 Plugin URL:
 Description: 虚拟商品插件，支持卡密 / 账号 / 邮箱等。既可一键发货（从卡密库自动提取），也可切换为人工发货（管理员手动填写）。
 Author: EMSHOP
@@ -133,6 +133,38 @@ addAction('goods_type_register', function (&$types) {
         'delivery_type' => 'auto', // 默认值，实际按商品 auto_delivery 配置覆盖
     ];
 });
+
+// ================================================================
+// 注册「发货 worker」—— 本插件自己的常驻进程。
+//
+// 只领 goods_type = virtual_card 的任务，领到后执行本插件自己的
+// goods_type_virtual_card_order_paid 钩子。
+//
+// 这样做的两个好处：
+//   1. **隔离**：这个 worker 里只有本插件的代码。别的插件（比如打上游很慢的
+//      ycy_shared）卡住不会拖累卡密发货；本插件更新/启停也只重启这一个进程。
+//   2. 更新本插件时，只影响它自己的 worker。
+//
+// class 用核心提供的通用实现（DeliveryTaskWorker），本插件不用写 worker 类；
+// hook 指向下面已有的发货钩子，**发货逻辑一行不用改**。
+// ================================================================
+addFilter('server_worker_types', function ($types) {
+    if (!is_array($types)) {
+        $types = [];
+    }
+
+    $types[] = [
+        'type'   => 'deliver_virtual_card',
+        'label'  => '发货（虚拟卡密）',
+        'class'  => 'DeliveryTaskWorker',
+        'claim'  => ['goods_type' => 'virtual_card'],
+        'hook'   => 'goods_type_virtual_card_order_paid',
+        'plugin' => 'virtual_card',
+    ];
+
+    return $types;
+});
+
 
 // 根据商品实际的 auto_delivery 配置覆盖发货类型
 addFilter('goods_delivery_type', function ($deliveryType, $goods) {
@@ -336,6 +368,13 @@ addFilter('goods_type_virtual_card_order_submit', function ($result, $orderData)
 addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsId, $pluginData) {
     $prefix = Database::prefix();
 
+    // 幂等短路：这一行已经发过货就直接返回。
+    // 队列任务重试、僵尸任务回收都会重跑本钩子，而下面的取卡与写明细都不幂等 ——
+    // 少了这道短路，重跑会再消耗一批卡密，并把上一批发给买家的内容冲掉。
+    if (OrderModel::hasDeliveryContent((int) $orderGoodsId)) {
+        return;
+    }
+
     // 查询订单商品信息
     $og = Database::fetchOne(
         "SELECT id, goods_id, spec_id, quantity FROM {$prefix}order_goods WHERE id = ? LIMIT 1",
@@ -353,8 +392,8 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
         throw new RuntimeException('[virtual_card] 规格或数量异常');
     }
 
-    // 读取商品的插件配置，判断是否自动发货
-    $goods = Database::fetchOne("SELECT plugin_data FROM {$prefix}goods WHERE id = ? LIMIT 1", [$goodsId]);
+    // 读取商品的插件配置，判断是否自动发货（title 供库存不足异常展示商品名）
+    $goods = Database::fetchOne("SELECT title, plugin_data FROM {$prefix}goods WHERE id = ? LIMIT 1", [$goodsId]);
     $goodsPluginData = json_decode($goods['plugin_data'] ?? '{}', true) ?: [];
     $autoDelivery = virtualCardIsAutoDelivery($goodsPluginData);
 
@@ -362,71 +401,102 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
     $merchantId = (int) ($orderRow['merchant_id'] ?? 0);
     $issueOrder = virtualCardResolveIssueOrder($goodsPluginData, $merchantId);
 
-    if ($autoDelivery) {
-        // ===== 自动发货：从卡密库取卡密 =====
-        $orderBySql = 'id ASC';
-        if ($issueOrder === 'new') {
-            $orderBySql = 'id DESC';
-        } elseif ($issueOrder === 'random') {
-            $orderBySql = 'RAND()';
-        }
-        $cards = Database::query(
-            "SELECT id, card_no, card_pwd FROM {$prefix}goods_virtual_card
-             WHERE goods_id = ? AND spec_id = ? AND status = 1
-             ORDER BY {$orderBySql} LIMIT {$qty}",
-            [$goodsId, $specId]
-        );
-
-        if (count($cards) < $qty) {
-            throw new RuntimeException('[virtual_card] 卡密库存不足，需要 ' . $qty . ' 张，实际 ' . count($cards) . ' 张');
-        }
-
-        // 标记卡密为已售（分批 UPDATE，避免单次 IN 过多导致 SQL 过大、解析慢、长时间锁行）
-        $cardIds = array_column($cards, 'id');
-        foreach (array_chunk($cardIds, 500) as $chunk) {
-            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
-            Database::execute(
-                "UPDATE {$prefix}goods_virtual_card SET status = 0, order_id = ?, sold_at = NOW() WHERE id IN ({$placeholders})",
-                array_merge([$orderId], $chunk)
-            );
-        } 
-
-        // 拼接发货内容
-        $deliveryLines = [];
-        foreach ($cards as $card) {
-            $line = $card['card_no'];
-            if (!empty($card['card_pwd'])) {
-                $line .= '  密码: ' . $card['card_pwd'];
+    // 整个钩子体放在一个事务里。
+    // 队列只有在 runTask 返回 true 时才把任务标记 success，失败会标 retry 并重跑 ——
+    // 因此「每个失败的尝试被完整回滚」就是幂等的关键：成功那次不会再被重跑。
+    // Database::begin() 已支持嵌套（内层降级为 SAVEPOINT），调用方即使已开事务也安全。
+    Database::begin();
+    try {
+        if ($autoDelivery) {
+            // ===== 自动发货：从卡密库取卡密 =====
+            $orderBySql = 'id ASC';
+            if ($issueOrder === 'new') {
+                $orderBySql = 'id DESC';
+            } elseif ($issueOrder === 'random') {
+                $orderBySql = 'RAND()';
             }
-            $deliveryLines[] = $line;
-        }
-        $deliveryContent = implode("\n", $deliveryLines);
+            $cards = Database::query(
+                "SELECT id, card_no, card_pwd FROM {$prefix}goods_virtual_card
+                 WHERE goods_id = ? AND spec_id = ? AND status = 1
+                 ORDER BY {$orderBySql} LIMIT {$qty}",
+                [$goodsId, $specId]
+            );
 
-        // 写入发货内容（仅明细表）
-        $stored = OrderModel::persistDeliveryContent((int) $orderGoodsId, $deliveryContent);
-        if (!$stored) {
-            throw new RuntimeException('[virtual_card] 发货内容写入明细表失败，请先执行升级迁移');
-        }
-        Database::execute(
-            "UPDATE {$prefix}order_goods SET delivery_at = NOW() WHERE id = ?",
-            [$orderGoodsId]
-        );
+            if (count($cards) < $qty) {
+                // 用 StockShortageException 而非普通异常：卡密不足是**永久失败**，
+                // 让队列直接进终态，不要白白退避重试 max_attempts 轮
+                throw new StockShortageException((string) ($goods['title'] ?? ''), count($cards));
+            }
 
+            // 标记卡密为已售（分批 UPDATE，避免单次 IN 过多导致 SQL 过大、解析慢、长时间锁行）
+            $cardIds = array_column($cards, 'id');
+            foreach (array_chunk($cardIds, 500) as $chunk) {
+                $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+                // AND status = 1 是承重的，三个作用都不可省：
+                //   ① 挡住并发领取 —— 否则同一张卡会发给两张订单
+                //   ② 挡住把已作废的卡（status=2）复活成已售
+                //   ③ 保证 status 一定发生变化，让 affected_rows 的语义稳定
+                // 注意：若将来改成「值本来就不变」的 UPDATE，这个断言会失效
+                $affected = Database::execute(
+                    "UPDATE {$prefix}goods_virtual_card
+                        SET status = 0, order_id = ?, order_goods_id = ?, sold_at = NOW()
+                      WHERE id IN ({$placeholders}) AND status = 1",
+                    array_merge([$orderId, (int) $orderGoodsId], $chunk)
+                );
+                if ($affected !== count($chunk)) {
+                    throw new RuntimeException('[virtual_card] 卡密被并发领取，本次发货已回滚，请重试');
+                }
+            }
+
+            // 拼接发货内容
+            $deliveryLines = [];
+            foreach ($cards as $card) {
+                $line = $card['card_no'];
+                if (!empty($card['card_pwd'])) {
+                    $line .= '  密码: ' . $card['card_pwd'];
+                }
+                $deliveryLines[] = $line;
+            }
+            $deliveryContent = implode("\n", $deliveryLines);
+
+            // 写入发货内容（仅明细表）
+            $stored = OrderModel::persistDeliveryContent((int) $orderGoodsId, $deliveryContent);
+            if (!$stored) {
+                throw new RuntimeException('[virtual_card] 发货内容写入明细表失败，请先执行升级迁移');
+            }
+            Database::execute(
+                "UPDATE {$prefix}order_goods SET delivery_at = NOW() WHERE id = ?",
+                [$orderGoodsId]
+            );
+        } else {
+            // ===== 人工发货：仅扣减规格库存，不写 delivery_content =====
+            // delivery_content 由管理员后续手动填写，所以 hasDeliveryContent 短路
+            // 对本路径无效，幂等完全依赖「失败即整体回滚」这个事务边界。
+            Database::execute(
+                "UPDATE {$prefix}goods_spec SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
+                [$qty, $specId]
+            );
+        }
+
+        // 递增规格已售数量（放进事务，与取卡 / 扣库存同生共死）
+        GoodsModel::incrementSoldCount($specId, $qty);
+
+        Database::commit();
+    } catch (Throwable $e) {
+        // 漏掉这里的回滚会让连接带着未结束的事务返回 runTask，
+        // 随后它写 delivery_queue 的那条 UPDATE 就会落进这个悬空事务里
+        Database::rollBack();
+        throw $e;
+    }
+
+    // 缓存回写放在事务之外：它们是衍生数据，失败不该把已完成的发货回滚掉
+    if ($autoDelivery) {
         // 同步卡密库存到规格的 stock 字段
         virtualCardSyncCardStock($goodsId);
     } else {
-        // ===== 人工发货：仅扣减规格库存，不写 delivery_content =====
-        // delivery_content 由管理员后续手动填写
-        Database::execute(
-            "UPDATE {$prefix}goods_spec SET stock = GREATEST(stock - ?, 0) WHERE id = ?",
-            [$qty, $specId]
-        );
         // 与自动发货路径 virtualCardSyncCardStock 一致：刷新 goods 表 total_stock / 价格区间缓存
         GoodsModel::updatePriceStockCache($goodsId);
     }
-
-    // 递增规格已售数量
-    GoodsModel::incrementSoldCount($specId, $qty);
 });
 
 // ================================================================

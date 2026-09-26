@@ -28,7 +28,11 @@ $isPopup   = Input::get('_popup', '') === '1';
 // ============================================================
 if (Request::isPost()) {
     try {
-        
+        // 本分支下的动作全部是写操作（改售价 / 上下架 / 存配置 / 启停 / 卸载），
+        // 且卸载会递归删除插件目录 —— 必须校验 CSRF。
+        if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+            Response::error('请求已失效，请刷新页面后重试');
+        }
 
         $action = (string) Input::post('_action', '');
 

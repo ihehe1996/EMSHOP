@@ -81,22 +81,35 @@ class UserCouponModel
                 $sql .= " AND uc.status = 'used'";
                 break;
             case self::VIEW_EXPIRED:
+                // 「不可用」= 已软删 / 已被后台停用 / 已过期，三者任一。
+                //
+                // 注意这里必须显式包含「已软删 / 已停用」：原实现只判 end_at，
+                // 而**没有到期日**的券（end_at IS NULL）在券被软删后不匹配本分支，
+                // 会掉进下面的 VIEW_UNUSED —— 用户能在「未使用」里选中它，
+                // 一下单就报「优惠券不存在」。
                 $sql .= " AND uc.status = 'unused'
-                          AND c.end_at IS NOT NULL AND c.end_at < ?
+                          AND (
+                                c.deleted_at IS NOT NULL
+                             OR c.is_enabled = 0
+                             OR (c.end_at IS NOT NULL AND c.end_at < ?)
+                          )
                           AND (c.total_usage_limit = -1 OR c.used_count < c.total_usage_limit)";
                 $params[] = $now;
                 break;
             case self::VIEW_INVALID:
-                // 未过期但总次数已耗尽
+                // 未软删、未停用、未过期，但总次数已耗尽
                 $sql .= " AND uc.status = 'unused'
+                          AND c.deleted_at IS NULL AND c.is_enabled = 1
                           AND c.total_usage_limit != -1 AND c.used_count >= c.total_usage_limit
                           AND (c.end_at IS NULL OR c.end_at >= ?)";
                 $params[] = $now;
                 break;
             case self::VIEW_UNUSED:
             default:
-                // 未使用 + 未过期 + 未耗尽
+                // 可用 = 未使用 + 券未软删 + 券未被停用 + 未过期 + 未耗尽
                 $sql .= " AND uc.status = 'unused'
+                          AND c.deleted_at IS NULL
+                          AND c.is_enabled = 1
                           AND (c.end_at IS NULL OR c.end_at >= ?)
                           AND (c.total_usage_limit = -1 OR c.used_count < c.total_usage_limit)";
                 $params[] = $now;

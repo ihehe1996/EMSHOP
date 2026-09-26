@@ -94,13 +94,9 @@ final class MerchantLedgerService
 
         $logTable = Database::prefix() . 'merchant_balance_log';
 
-        // 幂等：已结算过则跳
-        $existing = Database::fetchOne(
-            'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
-            [$orderId, 'increase']
-        );
-        if ($existing !== null) return;
-
+        // 注意：幂等检查已移入下方事务内（且持订单行锁之后）。
+        // 事务外做 check-then-write 是竞态 —— 两个并发请求（网关重投、后台与发货
+        // 队列同时触发完成）都会读到「尚未结算」，然后各写一条 increase 流水。
         $merchant = Database::find('merchant', $merchantId);
         if ($merchant === null || (int) $merchant['status'] !== 1) return;
 
@@ -129,8 +125,28 @@ final class MerchantLedgerService
         $income = $totalLine - $totalCost - $totalFee;
         if ($income < 0) $income = 0; // 边界保护；正常不会负
 
+        $orderTable = Database::prefix() . 'order';
+
         Database::begin();
         try {
+            // 先锁订单行：并发结算在这里串行化。后到的请求会阻塞到前一个提交，
+            // 从而在下面的幂等检查里读到已写入的 increase 流水。
+            // （SELECT ... FOR UPDATE 是本仓库既有的惯用法，见 CommissionLogModel::splitWithdraw）
+            Database::fetchOne(
+                'SELECT `id` FROM `' . $orderTable . '` WHERE `id` = ? FOR UPDATE',
+                [$orderId]
+            );
+
+            // 幂等：已结算过则跳（此刻在事务内且持有订单行锁，判断可靠）
+            $existing = Database::fetchOne(
+                'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
+                [$orderId, 'increase']
+            );
+            if ($existing !== null) {
+                Database::commit();
+                return;
+            }
+
             // 锁用户行
             $userTable = Database::prefix() . 'user';
             $userRow = Database::fetchOne(
@@ -148,17 +164,28 @@ final class MerchantLedgerService
                 [$after, $ownerUserId]
             );
 
-            Database::insert('merchant_balance_log', [
-                'merchant_id' => $merchantId,
-                'user_id' => $ownerUserId,
-                'type' => 'increase',
-                'amount' => $income,
-                'before_balance' => $before,
-                'after_balance' => $after,
-                'order_id' => $orderId,
-                'remark' => '订单完成入账 #' . ($order['order_no'] ?? $orderId),
-                'operator_id' => 0,
-            ]);
+            try {
+                Database::insert('merchant_balance_log', [
+                    'merchant_id' => $merchantId,
+                    'user_id' => $ownerUserId,
+                    'type' => 'increase',
+                    'amount' => $income,
+                    'before_balance' => $before,
+                    'after_balance' => $after,
+                    'order_id' => $orderId,
+                    'remark' => '订单完成入账 #' . ($order['order_no'] ?? $orderId),
+                    'operator_id' => 0,
+                ]);
+            } catch (Throwable $e) {
+                if (Database::isDuplicateKeyError($e)) {
+                    // 唯一索引 uk_order_type 挡住 = 已被并发结算过。
+                    // 上面已经给余额加过一次款，所以必须**回滚本次的加款**
+                    // （不能 commit），让先到的那笔生效。
+                    Database::rollBack();
+                    return;
+                }
+                throw $e;
+            }
 
             // 子商户返佣已移除（规避传销风险）
 
@@ -184,30 +211,43 @@ final class MerchantLedgerService
 
         $logTable = Database::prefix() . 'merchant_balance_log';
 
-        // 幂等：之前有过 refund → 跳过
-        $refundExist = Database::fetchOne(
-            'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
-            [$orderId, 'refund']
-        );
-        if ($refundExist !== null) return;
-
-        // 取原入账记录
-        $settle = Database::fetchOne(
-            'SELECT * FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
-            [$orderId, 'increase']
-        );
-        if ($settle === null) {
-            // 订单没 settle 过（可能 paid 阶段直接 refund），无需倒扣
-            return;
-        }
-
         $merchant = Database::find('merchant', $merchantId);
         if ($merchant === null) return;
         $ownerUserId = (int) $merchant['user_id'];
-        $refundAmount = (int) $settle['amount'];
 
+        $orderTable = Database::prefix() . 'order';
+
+        // 幂等检查同样移入事务内（持订单行锁之后）—— 事务外检查是竞态：
+        // 并发退款会写出两条 refund 流水，把商户余额扣两次。
         Database::begin();
         try {
+            Database::fetchOne(
+                'SELECT `id` FROM `' . $orderTable . '` WHERE `id` = ? FOR UPDATE',
+                [$orderId]
+            );
+
+            // 幂等：之前有过 refund → 跳过
+            $refundExist = Database::fetchOne(
+                'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
+                [$orderId, 'refund']
+            );
+            if ($refundExist !== null) {
+                Database::commit();
+                return;
+            }
+
+            // 取原入账记录
+            $settle = Database::fetchOne(
+                'SELECT * FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
+                [$orderId, 'increase']
+            );
+            if ($settle === null) {
+                // 订单没 settle 过（可能 paid 阶段直接 refund），无需倒扣
+                Database::commit();
+                return;
+            }
+            $refundAmount = (int) $settle['amount'];
+
             $userTable = Database::prefix() . 'user';
             $userRow = Database::fetchOne(
                 'SELECT `shop_balance` FROM `' . $userTable . '` WHERE `id` = ? FOR UPDATE',
@@ -224,17 +264,26 @@ final class MerchantLedgerService
                 [$after, $ownerUserId]
             );
 
-            Database::insert('merchant_balance_log', [
-                'merchant_id' => $merchantId,
-                'user_id' => $ownerUserId,
-                'type' => 'refund',
-                'amount' => $refundAmount,
-                'before_balance' => $before,
-                'after_balance' => $after,
-                'order_id' => $orderId,
-                'remark' => '订单退款倒扣 #' . ($order['order_no'] ?? $orderId),
-                'operator_id' => 0,
-            ]);
+            try {
+                Database::insert('merchant_balance_log', [
+                    'merchant_id' => $merchantId,
+                    'user_id' => $ownerUserId,
+                    'type' => 'refund',
+                    'amount' => $refundAmount,
+                    'before_balance' => $before,
+                    'after_balance' => $after,
+                    'order_id' => $orderId,
+                    'remark' => '订单退款倒扣 #' . ($order['order_no'] ?? $orderId),
+                    'operator_id' => 0,
+                ]);
+            } catch (Throwable $e) {
+                if (Database::isDuplicateKeyError($e)) {
+                    // 唯一索引挡住 = 已被并发退款过，回滚本次的倒扣，让先到的那笔生效
+                    Database::rollBack();
+                    return;
+                }
+                throw $e;
+            }
 
             Database::commit();
         } catch (Throwable $e) {

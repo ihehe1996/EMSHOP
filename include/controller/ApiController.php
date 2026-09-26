@@ -1019,6 +1019,11 @@ class ApiController extends BaseController
             if (!preg_match('#^https?://#i', $callbackUrl)) {
                 throw new RuntimeException('delivery_callback_url 必须是 http(s) 地址');
             }
+            // 拒绝内网/保留地址：发货完成后系统会主动 POST 这个地址，
+            // 不做限制就等于给对接方一个探测内网的通道（盲 SSRF）
+            if (!DownloadUrlGuard::isPublicHttpUrl($callbackUrl)) {
+                throw new RuntimeException('delivery_callback_url 不能指向内网或保留地址');
+            }
             if (function_exists('mb_strlen')) {
                 if (mb_strlen($callbackUrl, 'UTF-8') > 500) {
                     throw new RuntimeException('delivery_callback_url 过长');

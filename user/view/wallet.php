@@ -117,6 +117,17 @@ $walletJsCtx = [
 
     function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':s); return d.innerHTML; }
 
+    // 界面上的金额（输入框、区间提示、余额）都是「访客展示币种」的数值，
+    // 而后端统一按主货币解释并校验 —— 所以提交前必须换回主货币。
+    // rate 的含义是「1 主货币 = N 访客币」，见 Currency::visitorFactor()。
+    // 访客币种 = 主货币时 rate 为 1，行为与改动前完全一致。
+    function toPrimaryAmount(v) {
+        var rate = (window.EMSHOP_CURRENCY && window.EMSHOP_CURRENCY.rate) || 1;
+        if (!(rate > 0)) { rate = 1; }
+        // 保留 6 位小数（微单位精度），避免浮点尾数超出后端白名单
+        return Math.round((v / rate) * 1e6) / 1e6;
+    }
+
     // ===== 充值 =====
     $(document).on('click.wallet', '#rechargeBtn', function () {
         if (!CTX.methods.length) {
@@ -161,7 +172,7 @@ $walletJsCtx = [
                 var payCode = $f.find('[name=payment_code]:checked').val() || '';
                 if (!payCode) { layui.layer.msg('请选择支付方式'); return; }
                 var loadIdx = layui.layer.load(2);
-                $.post('/?c=recharge&a=create', { amount: amt, payment_code: payCode }, function (res) {
+                $.post('/?c=recharge&a=create', { amount: toPrimaryAmount(amt), payment_code: payCode }, function (res) {
                     layui.layer.close(loadIdx);
                     if (res.code === 200 && res.data && res.data.pay_url) {
                         layui.layer.close(idx);
@@ -222,18 +233,22 @@ $walletJsCtx = [
             },
             yes: function (idx) {
                 var $f = $('.wallet-modal');
+                // 输入与区间/余额校验都按「访客展示币种」进行（与界面提示口径一致），
+                // 提交前再把金额换回主货币 —— 后端统一按主货币解释与校验。
+                // 此前是直接把访客币种数值当主货币提交，外币访客会差一个汇率倍数。
+                var amtInput = parseFloat($f.find('[name=amount]').val() || '0');
                 var payload = {
-                    amount:       parseFloat($f.find('[name=amount]').val() || '0'),
+                    amount:       toPrimaryAmount(amtInput),
                     channel:      $f.find('[name=channel]:checked').val() || '',
                     account_name: $.trim($f.find('[name=account_name]').val() || ''),
                     account_no:   $.trim($f.find('[name=account_no]').val() || ''),
                     bank_name:    $.trim($f.find('[name=bank_name]').val() || ''),
                 };
-                if (!(payload.amount > 0)) { layui.layer.msg('请输入金额'); return; }
-                if (payload.amount < CTX.minWithdraw || payload.amount > CTX.maxWithdraw) {
+                if (!(amtInput > 0)) { layui.layer.msg('请输入金额'); return; }
+                if (amtInput < CTX.minWithdraw || amtInput > CTX.maxWithdraw) {
                     layui.layer.msg('金额超出允许范围'); return;
                 }
-                if (payload.amount > CTX.balance) { layui.layer.msg('余额不足'); return; }
+                if (amtInput > CTX.balance) { layui.layer.msg('余额不足'); return; }
                 if (!payload.account_name) { layui.layer.msg('请填写收款人姓名'); return; }
                 if (!payload.account_no)   { layui.layer.msg('请填写收款账号'); return; }
                 if (payload.channel === 'bank' && !payload.bank_name) { layui.layer.msg('请填写开户行'); return; }

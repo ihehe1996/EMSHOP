@@ -56,6 +56,16 @@ final class Request
         }
 
         $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+        // 只接受「主机名[:端口]」形式，挡住 CRLF 注入以及把路径/查询串塞进 Host 的尝试。
+        //
+        // 注意：这**不能**阻止「换成另一个合法域名」的 Host 欺骗（evil.com 语法完全合法）。
+        // 因此凡是安全敏感的链接（找回密码等）必须改用后台配置的 site_url 作基址，
+        // 而不是依赖这里 —— 参见 PasswordResetService::buildResetUrl。
+        if (preg_match('/^[A-Za-z0-9.\-]+(?::\d{1,5})?$/', $host) !== 1) {
+            $host = 'localhost';
+        }
+
         $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php');
         $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
 

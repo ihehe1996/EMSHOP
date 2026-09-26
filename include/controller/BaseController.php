@@ -702,18 +702,27 @@ abstract class BaseController
             $params[] = $kw;
         }
 
-        // 标签筛选
+        // 标签筛选。
+        //
+        // 参数顺序是关键：JOIN 子句在 SQL 里排在 WHERE **之前**，所以它的绑定值
+        // 必须排在 WHERE 参数前面。此前是把 tag_id 追加在 $params 末尾，导致
+        // 所有占位符整体错位 —— 标签页恒为空；若同时带关键字，LIKE 的 `%kw%`
+        // 还会被绑到 tag_id 这种整型列上，等于结果完全不可预期。
         $joinTag = '';
+        $joinParams = [];
         if (!empty($where['tag_id'])) {
             $joinTag = "INNER JOIN {$prefix}blog_tag_relation btr ON a.id = btr.blog_id AND btr.tag_id = ?";
-            $params[] = (int) $where['tag_id'];
+            $joinParams[] = (int) $where['tag_id'];
         }
 
         $whereSql = implode(' AND ', $conditions);
 
+        // 按 SQL 中的出现顺序拼装绑定值：先 JOIN 的，再 WHERE 的
+        $bindings = array_merge($joinParams, $params);
+
         // 查询总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}blog a {$joinTag} WHERE {$whereSql}";
-        $countRow = Database::fetchOne($countSql, $params);
+        $countRow = Database::fetchOne($countSql, $bindings);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -732,7 +741,7 @@ abstract class BaseController
                 ORDER BY a.is_top DESC, a.sort ASC, a.id DESC
                 LIMIT {$perPage} OFFSET {$offset}";
 
-        $rows = Database::query($sql, $params);
+        $rows = Database::query($sql, $bindings);
         $list = [];
         $blogIds = [];
         foreach ($rows as $row) {

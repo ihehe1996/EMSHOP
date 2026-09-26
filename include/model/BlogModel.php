@@ -53,16 +53,23 @@ class BlogModel
 
         // 标签筛选
         $joinTag = '';
+        $joinParams = [];
         if (!empty($where['tag_id'])) {
             $joinTag = "INNER JOIN {$prefix}blog_tag_relation btr ON a.id = btr.blog_id AND btr.tag_id = ?";
-            $params[] = (int) $where['tag_id'];
+            // 注意：绑定值不能直接追加到 $params 末尾 —— JOIN 子句在 SQL 里排在
+            // WHERE 之前，先追加会让所有占位符整体错位（标签页恒为空）。
+            // 见下方 $bindings 的拼装。
+            $joinParams[] = (int) $where['tag_id'];
         }
 
         $whereSql = 'WHERE ' . implode(' AND ', $conditions);
 
+        // 按 SQL 中出现顺序拼装：先 JOIN 的参数，再 WHERE 的参数
+        $bindings = array_merge($joinParams ?? [], $params);
+
         $total = Database::query(
             "SELECT COUNT(*) as count FROM {$prefix}blog a {$joinTag} {$whereSql}",
-            $params
+            $bindings
         );
         $totalCount = (int) ($total[0]['count'] ?? 0);
 
@@ -76,7 +83,7 @@ class BlogModel
                 {$whereSql}
                 ORDER BY {$orderBy}
                 LIMIT {$offset}, {$limit}";
-        $list = Database::query($sql, $params);
+        $list = Database::query($sql, $bindings);
 
         return [
             'total' => $totalCount,

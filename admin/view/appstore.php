@@ -19,44 +19,52 @@ $csrfToken = $csrfToken ?? Csrf::token();
 /* 和控制台 / 模板管理 / 资源管理一致：去掉 .admin-page 默认白底，内容块浮在灰底画布 */
 .admin-page-appstore { padding: 8px 4px 40px; background: unset; }
 
-/* ===== 顶部工具条：只放一个快捷搜索，右对齐 ===== */
-.appstore-toolbar {
+/* ===== 顶部工具条：左(刷新) 右(搜索)，与表格留出间距 ===== */
+/* 用 .admin-page-appstore 前缀提高特异性，覆盖 style.css 里 form.em-list-search{margin:0} */
+.admin-page-appstore .appstore-toolbar {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 8px;
     margin: 0 0 12px;
 }
 .appstore-search {
-    position: relative;
-    width: 280px;
-}
-.appstore-search input {
-    width: 100%;
+    display: flex;
+    align-items: center;
+    width: 300px;
     height: 34px;
-    padding: 0 32px 0 34px;
-    font-size: 13px;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    outline: none;
     transition: border-color .15s ease, box-shadow .15s ease;
 }
-.appstore-search input:focus {
+.appstore-search:focus-within {
     border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.1);
 }
 .appstore-search i.fa-search {
-    position: absolute;
-    left: 12px; top: 50%; transform: translateY(-50%);
-    color: #9ca3af; font-size: 12px;
-    pointer-events: none;
+    margin-left: 12px;
+    color: #9ca3af;
+    font-size: 12px;
+    flex-shrink: 0;
 }
+.appstore-search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 8px;
+    font-size: 13px;
+    color: #1f2937;
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+.appstore-search input::placeholder { color: #9ca3af; }
 .appstore-search__clear {
-    position: absolute;
-    right: 8px; top: 50%; transform: translateY(-50%);
+    flex-shrink: 0;
     display: none;
     width: 20px; height: 20px;
+    margin-right: 6px;
     border: none;
     border-radius: 50%;
     background: #e5e7eb;
@@ -69,6 +77,27 @@ $csrfToken = $csrfToken ?? Csrf::token();
 }
 .appstore-search__clear:hover { background: #ef4444; color: #fff; }
 .appstore-search input:not(:placeholder-shown) ~ .appstore-search__clear { display: inline-flex; }
+
+/* 搜索按钮：内嵌在搜索框右侧 */
+.appstore-search__btn {
+    flex-shrink: 0;
+    height: 26px;
+    margin-right: 4px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: filter .15s;
+}
+.appstore-search__btn:hover { filter: brightness(.95); }
+.appstore-search__btn:active { filter: brightness(.9); }
 
 /* ===== 封面小图（表格第一列） ===== */
 .appstore-cover {
@@ -101,7 +130,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
 }
 .appstore-type i { font-size: 10px; }
 .appstore-type--template { background: #ecfeff; color: #0891b2; }
-.appstore-type--plugin   { background: #f5f3ff; color: #7c3aed; }
+.appstore-type--plugin   { background: rgba(99,102,241,.08); color: #4f46e5; }
 
 /* ===== 名称行 ===== */
 .appstore-title__row {
@@ -109,7 +138,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
     min-width: 0;
 }
 .appstore-title__name {
-    color: #0f172a;
+    color: #111827;
     line-height: 1.35;
     flex: 1; min-width: 0;
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
@@ -159,22 +188,23 @@ $csrfToken = $csrfToken ?? Csrf::token();
 .appstore-refresh-btn i { margin-right: 4px; }
 
 /* ===== 主站 / 分站 应用商店切换器(挂在标题下方) ===== */
+/* 白色分段控件：与下方 em-tabs 卡片同边框语言；选中态用后台主题(靛蓝)渐变 */
 .appstore-tab-switch {
     display: inline-flex;
     gap: 0;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e8e8ec;
+    border-radius: 10px;
     margin-bottom: 16px;
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 .appstore-tab-switch__item {
     padding: 10px 20px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-    color: #64748b;
+    color: #6b7280;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -182,23 +212,24 @@ $csrfToken = $csrfToken ?? Csrf::token();
     user-select: none;
     text-decoration: none;
     position: relative;
-    border-right: 1px solid #e2e8f0;
+    border-right: 1px solid #e8e8ec;
 }
 .appstore-tab-switch__item:last-child {
     border-right: none;
 }
 .appstore-tab-switch__item:hover {
-    color: #4C7D71;
-    background: rgba(76, 125, 113, 0.04);
+    color: #4f46e5;
+    background: #f4f5f3;
 }
 .appstore-tab-switch__item.is-active {
-    background: linear-gradient(135deg, #4C7D71 0%, #5a9486 100%);
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
     color: #ffffff;
     font-weight: 600;
+    border-right-color: transparent;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 .appstore-tab-switch__item.is-active:hover {
-    background: linear-gradient(135deg, #427065 0%, #4C7D71 100%);
+    background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
 }
 .appstore-tab-switch__item .fa {
     font-size: 13px;
@@ -206,6 +237,12 @@ $csrfToken = $csrfToken ?? Csrf::token();
 }
 .appstore-tab-switch__item:hover .fa {
     transform: scale(1.1);
+}
+
+/* 窄屏：搜索框拉满，工具条允许换行 */
+@media (max-width: 640px) {
+    .admin-page-appstore .appstore-toolbar { flex-wrap: wrap; gap: 8px; }
+    .appstore-search { width: 100%; }
 }
 
 </style>
@@ -241,18 +278,19 @@ $csrfToken = $csrfToken ?? Csrf::token();
         </a>
     </div>
 
-    <!-- 工具条：右侧快捷搜索 -->
-    <form class="appstore-toolbar em-list-search" id="appstoreSearchForm" autocomplete="off">
+    <!-- 工具条：左(刷新) 右(搜索) -->
+    <form class="appstore-toolbar em-list-search" id="appstoreSearchForm" autocomplete="off" data-em-search-btn="#appstoreSearchSubmit">
+        <button type="button" class="em-btn em-sm-btn em-reset-btn appstore-refresh-btn" id="appstoreRefreshBtn">
+            <i class="fa fa-refresh"></i>刷新
+        </button>
         <div class="appstore-search">
             <i class="fa fa-search"></i>
             <input type="search" id="appstoreSearch" placeholder="搜索应用名称 / 描述…" enterkeyhint="search">
             <button type="button" class="appstore-search__clear" id="appstoreSearchClear" title="清空">
                 <i class="fa fa-times"></i>
             </button>
+            <button type="button" class="appstore-search__btn" id="appstoreSearchSubmit" title="搜索">搜索</button>
         </div>
-        <button type="button" class="em-btn em-sm-btn em-reset-btn appstore-refresh-btn" id="appstoreRefreshBtn">
-            <i class="fa fa-refresh"></i>刷新
-        </button>
     </form>
 
     <table id="appstoreTable" lay-filter="appstoreTable"></table>
@@ -331,6 +369,19 @@ $csrfToken = $csrfToken ?? Csrf::token();
 </script>
 
 <script>
+// HTML 转义（顶层作用域，供本页各处使用）。
+// 应用名、封面地址等来自中心服务器 / 应用作者，属于外部可控数据；
+// 而 layer.msg / layer.confirm 与 HTML 属性都是按 HTML 渲染的，必须转义。
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 资源 host（由 PHP 注入）：始终取 license_urls[0].url，不跟随线路切换
 var APPSTORE_ASSET_HOST = <?= json_encode($appstoreAssetHost, JSON_UNESCAPED_SLASHES) ?>;
 // 当前站点是否已激活授权（templet 通过 window.APPSTORE_LICENSED 读取）
@@ -374,6 +425,14 @@ $(function () {
             return where;
         }
 
+        // ---------- 分页每页条数：localStorage 记忆，刷新后保持 ----------
+        var PAGE_LIMITS = [10, 20, 50];
+        var pageLimitKey = 'appstore_page_limit';
+        function getSavedLimit() {
+            var v = parseInt(localStorage.getItem(pageLimitKey), 10);
+            return PAGE_LIMITS.indexOf(v) !== -1 ? v : 10;
+        }
+
         // ---------- 服务端分页表格 ----------
         table.render({
             elem: '#appstoreTable',
@@ -382,8 +441,8 @@ $(function () {
             method: 'GET',
             where: buildWhere(),
             page: true,
-            limit: 10,
-            limits: [10, 20, 50],
+            limit: getSavedLimit(),
+            limits: PAGE_LIMITS,
             cellMinWidth: 80,
             lineStyle: 'height: 62px;',
             parseData: function (res) {
@@ -404,8 +463,8 @@ $(function () {
                             return '<span class="appstore-cover appstore-cover--empty"><i class="fa fa-cube"></i></span>';
                         }
                         var imgs = (Array.isArray(d.images) && d.images.length > 0 ? d.images : [d.cover]).map(appstoreAbsUrl);
-                        return '<img class="appstore-cover appstore-cover--zoom" src="' + appstoreAbsUrl(d.cover) +
-                               '" alt="" data-imgs="' + encodeURIComponent(JSON.stringify(imgs)) + '">';
+                        return '<img class="appstore-cover appstore-cover--zoom" src="' + emEsc(appstoreAbsUrl(d.cover)) +
+                               '" alt="" data-imgs="' + emEsc(encodeURIComponent(JSON.stringify(imgs))) + '">';
                     }
                 },
                 { field: 'name_cn', title: '应用名称', minWidth: 240, templet: '#appstoreTitleTpl' },
@@ -429,6 +488,14 @@ $(function () {
             });
         }
 
+        // 分页每页条数变更时写入 localStorage（layui 分页下拉无 table.on 事件，用委托监听 change）
+        $(document).on('change.admAppstore', '.layui-laypage-limits select', function () {
+            var v = parseInt($(this).val(), 10);
+            if (PAGE_LIMITS.indexOf(v) !== -1) {
+                localStorage.setItem(pageLimitKey, v);
+            }
+        });
+
         // ---------- em-tabs 切换 ----------
         $tabs.on('click', '.em-tabs__item', function () {
             var $item = $(this);
@@ -447,6 +514,11 @@ $(function () {
             clearTimeout(searchTimer);
             reloadTable();
         });
+        // 搜索按钮（点击 / Enter 均走这里，Enter 由 em-list-search 全局转为点击本按钮）
+        $('#appstoreSearchSubmit').on('click', function () {
+            clearTimeout(searchTimer);
+            reloadTable();
+        });
         $('#appstoreSearchClear').on('click', function () {
             $('#appstoreSearch').val('').trigger('input').focus();
         });
@@ -462,7 +534,9 @@ $(function () {
             if (!imgs.length) return;
 
             var $container = $('<div style="display:none;"></div>');
-            imgs.forEach(function (url) { $container.append('<img src="' + url + '">'); });
+            // 这些 url 来自 data-imgs（服务端下发的外部封面地址），进属性前必须转义，
+            // 否则一个带引号的地址就能逃出 src 属性注入事件处理器
+            imgs.forEach(function (url) { $container.append('<img src="' + emEsc(url) + '">'); });
             $('body').append($container);
 
             var viewer = new Viewer($container[0], {
@@ -479,7 +553,7 @@ $(function () {
             var displayName = d.name_cn || d.name_en || d.id;
             var typeLabel = d.type === 'template' ? '模板' : '插件';
             var actionLabel = '安装';
-            var loadingIdx = layer.load(2, { shade: [0.3, '#000'] });
+            var loadingIdx = EmToast.loading({ shade: 0.3, color: '#000', type: 2 });
             $.post('/admin/appstore.php', {
                 _action:    'install',
                 csrf_token: APPSTORE_CSRF,
@@ -492,22 +566,22 @@ $(function () {
                 cost_per_unit: Math.round((parseFloat(d.my_price || 0)) * 1000000),
                 remote_app_id: d.id || 0
             }).done(function (res) {
-                layer.close(loadingIdx);
+                EmToast.close(loadingIdx);
                 if (res && (res.code === 200 || res.code === 0)) {
                     if (res.data && res.data.csrf_token) APPSTORE_CSRF = res.data.csrf_token;
-                    layer.msg(typeLabel + actionLabel + '成功：' + displayName);
+                    EmToast.ok(typeLabel + actionLabel + '成功：' + emEsc(displayName));
                     reloadTable();
                 } else {
-                    layer.msg((res && res.msg) || (actionLabel + '失败'));
+                    EmToast.err((res && res.msg) || (actionLabel + '失败'));
                 }
             }).fail(function (xhr) {
-                layer.close(loadingIdx);
+                EmToast.close(loadingIdx);
                 var msg = actionLabel + '请求失败';
                 try {
                     var j = JSON.parse(xhr.responseText || '{}');
                     if (j && j.msg) msg = j.msg;
                 } catch (e) {}
-                layer.msg(msg);
+                EmToast.err(msg);
             });
         }
 
@@ -618,11 +692,11 @@ $(function () {
                     });
                     $layer.on('click', '.appstore-pay-dialog__confirm', function () {
                         if (!selectedCode) {
-                            layer.msg('请选择支付方式');
+                            EmToast.warn('请选择支付方式');
                             return;
                         }
                         if (!orderNo) {
-                            layer.msg('订单号缺失，无法跳转支付');
+                            EmToast.err('订单号缺失，无法跳转支付');
                             return;
                         }
                         var payUrl = appstoreAbsUrl(
@@ -646,29 +720,29 @@ $(function () {
         // ---------- 购买：创建订单 ----------
         function createOrder(app) {
             var id = parseInt(app.id, 10) || 0;
-            if (!id) { layer.msg('应用标识缺失，无法发起购买', { icon: 2 }); return; }
-            var loadingIdx = layer.load(2, { shade: [0.3, '#000'] });
+            if (!id) { EmToast.err('应用标识缺失，无法发起购买'); return; }
+            var loadingIdx = EmToast.loading({ shade: 0.3, color: '#000', type: 2 });
             $.post('/admin/appstore.php', {
                 _action: 'app_buy',
                 csrf_token: APPSTORE_CSRF,
                 app_id: id,
                 tab: window.APPSTORE_TAB || 'main'
             }).done(function (res) {
-                layer.close(loadingIdx);
+                EmToast.close(loadingIdx);
                 if (res && (res.code === 200 || res.code === 0)) {
                     if (res.data && res.data.csrf_token) APPSTORE_CSRF = res.data.csrf_token;
                     openPaymentMethodDialog((res && res.data) || {}, app);
                 } else {
-                    layer.msg((res && res.msg) || '创建订单失败');
+                    EmToast.err((res && res.msg) || '创建订单失败');
                 }
             }).fail(function (xhr) {
-                layer.close(loadingIdx);
+                EmToast.close(loadingIdx);
                 var msg = '创建订单请求失败';
                 try {
                     var j = JSON.parse(xhr.responseText || '{}');
                     if (j && j.msg) msg = j.msg;
                 } catch (e) {}
-                layer.msg(msg);
+                EmToast.err(msg);
             });
         }
 

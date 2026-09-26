@@ -40,6 +40,23 @@ final class Database
     private static $transactionDepth = 0;
 
     /**
+     * 嵌套层级 => 该层的 SAVEPOINT 名（下标 1 为真实事务，值为 null）。
+     *
+     * 嵌套 begin() 不再向 MySQL 再发一次 START TRANSACTION —— mysqli 下那会让
+     * MySQL 隐式 COMMIT 掉外层事务，外层 rollBack() 随即退化成空操作。
+     * 改用 SAVEPOINT 后，内层的 commit()/rollBack() 只作用到本层，
+     * 最终是否落库由最外层决定。
+     *
+     * @var array<int, string|null>
+     */
+    private static $savepoints = [];
+
+    /**
+     * 当前事务内已生成的 SAVEPOINT 序号，保证同一事务内名字不重复。
+     */
+    private static $savepointSeq = 0;
+
+    /**
      * 记录最近一次执行的 SQL 上下文（用于安装器定位）。
      *
      * @var array<string, mixed>
@@ -48,6 +65,12 @@ final class Database
 
     /**
      * 安装器/调试模式下：把 SQL 上下文附加到异常信息里，方便定位失败语句。
+     *
+     * 注意：**不能**用 PHP_SELF / SCRIPT_NAME 判断。它们受请求路径影响
+     * （如 /index.php/install/xxx 的 PATH_INFO），任意游客都能借此把全站
+     * 切成「异常里附带 SQL 与参数」模式，等于给攻击者一个 SQL 结构泄露开关。
+     * 这里改用 SCRIPT_FILENAME —— 它由 SAPI 给出（真实执行的脚本文件），
+     * 不随 URL 变化。
      */
     private static function shouldAttachSqlToError(): bool
     {
@@ -55,28 +78,96 @@ final class Database
             return true;
         }
 
-        // 兜底：只要当前脚本在 /install/ 下，就认为处于安装器调试环境
-        // 避免某些部署/常量覆盖导致开关失效，从而无法定位建表 SQL。
-        $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
-        $phpSelf = (string) ($_SERVER['PHP_SELF'] ?? '');
-        return strpos($script, '/install/') !== false || strpos($phpSelf, '/install/') !== false;
+        $scriptFile = (string) ($_SERVER['SCRIPT_FILENAME'] ?? '');
+        if ($scriptFile === '') {
+            return false;
+        }
+        $real = realpath($scriptFile);
+        if ($real === false) {
+            return false;
+        }
+
+        $installDir = str_replace('\\', '/', EM_ROOT) . '/install/';
+        return strpos(str_replace('\\', '/', $real), $installDir) === 0;
     }
 
     /**
+     * 脱敏参数，避免密码/密钥/令牌进入异常消息或日志。
+     *
+     * 两级处理：
+     *   1) 键名命中敏感关键字 → 整个值打码（含嵌套数组，如 insert() 传的 data）
+     *   2) 位置参数（int 键）无从按键名判断，改按值特征兜底：密码哈希、
+     *      JWT、长 hex/base64 串一律打码 —— 它们的排障价值低于泄露代价
+     *
      * @param array<string, mixed> $params
      */
     private static function maskParams(array $params): array
     {
         $out = [];
         foreach ($params as $k => $v) {
-            $key = is_string($k) ? strtolower($k) : (string) $k;
-            if (strpos($key, 'password') !== false || strpos($key, 'pwd') !== false) {
+            if (is_array($v)) {
+                $out[$k] = self::maskParams($v);
+                continue;
+            }
+
+            $key = is_string($k) ? strtolower($k) : '';
+            if ($key !== '' && self::isSensitiveKey($key)) {
                 $out[$k] = '***';
                 continue;
             }
-            $out[$k] = $v;
+
+            $out[$k] = self::maskSensitiveValue($v);
         }
         return $out;
+    }
+
+    /**
+     * 键名是否命中敏感关键字。
+     */
+    private static function isSensitiveKey(string $key): bool
+    {
+        static $needles = [
+            'password', 'passwd', 'pwd', 'secret', 'token', 'api_key', 'apikey',
+            'private_key', 'app_secret', 'credential', 'signature', 'sign',
+        ];
+        foreach ($needles as $needle) {
+            if (strpos($key, $needle) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 按值特征兜底脱敏：密码哈希、JWT、长 hex / 长随机串。
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private static function maskSensitiveValue($value)
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+        $len = strlen($value);
+        if ($len < 32) {
+            return $value;
+        }
+
+        // bcrypt / argon2 哈希
+        if (preg_match('/^\$(?:2[aby]|argon2)[\x21-\x7e]{20,}$/', $value) === 1) {
+            return '***';
+        }
+        // JWT
+        if (strpos($value, 'eyJ') === 0 && strpos($value, '.') !== false) {
+            return '***';
+        }
+        // 32 位以上纯 hex（md5 / sha1 / sha256 / 各类签名）
+        if (preg_match('/^[A-Fa-f0-9]{32,}$/', $value) === 1) {
+            return '***';
+        }
+
+        return $value;
     }
 
     /**
@@ -431,7 +522,9 @@ final class Database
         );
 
         // INSERT 返回 lastInsertId，UPDATE/DELETE 返回 affected rows
-        self::buildSqlDebug($sql, ['__values' => $values]);
+        // 传具名 $data（而非原来的 ['__values' => $values]）—— 后者会让 maskParams
+        // 看不到键名，密码类字段的明文就会被写进异常消息与 lastSqlContext。
+        self::buildSqlDebug($sql, $data);
         try {
             return self::withReconnectRetry(function () use ($sql, $values) {
                 if (self::driver() === 'mysqli') {
@@ -464,7 +557,10 @@ final class Database
                 return (int) $pdo->lastInsertId();
             });
         } catch (Throwable $e) {
-            self::throwSqlContextException('insert()', $e, $sql, ['__values' => $values]);
+            // 传具名 $data，让 maskParams 能按字段名识别 password / token 等敏感列；
+            // 传 ['__values' => $values] 会丢掉键名，短密钥（如 40 字符以内的签名）
+            // 就绕过了值特征兜底，明文进异常消息与日志。
+            self::throwSqlContextException('insert()', $e, $sql, $data);
             return 0;
         }
     }
@@ -521,40 +617,116 @@ final class Database
     }
 
     /**
-     * 开启事务。
+     * 开启事务；嵌套调用时在当前事务内打 SAVEPOINT。
+     *
+     * 支持嵌套是必需的：模型层（如 UserBalanceLogModel）与调用它的 service/controller
+     * 各自都会 begin()，若嵌套时直接再发一次 START TRANSACTION，mysqli 下 MySQL 会
+     * 隐式 COMMIT 掉外层事务，此后外层的 rollBack() 回滚不了任何东西 —— 资金类操作
+     * 会变成「扣了钱但记录没写、还回滚不掉」。
+     *
      * 维护 $transactionDepth：事务中连接断开时不能透明重连（事务状态会丢），
      * withReconnectRetry 会感知此计数并跳过重试，让上层 catch + rollBack。
      */
     public static function begin(): void
     {
-        if (self::driver() === 'mysqli') {
-            self::connect()->begin_transaction();
-        } else {
-            self::connect()->beginTransaction();
+        // 最外层：开真实事务
+        if (self::$transactionDepth === 0) {
+            if (self::driver() === 'mysqli') {
+                self::connect()->begin_transaction();
+            } else {
+                self::connect()->beginTransaction();
+            }
+            self::$transactionDepth = 1;
+            self::$savepoints = [1 => null];
+            self::$savepointSeq = 0;
+            return;
         }
+
+        // 嵌套层：打 SAVEPOINT。用 statement() 而非 execute()——
+        // MySQL 不允许 SAVEPOINT 走服务端预处理，而 mysqli 的 execute() 走的是预处理协议。
+        $name = 'em_sp_' . (++self::$savepointSeq);
+        self::statement('SAVEPOINT ' . $name);
+
+        // statement() 失败会抛异常，此时上面两行不会执行，事务状态保持一致
         self::$transactionDepth++;
+        self::$savepoints[self::$transactionDepth] = $name;
     }
 
     /**
-     * 提交事务。
+     * 提交事务。嵌套层只释放本层 SAVEPOINT，是否真正落库由最外层 commit() 决定。
      */
     public static function commit(): void
     {
-        self::connect()->commit();
-        if (self::$transactionDepth > 0) self::$transactionDepth--;
+        // 没有处于事务中：忽略（此前会向连接发一条裸 COMMIT，PDO 下还会抛异常）
+        if (self::$transactionDepth === 0) {
+            return;
+        }
+
+        // 最外层：真正提交
+        if (self::$transactionDepth === 1) {
+            try {
+                self::connect()->commit();
+            } finally {
+                self::resetTransactionState();
+            }
+            return;
+        }
+
+        // 嵌套层：释放本层 SAVEPOINT
+        $name = self::$savepoints[self::$transactionDepth] ?? null;
+        if ($name !== null) {
+            self::statement('RELEASE SAVEPOINT ' . $name);
+        }
+        unset(self::$savepoints[self::$transactionDepth]);
+        self::$transactionDepth--;
     }
 
     /**
-     * 回滚事务。
+     * 回滚事务。嵌套层只回滚到本层 SAVEPOINT，整体去留交给上层判断。
      */
     public static function rollBack(): void
     {
-        try {
-            self::connect()->rollBack();
-        } finally {
-            // 即使 rollBack 抛错也要把计数复位，避免后续查询误以为还在事务里而拒绝重连
-            if (self::$transactionDepth > 0) self::$transactionDepth--;
+        if (self::$transactionDepth === 0) {
+            return;
         }
+
+        try {
+            if (self::$transactionDepth === 1) {
+                self::connect()->rollBack();
+            } else {
+                $name = self::$savepoints[self::$transactionDepth] ?? null;
+                if ($name !== null) {
+                    self::statement('ROLLBACK TO SAVEPOINT ' . $name);
+                    self::statement('RELEASE SAVEPOINT ' . $name);
+                }
+            }
+        } finally {
+            // 即使底层抛错也要复位计数，避免后续查询误以为还在事务里而拒绝重连
+            if (self::$transactionDepth === 1) {
+                self::resetTransactionState();
+            } else {
+                unset(self::$savepoints[self::$transactionDepth]);
+                self::$transactionDepth--;
+            }
+        }
+    }
+
+    /**
+     * 复位事务状态。最外层提交/回滚后调用——MySQL 会一并销毁事务内所有 SAVEPOINT。
+     */
+    private static function resetTransactionState(): void
+    {
+        self::$transactionDepth = 0;
+        self::$savepoints = [];
+        self::$savepointSeq = 0;
+    }
+
+    /**
+     * 当前是否处于事务中（含嵌套层）。
+     */
+    public static function inTransaction(): bool
+    {
+        return self::$transactionDepth > 0;
     }
 
     /**
@@ -589,11 +761,16 @@ final class Database
                 (int) $config['port']
             );
         } catch (Throwable $e) {
+            // 连接失败的原始异常里含数据库主机、用户名、库名，而 Emmsg::error 会把
+            // 异常消息 + **绝对文件路径 + 行号**直接渲染在错误页上（见 Emmsg::render）。
+            // 数据库一挂，任何访客都能看到这些。真实原因只写 PHP 错误日志。
+            error_log('[EMSHOP] 数据库连接失败：' . $e->getMessage());
+
             if (PHP_SAPI === 'cli') {
-                throw new RuntimeException('数据库连接失败：' . $e->getMessage(), 0, $e);
+                throw new RuntimeException('数据库连接失败，请检查数据库配置', 0, $e);
             }
-            Emmsg::error('数据库连接失败', $e);
-        }  
+            Emmsg::error('数据库连接失败', '请检查数据库配置，或联系技术支持');
+        }
 
         $mysqli->set_charset((string) $config['charset']);
 
@@ -616,11 +793,19 @@ final class Database
             $config['charset']
         );
 
-        return new PDO($dsn, (string) $config['username'], (string) $config['password'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        try {
+            return new PDO($dsn, (string) $config['username'], (string) $config['password'], [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+        } catch (Throwable $e) {
+            // 同 mysqli 路径：原始异常含主机 / 用户名 / 库名，未捕获时在开启
+            // display_errors 的环境会连绝对路径一起显示给访客。
+            // 这里记真实原因，抛一个不含敏感信息的异常，保持「失败即抛错」的原有契约。
+            error_log('[EMSHOP] 数据库连接失败：' . $e->getMessage());
+            throw new RuntimeException('数据库连接失败，请检查数据库配置', 0, $e);
+        }
     }
 
     /**
@@ -697,6 +882,41 @@ final class Database
         $msg = $e->getMessage();
         return stripos($msg, 'gone away') !== false
             || stripos($msg, 'Lost connection') !== false;
+    }
+
+    /**
+     * 是否为唯一键冲突（MySQL errno 1062）。
+     *
+     * 用于把「唯一索引挡住了重复写入」识别成幂等成功，而不是当成错误抛出去。
+     * 三种情况都要覆盖：
+     *   - mysqli  ：MYSQLI_REPORT_STRICT 下抛 mysqli_sql_exception，code 就是 1062
+     *   - PDO     ：抛 PDOException，但 getCode() 返回 SQLSTATE 字符串 '23000'，
+     *               真实 errno 在 errorInfo[1] —— 只看 getCode() 会漏判
+     *   - 安装器环境：throwSqlContextException 会把上面两种包成 RuntimeException，
+     *               需要顺着 getPrevious() 往下找
+     */
+    public static function isDuplicateKeyError(Throwable $e): bool
+    {
+        if ($e instanceof mysqli_sql_exception) {
+            return (int) $e->getCode() === 1062;
+        }
+
+        if ($e instanceof PDOException && property_exists($e, 'errorInfo') && is_array($e->errorInfo)) {
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                return true;
+            }
+        }
+
+        // 包装层：递归找根因
+        $prev = $e->getPrevious();
+        if ($prev !== null && $prev !== $e) {
+            return self::isDuplicateKeyError($prev);
+        }
+
+        // 最后一层兜底：消息文本（部分驱动/包装后 errno 丢失，但消息明确）
+        $msg = $e->getMessage();
+        return stripos($msg, 'Duplicate entry') !== false
+            || stripos($msg, '1062') !== false;
     }
 
     /**

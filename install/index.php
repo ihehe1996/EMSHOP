@@ -53,18 +53,6 @@ function installer_is_installed(): bool
     return is_file(EM_INSTALL_LOCK);
 }
 
-function installer_config_writable(): bool
-{
-    $configPath = EM_ROOT . '/config.php';
-    if (is_file($configPath)) {
-        return is_writable($configPath);
-    }
-    return is_writable(EM_ROOT);
-}
-
-
-
-
 
 function installer_is_ajax_request(): bool
 {
@@ -127,7 +115,7 @@ function installer_fail_response(string $action, array $messages, array $default
     if ($action === 'install' && installer_is_ajax_request()) {
         Response::error(installer_messages_text($messages), ['messages' => $messages]);
     }
-    installer_render($messages, $defaults);
+    installer_render($messages, $defaults, 'form');
 }
 
 function installer_success_response(string $action, string $message, array $defaults, array $data = []): void
@@ -135,7 +123,70 @@ function installer_success_response(string $action, string $message, array $defa
     if ($action === 'install' && installer_is_ajax_request()) {
         Response::success($message, $data);
     }
-    installer_render([['type' => 'ok', 'text' => $message]], $defaults);
+    installer_render([['type' => 'ok', 'text' => $message]], $defaults, 'form');
+}
+
+/**
+ * 把数据库驱动的原始报错翻译成用户看得懂的提示。
+ * 优先按驱动错误码判断：报错文案在中文 Windows 等环境下会被本地化，按文本匹配会漏。
+ * 认不出来的原样返回，不做二次包装。
+ *
+ * @param array<string, mixed> $db
+ * @param int $errno 驱动错误码（mysqli_connect_errno / mysqli_errno / PDO errorInfo[1]）
+ */
+function installer_friendly_db_error(string $raw, array $db, int $errno = 0): string
+{
+    $user = (string) ($db['username'] ?? '');
+    $host = (string) ($db['host'] ?? '');
+    $name = (string) ($db['dbname'] ?? '');
+
+    // PDO 的 SQLSTATE 消息里带 [1045] 这样的驱动错误码，直接取出来
+    if ($errno === 0 && preg_match('/\[(\d{4})\]/', $raw, $m)) {
+        $errno = (int) $m[1];
+    }
+
+    if ($errno === 1044) {
+        // 该账号对这个库没权限（库不存在时也可能报这条，MySQL 不区分）
+        return sprintf('数据库「%s」不存在，或账号「%s」没有访问权限，请检查数据库名与账号权限', $name, $user);
+    }
+    if ($errno === 1045) {
+        // 用户名不存在 / 密码错误，MySQL 出于安全不区分两者
+        return '数据库用户名或密码错误，请检查后重试';
+    }
+    if ($errno === 1049) {
+        return sprintf('数据库「%s」不存在，请先在数据库面板中创建', $name);
+    }
+    if ($errno === 2005) {
+        return sprintf('数据库地址「%s」无法解析，请检查地址是否填写正确', $host);
+    }
+    if ($errno === 2002 || $errno === 2003 || $errno === 2006) {
+        // 连不上和解析不了都是 2002，只能靠这段 ASCII 报错区分（后面的中文会被系统本地化）
+        if (preg_match('/getaddrinfo|php_network_getaddresses|Unknown MySQL server host/i', $raw)) {
+            return sprintf('数据库地址「%s」无法解析，请检查地址是否填写正确', $host);
+        }
+        return sprintf('无法连接数据库服务器，请检查地址（%s）、端口是否正确，以及数据库服务是否已启动', $host);
+    }
+
+    // 错误码缺失或不认识时，退回文本匹配
+    if (stripos($raw, 'Access denied for user') !== false) {
+        if (preg_match("/to database\s+'([^']*)'/i", $raw, $m)) {
+            return sprintf('数据库「%s」不存在，或账号「%s」没有访问权限，请检查数据库名与账号权限', $m[1], $user);
+        }
+        return '数据库用户名或密码错误，请检查后重试';
+    }
+    if (stripos($raw, 'Unknown database') !== false) {
+        return sprintf('数据库「%s」不存在，请先在数据库面板中创建', $name);
+    }
+    if (stripos($raw, 'Unknown MySQL server host') !== false || stripos($raw, 'getaddrinfo') !== false) {
+        return sprintf('数据库地址「%s」无法解析，请检查地址是否填写正确', $host);
+    }
+    if (stripos($raw, 'Connection refused') !== false
+        || stripos($raw, "Can't connect to MySQL server") !== false
+        || stripos($raw, 'Connection timed out') !== false
+        || stripos($raw, 'No such file or directory') !== false) {
+        return sprintf('无法连接数据库服务器，请检查地址（%s）、端口是否正确，以及数据库服务是否已启动', $host);
+    }
+    return $raw;
 }
 
 /**
@@ -159,11 +210,11 @@ function installer_test_db_connection(array $db): array
             return [
                 'ok' => false,
                 'driver' => 'mysqli',
-                'message' => 'mysqli 连接失败：' . (string) mysqli_connect_error(),
+                'message' => installer_friendly_db_error((string) mysqli_connect_error(), $db, (int) mysqli_connect_errno()),
             ];
         }
         @mysqli_close($mysqli);
-        return ['ok' => true, 'driver' => 'mysqli', 'message' => 'mysqli 连接成功'];
+        return ['ok' => true, 'driver' => 'mysqli', 'message' => '数据库连接成功'];
     }
 
     if (extension_loaded('pdo_mysql')) {
@@ -172,9 +223,9 @@ function installer_test_db_connection(array $db): array
             new PDO($dsn, $user, $pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             ]);
-            return ['ok' => true, 'driver' => 'pdo', 'message' => 'PDO 连接成功'];
+            return ['ok' => true, 'driver' => 'pdo', 'message' => '数据库连接成功'];
         } catch (Throwable $e) {
-            return ['ok' => false, 'driver' => 'pdo', 'message' => 'PDO 连接失败：' . $e->getMessage()];
+            return ['ok' => false, 'driver' => 'pdo', 'message' => installer_friendly_db_error($e->getMessage(), $db, (int) ($e->errorInfo[1] ?? 0))];
         }
     }
 
@@ -199,16 +250,16 @@ function installer_fetch_tables(array $db): array
             return [
                 'ok' => false,
                 'driver' => 'mysqli',
-                'message' => 'mysqli 连接失败：' . (string) mysqli_connect_error(),
+                'message' => installer_friendly_db_error((string) mysqli_connect_error(), $db, (int) mysqli_connect_errno()),
                 'tables' => [],
             ];
         }
         @mysqli_set_charset($mysqli, 'utf8mb4');
         $result = @mysqli_query($mysqli, 'SHOW TABLES');
         if ($result === false) {
-            $error = (string) mysqli_error($mysqli);
+            $error = installer_friendly_db_error((string) mysqli_error($mysqli), $db, (int) mysqli_errno($mysqli));
             @mysqli_close($mysqli);
-            return ['ok' => false, 'driver' => 'mysqli', 'message' => '读取表结构失败：' . $error, 'tables' => []];
+            return ['ok' => false, 'driver' => 'mysqli', 'message' => '读取数据表失败：' . $error, 'tables' => []];
         }
         $tables = [];
         while ($row = mysqli_fetch_row($result)) {
@@ -234,11 +285,34 @@ function installer_fetch_tables(array $db): array
             }
             return ['ok' => true, 'driver' => 'pdo', 'message' => 'ok', 'tables' => $tables];
         } catch (Throwable $e) {
-            return ['ok' => false, 'driver' => 'pdo', 'message' => '读取表结构失败：' . $e->getMessage(), 'tables' => []];
+            return ['ok' => false, 'driver' => 'pdo', 'message' => '读取数据表失败：' . installer_friendly_db_error($e->getMessage(), $db, (int) ($e->errorInfo[1] ?? 0)), 'tables' => []];
         }
     }
 
     return ['ok' => false, 'driver' => 'none', 'message' => '环境缺少 mysqli 或 pdo_mysql 扩展', 'tables' => []];
+}
+
+/**
+ * 从表清单里挑出属于当前前缀的表。
+ * 安装只清理自己的表；前缀为空时返回空数组（否则会匹配到库里的每一张表）。
+ *
+ * @param array<int, string> $tables
+ * @return array<int, string>
+ */
+function installer_filter_prefixed_tables(array $tables, string $prefix): array
+{
+    $prefixLower = strtolower(trim($prefix));
+    if ($prefixLower === '') {
+        return [];
+    }
+    $matched = [];
+    foreach ($tables as $table) {
+        $table = (string) $table;
+        if (strpos(strtolower($table), $prefixLower) === 0) {
+            $matched[] = $table;
+        }
+    }
+    return $matched;
 }
 
 function installer_drop_tables(array $db, array $tables): array
@@ -370,29 +444,18 @@ PHP;
 }
 
 /**
- * 输出一个简单的安装页 UI（不复用前台模板，避免依赖 init.php）。
+ * 输出安装页 UI（不复用前台模板，避免依赖 init.php）。
  *
  * @param array<int, array{type:string, text:string}> $messages
  * @param array<string, mixed> $defaults
+ * @param string $step intro=第一步（介绍与环境建议） / form=第二步（配置表单）
+ * @param bool $demo 调试用：带上 ?demo=1 时用假数据直接弹出「安装成功」弹窗，方便调样式
  */
-function installer_render(array $messages, array $defaults): void
+function installer_render(array $messages, array $defaults, string $step = 'intro', bool $demo = false): void
 {
 
-    $phpOk = PHP_VERSION_ID >= 70400;
-    $hasMysqli = extension_loaded('mysqli');
-    $hasPdo = extension_loaded('pdo_mysql');
     $systemVersion = installer_system_version();
 
-    $lockDir = dirname(EM_INSTALL_LOCK);
-    $lockDirWritable = is_dir($lockDir) && is_writable($lockDir);
-    $cacheDir = EM_ROOT . '/content/cache';
-    $cacheDirWritable = is_dir($cacheDir) && is_writable($cacheDir);
-    $rootWritable = is_writable(EM_ROOT);
-    $configWritable = installer_config_writable();
-
-    $d = function (string $key, $fallback = '') use ($defaults) {
-        return isset($defaults[$key]) ? (string) $defaults[$key] : (string) $fallback;
-    };
     $db = $defaults['db'] ?? [];
     $dbHost = is_array($db) ? (string) ($db['host'] ?? '127.0.0.1') : '127.0.0.1';
     $dbPort = is_array($db) ? (string) ($db['port'] ?? '3306') : '3306';
@@ -412,476 +475,447 @@ function installer_render(array $messages, array $defaults): void
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>EMSHOP 在线安装</title>
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
+    <link rel="stylesheet" href="/content/static/css/em-toast.css">
     <style>
         :root {
-            --brand: #0ea5e9;
-            --brand-hover: #0284c7;
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --danger: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --radius-lg: 24px;
-            --radius-md: 16px;
-            --radius-sm: 12px;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --accent: #6366f1;
+            --accent-strong: #4f46e5;
+            --bg: #f6f7fb;
+            --ink: #131a2e;
+            --ink-2: #47506a;
+            --muted: #7a839a;
+            --line: #e6e8f0;
+            --line-strong: #d3d8e4;
+            --radius: 12px;
+            --ring: 0 0 0 3px rgba(99, 102, 241, 0.18);
+            --field-bg: #fcfcfe;
+            --shadow-panel: 0 24px 60px -34px rgba(15, 23, 41, 0.3), 0 1px 2px rgba(15, 23, 41, 0.04);
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            background-image: 
-                radial-gradient(at 0% 0%, hsla(199, 100%, 74%, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, hsla(189, 100%, 56%, 0.12) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: var(--text-main);
+            padding: 0 0 72px;
             min-height: 100vh;
+            color: var(--ink);
+            background: var(--bg);
+            font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
             -webkit-font-smoothing: antialiased;
         }
-        .wrap { max-width: 1000px; margin: 0 auto; padding: 40px 20px 60px; }
-        .header { text-align: center; margin-bottom: 40px; position: relative; }
-        .logo-container {
-            display: flex; align-items: center; justify-content: center;
-            width: 64px; height: 64px; border-radius: 14px;
-            margin: 0 auto 20px; overflow: hidden;
-            background: #ffffff;
-            box-shadow: var(--shadow-sm);
-            border: 1px solid var(--border);
+        /* 背景：柔和光晕 + 渐隐点阵 */
+        body::before,
+        body::after { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+        body::before {
+            background:
+                radial-gradient(56% 46% at 2% -8%, rgba(99, 102, 241, 0.17), transparent 68%),
+                radial-gradient(52% 48% at 100% 2%, rgba(168, 85, 247, 0.13), transparent 70%),
+                radial-gradient(46% 40% at 50% 112%, rgba(99, 102, 241, 0.08), transparent 72%);
         }
-        .logo-container img { width: 100%; height: 100%; object-fit: contain; }
-        .hTitle-wrapper {
-            position: relative;
-            display: inline-block;
-        }
-        .hTitle { font-size: 28px; font-weight: 800; margin: 0 0 8px; letter-spacing: -0.5px; }
-        .version-badge {
-            position: absolute;
-            top: -2px;
-            right: -65px;
-            font-size: 12px;
-            font-weight: 700;
-            color: #0284c7;
-            background: #e0f2fe;
-            padding: 2px 8px;
-            border-radius: 10px;
-            border: 1px solid #bae6fd;
-            white-space: nowrap;
-        }
-        .hSub { font-size: 15px; color: var(--text-muted); margin: 0; }
-        
-        .sys-info {
-            display: flex; justify-content: center; gap: 24px;
-            margin-top: 20px; font-size: 13px; color: var(--text-muted);
-        }
-        .sys-info span { display: flex; align-items: center; gap: 6px; }
-
-        .layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
-        @media (min-width: 900px) {
-            .layout { grid-template-columns: 320px 1fr; align-items: start; }
+        body::after {
+            background-image: radial-gradient(rgba(15, 23, 41, 0.06) 1px, transparent 1px);
+            background-size: 22px 22px;
+            -webkit-mask-image: linear-gradient(180deg, #000, transparent 72%);
+            mask-image: linear-gradient(180deg, #000, transparent 72%);
         }
 
-        .card {
-            background: var(--surface); border-radius: var(--radius-lg);
-            padding: 32px; box-shadow: var(--shadow-xl);
-            border: 1px solid rgba(255,255,255,0.5);
+        /* 主体 */
+        .page { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; padding: 84px 20px 0; }
+        .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .eyebrow {
+            display: inline-flex; align-items: center; gap: 9px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.16em; color: var(--accent-strong);
         }
-        .card-left { padding: 28px 24px; }
-        .cardTitle { font-size: 16px; font-weight: 700; margin: 0 0 24px; color: var(--text-main); }
-        
-        .steps { position: relative; padding: 0; margin: 0 0 40px; list-style: none; }
-        .steps::before {
-            content: ''; position: absolute; top: 12px; bottom: 12px; left: 11px;
-            width: 2px; background: var(--border); z-index: 0;
+        .eyebrow::before {
+            content: ""; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14);
+            animation: pulse 2.4s ease-in-out infinite;
         }
-        .step { position: relative; display: flex; gap: 16px; margin-bottom: 28px; z-index: 1; }
-        .step:last-child { margin-bottom: 0; }
-        .dot {
-            width: 24px; height: 24px; border-radius: 50%; background: var(--surface);
-            border: 2px solid var(--brand); color: var(--brand);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 700; flex-shrink: 0;
-            box-shadow: 0 0 0 4px var(--surface);
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14); }
+            50% { box-shadow: 0 0 0 7px rgba(99, 102, 241, 0.05); }
         }
-        .step-content b { display: block; font-size: 14px; margin-bottom: 4px; color: var(--text-main); }
-        .step-content span { display: block; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+        .version {
+            flex: none; padding: 5px 11px;
+            font: 500 11.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--muted); background: #fff;
+            border: 1px solid var(--line); border-radius: 999px;
+        }
+        .title {
+            margin: 16px 0 0; font-size: 38px; font-weight: 700; line-height: 1.16; letter-spacing: -0.02em;
+            background: linear-gradient(180deg, #131a2e 24%, #4d5a79);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .lede { margin: 14px 0 0; max-width: 30em; font-size: 14.5px; color: var(--muted); text-wrap: pretty; }
 
-        .checks { display: flex; flex-direction: column; gap: 12px; }
-        .checkRow {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px; background: var(--bg); border-radius: var(--radius-sm); font-size: 13px;
+        /* 面板 */
+        .panel {
+            margin-top: 32px; overflow: hidden;
+            background: linear-gradient(180deg, #fff, #fdfdff);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: var(--shadow-panel);
         }
-        .checkRow b { font-weight: 600; color: var(--text-main); }
-        .tag { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
-        .tag.ok { background: #dcfce7; color: #166534; }
-        .tag.bad { background: #fee2e2; color: #991b1b; }
-        .tag.warn { background: #fef3c7; color: #92400e; }
 
-        .section { margin-bottom: 32px; }
-        .section:last-child { margin-bottom: 0; }
-        .sectionH { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-        .sectionH b { font-size: 18px; font-weight: 700; display: block; margin-bottom: 4px; }
-        .sectionH span { font-size: 13px; color: var(--text-muted); }
-        .row { display: grid; gap: 20px; margin-bottom: 20px; }
-        @media (min-width: 600px) { .row.two { grid-template-columns: 1fr 1fr; } }
-        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-main); }
-        input {
-            width: 100%; padding: 12px 16px; font-size: 14px;
-            border: 1px solid var(--border); border-radius: var(--radius-sm);
-            background: var(--bg); color: var(--text-main); transition: all 0.2s;
-        }
-        input:focus {
-            outline: none; border-color: var(--brand); background: var(--surface);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-        }
-        input::placeholder { color: #94a3b8; }
-        
-        .actions {
-            display: flex; gap: 16px; margin-top: 40px; padding-top: 24px;
-            border-top: 1px solid var(--border);
-        }
-        button {
-            flex: 1; padding: 14px 24px; font-size: 15px; font-weight: 600;
-            border-radius: var(--radius-sm); border: none; cursor: pointer;
-            transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        button[type="submit"] { background: var(--brand); color: white; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); }
-        button[type="submit"]:hover { background: var(--brand-hover); transform: translateY(-1px); }
-        button.secondary { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); }
-        button.secondary:hover { background: #e2e8f0; }
-        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
-
-        .hint { margin-top: 16px; font-size: 13px; color: var(--text-muted); text-align: center; }
-
-        .alerts { margin-bottom: 24px; }
+        /* 提示 */
+        .alerts { padding: 20px 20px 0; }
         .msg {
-            display: flex; align-items: center; gap: 12px; padding: 16px;
-            border-radius: var(--radius-md); margin-bottom: 12px; font-size: 14px; font-weight: 500;
+            position: relative; margin-bottom: 10px; padding: 13px 16px 13px 19px;
+            font-size: 13px; white-space: pre-line;
+            border: 1px solid transparent; border-radius: var(--radius);
         }
-        .msg.bad { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .msg.ok { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-        .msg.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-        .msg .ico { display: none; } /* Hide old icons */
+        .msg:last-child { margin-bottom: 0; }
+        .msg::before {
+            content: ""; position: absolute; top: 13px; bottom: 13px; left: 0;
+            width: 3px; border-radius: 999px; background: currentColor; opacity: 0.85;
+        }
+        .msg.ok { color: #067647; background: #ecfdf3; border-color: #abefc6; }
+        .msg.bad { color: #b42318; background: #fef3f2; border-color: #fecdca; }
+        .msg.warn { color: #b54708; background: #fffaeb; border-color: #fedf89; }
 
-        .layui-layer.install-success-skin {
-            border-radius: var(--radius-md) !important;
+        /* 分区 */
+        .section { padding: 28px 20px; }
+        .section + .section { border-top: 1px solid #eef0f6; }
+        .section-head { display: flex; gap: 12px; margin-bottom: 20px; }
+        .section-head::before {
+            content: ""; flex: none; width: 3px; margin: 3px 0; border-radius: 999px;
+            background: var(--accent);
+        }
+        .section-head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+        .section-head p { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); }
+
+        /* 运行环境建议 */
+        .env { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .env-item {
+            padding: 16px; border-radius: var(--radius);
+            background: #fafbfd; border: 1px solid var(--line);
+        }
+        .env-badge { display: block; height: 20px; }
+        .env-desc { margin: 12px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+        .env-note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); }
+
+        /* 表单：两列等宽 */
+        .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+        .field label { display: block; margin-bottom: 8px; font-size: 12.5px; font-weight: 500; color: #5a6478; }
+        .field label.required::after { content: "*"; margin-left: 3px; color: #e5484d; }
+        .control { position: relative; display: flex; align-items: center; }
+        .control svg {
+            position: absolute; left: 14px; width: 16px; height: 16px;
+            color: #a3abbd; transition: color 0.18s; pointer-events: none;
+        }
+        .control input {
+            width: 100%; height: 48px; padding: 0 14px 0 42px;
+            font-size: 14px; font-family: inherit; color: var(--ink);
+            background: var(--field-bg); border: 1px solid #e3e6ef; border-radius: var(--radius);
+            transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+        }
+        .control input::placeholder { color: #a3abbd; }
+        .control input:hover { border-color: var(--line-strong); }
+        .control input:focus {
+            outline: none; background: #fff;
+            border-color: var(--accent); box-shadow: var(--ring);
+        }
+        .control:focus-within svg { color: var(--accent); }
+        .control input:-webkit-autofill {
+            -webkit-text-fill-color: var(--ink);
+            -webkit-box-shadow: 0 0 0 1000px var(--field-bg) inset;
+        }
+
+        /* 底部操作区 */
+        .panel-foot {
+            display: flex; align-items: center; justify-content: space-between; gap: 18px;
+            padding: 18px 20px;
+            background: #fafbfd;
+            border-top: 1px solid #eef0f6;
+        }
+        .foot-hint { font-size: 12.5px; color: var(--muted); }
+        .foot-btns { display: flex; gap: 10px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            height: 44px; padding: 0 22px;
+            font-size: 14px; font-weight: 600; font-family: inherit; text-decoration: none;
+            border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
+            transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s, color 0.18s;
+        }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-primary {
+            color: #fff;
+            background: linear-gradient(180deg, #6366f1, #4338ca);
+            box-shadow: 0 12px 24px -12px rgba(79, 70, 229, 0.6);
+        }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 30px -12px rgba(79, 70, 229, 0.75); }
+        .btn-ghost { color: var(--ink-2); background: #fff; border-color: #e3e6ef; }
+        .btn-ghost:hover:not(:disabled) { color: var(--ink); background: #f8fafc; border-color: var(--line-strong); }
+
+        /* 浮动提示 / 加载遮罩的样式已抽到公共组件：/content/static/css/em-toast.css */
+
+        /* 安装成功弹窗：极简版（图标 + 标题 + 一张信息表 + 一个按钮） */
+        .install-success-skin {
             overflow: hidden;
-            box-shadow: var(--shadow-xl) !important;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 30px 70px -34px rgba(15, 23, 41, 0.45), 0 1px 2px rgba(15, 23, 41, 0.04);
         }
-        .layui-layer.install-success-skin .layui-layer-setwin {
-            display: none !important;
+        .install-success-skin .layui-layer-setwin { display: none; }
+        .install-success-skin .layui-layer-content { padding: 0; overflow: hidden; background: #fff; }
+        .install-success-skin .layui-layer-btn {
+            margin: 0; padding: 18px 22px 22px; text-align: center;
+            background: #fff; border: 0;
         }
-        .layui-layer.install-success-skin .layui-layer-content {
-            overflow: hidden !important;
-            background: var(--bg);
+        .install-success-skin .layui-layer-btn a {
+            height: 44px; line-height: 42px; margin: 0; padding: 0 30px;
+            font-family: inherit; font-size: 14px; font-weight: 600; color: #fff;
+            background: linear-gradient(180deg, #6366f1, #4338ca);
+            border: 0; border-radius: var(--radius);
+            box-shadow: 0 12px 24px -14px rgba(79, 70, 229, 0.8);
+            transition: transform 0.18s, box-shadow 0.18s;
         }
-        .layui-layer.install-success-skin .layui-layer-btn {
-            margin: 0;
-            padding: 16px 20px 20px;
-            text-align: center;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
-        }
-        .layui-layer.install-success-skin .layui-layer-btn a {
-            height: 42px;
-            line-height: 42px;
-            padding: 0 26px;
-            border: 0;
-            border-radius: var(--radius-sm);
-            background: var(--brand);
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: .3px;
-            transition: all .2s ease;
-        }
-        .layui-layer.install-success-skin .layui-layer-btn a:hover {
-            background: var(--brand-hover);
+        .install-success-skin .layui-layer-btn a:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+            box-shadow: 0 16px 30px -14px rgba(79, 70, 229, 0.95);
         }
 
-        .install-success-modal {
-            background: linear-gradient(180deg, #e0f2fe 0%, var(--bg) 55%);
-            box-sizing: border-box;
-        }
-        .install-success-modal .modal-hero {
-            position: relative;
-            padding: 24px 48px 18px 24px;
-            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-            color: #fff;
-        }
+        .install-success-modal { color: var(--ink); }
+
+        /* 头部：字体图标 + 标题 + 一行说明，全部居中 */
+        .install-success-modal .modal-hero { position: relative; padding: 30px 22px 22px; text-align: center; }
+        .install-success-modal .hero-icon { display: block; font-size: 42px; line-height: 1; color: var(--accent); }
+        .install-success-modal .hero-title { margin-top: 14px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+        .install-success-modal .hero-sub { margin-top: 7px; font-size: 13px; line-height: 1.6; color: var(--muted); }
         .install-success-modal .modal-close {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            width: 30px;
-            height: 30px;
-            margin: 0;
-            padding: 0;
-            border: 0;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.22);
-            color: #fff;
-            font-size: 22px;
-            line-height: 28px;
-            text-align: center;
-            cursor: pointer;
-            transition: background .2s ease, transform .2s ease;
+            position: absolute; top: 12px; right: 12px;
+            width: 30px; height: 30px; margin: 0; padding: 0;
+            font-size: 16px; line-height: 30px; text-align: center; color: var(--muted);
+            background: transparent; border: 0; border-radius: 50%;
+            cursor: pointer; transition: color 0.18s, background 0.18s;
         }
-        .install-success-modal .modal-close:hover {
-            background: rgba(255, 255, 255, 0.36);
-            transform: rotate(90deg);
-        }
-        .install-success-modal .hero-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 22px;
-            font-weight: 800;
-            letter-spacing: .3px;
-        }
-        .install-success-modal .hero-icon {
-            display: inline-flex;
-            width: 30px;
-            height: 30px;
-            border-radius: 999px;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.24);
-            font-size: 18px;
-            line-height: 1;
-        }
-        .install-success-modal .hero-sub {
-            margin-top: 8px;
-            font-size: 13px;
-            opacity: .94;
-        }
+        .install-success-modal .modal-close:hover { color: var(--ink); background: #f1f3f8; }
+
+        /* 信息表：一张卡三行，标签在左、值在右，发丝线分隔 */
         .install-success-modal .modal-body {
-            padding: 18px;
-            overflow: auto;
+            position: relative; padding: 0 22px;
+            overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
         }
         .install-success-modal .info-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            display: grid; overflow: hidden;
+            background: #fcfcfe; border: 1px solid var(--line); border-radius: var(--radius);
         }
         .install-success-modal .info-item {
-            padding: 12px 13px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
-            background: var(--surface);
+            display: grid; grid-template-columns: 74px minmax(0, 1fr);
+            align-items: baseline; gap: 12px; padding: 12px 14px;
         }
-        .install-success-modal .info-item.url {
-            grid-column: 1 / -1;
-            border-color: #bae6fd;
-            background: #e0f2fe;
-        }
-        .install-success-modal .info-label {
-            margin-bottom: 7px;
-            color: var(--text-muted);
-            font-size: 12px;
-        }
-        .install-success-modal .info-item.url .info-label {
-            color: #0284c7;
-        }
+        .install-success-modal .info-item + .info-item { border-top: 1px solid #eef0f6; }
+        .install-success-modal .info-label { font-size: 12.5px; color: var(--muted); }
         .install-success-modal .info-value {
-            color: var(--text-main);
-            font-size: 15px;
-            font-weight: 700;
-            word-break: break-all;
+            min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--ink);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+            word-break: break-all; -webkit-user-select: all; user-select: all;
         }
-        .install-success-modal .info-item.url .info-value {
-            color: #0369a1;
-        }
-        .install-success-modal .info-value a {
-            color: inherit;
-            text-decoration: none;
-        }
-        .install-success-modal .info-value a:hover {
-            color: var(--brand);
-        }
+        .install-success-modal .info-item.url .info-value { font-family: inherit; font-weight: 500; }
+        .install-success-modal .info-value a { color: var(--accent-strong); text-decoration: none; }
+        .install-success-modal .info-value a:hover { text-decoration: underline; }
+
+        /* 脚注：一行小字，不加任何框 */
         .install-success-modal .tips {
-            margin-top: 12px;
-            padding: 10px 12px;
-            border-radius: var(--radius-sm);
-            border: 1px solid #bae6fd;
-            background: #f0f9ff;
-            color: #0369a1;
-            font-size: 12px;
-            line-height: 1.6;
+            margin: 14px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); text-align: center;
         }
         @media (max-width: 640px) {
-            .install-success-modal .modal-hero {
-                padding: 18px 16px 14px;
-            }
-            .install-success-modal .hero-title {
-                font-size: 18px;
-            }
-            .install-success-modal .modal-body {
-                padding: 14px;
-            }
-            .install-success-modal .info-grid {
-                grid-template-columns: 1fr;
-            }
+            .page { padding: 52px 20px 0; }
+            .title { font-size: 28px; }
+            .panel { margin-top: 26px; border-radius: 16px; }
+            .section { padding: 22px 20px; }
+            .env { grid-template-columns: 1fr; }
+            .fields { grid-template-columns: 1fr; }
+            .panel-foot { flex-direction: column-reverse; align-items: stretch; padding: 16px 20px 20px; }
+            .foot-btns .btn { flex: 1; }
+            .foot-hint { text-align: center; }
+            .install-success-skin { border-radius: 16px; }
+            .install-success-skin .layui-layer-btn { padding: 16px 18px 18px; }
+            .install-success-skin .layui-layer-btn a { display: block; width: 100%; padding: 0; }
+
+            .install-success-modal .modal-hero { padding: 24px 18px 18px; }
+            .install-success-modal .hero-icon { font-size: 36px; }
+            .install-success-modal .hero-title { margin-top: 12px; font-size: 17px; }
+            .install-success-modal .hero-sub { font-size: 12.5px; }
+            .install-success-modal .modal-body { padding: 0 18px; }
+            .install-success-modal .info-item { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 11px 12px; }
         }
     </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="header">
-        <div class="logo-container">
-            <img src="/content/static/img/logo.png" alt="EMSHOP Logo">
-        </div>
-        <div class="hTitle-wrapper">
-            <h1 class="hTitle">EMSHOP 系统安装</h1>
-            <span class="version-badge">v<?php echo htmlspecialchars($systemVersion); ?></span>
-        </div>
-        <p class="hSub">欢迎使用 EMSHOP，只需几步即可完成系统初始化</p>
-
+<div class="page">
+    <div class="page-head">
+        <span class="eyebrow">步骤 <?php echo $step === 'intro' ? '1' : '2'; ?> / 2</span>
+        <span class="version">v<?php echo htmlspecialchars($systemVersion); ?></span>
     </div>
+    <h1 class="title"><?php echo $step === 'intro' ? '安装向导 - EMSHOP' : '配置安装信息 - EMSHOP'; ?></h1>
+    <p class="lede"><?php
+        echo $step === 'intro'
+            ? '本向导会引导你完成数据库配置与管理员账号创建。'
+            : '填写数据库连接信息并创建管理员账号，完成后系统将自动初始化数据表并写入 config.php。';
+    ?></p>
 
-    <?php if (!empty($messages)): ?>
-        <div class="alerts">
-            <?php foreach ($messages as $m): ?>
-                <div class="msg <?php echo htmlspecialchars($m['type']); ?>">
-                    <p><?php echo htmlspecialchars($m['text']); ?></p>
+    <div class="panel">
+        <?php if (!empty($messages)): ?>
+            <div class="alerts">
+                <?php foreach ($messages as $m): ?>
+                    <div class="msg <?php echo htmlspecialchars($m['type']); ?>"><?php echo htmlspecialchars($m['text']); ?></div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($step === 'intro'): ?>
+            <section class="section">
+                <div class="section-head">
+                    <div>
+                        <h2>运行环境建议</h2>
+                        <p>满足以下条件可获得更好的运行与安全体验</p>
+                    </div>
                 </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
+                <div class="env">
+                    <div class="env-item">
+                        <img class="env-badge" src="/content/static/img/php.svg" alt="PHP 8.2" width="65" height="20">
+                        <p class="env-desc">建议PHP版本 8.2</p>
+                    </div>
+                    <div class="env-item">
+                        <img class="env-badge" src="/content/static/img/mysql.svg" alt="MySQL 5.7" width="80" height="20">
+                        <p class="env-desc">建议MySQL版本 5.7</p>
+                    </div>
+                </div>
+                <p class="env-note">安装过程会写入 config.php 并初始化数据表，请确保网站目录权限为755。</p>
+            </section>
 
-    <div class="layout">
-        <div class="card card-left">
-            <div class="cardTitle">
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--brand);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                安装进度
+            <div class="panel-foot">
+                <span class="foot-hint">确认服务器满足以上要求后再继续</span>
+                <div class="foot-btns">
+                    <a class="btn btn-primary" href="?action=install">
+                        开始安装
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+                    </a>
+                </div>
             </div>
-            <ul class="steps">
-                <li class="step">
-                    <div class="dot">1</div>
-                    <div class="step-content"><b>环境检查</b><span>检查 PHP 版本、扩展与目录写权限</span></div>
-                </li>
-                <li class="step">
-                    <div class="dot">2</div>
-                    <div class="step-content"><b>配置数据库</b><span>填写数据库连接信息</span></div>
-                </li>
-                <li class="step">
-                    <div class="dot">3</div>
-                    <div class="step-content"><b>创建管理员</b><span>设置后台管理员账号</span></div>
-                </li>
-                <li class="step">
-                    <div class="dot">4</div>
-                    <div class="step-content"><b>完成安装</b><span>初始化数据结构并写入配置</span></div>
-                </li>
-            </ul>
-            
-            <div class="cardTitle" style="margin-top: 40px;">
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--brand);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                环境状态
-            </div>
-            <div class="checks">
-                <div class="checkRow"><b>PHP 版本</b><span class="tag <?php echo $phpOk ? 'ok' : 'bad'; ?>"><?php echo htmlspecialchars(PHP_VERSION); ?></span></div>
-                <div class="checkRow"><b>mysqli 扩展</b><span class="tag <?php echo $hasMysqli ? 'ok' : 'warn'; ?>"><?php echo $hasMysqli ? '已启用' : '未启用'; ?></span></div>
-                <div class="checkRow"><b>pdo_mysql 扩展</b><span class="tag <?php echo $hasPdo ? 'ok' : 'warn'; ?>"><?php echo $hasPdo ? '已启用' : '未启用'; ?></span></div>
-                <div class="checkRow"><b>根目录可写</b><span class="tag <?php echo $rootWritable ? 'ok' : 'bad'; ?>"><?php echo $rootWritable ? '可写' : '不可写'; ?></span></div>
-                <div class="checkRow"><b>`config.php` 可写</b><span class="tag <?php echo $configWritable ? 'ok' : 'bad'; ?>"><?php echo $configWritable ? '可写' : '不可写'; ?></span></div>
-                <div class="checkRow"><b>`content/cache/`</b><span class="tag <?php echo $cacheDirWritable ? 'ok' : 'bad'; ?>"><?php echo $cacheDirWritable ? '可写' : '不可写'; ?></span></div>
-                <div class="checkRow"><b>`install/` 可写</b><span class="tag <?php echo $lockDirWritable ? 'ok' : 'bad'; ?>"><?php echo $lockDirWritable ? '可写' : '不可写'; ?></span></div>
-            </div>
-            <div class="hint" style="text-align: left; margin-top: 20px;">
-                环境不满足时请先手动修复，再重新执行安装。
-            </div>
-        </div>
-
-        <div class="card">
+        <?php else: ?>
             <form id="installForm" method="post" action="?action=install">
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <h2>数据库连接</h2>
+                            <p>数据库需已创建，安装程序会写入数据表</p>
+                        </div>
+                    </div>
+                    <div class="fields">
+                        <div class="field">
+                            <label for="dbHost" class="required">数据库地址</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="2" /><rect width="18" height="7" x="3" y="14" rx="2" /><path d="M7 6.5h.01M7 17.5h.01" /></svg>
+                                <input id="dbHost" name="db[host]" value="<?php echo htmlspecialchars($dbHost); ?>" placeholder="127.0.0.1">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="dbPort" class="required">数据库端口</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" /></svg>
+                                <input id="dbPort" name="db[port]" value="<?php echo htmlspecialchars($dbPort); ?>" placeholder="3306">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="dbName" class="required">数据库名</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14a9 3 0 0 0 18 0V5" /><path d="M3 12a9 3 0 0 0 18 0" /></svg>
+                                <input id="dbName" name="db[dbname]" value="<?php echo htmlspecialchars($dbName); ?>" placeholder="">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="dbPrefix" class="required">数据表前缀</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6a2 2 0 0 0-1.4-.6H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z" /><circle cx="7.5" cy="7.5" r=".6" fill="currentColor" /></svg>
+                                <input id="dbPrefix" name="db[prefix]" value="<?php echo htmlspecialchars($dbPrefix); ?>" placeholder="em_">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="dbUser" class="required">数据库用户名</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                                <input id="dbUser" name="db[username]" value="<?php echo htmlspecialchars($dbUser); ?>" placeholder="root">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="dbPass" class="required">数据库密码</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                <input id="dbPass" name="db[password]" value="<?php echo htmlspecialchars($dbPass); ?>" placeholder="数据库密码">
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-                <div class="section">
-                    <div class="sectionH">
-                        <b>配置数据库</b>
-                    </div>
-                    <div class="row two">
-                        <div class="form-group">
-                            <label>Host</label>
-                            <input name="db[host]" value="<?php echo htmlspecialchars($dbHost); ?>" placeholder="127.0.0.1">
-                        </div>
-                        <div class="form-group">
-                            <label>端口</label>
-                            <input name="db[port]" value="<?php echo htmlspecialchars($dbPort); ?>" placeholder="3306">
+                <section class="section">
+                    <div class="section-head">
+                        <div>
+                            <h2>管理员账号</h2>
+                            <p>用于登录后台，密码至少 6 位</p>
                         </div>
                     </div>
-                    <div class="row two">
-                        <div class="form-group">
-                            <label>数据库名</label>
-                            <input name="db[dbname]" value="<?php echo htmlspecialchars($dbName); ?>" placeholder="">
+                    <div class="fields">
+                        <div class="field">
+                            <label for="adminUser" class="required">登录账号</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                                <input id="adminUser" name="admin[username]" value="<?php echo htmlspecialchars($adminUsername); ?>" placeholder="admin">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>数据表前缀</label>
-                            <input name="db[prefix]" value="<?php echo htmlspecialchars($dbPrefix); ?>" placeholder="em_">
+                        <div class="field">
+                            <label for="adminEmail">邮箱（选填）</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7" /></svg>
+                                <input id="adminEmail" name="admin[email]" value="<?php echo htmlspecialchars($adminEmail); ?>" placeholder="admin@example.com">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="adminPass" class="required">登录密码</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                <input id="adminPass" name="admin[password]" value="" placeholder="至少 6 位，建议更长">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="adminPass2" class="required">确认密码</label>
+                            <div class="control">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
+                                <input id="adminPass2" name="admin[password2]" value="" placeholder="再次输入密码">
+                            </div>
                         </div>
                     </div>
-                    <div class="row two">
-                        <div class="form-group">
-                            <label>数据库用户名</label>
-                            <input name="db[username]" value="<?php echo htmlspecialchars($dbUser); ?>" placeholder="root">
-                        </div>
-                        <div class="form-group">
-                            <label>数据库密码</label>
-                            <input name="db[password]" value="<?php echo htmlspecialchars($dbPass); ?>" placeholder="">
-                        </div>
-                    </div>
-                </div>
+                </section>
 
-                <div class="section">
-                    <div class="sectionH">
-                        <b>创建管理员</b>
+                <div class="panel-foot">
+                    <span class="foot-hint">安装将写入 config.php 并初始化数据表</span>
+                    <div class="foot-btns">
+                        <button class="btn btn-ghost" type="button" id="btnTestDb">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            测试连接
+                        </button>
+                        <button class="btn btn-primary" type="submit" name="mode" value="install">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                            执行安装
+                        </button>
                     </div>
-                    <div class="row two">
-                        <div class="form-group">
-                            <label>用户名</label>
-                            <input name="admin[username]" value="<?php echo htmlspecialchars($adminUsername); ?>" placeholder="admin">
-                        </div>
-                        <div class="form-group">
-                            <label>邮箱</label>
-                            <input name="admin[email]" value="<?php echo htmlspecialchars($adminEmail); ?>" placeholder="">
-                        </div>
-                    </div>
-                    <div class="row two">
-                        <div class="form-group">
-                            <label>密码</label>
-                            <input name="admin[password]" value="" placeholder="至少 6 位，建议更长">
-                        </div>
-                        <div class="form-group">
-                            <label>确认密码</label>
-                            <input name="admin[password2]" value="" placeholder="">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="actions">
-                    <button class="secondary" type="button" id="btnTestDb">
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        测试数据库连接
-                    </button>
-                    <button type="submit" name="mode" value="install">
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                        执行安装
-                    </button>
                 </div>
             </form>
-        </div>
+        <?php endif; ?>
     </div>
 </div>
 <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
 <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+<script src="/content/static/js/em-toast.js"></script>
 <script>
+// 调试用：URL 带 demo=1 时用假数据直接弹出成功弹窗（不落库、不写文件）
+var INSTALL_DEMO = <?php echo $demo
+    ? json_encode([
+        'admin_url' => installer_admin_url(),
+        'admin_username' => 'admin',
+        'admin_password' => 'Emshop@2026',
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+    : 'null'; ?>;
 layui.use(function () {
   var layer = layui.layer;
   var $form = $('#installForm');
@@ -890,6 +924,9 @@ layui.use(function () {
   var $btnInstall = $form.find('button[type="submit"][name="mode"][value="install"]');
   var testLoadingIndex = null;
   var installLoadingIndex = null;
+
+  // 通知式浮动提示统一走公共组件 EmToast（样式见 /content/static/css/em-toast.css）
+  var toast = EmToast.msg;
 
   function escapeHtml(str) {
     return String(str || '')
@@ -906,31 +943,32 @@ layui.use(function () {
     var adminPass = data.admin_password || '';
     var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     var viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-    var dialogWidth = viewportWidth <= 768 ? '92%' : Math.min(760, Math.max(420, viewportWidth - 40)) + 'px';
+    var dialogWidth = viewportWidth <= 768 ? '92%' : Math.min(560, Math.max(400, viewportWidth - 40)) + 'px';
     var contentMaxHeight = Math.max(240, viewportHeight - 250);
     var html = ''
       + '<div class="install-success-modal">'
       + '  <div class="modal-hero">'
-      + '    <button type="button" class="modal-close" aria-label="关闭">&times;</button>'
-      + '    <div class="hero-title"><span class="hero-icon">✓</span><span>安装成功</span></div>'
-      + '    <div class="hero-sub">系统已完成初始化，请使用下方信息登录后台。</div>'
+      + '    <button type="button" class="modal-close" aria-label="关闭"><i class="layui-icon layui-icon-close"></i></button>'
+      + '    <i class="layui-icon layui-icon-ok-circle hero-icon"></i>'
+      + '    <div class="hero-title">安装成功</div>'
+      + '    <div class="hero-sub">系统已完成初始化，请使用以下信息登录后台</div>'
       + '  </div>'
       + '  <div class="modal-body" style="max-height:' + contentMaxHeight + 'px;">'
       + '    <div class="info-grid">'
       + '      <div class="info-item url">'
       + '        <div class="info-label">后台地址</div>'
-      + '        <div class="info-value"><a href="' + escapeHtml(adminUrl) + '" target="_blank">' + escapeHtml(adminUrl) + '</a></div>'
+      + '        <div class="info-value"><a href="' + escapeHtml(adminUrl) + '" target="_blank" rel="noopener">' + escapeHtml(adminUrl) + '</a></div>'
       + '      </div>'
       + '      <div class="info-item">'
-      + '        <div class="info-label">管理员账号</div>'
+      + '        <div class="info-label">登录账号</div>'
       + '        <div class="info-value">' + escapeHtml(adminUser) + '</div>'
       + '      </div>'
       + '      <div class="info-item">'
-      + '        <div class="info-label">管理员密码</div>'
+      + '        <div class="info-label">登录密码</div>'
       + '        <div class="info-value">' + escapeHtml(adminPass) + '</div>'
-      + '        </div>'
+      + '      </div>'
       + '    </div>'
-      + '    <div class="tips">请妥善保存账号密码，首次登录后建议立即修改默认密码并开启二次验证。</div>'
+      + '    <div class="tips">请妥善保存以上信息，登录后建议立即修改密码</div>'
       + '  </div>'
       + '</div>';
     var layerIndex = layer.open({
@@ -941,7 +979,7 @@ layui.use(function () {
       content: html,
       closeBtn: 0,
       shade: [0.32, '#0f172a'],
-      shadeClose: true,
+      shadeClose: false,
       btnAlign: 'c',
       btn: ['进入后台'],
       success: function (layero, index) {
@@ -959,7 +997,7 @@ layui.use(function () {
     if ($btn.length === 0) return;
 
     $btn.prop('disabled', true);
-    testLoadingIndex = layer.load(1, { shade: [0.08, '#000'] });
+    testLoadingIndex = EmToast.loading();
     $.ajax({
       url: '?action=test_db',
       method: 'POST',
@@ -968,15 +1006,15 @@ layui.use(function () {
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     }).done(function (res) {
       var ok = res && res.code === 200;
-      layer.msg((res && res.msg) ? res.msg : (ok ? '连接成功' : '连接失败'));
+      toast((res && res.msg) ? res.msg : (ok ? '连接成功' : '连接失败'), ok ? 'ok' : 'err');
     }).fail(function (xhr) {
       var text = xhr && xhr.responseJSON && xhr.responseJSON.msg
         ? xhr.responseJSON.msg
         : '请求失败：网络或服务异常';
-      layer.msg(text);
+      toast(text, 'err');
     }).always(function () {
       if (testLoadingIndex !== null) {
-        layer.close(testLoadingIndex);
+        EmToast.close(testLoadingIndex);
         testLoadingIndex = null;
       }
       $btn.prop('disabled', false);
@@ -990,7 +1028,7 @@ layui.use(function () {
 
     $btnInstall.prop('disabled', true);
     $btn.prop('disabled', true);
-    installLoadingIndex = layer.load(1, { shade: [0.16, '#000'] });
+    installLoadingIndex = EmToast.loading(0.22);
     $.ajax({
       url: '?action=install',
       method: 'POST',
@@ -1003,22 +1041,27 @@ layui.use(function () {
       if (ok) {
         showInstallSuccessDialog((res && res.data) ? res.data : {});
       } else {
-        layer.msg(message);
+        toast(message, 'err');
       }
     }).fail(function (xhr) {
       var text = xhr && xhr.responseJSON && xhr.responseJSON.msg
         ? xhr.responseJSON.msg
         : '安装请求失败：网络或服务异常';
-      layer.msg(text);
+      toast(text, 'err');
     }).always(function () {
       if (installLoadingIndex !== null) {
-        layer.close(installLoadingIndex);
+        EmToast.close(installLoadingIndex);
         installLoadingIndex = null;
       }
       $btnInstall.prop('disabled', false);
       $btn.prop('disabled', false);
     });
   });
+
+  // 演示模式：直接弹出成功弹窗，方便调样式
+  if (INSTALL_DEMO) {
+    showInstallSuccessDialog(INSTALL_DEMO);
+  }
 });
 </script>
 </body>
@@ -1034,8 +1077,22 @@ if (installer_is_installed()) {
     }
     Response::redirect('/');
 }
+// 第一步：不带参数展示介绍与运行环境建议
+if ($action === '') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        Response::error('非法请求');
+    }
+    installer_render([], [], 'intro');
+}
+
+// 第二步：GET ?action=install 展示配置表单（POST 则继续往下执行安装）
+// 附加 demo=1 时为演示模式，页面加载后用假数据弹出成功弹窗，方便调试样式
+if ($action === 'install' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    installer_render([], [], 'form', !empty($_GET['demo']));
+}
+
 if ($action !== 'install' && $action !== 'test_db') {
-    installer_render([], []);
+    Response::error('非法请求');
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -1069,26 +1126,9 @@ $adminClean = [
 
 $messages = [];
 
-// 基础校验
-if (PHP_VERSION_ID < 70400) {
-    $messages[] = ['type' => 'bad', 'text' => 'PHP 版本过低：需要 7.4+'];
-}
-if (!extension_loaded('mysqli') && !extension_loaded('pdo_mysql')) {
-    $messages[] = ['type' => 'bad', 'text' => '缺少 mysqli 或 pdo_mysql 扩展，无法安装'];
-}
-if ($dbClean['dbname'] === '') {
-    $messages[] = ['type' => 'bad', 'text' => '请填写数据库名'];
-}
-if ($dbClean['username'] === '') {
-    $messages[] = ['type' => 'bad', 'text' => '请填写数据库用户名'];
-}
-if ($dbClean['prefix'] === '' || !preg_match('/^[a-zA-Z0-9_]+$/', $dbClean['prefix'])) {
-    $messages[] = ['type' => 'bad', 'text' => '表前缀仅允许字母/数字/下划线'];
-}
-
 $generatedConfig = installer_generate_config_php($dbClean);
 
-// AJAX 测试数据库连接：返回 JSON，不刷新页面
+// AJAX 测试数据库连接：返回 JSON，不刷新页面（只测账号连通性，不受表单必填项影响）
 if ($action === 'test_db') {
     $test = installer_test_db_connection($dbClean);
     if ($test['ok']) {
@@ -1099,47 +1139,61 @@ if ($action === 'test_db') {
 
 if ($mode === 'test') {
     $test = installer_test_db_connection($dbClean);
-    $messages[] = ['type' => $test['ok'] ? 'ok' : 'bad', 'text' => $test['message']];
-    installer_render($messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_render(
+        [['type' => $test['ok'] ? 'ok' : 'bad', 'text' => $test['message']]],
+        ['db' => $dbClean, 'admin' => $adminClean],
+        'form'
+    );
 }
 
-// install 模式：进一步校验管理员信息
-if ($adminClean['email'] === '' || !filter_var($adminClean['email'], FILTER_VALIDATE_EMAIL)) {
-    $messages[] = ['type' => 'bad', 'text' => '请填写有效的管理员邮箱'];
-}
-if ($adminClean['password'] === '' || strlen($adminClean['password']) < 6) {
-    $messages[] = ['type' => 'bad', 'text' => '管理员密码至少 6 位'];
-}
-if ($adminClean['password'] !== $adminClean['password2']) {
-    $messages[] = ['type' => 'bad', 'text' => '两次输入的管理员密码不一致'];
-}
-if ($adminClean['username'] === '' || !preg_match('/^[a-zA-Z0-9_]{3,50}$/', $adminClean['username'])) {
-    $messages[] = ['type' => 'bad', 'text' => '管理员用户名需为 3-50 位字母/数字/下划线'];
+// 表单校验：严格按页面上字段的展示顺序逐项校验，命中第一条即返回，不堆积多条提示
+// 端口要区分「没填」和「填了但非法」，所以用原始输入判断（空串被 (int) 转成 0 后会丢失区别）
+$portRaw = trim((string) ($db['port'] ?? ''));
+// mbstring 不保证开启，缺失时退回字节长度（安装程序尽量不引入新的扩展依赖）
+$adminPasswordLength = function_exists('mb_strlen')
+    ? mb_strlen($adminClean['password'])
+    : strlen($adminClean['password']);
+
+$error = '';
+if ($dbClean['host'] === '') {
+    $error = '请填写数据库地址';
+} elseif ($portRaw === '') {
+    $error = '请填写数据库端口';
+} elseif (!preg_match('/^\d+$/', $portRaw) || (int) $portRaw < 1 || (int) $portRaw > 65535) {
+    $error = '数据库端口需为 1-65535 之间的数字';
+} elseif ($dbClean['dbname'] === '') {
+    $error = '请填写数据库名';
+} elseif ($dbClean['prefix'] === '') {
+    $error = '请填写数据表前缀';
+} elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $dbClean['prefix'])) {
+    $error = '数据表前缀只能包含字母、数字和下划线';
+} elseif (strlen($dbClean['prefix']) > 20) {
+    $error = '数据表前缀不能超过 20 个字符';
+} elseif ($dbClean['username'] === '') {
+    $error = '请填写数据库用户名';
+} elseif ($dbClean['password'] === '') {
+    $error = '请填写数据库密码';
+} elseif ($adminClean['username'] === '') {
+    $error = '请输入登录账号';
+} elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $adminClean['username'])) {
+    $error = '登录账号只能包含字母、数字和下划线';
+} elseif (!preg_match('/^[a-zA-Z0-9_]{3,50}$/', $adminClean['username'])) {
+    $error = '登录账号长度需为 3-50 个字符';
+} elseif ($adminClean['email'] !== '' && !filter_var($adminClean['email'], FILTER_VALIDATE_EMAIL)) {
+    $error = '请输入正确的邮箱地址';
+} elseif ($adminClean['password'] === '') {
+    $error = '请输入登录密码';
+} elseif ($adminPasswordLength < 6) {
+    $error = '登录密码不能少于 6 位';
+} elseif ($adminClean['password'] !== $adminClean['password2']) {
+    $error = '两次密码输入不一致';
 }
 
-// 目录权限
-$lockDir = dirname(EM_INSTALL_LOCK);
-if (!is_dir($lockDir) || !is_writable($lockDir)) {
-    $messages[] = ['type' => 'bad', 'text' => '`install/` 不可写：无法写入安装锁'];
-}
-
-$cacheDir = EM_ROOT . '/content/cache';
-if (!is_dir($cacheDir) || !is_writable($cacheDir)) {
-    $messages[] = ['type' => 'bad', 'text' => '`content/cache/` 不可写：系统运行时无法写缓存，请先修复目录权限'];
-}
-
-if (!is_writable(EM_ROOT)) {
-    $messages[] = ['type' => 'bad', 'text' => '根目录不可写：请先修复目录权限后再安装'];
+if ($error !== '') {
+    installer_fail_response($action, [['type' => 'bad', 'text' => $error]], ['db' => $dbClean, 'admin' => $adminClean]);
 }
 
 $configPath = EM_ROOT . '/config.php';
-if (!installer_config_writable()) {
-    $messages[] = ['type' => 'bad', 'text' => '`config.php` 不可写：无法写入数据库配置，请先修复文件权限'];
-}
-
-if ($messages !== []) {
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
-}
 
 // 连接测试（确保不会触发 Database 失败路径）
 $test = installer_test_db_connection($dbClean);
@@ -1148,7 +1202,28 @@ if (!$test['ok']) {
     installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
 }
 
-$snapshotBefore = installer_fetch_tables($dbClean);
+// 清理同前缀的残留表：安装只做「删表重建」，避免旧表被 IF NOT EXISTS 跳过、
+// 导致最终结构停留在旧版本（半新半旧最难排查）。只动当前前缀的表，其它一律不碰。
+$droppedTables = 0;
+$existing = installer_fetch_tables($dbClean);
+if (!$existing['ok']) {
+    $messages[] = ['type' => 'bad', 'text' => '安装前读取数据表失败：' . (string) $existing['message']];
+    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+}
+$staleTables = installer_filter_prefixed_tables((array) ($existing['tables'] ?? []), (string) $dbClean['prefix']);
+if ($staleTables !== []) {
+    $cleanup = installer_drop_tables($dbClean, $staleTables);
+    if (!$cleanup['ok']) {
+        $failed = (array) ($cleanup['failed'] ?? []);
+        $detail = $failed === [] ? (string) $cleanup['message'] : implode('、', $failed);
+        $messages[] = ['type' => 'bad', 'text' => '清理旧数据表失败：' . $detail . '（请确认数据库账号具备 DROP 权限）'];
+        installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    }
+    $droppedTables = (int) $cleanup['dropped'];
+}
+
+// 清理之后再拍快照，作为安装失败时的回滚基线（没清理过就直接复用上面那次结果）
+$snapshotBefore = $staleTables === [] ? $existing : installer_fetch_tables($dbClean);
 if (!$snapshotBefore['ok']) {
     $messages[] = ['type' => 'bad', 'text' => '安装前读取表快照失败：' . (string) $snapshotBefore['message']];
     installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
@@ -1254,6 +1329,11 @@ if ($written === false) {
 }
 
 // 写安装锁（用于禁用安装入口）
+//
+// 必须检查写入结果。此前是 `@file_put_contents(...)` 直接忽略返回值 ——
+// 目录不可写时锁没写成功，安装程序却照样汇报「安装完成」，
+// 于是站点处于**无锁状态**：任何人都能再次打开 /install/ 重跑安装，
+// 用自己的管理员账号覆盖整个站点（还会清库）。
 $lockPayload = json_encode([
     'installed_at' => date('c'),
     'db' => [
@@ -1263,11 +1343,21 @@ $lockPayload = json_encode([
         'prefix' => $dbClean['prefix'],
     ],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-@file_put_contents(EM_INSTALL_LOCK, (string) $lockPayload, LOCK_EX);
+
+if (@file_put_contents(EM_INSTALL_LOCK, (string) $lockPayload, LOCK_EX) === false) {
+    $messages[] = [
+        'type' => 'bad',
+        'text' => '写入安装锁 install/install.lock 失败。站点数据已初始化，但安装入口**仍处于开放状态** —— '
+                . '请立即修复 install/ 目录写权限并手动创建该文件，否则任何人都能重跑安装程序并接管站点。',
+    ];
+    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+}
 
 installer_success_response(
     $action,
-    '安装完成：已初始化数据库并写入安装锁。',
+    $droppedTables > 0
+        ? sprintf('安装完成：已删除 %d 张旧表并重建数据结构，配置与管理员账号已重新写入。', $droppedTables)
+        : '安装完成：已初始化数据库并写入安装锁。',
     ['db' => $dbClean, 'admin' => $adminClean],
     [
         'admin_url' => installer_admin_url(),

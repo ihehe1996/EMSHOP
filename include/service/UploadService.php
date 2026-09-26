@@ -91,10 +91,22 @@ final class UploadService
             $relativePath = '/content/uploads/' . $dateDir . '/' . $newName;
             $resultUrl = $relativePath;
 
+            // 上传者身份：后台取 adminUser，用户中心 / 商户中心取前台登录会话。
+            //
+            // 原实现只认 $GLOBALS['adminUser'] —— 商户端上传时它并不存在，于是 user_id
+            // 落库为 NULL。而商户媒体库是按 user_id 过滤的，结果就是商户上传的图片
+            // 永远不出现在自己的媒体库里，也无法删除（删除同样按 user_id 校验）。
+            $uploaderId = 0;
+            if (!empty($GLOBALS['adminUser']['id'])) {
+                $uploaderId = (int) $GLOBALS['adminUser']['id'];
+            } elseif (!empty($_SESSION['em_front_user']['id'])) {
+                $uploaderId = (int) $_SESSION['em_front_user']['id'];
+            }
+
             // 写入附件记录
             $attachmentModel = new AttachmentModel();
             $attachmentId = $attachmentModel->insert([
-                'user_id' => $GLOBALS['adminUser']['id'] ?? null,
+                'user_id' => $uploaderId > 0 ? $uploaderId : null,
                 'file_name' => $originalName,
                 'file_path' => $relativePath,
                 'file_url' => $resultUrl,

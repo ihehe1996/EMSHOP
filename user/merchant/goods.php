@@ -847,8 +847,21 @@ if (Request::isPost()) {
 
                 $specStocks = $_POST['spec_stock'] ?? [];
                 if (is_array($specStocks)) {
+                    // 必须逐个确认规格属于本商品。
+                    // 只校验 goods_id 归属是不够的：攻击者可以传自己商品的 goods_id 通过
+                    // 那道校验，却在 spec_stock 里带上**别人商品的 spec_id**，
+                    // 从而改掉其他商户（乃至主站）商品的库存。
+                    $ownedSpecIds = [];
+                    foreach (GoodsModel::getSpecsByGoodsId($gid) as $s) {
+                        $ownedSpecIds[(int) $s['id']] = true;
+                    }
+
                     foreach ($specStocks as $specId => $stock) {
-                        Database::update('goods_spec', ['stock' => max(0, (int) $stock)], (int) $specId);
+                        $specId = (int) $specId;
+                        if (!isset($ownedSpecIds[$specId])) {
+                            continue; // 不属于本商品，忽略
+                        }
+                        Database::update('goods_spec', ['stock' => max(0, (int) $stock)], $specId);
                     }
                 }
                 doAction("goods_type_{$g['goods_type']}_stock_save", $g, $_POST);

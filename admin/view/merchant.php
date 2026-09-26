@@ -109,6 +109,18 @@ $levels = $levels ?? [];
 </script>
 
 <script>
+// HTML 转义：店铺名由商户自行填写，而 layer.confirm/layer.msg 会把内容当 HTML 渲染，
+// 直接拼接就是打向管理员的存储型 XSS（管理员一删商户就触发）。
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 $(function(){
     // PJAX 防重复绑定：清掉本页历史 .admMerchant handler，避免事件成倍触发
     $(document).off('.admMerchant');
@@ -231,7 +243,7 @@ $(function(){
             if (obj.event === 'edit') {
                 openPopup('edit', '编辑商户', data.id);
             } else if (obj.event === 'del') {
-                layer.confirm('确定要删除商户「' + data.name + '」吗？商户主将解除绑定。', function (idx) {
+                layer.confirm('确定要删除商户「' + emEsc(data.name) + '」吗？商户主将解除绑定。', function (idx) {
                     $.ajax({
                         url: '/admin/merchant.php',
                         type: 'POST',

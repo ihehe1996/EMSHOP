@@ -36,13 +36,13 @@ if (Request::isPost()) {
 
         switch ($action) {
             case 'apply': {
-                $amountYuan = (float) Input::post('amount', 0);
-                if ($amountYuan <= 0) {
+                // Money::parse 做严格的十进制白名单校验后换算成 micro 整数。
+                // 原先的 (float) + round 走浮点，虽然不会抛错，但金额入参不该经过
+                // 浮点运算；且它与前台提现/充值的口径统一后更易维护。
+                try {
+                    $amount = Money::parse(Input::post('amount', ''));
+                } catch (InvalidArgumentException $e) {
                     Response::error('请填写有效的提现金额');
-                }
-                $amount = (int) round($amountYuan * 1000000);
-                if ($amount <= 0) {
-                    Response::error('提现金额过小');
                 }
 
                 $fee = (int) floor($amount * $feeRate / 10000);

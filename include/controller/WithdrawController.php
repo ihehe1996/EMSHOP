@@ -33,11 +33,14 @@ class WithdrawController extends BaseController
         $user   = $this->requireLogin();
         $userId = (int) $user['id'];
 
-        $amount = trim((string) Input::post('amount', ''));
-        if ($amount === '' || !is_numeric($amount) || (float) $amount <= 0) {
+        // Money::parse 先做严格的十进制白名单校验，再换算成主货币 micro 整数。
+        // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
+        // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
+        try {
+            $amountRaw = Money::parse(Input::post('amount', ''));
+        } catch (InvalidArgumentException $e) {
             Response::error('请输入正确的提现金额');
         }
-        $amountRaw = (int) bcmul($amount, '1000000', 0);
 
         $minRaw = (int) Config::get('shop_withdraw_min', '10000000');
         $maxRaw = (int) Config::get('shop_withdraw_max', '5000000000');

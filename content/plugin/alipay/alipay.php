@@ -262,6 +262,96 @@ function alipay_verify(array $params, string $sign, string $publicKeyRaw): bool
     return openssl_verify($content, $decodedSign, $res, OPENSSL_ALGO_SHA256) === 1;
 }
 
+/**
+ * 校验支付宝**网关响应**的签名。
+ *
+ * 与回调验签（alipay_verify）的区别：响应签名针对的是响应体里
+ * `"<method>_response": {...}` 这一段**原始 JSON 子串**，必须先按原文截出来再验。
+ * 不能把解码后的数组重新 json_encode —— 键序、转义、空格都可能变化，验签必然失败。
+ *
+ * @param array<string, mixed> $decoded 解码后的完整响应体
+ * @param string $rawResponse 原始响应文本
+ */
+function alipay_verify_response(array $decoded, string $rawResponse, string $responseKey, string $publicKeyRaw): bool
+{
+    $sign = (string) ($decoded['sign'] ?? '');
+    if ($sign === '') {
+        return false;
+    }
+
+    $node = alipay_extract_response_node($rawResponse, $responseKey);
+    if ($node === null) {
+        return false;
+    }
+
+    $res = alipay_load_public_key($publicKeyRaw);
+    if ($res === false) {
+        return false;
+    }
+
+    $decodedSign = base64_decode($sign, true);
+    if ($decodedSign === false) {
+        return false;
+    }
+
+    // 支付宝默认 RSA2(SHA256withRSA)；老应用可能仍是 RSA(SHA1withRSA)
+    $signType = strtoupper((string) ($decoded['sign_type'] ?? 'RSA2'));
+    $algo = $signType === 'RSA' ? OPENSSL_ALGO_SHA1 : OPENSSL_ALGO_SHA256;
+
+    return openssl_verify($node, $decodedSign, $res, $algo) === 1;
+}
+
+/**
+ * 从**原始响应文本**里截出 `"<responseKey>": { ... }` 的 JSON 子串。
+ *
+ * 用括号配对而非正则：响应体里可能嵌套对象与字符串，字符串内还可能出现花括号。
+ */
+function alipay_extract_response_node(string $raw, string $responseKey): ?string
+{
+    $needle = '"' . $responseKey . '"';
+    $pos = strpos($raw, $needle);
+    if ($pos === false) {
+        return null;
+    }
+
+    $colon = strpos($raw, ':', $pos + strlen($needle));
+    if ($colon === false) {
+        return null;
+    }
+
+    $start = strpos($raw, '{', $colon);
+    if ($start === false) {
+        return null;
+    }
+
+    $depth = 0;
+    $inStr = false;
+    $escaped = false;
+    $len = strlen($raw);
+
+    for ($i = $start; $i < $len; $i++) {
+        $c = $raw[$i];
+
+        if ($inStr) {
+            if ($escaped) { $escaped = false; continue; }
+            if ($c === '\\') { $escaped = true; continue; }
+            if ($c === '"') { $inStr = false; }
+            continue;
+        }
+
+        if ($c === '"') { $inStr = true; continue; }
+        if ($c === '{') { $depth++; continue; }
+        if ($c === '}') {
+            $depth--;
+            if ($depth === 0) {
+                return substr($raw, $start, $i - $start + 1);
+            }
+        }
+    }
+
+    return null;
+}
+
 function alipay_build_request_params(array $cfg, string $method, array $bizContent, bool $withReturnUrl = true): array
 {
     if ((string) ($cfg['app_id'] ?? '') === '') {
@@ -326,8 +416,11 @@ function alipay_post_gateway(array $params): array
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 8,
             CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            // 恢复证书与主机名校验。此前这里是 false / 0，等于任何链路中间人都能
+            // 伪造或篡改支付宝网关的应答（下单结果、订单查询结果都可能被替换）。
+            // 支付宝网关（openapi.alipay.com）使用公共 CA 签发的证书，正常环境无需关闭校验。
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json,text/plain,*/*',
                 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8',
@@ -394,7 +487,9 @@ function alipay_post_gateway(array $params): array
         return ['ok' => false, 'msg' => '支付宝接口状态异常：HTTP ' . $httpCode];
     }
 
-    $decoded = $decodeJson((string) $response);
+    // 记录「解码结果实际来自哪一次响应体」—— 下面验签必须用对应的原始文本
+    $rawBody = (string) $response;
+    $decoded = $decodeJson($rawBody);
     if (!is_array($decoded)) {
         $second = $request(false);
         $response2 = $second['response'];
@@ -403,6 +498,7 @@ function alipay_post_gateway(array $params): array
             $decoded2 = $decodeJson((string) $response2);
             if (is_array($decoded2)) {
                 $decoded = $decoded2;
+                $rawBody = (string) $response2;
             }
         }
     }
@@ -413,6 +509,27 @@ function alipay_post_gateway(array $params): array
     }
 
     $responseKey = str_replace('.', '_', (string) ($params['method'] ?? '')) . '_response';
+
+    // 校验网关响应签名 —— 这是判断响应可信的唯一依据。
+    //
+    // 此前这里只解析 JSON、从不验签（alipay_verify 只在回调路径用），
+    // 于是「TLS 校验被关闭 + 响应不验签」叠加，链路中间人可以任意伪造
+    // 下单/查询结果（例如把未支付改成已支付、把收款二维码换成自己的）。
+    //
+    // 需要临时排障可在后台配置项 alipay_skip_response_verify 置 '1' 跳过，
+    // 但那等于放弃这道防线，务必尽快改回。
+    if ((string) Config::get('alipay_skip_response_verify', '0') !== '1') {
+        $pk = (string) ($cfg['alipay_public_key'] ?? '');
+        if (!alipay_verify_response($decoded, $rawBody, $responseKey, $pk)) {
+            alipay_log('gateway response signature verify failed, method=' . (string) ($params['method'] ?? ''));
+            return [
+                'ok'  => false,
+                'msg' => '支付宝网关响应验签失败：响应可能被篡改。请检查服务器网络环境、'
+                       . '以及插件配置里的「支付宝公钥」是否与当前 APPID 匹配',
+            ];
+        }
+    }
+
     $bizResp = $decoded[$responseKey] ?? null;
     if (!is_array($bizResp)) {
         return ['ok' => false, 'msg' => '支付宝接口响应结构异常'];
@@ -618,8 +735,18 @@ addAction('payment_notify_alipay', function (array $data): void {
             exit;
         }
 
-        if ((string) $recharge['status'] !== UserRechargeModel::STATUS_PENDING) {
+        // 幂等短路：已支付 = 网关重复投递，按成功处理
+        if ((string) $recharge['status'] === UserRechargeModel::STATUS_PAID) {
             echo 'success';
+            exit;
+        }
+        // 非 pending 且未支付（如 cancelled）：客户已经付了钱，但充值单不在可入账状态。
+        // 不能静默当成功 —— 那会让网关停止重投、款项被吞掉且余额永不入账。
+        // 回 fail 让网关继续重投并留下告警，由人工对账。
+        if ((string) $recharge['status'] !== UserRechargeModel::STATUS_PENDING) {
+            alipay_log('充值单 #' . (int) $recharge['id'] . ' 当前状态 ' . $recharge['status']
+                . '，但收到支付成功通知，需人工对账');
+            echo 'fail';
             exit;
         }
 
@@ -644,8 +771,19 @@ addAction('payment_notify_alipay', function (array $data): void {
         exit;
     }
 
-    if ((string) $order['status'] !== 'pending') {
+    // 幂等短路：已支付 = 网关重复投递，直接按成功回应。
+    if ((string) $order['status'] === 'paid') {
         echo 'success';
+        exit;
+    }
+    // 非 pending 且未支付（expired / cancelled / failed / refunded 等）：客户已经付了钱，
+    // 但订单不在可入账状态。**不能**静默当成功 —— 那会让网关停止重投，款项被吞掉，
+    // 既没有支付流水也不发货、更不退款。回 fail 让网关继续重投并留下告警，
+    // 由人工对账（管理员可在后台把 expired 订单手工补单为 paid）。
+    if ((string) $order['status'] !== 'pending') {
+        alipay_log('订单 ' . ($order['order_no'] ?? '') . ' 当前状态 ' . $order['status']
+            . '，但收到支付成功通知，需人工对账');
+        echo 'fail';
         exit;
     }
 

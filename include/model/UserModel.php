@@ -79,6 +79,27 @@ final class UserModel
     }
 
     /**
+     * 作废该用户的「记住我」令牌。
+     *
+     * 退出登录时必须调用：浏览器 cookie 只是令牌的副本，库里那一份不清掉，
+     * 任何拿到过该值的人（例如从备份、日志或共享设备里抄到）在用户退出后
+     * 依然能直接登进来，最长可达 remember_days_checked 天。
+     */
+    public function clearRememberToken(int $userId): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+
+        $sql = sprintf(
+            'UPDATE `%s` SET `remember_token` = NULL, `updated_at` = NOW() WHERE `id` = :id LIMIT 1',
+            $this->table
+        );
+
+        Database::execute($sql, ['id' => $userId]);
+    }
+
+    /**
      * 按 ID 查找用户。
      *
      * @return array<string, mixed>|null
@@ -128,11 +149,14 @@ final class UserModel
 
     /**
      * 更新用户密码。
+     *
+     * 同时吊销「记住我」令牌：否则旧令牌在库里仍然有效（最长可达
+     * remember_days_checked 天），拿到过该 cookie 的人改密后照样能登进来。
      */
     public function updatePassword(int $userId, string $hashedPassword): void
     {
         $sql = sprintf(
-            'UPDATE `%s` SET `password` = :password, `updated_at` = NOW() WHERE `id` = :id LIMIT 1',
+            'UPDATE `%s` SET `password` = :password, `remember_token` = NULL, `updated_at` = NOW() WHERE `id` = :id LIMIT 1',
             $this->table
         );
 

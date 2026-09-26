@@ -109,18 +109,20 @@ final class AuthService
             throw new InvalidArgumentException('账号和密码不能为空');
         }
 
-        if ($this->throttle->isLocked()) {
-            $minutes = (int) ceil($this->throttle->remainingSeconds() / 60);
+        // 限流按「账号 + IP」与「纯 IP」两个维度计数（落库，跨会话持久）。
+        // 传入 $account 才能挡住针对某个账号的定向爆破；纯 IP 维度挡住换账号名喷洒。
+        if ($this->throttle->isLocked($account)) {
+            $minutes = (int) ceil($this->throttle->remainingSeconds($account) / 60);
             throw new RuntimeException('登录失败次数过多，请在 ' . $minutes . ' 分钟后再试');
         }
 
         $user = $this->users->findAdminByAccount($account);
         if ($user === null || !$this->hasher->CheckPassword($password, (string) $user['password'])) {
-            $this->throttle->hit();
+            $this->throttle->hit($account);
             throw new RuntimeException('账号或密码错误');
         }
 
-        $this->throttle->clear();
+        $this->throttle->clear($account);
         $this->startSession();
         session_regenerate_id(true);
         $_SESSION[$this->config['session_key']] = $this->sessionPayload($user);
@@ -143,6 +145,15 @@ final class AuthService
     public function logout(): void
     {
         $this->startSession();
+
+        // 退出时连**数据库里**的「记住我」令牌一并作废。
+        // 只删浏览器 cookie 是不够的：cookie 只是令牌的副本，库里那份不清掉，
+        // 任何拿到过该值的人在退出后仍然能直接登进来（最长可达 remember_days_checked 天）。
+        $userId = (int) ($_SESSION[$this->config['session_key']]['id'] ?? 0);
+        if ($userId > 0) {
+            $this->users->clearRememberToken($userId);
+        }
+
         unset($_SESSION[$this->config['session_key']]);
         $this->forgetRememberCookie();
 

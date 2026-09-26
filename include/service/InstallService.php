@@ -98,11 +98,11 @@ final class InstallService
             ['config_name' => 'merchant_default_theme', 'config_value' => 'default', 'description' => '分站默认模板'],
             ['config_name' => 'active_template_pc', 'config_value' => 'default', 'description' => '主站 PC 启用模板'],
             ['config_name' => 'active_template_mobile', 'config_value' => 'default', 'description' => '主站手机启用模板'],
-            ['config_name' => 'server_file_version_applied', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本（已生效）'],
-            ['config_name' => 'server_file_version_pending', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本（待生效）'],
-            // 旧命名保留写入，兼容尚未迁移的插件 bump
-            ['config_name' => 'local_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本已生效（旧名，兼容）'],
-            ['config_name' => 'new_swoole_file_version', 'config_value' => $serverVersionTs, 'description' => '任务服务文件版本待生效（旧名，兼容）'],
+            // 任务服务「代码版本」：pending > applied 时管家重启 worker 加载新代码。
+            // 只建新命名 —— 历史遗留 key（local_/new_swoole_file_version）不在这里预建：
+            // 商店里尚未迁移的老插件 bump 时会用 Config::set 自行创建，读侧仍然认它。
+            ['config_name' => 'server_file_version_applied', 'config_value' => $serverVersionTs, 'description' => '任务服务代码版本（已由 worker 加载）'],
+            ['config_name' => 'server_file_version_pending', 'config_value' => $serverVersionTs, 'description' => '任务服务代码版本（待 worker 加载）'],
             ['config_name' => 'enabled_plugins', 'config_value' => 'tips,virtual_card', 'description' => '主站默认启用插件'],
         ];
         foreach ($defaultConfigs as $configRow) Database::execute($siteConfigSql, $configRow);
@@ -150,7 +150,8 @@ final class InstallService
         $adminUsername = trim((string) ($admin['username'] ?? ''));
         $adminEmail = trim((string) ($admin['email'] ?? ''));
         $adminPassword = (string) ($admin['password'] ?? '');
-        if ($adminUsername === '' || $adminEmail === '' || $adminPassword === '') throw new InvalidArgumentException('管理员账号信息不完整');
+        // 邮箱非必填：留空则写入空串（`user`.`email` 为 NOT NULL DEFAULT ''，且无唯一约束）
+        if ($adminUsername === '' || $adminPassword === '') throw new InvalidArgumentException('管理员账号信息不完整');
         $hasher = new PasswordHash(8, true);
         $hash = $hasher->HashPassword($adminPassword);
         $sql = sprintf(
@@ -481,9 +482,43 @@ final class InstallService
                 PRIMARY KEY (`id`),
                 KEY `idx_order` (`order_id`),
                 KEY `idx_status` (`status`, `next_retry_at`),
-                KEY `idx_callback` (`callback_token`)
+                KEY `idx_callback` (`callback_token`),
+                KEY `idx_order_goods_status` (`order_goods_id`, `status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'发货队列任务表\'',
             $prefix . 'delivery_queue'
+        ));
+
+        // 登录失败计数表（跨会话持久化，取代原先只存 session 的做法）
+        Database::statement(sprintf(
+            'CREATE TABLE IF NOT EXISTS `%s` (
+                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `scope` VARCHAR(32) NOT NULL COMMENT \'作用域，如 admin\',
+                `key_hash` CHAR(64) NOT NULL COMMENT \'计数键的 sha256（账号+IP 或 纯 IP）\',
+                `attempts` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'当前窗口内失败次数\',
+                `locked_until` DATETIME DEFAULT NULL COMMENT \'锁定到期时间\',
+                `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_scope_key` (`scope`, `key_hash`),
+                KEY `idx_locked_until` (`locked_until`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'登录失败计数（跨会话持久化）\'',
+            $prefix . 'login_attempt'
+        ));
+
+        // 插件事件表（跨插件通知的落库载体）
+        //
+        // 后台任务里的跨插件通知不再走内存钩子（那会让被通知方的代码住进
+        // 通知方的进程，插件更新就必须重启别人的 worker），而是写一行事件，
+        // 由订阅方自己的 worker 按游标取走处理。见 PluginEvent。
+        Database::statement(sprintf(
+            'CREATE TABLE IF NOT EXISTS `%s` (
+                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键（同时是订阅方的游标值）\',
+                `event` VARCHAR(64) NOT NULL COMMENT \'事件名，如 order_goods_delivery_queued_success\',
+                `args` TEXT COMMENT \'JSON：事件的位置参数数组，与订阅方钩子签名一一对应\',
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT \'创建时间\',
+                PRIMARY KEY (`id`),
+                KEY `idx_event_id` (`event`, `id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'插件事件表（发布-订阅，订阅方自行记录游标）\'',
+            $prefix . 'plugin_event'
         ));
 
         // 语言表（与线上一致）
@@ -1093,8 +1128,8 @@ final class InstallService
             `card_pwd` TEXT COMMENT '卡密密码（可选，部分卡密格式需要）',
             `price` DECIMAL(10,2) DEFAULT NULL COMMENT '采购价格（可选，用于成本核算）',
             `status` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '状态：1=可用，0=已售出，2=已作废',
-            `order_id` INT UNSIGNED DEFAULT NULL COMMENT '关联订单ID',
-            `order_goods_id` INT UNSIGNED DEFAULT NULL COMMENT '关联订单商品记录ID',
+            `order_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '关联订单ID（与 em_order.id 对齐，避免订单ID超过42.9亿时截断）',
+            `order_goods_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '关联订单商品记录ID（与 em_order_goods.id 对齐）',
             `sold_at` DATETIME DEFAULT NULL COMMENT '售出时间',
             `remark` VARCHAR(255) DEFAULT NULL COMMENT '备注（如批次号、采购渠道等）',
             `sell_priority` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '销售优先级',
@@ -1245,6 +1280,11 @@ final class InstallService
         ));
 
         // 商户余额流水表
+        //
+        // uk_order_type 是结算幂等的兜底：同一订单同一类型只允许一条流水，
+        // 防并发重复分账 / 重复退款（代码侧的「先查后写」不是原子的）。
+        // withdraw / withdraw_fee 两类流水的 order_id 为 NULL，而 MySQL 唯一索引
+        // 视 NULL 互不相同 —— 所以它们不受该约束，这正是该索引可行的前提，勿改成 NOT NULL。
         Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -1262,7 +1302,8 @@ final class InstallService
                 `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`),
                 KEY `idx_merchant_time` (`merchant_id`, `created_at`),
-                KEY `idx_order` (`order_id`)
+                KEY `idx_order` (`order_id`),
+                UNIQUE KEY `uk_order_type` (`order_id`, `type`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'商户店铺余额流水\'',
             $prefix . 'merchant_balance_log'
         ));

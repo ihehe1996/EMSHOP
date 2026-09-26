@@ -222,8 +222,21 @@ final class Currency
             $params[] = max(0, (int) round((float) $data['rate'] * 1000000));
         }
         if (array_key_exists('enabled', $data)) {
+            $newEnabled = (int) $data['enabled'] === 1 ? 1 : 0;
+
+            // 与 toggle() 保持同一条不变量：不允许把「前台默认货币」改成禁用。
+            // toggle() 已经拦了这种情况，但 update()（后台编辑货币表单）此前漏拦 ——
+            // 于是管理员在编辑表单里取消勾选「启用」就能把前台默认货币禁用掉，
+            // 前台展示币种随即指向一个已停用的货币（汇率/符号都取不到）。
+            if ($newEnabled === 0
+                && (int) ($item['is_frontend_default'] ?? 0) === 1
+                && (int) ($item['enabled'] ?? 1) === 1
+            ) {
+                throw new RuntimeException('该货币是前台默认货币，请先把默认切换到其他货币再禁用');
+            }
+
             $fields[] = '`enabled` = ?';
-            $params[] = (int) $data['enabled'] === 1 ? 1 : 0;
+            $params[] = $newEnabled;
         }
         // is_primary 不通过 update() 处理，必须走 setPrimary()
 
@@ -377,6 +390,32 @@ final class Currency
      * 用途：模板 / JS 里需要拼 "$12.34" 时用这个取 "$"；和 displayAmount() 语义一致，都是"按访客当前币种展示"。
      * 只是符号本身，不带数值 —— 涉及金额建议直接用 displayAmount / displayMain，它们返回带符号的完整字符串。
      */
+    /**
+     * 「1 主货币 = N 访客币」的换算因子，供前台 JS 换算金额使用。
+     *
+     * 与 Dispatcher 注入主题模板的 currency_rate 语义完全一致：
+     *   数据库里 rate 的含义是「1 访客币种 = rate/1000000 主货币」，
+     *   所以 1 主货币 = 1000000/rate 访客币，即本方法返回的 factor。
+     *
+     * 访客币种等于主货币（或没有访客币种）时返回 1.0。
+     */
+    public static function visitorFactor(): float
+    {
+        $code = self::visitorCode();
+        if ($code === '') {
+            return 1.0;
+        }
+
+        $row = self::getInstance()->getByCode($code);
+        if ($row === null) {
+            return 1.0;
+        }
+
+        $rateRaw = (int) ($row['rate'] ?? 0);
+
+        return $rateRaw > 0 ? 1000000 / $rateRaw : 1.0;
+    }
+
     public static function visitorSymbol(): string
     {
         $self = self::getInstance();

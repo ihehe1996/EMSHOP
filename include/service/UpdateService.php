@@ -141,6 +141,29 @@ final class UpdateService
         // 不加这一层 cURL 对相对路径会直接 HTTP 0 失败
         $packageUrl = self::resolvePackageUrl($packageUrl);
 
+        // 完整性校验值必须存在且格式正确。
+        //
+        // 此前是「服务端有给就比对，没给就跳过」，而 sha256 由前端从接口响应里取 ——
+        // 于是「下载 URL 无校验 + sha256 可为空」叠加，等于中间人或被劫持的授权响应
+        // 可以下发任意升级包，且不被任何完整性检查拦住，直接覆盖整站代码。
+        $expectedSha256 = strtolower(trim($expectedSha256));
+        if (preg_match('/^[a-f0-9]{64}$/', $expectedSha256) !== 1) {
+            return [
+                'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
+                'error' => '升级包缺少有效的 SHA256 校验值，已拒绝下载（请刷新后重试，或联系技术支持）',
+            ];
+        }
+
+        // 下载地址白名单：必须 https 且 host 属于已配置的授权线路。
+        // 此前完全没有校验，配合下面开启的 FOLLOWLOCATION，可用于探测/拉取任意地址（SSRF）
+        // 并把任意内容落到 content/cache 里。
+        if (!self::isAllowedPackageHost($packageUrl)) {
+            return [
+                'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
+                'error' => '升级包地址非法：必须为 https 且与授权服务器同一域名',
+            ];
+        }
+
         self::ensureDir(self::CACHE_DIR);
 
         $filename = 'package_' . date('YmdHis') . '_' . substr(md5($packageUrl), 0, 8) . '.zip';
@@ -155,11 +178,16 @@ final class UpdateService
         $ch = curl_init($packageUrl);
         curl_setopt_array($ch, [
             CURLOPT_FILE           => $fp,
-            CURLOPT_FOLLOWLOCATION => true,
+            // 不跟随重定向：否则上面的 host 白名单可被授权主机的 302 绕过
+            // （第一次请求确实去了白名单主机，最终内容却来自任意地址）
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT        => 600,  // 10 分钟，大包够了
             CURLOPT_CONNECTTIMEOUT => 20,
             CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? EM_VERSION : 'dev'),
-            CURLOPT_SSL_VERIFYPEER => false, // 兼容自签证书的线路
+            // 恢复证书与主机名校验。升级包会被覆盖到整站代码，链路上被替换等于站点沦陷。
+            // 若线路确实是自签证书，可把配置项 license_insecure_tls 置 '1'（与授权通道共用）。
+            CURLOPT_SSL_VERIFYPEER => (string) Config::get('license_insecure_tls', '0') !== '1',
+            CURLOPT_SSL_VERIFYHOST => (string) Config::get('license_insecure_tls', '0') !== '1' ? 2 : 0,
         ]);
         $ok = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -188,6 +216,29 @@ final class UpdateService
         }
 
         return ['ok' => true, 'path' => $localPath, 'size' => (int) $size, 'sha256' => $sha256];
+    }
+
+    /**
+     * 下载地址是否属于已配置的授权线路。
+     *
+     * 升级包只应从授权服务器下载，因此白名单就是 license_urls 里的全部线路
+     * （多线路时逐一比对，而不是只认第一条）。判定逻辑复用 DownloadUrlGuard，
+     * 避免又写成「字符串前缀比较」那种可被 subdomain / userinfo 绕过的形式。
+     */
+    private static function isAllowedPackageHost(string $url): bool
+    {
+        if (!class_exists('DownloadUrlGuard') || !class_exists('LicenseClient')) {
+            return false;
+        }
+
+        foreach (LicenseClient::lines() as $line) {
+            $base = rtrim((string) ($line['url'] ?? ''), '/');
+            if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ================================================================

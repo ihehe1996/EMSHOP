@@ -18,6 +18,20 @@ $csrfToken = Csrf::token();
  * 安装/更新前预检：目标路径必须可创建或所在目录可写。
  * 若不可写则直接返回明确文案，避免 zip/解压/curl 等底层错误难以理解。
  */
+/**
+ * 断言应用下载地址合法，否则返回错误响应。
+ *
+ * 真正的判定在 DownloadUrlGuard::isAllowed()（纯函数、有单测覆盖）：
+ * 必须是 https、不允许 userinfo、host 与授权服务器完全一致。
+ * 这里只负责把判定结果转成页面响应。
+ */
+function appstore_assert_download_url(string $url, string $baseUrl): void
+{
+    if (!DownloadUrlGuard::isAllowed($url, $baseUrl)) {
+        Response::error('下载地址非法（必须为 https 且与授权服务器同一域名）');
+    }
+}
+
 function appstore_require_writable_path(string $path): void
 {
     $path = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
@@ -239,7 +253,7 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         $baseHost = rtrim((string) $lines[0]['url'], '/');
         $downloadUrl = '';
         if (stripos($filePath, 'http://') === 0 || stripos($filePath, 'https://') === 0) {
-            if (strpos($filePath, $baseHost) !== 0) Response::error('下载地址非法（host 不匹配）');
+            appstore_assert_download_url($filePath, $baseHost);
             $downloadUrl = $filePath;
         } else {
             $downloadUrl = $baseHost . '/' . ltrim($filePath, '/');
@@ -251,12 +265,16 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         $ch = curl_init($downloadUrl);
         curl_setopt_array($ch, [
             CURLOPT_FILE => $fp,
-            CURLOPT_FOLLOWLOCATION => true,
+            // 不跟随重定向：否则第一次 host 校验就形同虚设 —— 授权主机可以 302 到任意地址，
+            // 而下面的 TLS 校验与 host 白名单都不会作用于跳转后的目标
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT => 120,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_USERAGENT => 'emshop-' . EM_VERSION,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
+            // （web 可直接执行），链路上被替换就等于被植入任意代码
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
         $ok = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -386,9 +404,7 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
             if (!$lines) Response::error('未配置授权服务器地址');
             $baseHost = rtrim($lines[0]['url'], '/');
             if (stripos($filePath, 'http://') === 0 || stripos($filePath, 'https://') === 0) {
-                if (strpos($filePath, $baseHost) !== 0) {
-                    Response::error('下载地址非法（host 不匹配）');
-                }
+                appstore_assert_download_url($filePath, $baseHost);
                 $downloadUrl = $filePath;
             } else {
                 $downloadUrl = $baseHost . '/' . ltrim($filePath, '/');
@@ -409,13 +425,15 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
         $ch = curl_init($downloadUrl);
         curl_setopt_array($ch, [
             CURLOPT_FILE            => $fp,
-            CURLOPT_FOLLOWLOCATION  => true,
+            // 不跟随重定向：否则 host 白名单可被授权主机的 302 绕过
+            CURLOPT_FOLLOWLOCATION  => false,
             CURLOPT_TIMEOUT         => 120,
             CURLOPT_CONNECTTIMEOUT  => 10,
             CURLOPT_USERAGENT       => 'emshop-' . EM_VERSION,
-            // 修复 SSL 错误 60
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
+            // （web 可直接执行），链路上被替换就等于被植入任意代码
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
         $ok = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);

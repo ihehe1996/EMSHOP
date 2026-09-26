@@ -95,13 +95,22 @@ final class RateLimit
      */
     public static function clientIp(): string
     {
-        $candidates = [
-            $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '',
-            $_SERVER['HTTP_X_REAL_IP'] ?? '',
-            $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '',
-            $_SERVER['REMOTE_ADDR'] ?? '',
-        ];
-        foreach ($candidates as $raw) {
+        $remote = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($remote === '' || filter_var($remote, FILTER_VALIDATE_IP) === false) {
+            $remote = '0.0.0.0';
+        }
+
+        // 只有直连对端是「配置中声明的可信代理」时才采信转发头。
+        //
+        // 此前的实现无条件优先取 X-Forwarded-For / X-Real-IP / CF-Connecting-IP，
+        // 而这些头完全由请求方控制 —— 等于给攻击者一个「每次请求换一个 IP」的开关，
+        // 所有基于 IP 的限流（登录爆破、查单、领券）都能被轻易绕过。
+        if (!self::isTrustedProxy($remote)) {
+            return $remote;
+        }
+
+        foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'] as $key) {
+            $raw = (string) ($_SERVER[$key] ?? '');
             if ($raw === '') continue;
             // X-Forwarded-For 是逗号分隔列表，取最左（最接近原始客户端）
             $first = trim((string) strtok($raw, ','));
@@ -109,6 +118,68 @@ final class RateLimit
                 return $first;
             }
         }
-        return '0.0.0.0';
+
+        return $remote;
+    }
+
+    /**
+     * 直连对端是否为可信代理。
+     *
+     * 配置键 `trusted_proxies`：逗号分隔的 IP 或 CIDR，例如
+     *   "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+     * 部署在 Nginx 反代 / CDN 后面的站点**必须**配置它，否则限流会退化成
+     * 按代理 IP 计数（所有访客共用一个配额）。未配置时只认 REMOTE_ADDR，这是安全默认值。
+     */
+    private static function isTrustedProxy(string $ip): bool
+    {
+        $raw = trim((string) Config::get('trusted_proxies', ''));
+        if ($raw === '') {
+            return false;
+        }
+
+        foreach (explode(',', $raw) as $entry) {
+            $entry = trim($entry);
+            if ($entry === '') continue;
+            if ($entry === $ip) return true;
+            if (strpos($entry, '/') !== false && self::ipInCidr($ip, $entry)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 判断 IP 是否落在 CIDR 网段内（支持 IPv4 / IPv6）。
+     */
+    private static function ipInCidr(string $ip, string $cidr): bool
+    {
+        $parts = explode('/', $cidr, 2);
+        if (count($parts) !== 2) return false;
+
+        $ipBin  = @inet_pton($ip);
+        $netBin = @inet_pton(trim($parts[0]));
+        $bits   = (int) $parts[1];
+        if ($ipBin === false || $netBin === false || strlen($ipBin) !== strlen($netBin)) {
+            return false;
+        }
+
+        $maxBits = strlen($ipBin) * 8;
+        if ($bits < 0 || $bits > $maxBits) {
+            return false;
+        }
+
+        $fullBytes = intdiv($bits, 8);
+        if ($fullBytes > 0 && substr($ipBin, 0, $fullBytes) !== substr($netBin, 0, $fullBytes)) {
+            return false;
+        }
+
+        $remBits = $bits % 8;
+        if ($remBits === 0) {
+            return true;
+        }
+
+        $mask = (~((1 << (8 - $remBits)) - 1)) & 0xFF;
+        return (ord($ipBin[$fullBytes]) & $mask) === (ord($netBin[$fullBytes]) & $mask);
     }
 }

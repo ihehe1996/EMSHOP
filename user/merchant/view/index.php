@@ -179,6 +179,16 @@ $showSelfGoods = (int) ($lv['allow_self_goods'] ?? 0) === 1;
 <script>
 window.merchantCsrfToken = <?= json_encode($csrfToken) ?>;
 
+// 货币展示三件套。商户中心同样不加载主题 header，必须在这里注入 ——
+// 商户提现页的「显示按访客币、提交换回主货币」依赖它，缺失时会静默退化成 rate=1
+// （即不换算），外币站点上商户看到的金额与实际提交值会差一个汇率倍数。
+// rate 语义：1 主货币 = N 访客币（见 Currency::visitorFactor()）。
+window.EMSHOP_CURRENCY = {
+    code:   <?= json_encode(Currency::visitorCode()) ?>,
+    symbol: <?= json_encode(Currency::visitorSymbol()) ?>,
+    rate:   <?= json_encode(Currency::visitorFactor()) ?>
+};
+
 (function () {
     $(document).pjax(
         '.uc-nav-item[data-pjax]',

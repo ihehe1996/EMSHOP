@@ -365,17 +365,18 @@ if (Request::isPost()) {
                 if (!in_array($type, ['increase', 'decrease'], true)) {
                     Response::error('请选择操作类型');
                 }
-                if ($amountStr === '' || !is_numeric($amountStr) || (float) $amountStr <= 0) {
-                    Response::error('请输入有效的金额');
-                }
                 if ($remark === '') {
                     $remark = '客服操作';
                 }
 
-                // 金额转为数据库存储格式（×1000000）
-                $amount = (int) bcmul($amountStr, '1000000', 0);
-                if ($amount <= 0) {
-                    Response::error('金额必须大于0');
+                // 金额转为数据库存储格式（×1000000）。
+                // Money::parse 做严格的十进制白名单校验 —— 原先的 is_numeric + bcmul
+                // 会放行 1e5 这类科学计数法字符串，让 bcmul 在 PHP 8 抛未捕获的
+                // ValueError（被外层 catch 成内部错误提示），PHP 7.4 下则静默截断。
+                try {
+                    $amount = Money::parse($amountStr);
+                } catch (InvalidArgumentException $e) {
+                    Response::error('请输入有效的金额');
                 }
 
                 $balanceLog = new UserBalanceLogModel();

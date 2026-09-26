@@ -187,11 +187,11 @@ if (Request::isPost()) {
                     'shop_withdraw_min', 'shop_withdraw_max',
                 ];
                 foreach ($amountFields as $field) {
-                    $raw = trim((string) Input::post($field, '0'));
-                    if ($raw === '' || !is_numeric($raw)) {
-                        $raw = '0';
-                    }
-                    Config::set($field, bcmul($raw, '1000000', 0));
+                    // Money::tryParse 做严格的十进制白名单校验，非法输入（如 1e5）
+                    // 回落为 0 —— 与原先「is_numeric 不过就置 0」的意图一致，
+                    // 但不会再让 bcmul 在 PHP 8 抛未捕获的 ValueError。
+                    $rawMicro = Money::tryParse(Input::post($field, '0'), true);
+                    Config::set($field, (string) ($rawMicro ?? 0));
                     $saved++;
                 }
 

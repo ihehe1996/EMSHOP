@@ -159,15 +159,9 @@ class RebateService
         ];
         if ($inviters[1] === 0 && $inviters[2] === 0) return;
 
-        // 幂等性：已有非 reverted 记录说明已结算过
         $prefix = Database::prefix();
-        $exist = Database::fetchOne(
-            "SELECT id FROM {$prefix}commission_log WHERE order_id = ? AND status != ? LIMIT 1",
-            [$orderId, CommissionLogModel::STATUS_REVERTED]
-        );
-        if ($exist) return;
 
-        // 取订单的所有商品项（带售价、成本价、数量）
+        // 取订单的所有商品项（带售价、成本价、数量）—— 只读，放在事务外
         $items = Database::query(
             "SELECT og.goods_id, og.spec_id, og.price AS sold_price, og.quantity,
                     gs.cost_price AS cost_price_raw,
@@ -187,6 +181,28 @@ class RebateService
 
         Database::begin();
         try {
+            // 锁订单行：并发结算在这里串行化。
+            //
+            // commission_log **无法**加唯一索引来兜底 —— 同一订单的每个商品行 ×
+            // 每个返佣等级都合法地占一行（见下方 foreach × for 两层循环），
+            // 且部分提现拆单还会复制 (order_id, user_id, level)。
+            // 所以这张表的幂等只能靠「持订单行锁后重查」保证。
+            Database::fetchOne(
+                "SELECT `id` FROM {$prefix}order WHERE `id` = ? FOR UPDATE",
+                [$orderId]
+            );
+
+            // 幂等性：已有非 reverted 记录说明已结算过
+            // （此刻在事务内且持有订单行锁，判断可靠；原先在事务外，是 check-then-write 竞态）
+            $exist = Database::fetchOne(
+                "SELECT id FROM {$prefix}commission_log WHERE order_id = ? AND status != ? LIMIT 1",
+                [$orderId, CommissionLogModel::STATUS_REVERTED]
+            );
+            if ($exist) {
+                Database::commit();
+                return;
+            }
+
             foreach ($items as $item) {
                 $soldRaw = (int) $item['sold_price'];
                 $qty     = (int) $item['quantity'];

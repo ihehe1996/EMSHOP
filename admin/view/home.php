@@ -212,20 +212,19 @@ $calcRatio = static function (float $today, float $yesterday): array {
     return ['state' => $diff > 0 ? 'up' : 'down', 'pct' => $pctStr];
 };
 
-// 守护进程 content/server/server.heartbeat 的 mtime，10 秒内更新视为 heartbeat worker 在跑（约每 5 秒）
-$__serverHbPath = EM_ROOT . '/content/server/server.heartbeat';
-$server_run_status = false;
-$__serverFailHint = '发货队列/定时任务';
-if (is_file($__serverHbPath)) {
-    $__mt = @filemtime($__serverHbPath);
-    if ($__mt !== false) {
-        $__serverHbAge = time() - $__mt;
-        $server_run_status = $__serverHbAge <= 10;
-        if (!$server_run_status) {
-            $__serverFailHint = '发货队列/定时任务';
-        }
-    }
-}
+// 运行模式：只有 CLI / FPM 两种。
+//
+// 判据必须与 OrderModel::triggerDelivery() **完全一致** —— 发货走异步还是同步，
+// 全站唯一依据就是发货能力心跳 WorkerHeartbeat::CAPABILITY_DELIVERY。
+// 卡片显示 CLI、实际却在同步发货（或反过来）是最坏的情况，所以这里复用同一个判据，
+// 而不是看管家进程的宿主心跳：管家活着 ≠ 发货队列有人在消费。
+// worker 明细（哪个任务在跑/停了）在「查看详细」弹窗里展示，首页只报模式。
+$__deliveryAsync = WorkerHeartbeat::isAlive(WorkerHeartbeat::CAPABILITY_DELIVERY);
+$__runMode       = $__deliveryAsync ? 'cli' : 'fpm';
+$__runModeLabel  = $__deliveryAsync ? 'CLI 模式' : 'FPM 模式';
+$__runModeDesc   = $__deliveryAsync
+    ? '异步发货 · 常驻进程'
+    : '同步发货 · 请求执行';
 
 /* ============================================================
  * 官方公告 / 广告推广 / 版本更新 / 代理商联系方式
@@ -301,24 +300,20 @@ if (is_file($__serverHbPath)) {
             </div>
         </div>
 
-        <div class="dash-metric dash-metric--action dash-metric--server" style="--m-color: #64748b; --m-soft: #f1f5f9;">
+        <div class="dash-metric dash-metric--action dash-metric--server" style="--m-color: <?= $__deliveryAsync ? '#10b981' : '#f59e0b' ?>; --m-soft: <?= $__deliveryAsync ? '#ecfdf5' : '#fffbeb' ?>;">
             <div class="dash-metric__head">
-                <span class="dash-metric__icon"><i class="fa fa-heartbeat"></i></span>
-                <span class="dash-metric__label">守护进程</span>
-                <span class="dash-metric__official-tag">本机</span>
+                <span class="dash-metric__icon"><i class="fa <?= $__deliveryAsync ? 'fa-terminal' : 'fa-globe' ?>"></i></span>
+                <span class="dash-metric__label">运行模式</span>
+                <span class="dash-metric__official-tag">核心</span>
             </div>
             <div class="dash-metric__main">
                 <div class="dash-metric__value-row">
-                    <?php if ($server_run_status): ?>
-                    <span class="dash-metric__today-value dash-server-status dash-server-status--running">运行中</span>
-                    <?php else: ?>
-                    <span class="dash-metric__today-value dash-server-status dash-server-status--stopped">未运行</span>
-                    <?php endif; ?>
+                    <span class="dash-metric__today-value dash-runmode dash-runmode--<?= $__runMode ?>"><?= $esc($__runModeLabel) ?></span>
                 </div>
-                <div class="dash-metric__yesterday"><?= $server_run_status ? '服务正在运行' : $esc($__serverFailHint) ?></div>
+                <div class="dash-metric__yesterday"><?= $esc($__runModeDesc) ?></div>
             </div>
             <div class="dash-metric__month">
-                <span class="dash-metric__month-label">教程说明</span>
+                <span class="dash-metric__month-label">两种模式说明</span>
                 <button type="button" class="dash-version-btn" id="dashServerDetailBtn">查看详细</button>
             </div>
         </div>
@@ -684,7 +679,8 @@ if (is_file($__serverHbPath)) {
     letter-spacing: 0.2px;
 }
 
-/* 任务服务监控：运行中绿色 + 呼吸灯（text-shadow 模拟光晕） */
+/* 运行模式：CLI 是「有常驻进程在消费队列」，绿色 + 呼吸灯（text-shadow 模拟光晕）；
+   FPM 是「随请求同步执行」，琥珀常亮 —— 它是一种正常模式，不是故障，所以不闪。 */
 @keyframes dashServerBreath {
     0%, 100% {
         opacity: 1;
@@ -695,13 +691,12 @@ if (is_file($__serverHbPath)) {
         text-shadow: 0 0 12px rgba(16, 185, 129, 0.55), 0 0 26px rgba(16, 185, 129, 0.22);
     }
 }
-.dash-server-status--running {
+.dash-runmode--cli {
     color: #10b981 !important;
     animation: dashServerBreath 2.4s ease-in-out infinite;
 }
-.dash-server-status--stopped {
-    color: #ef4444 !important;
-    animation: dashServerBreath 2.4s ease-in-out infinite;
+.dash-runmode--fpm {
+    color: #f59e0b !important;
 }
 
 /* 环比 chip：绝对定位到大号数字右上角，不占居中计算空间 */
@@ -1393,12 +1388,8 @@ $(function () {
     // 保存最新一次响应，供"检查更新"按钮读取
     var __dashIndexData = null;
     var __dashLicenseActivated = <?= $__licenseActivated ? 'true' : 'false' ?>;
-    var __dashServerRunning = <?= $server_run_status ? 'true' : 'false' ?>;
 
-    if(__dashServerRunning == false) {
-        openServerDescription();
-    }
-    // 任务服务未运行时：查看详细 → iframe 教程弹窗
+    // FPM 模式是正常可用的模式（同步发货），不再自动弹窗打扰；想了解区别点“查看详细”。
     $('#dashServerDetailBtn').on('click', function () {
         openServerDescription();
     });
@@ -1406,7 +1397,7 @@ $(function () {
     function openServerDescription() {
         layui.layer.open({
             type: 2,
-            title: '守护进程说明',
+            title: '运行模式说明',
             skin: 'admin-modal',
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
@@ -1534,7 +1525,13 @@ $(function () {
                         '<span class="dash-update__ver"><i class="fa fa-tag"></i> v' + escapeHtml(u.version) + '</span>' +
                         (u.update_time ? '<span class="dash-update__time"><i class="fa fa-clock-o"></i> ' + escapeHtml(u.update_time) + '</span>' : '') +
                     '</div>' +
-                    '<div class="dash-update__body">' + (u.content || '') + '</div>' +
+                    // content 来自授权/升级接口（远程数据）。同级的 version / update_time 都过了
+                    // escapeHtml，唯独它此前原样注入 —— 等于把「往后台首页注入任意 JS」的开关
+                    // 交给了授权服务器，链路被中间人劫持时后果更直接。
+                    // 转义后用 <br> 保留换行，仍可读但不再能执行脚本。
+                    '<div class="dash-update__body">' +
+                        escapeHtml(u.content || '').replace(/\r?\n/g, '<br>') +
+                    '</div>' +
                 '</div>';
             }).join('');
             // 用项目统一的 popup-footer / popup-btn 风格（与用户等级弹窗一致）

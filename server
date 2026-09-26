@@ -8,11 +8,16 @@
  * │    php /项目根目录/server start                         │
  * │                                                         │
  * │  主进程（管家 CliServerManager）一直前台挂着            │
- * │    ├─ 子进程 worker --type=heartbeat   心跳             │
- * │    ├─ 子进程 worker --type=queue       发货/超时        │
- * │    ├─ 子进程 worker --type=order_poll  订单轮询         │
- * │    └─ 子进程 worker --type=goods_sync  商品同步         │
+ * │    ├─ 写宿主心跳 content/server/server.heartbeat        │
+ * │    └─ 监护下面这些子进程（**由插件注册**）              │
+ * │         php server worker --type=<类型>                 │
  * └─────────────────────────────────────────────────────────┘
+ *
+ * 「有哪些后台任务」不再由核心写死，而是插件通过 `server_worker_types`
+ * 过滤器注册（见 ServerWorkerInterface）。没装这类插件时：
+ *   - 本命令仍可正常 start，但没有任何业务子进程在跑；
+ *   - 订单发货走 FPM 同步路径，**失败不重试**，转 delivery_failed 人工处理；
+ *   - 上游库存/价格同步、上游订单轮询等依赖常驻进程的能力不可用。
  *
  * 用法（你只需要关心这些）：
  *   php server start|stop|status|reload|restart
@@ -41,21 +46,23 @@ $command = strtolower(trim((string) ($argv[1] ?? 'start')));
 // ── 分支 A：子进程（真正干活）────────────────────────────
 // 主进程用 proc_open 再执行一次本文件，并带上 worker 参数
 if ($command === 'worker') {
-    // heartbeat 只 touch 文件，不加载整站；其余 worker 需要数据库/插件
-    $workerType = '';
-    foreach (array_slice($argv, 2) as $arg) {
-        if (is_string($arg) && strpos($arg, '--type=') === 0) {
-            $workerType = trim(substr($arg, 7));
-            break;
-        }
-    }
-    if ($workerType !== 'heartbeat') {
-        require EM_ROOT . '/init.php';
-    }
+    // worker 实现类由插件提供，必须先加载整站（插件/钩子/数据库配置）才找得到。
+    // init.php 对 CLI 已做适配（跳过 session），加载失败也不会阻断启动，
+    // 真正的「这个 type 没人注册」由 CliServerWorker::run() 明确报出来。
+    require EM_ROOT . '/init.php';
     // run() 里 while 循环，直到被主进程终止；返回值作为进程退出码
     exit(CliServerWorker::run($argv));
 }
 
-// ── 分支 B：主进程（管家）────────────────────────────────
+// ── 分支 B：worker 探测（短命进程）───────────────────────
+// 插件启停后，管家靠它拿到「最新该跑哪些 worker」：管家自己是常驻进程，
+// 加载过的插件代码卸不掉、新启用的也加载不进来，只能让全新进程来回答。
+// 结果写进 content/server/worker-defs.json，管家读文件（不读 stdout）。
+if ($command === 'probe-workers') {
+    require EM_ROOT . '/init.php';
+    exit(CliServer::probeWorkers());
+}
+
+// ── 分支 C：主进程（管家）────────────────────────────────
 // start/stop/status/reload 都走这里；start 会进入长循环，不会马上结束
 exit(CliServerManager::run($argv));

@@ -128,7 +128,9 @@ final class NaviModel
             if (array_key_exists($field, $data)) {
                 $cols[] = '`' . $field . '`';
                 $placeholders[] = '?';
-                $params[] = (string) $data[$field];
+                $params[] = $field === 'link'
+                    ? $this->sanitizeLink((string) $data[$field])
+                    : (string) $data[$field];
             }
         }
 
@@ -149,6 +151,23 @@ final class NaviModel
     }
 
     /**
+     * 过滤导航链接：只放行站内相对路径或 http(s) 绝对地址，其余（javascript:、data: 等）
+     * 一律清空。
+     *
+     * 导航会渲染成 <a href="...">，不校验协议的话，填 javascript: 就能在**每个访客**
+     * 的前台页面里执行脚本（存储型 XSS）。链接虽由后台填写，但后台常有多个低权限角色，
+     * 且写入后影响的是全体访客。
+     */
+    private function sanitizeLink(string $link): string
+    {
+        $link = trim($link);
+        if ($link === '') {
+            return '';
+        }
+        return is_safe_url($link) ? $link : '';
+    }
+
+    /**
      * 更新导航。merchant_id 不在白名单，迁移用例外（不允许通过普通 update 改归属）。
      */
     public function update(int $id, array $data): bool
@@ -161,7 +180,9 @@ final class NaviModel
         foreach ($fields as $field) {
             if (array_key_exists($field, $data)) {
                 $sets[] = '`' . $field . '` = ?';
-                $params[] = (string) $data[$field];
+                $params[] = $field === 'link'
+                    ? $this->sanitizeLink((string) $data[$field])
+                    : (string) $data[$field];
             }
         }
 

@@ -23,6 +23,13 @@ $action = Input::getStr('action', '');
 // POST 请求处理
 if (Request::isPost()) {
     try {
+        // CSRF 校验：写操作都带 ?action=xxx（增删改 / 批量删除 / 状态切换 / 图片），
+        // 全部需要校验。action 为空是树形表格的**只读查询** —— 前端把令牌放在
+        // csrf 自定义请求头里（见 admin/view/goods_category.php 的 treeTable 配置），
+        // Input::post('csrf_token') 取不到，所以必须跳过，否则分类列表直接空白。
+        if ($action !== '' && !Csrf::validate((string) Input::post('csrf_token', ''))) {
+            Response::error('请求已失效，请刷新页面后重试');
+        }
 
         if(empty($action)){
             $keyword = trim((string) Input::post('keyword', ''));

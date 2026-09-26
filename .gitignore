@@ -25,7 +25,9 @@ AGENTS.md
 /content/server/*.lock
 /content/server/*.flag
 /content/server/workers.json
+/content/server/worker-defs.json
 /content/server/logs/
 *.log
 /logs/
-url.html
+/content/plugin/*
+/content/template/*

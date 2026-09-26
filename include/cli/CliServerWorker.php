@@ -1,13 +1,17 @@
 <?php
 
 /**
- * CLI Worker（子进程）：只干一类事，内部 while + sleep 循环。
+ * CLI Worker（子进程）：按 type 找到插件注册的实现，循环调用它的 tick()。
  *
  * 仅由 CliServerManager 通过 proc_open 自动拉起，例如：
- *   php server worker --type=heartbeat|queue|order_poll|goods_sync
+ *   php server worker --type=queue
  * 日常运维不要手动执行上述命令；宝塔只配 php server start 即可。
  *
- * 各 type 互不影响：发货卡住也不会影响心跳刷新。
+ * **核心不再内置任何业务 worker**。有哪些 worker 由插件通过
+ * `server_worker_types` 过滤器注册（见 ServerWorkerInterface）。
+ * 没装这类插件时，`php server start` 会正常启动但没有任何业务子进程。
+ *
+ * 各 type 互不影响：发货卡住也不会影响商品同步。
  */
 final class CliServerWorker
 {
@@ -24,12 +28,12 @@ final class CliServerWorker
     {
         $type = self::parseType($argv);
         if ($type === '') {
-            fwrite(STDERR, "请指定任务类型：--type=heartbeat|queue|order_poll|goods_sync\n");
+            fwrite(STDERR, "请指定任务类型：--type=<类型>\n");
             return 1;
         }
 
         // init.php 开了 ob_start；子进程 stdout 又是管道 → echo 会堆在缓冲里，主进程看不到。
-        // heartbeat 不加载 init，所以只有它会立刻出现启动日志。这里关掉缓冲并强制刷新。
+        // 这里关掉缓冲并强制刷新。
         while (ob_get_level() > 0) {
             ob_end_flush();
         }
@@ -42,151 +46,136 @@ final class CliServerWorker
         if (defined('STDOUT') && is_resource(STDOUT)) {
             fflush(STDOUT);
         }
-        CliServer::log("worker 启动：{$type}，PID " . getmypid());
 
-        // 按类型进入对应的死循环（直到被主进程终止）
-        switch ($type) {
-            case CliServer::WORKER_HEARTBEAT:
-                return self::runHeartbeatWorker();
-            case CliServer::WORKER_QUEUE:
-                return self::runQueueWorker();
-            case CliServer::WORKER_ORDER_POLL:
-                return self::runOrderPollWorker();
-            case CliServer::WORKER_GOODS_SYNC:
-                return self::runGoodsSyncWorker();
-            default:
-                fwrite(STDERR, "未知任务类型：{$type}\n");
-                return 1;
+        // 找到该 type 的实现类。找不到说明插件没装/没启用/被停用 —— 记录清楚后退出，
+        // 不要在这里死循环空转，否则日志会被刷爆。
+        $def = self::resolveDefinition($type);
+        if ($def === null) {
+            $msg = "worker 退出：{$type} —— 没有任何插件注册这个任务类型，"
+                 . '请确认提供该任务的插件已安装并启用（管家会在 5 秒内自动调整 worker）';
+            CliServer::log($msg);
+            fwrite(STDERR, $msg . "\n");
+            return 1;
         }
+
+        $className = (string) $def['class'];
+        if (!class_exists($className)) {
+            $msg = "worker 退出：{$type} —— 实现类不存在 {$className}";
+            CliServer::log($msg);
+            fwrite(STDERR, $msg . "\n");
+            return 1;
+        }
+
+        /** @var ServerWorkerInterface $worker */
+        // 把定义本身传给 worker：核心提供的通用 worker（如 DeliveryTaskWorker）
+        // 需要从定义里读 claim / hook。
+        //
+        // 插件自己的 worker 类通常没有构造函数，多传一个参数 PHP 不会报错
+        // （userland 函数允许多余实参），所以这是向后兼容的。
+        $worker = new $className($def);
+        if (!$worker instanceof ServerWorkerInterface) {
+            $msg = "worker 退出：{$type} —— {$className} 未实现 ServerWorkerInterface";
+            CliServer::log($msg);
+            fwrite(STDERR, $msg . "\n");
+            return 1;
+        }
+
+        $label = (string) ($def['label'] ?? $type);
+        CliServer::log("worker 启动：{$type}（{$label}），PID " . getmypid());
+
+        return self::runLoop($type, $worker);
     }
 
     /**
-     * heartbeat：单独进程刷新心跳文件（约每 5 秒）
-     * 后台首页靠 content/server/server.heartbeat 的 mtime 判断「运行中」
+     * 通用 worker 循环。
+     *
+     * 每轮：tick() → 刷新自己的类型心跳 → 间隔 sleep。
+     *
+     * **只刷 $type 自己的心跳，一律不碰能力心跳。** 能力心跳
+     * （content/server/worker.{capability}.heartbeat）由核心自有的 HeartbeatWorker
+     * 独家维护：它是后台「运行模式」卡片和 OrderModel::triggerDelivery() 的判据，
+     * 绑在业务执行流上的话，发货卡住多久、判据就跟着错多久。
+     *
+     * 类型心跳刻意放在 tick() **之后**：tick 卡死时它不刷新，
+     * 上层据此就能把「这个 worker 卡住了」如实识别出来。
      */
-    private static function runHeartbeatWorker(): int
+    private static function runLoop(string $type, ServerWorkerInterface $worker): int
     {
-        @touch(CliServer::heartbeatFile());
+        $interval = max(1, $worker->interval());
+
+        // 定期重载后台配置。
+        //
+        // worker 是长驻进程，配置在启动时就快照进内存了 —— 后台改了 SMTP、限额之类的
+        // 设置，不重启任务服务就永远不生效（管理员会以为「改了没用」）。
+        // 限频到 15 秒一次：queue worker 每秒醒一次，每轮都读一次库没必要。
+        $lastConfigReload = 0;
 
         while (!self::$stopRequested) {
-            @touch(CliServer::heartbeatFile());
-            self::idleSleep(5);
-        }
-
-        CliServer::log('worker 退出：heartbeat，PID ' . getmypid());
-        return 0;
-    }
-
-    /**
-     * queue：发货队列 + 订单超时 + 版本重载检测
-     */
-    private static function runQueueWorker(): int
-    {
-        // 兼容旧插件钩子 swoole_worker_start；第二个参数原为 Server，现传 null
-        try {
-            doAction('swoole_worker_start', null, 0);
-        } catch (Throwable $e) {
-        }
-
-        // 用「下次执行时间戳」模拟以前的 Timer::tick
-        $nextQueueAt = 0;     // 每 2 秒：消费发货队列
-        $nextTimeoutAt = 0;   // 每 60 秒：待支付订单超时
-        $nextVersionAt = 0;   // 每 6 秒：检查是否需要 reload worker
-
-        while (!self::$stopRequested) {
-            $now = time();
-
-            if ($now >= $nextQueueAt) {
-                try {
-                    CliServerTasks::processQueue();
-                } catch (Throwable $e) {
-                    CliServer::log('异常：发货队列 processQueue，' . $e->getMessage());
-                }
-                $nextQueueAt = time() + 2;
-            }
-
-            if ($now >= $nextTimeoutAt) {
-                try {
-                    CliServerTasks::runOrderTimeoutChecks();
-                } catch (Throwable $e) {
-                    CliServer::log('异常：订单超时检查 runOrderTimeoutChecks，' . $e->getMessage());
-                }
-                // 给插件用的分钟级调度钩子
-                try {
-                    doAction('server_schedule_tick');
-                } catch (Throwable $e) {
-                    CliServer::log('异常：server_schedule_tick，' . $e->getMessage());
-                }
-                $nextTimeoutAt = time() + 60;
-            }
-
-            if ($now >= $nextVersionAt) {
+            if (time() - $lastConfigReload >= 15) {
                 try {
                     Config::reload();
-                    // 若配置里 new 版本 > local 版本，会写 reload.flag，让主进程重启 worker
-                    CliServerTasks::checkFileVersionAndRequestReload();
                 } catch (Throwable $e) {
-                    echo '代码热更新检查失败，' . $e->getMessage() . "\n";
+                    CliServer::log("异常：{$type} 重载配置失败，" . $e->getMessage());
                 }
-                $nextVersionAt = time() + 6;
+                $lastConfigReload = time();
             }
 
-            self::idleSleep(1); // 每秒醒一次，既省 CPU，又能较快响应 stop
+            try {
+                $worker->tick();
+            } catch (Throwable $e) {
+                CliServer::log("异常：{$type} 执行失败，" . $e->getMessage());
+            }
+
+            WorkerHeartbeat::touchWorker($type);
+
+            self::idleSleep($interval, $type);
         }
 
-        CliServer::log('worker 退出：queue，PID ' . getmypid());
+        WorkerHeartbeat::clearAll([$type]);
+        CliServer::log("worker 退出：{$type}，PID " . getmypid());
         return 0;
     }
 
     /**
-     * order_poll：订单轮询（默认 60 秒一次）
+     * 从插件注册表里找出 type 对应的定义。
+     *
+     * @return array{type: string, label: string, class: string}|null
      */
-    private static function runOrderPollWorker(): int
+    private static function resolveDefinition(string $type): ?array
     {
-        while (!self::$stopRequested) {
-            try {
-                CliServerTasks::runOrderPollingTasks();
-            } catch (Throwable $e) {
-                CliServer::log('异常：订单轮询 runOrderPollingTasks，' . $e->getMessage());
+        foreach (CliServer::workerDefinitions() as $def) {
+            if ((string) ($def['type'] ?? '') === $type) {
+                return $def;
             }
-
-            self::idleSleep(60);
         }
-
-        CliServer::log('worker 退出：order_poll，PID ' . getmypid());
-        return 0;
-    }
-
-    /**
-     * goods_sync：商品同步（默认 6 秒一次）
-     */
-    private static function runGoodsSyncWorker(): int
-    {
-        while (!self::$stopRequested) {
-            try {
-                CliServerTasks::runGoodsSyncTasks();
-            } catch (Throwable $e) {
-                CliServer::log('异常：商品同步 runGoodsSyncTasks，' . $e->getMessage());
-            }
-
-            self::idleSleep(6);
-        }
-
-        CliServer::log('worker 退出：goods_sync，PID ' . getmypid());
-        return 0;
+        return null;
     }
 
     /**
      * 分段 sleep：每秒检查一次是否要停，避免 sleep(60) 卡太久才退出。
+     *
+     * 间隔比心跳 TTL 还长的 worker（例如订单超时 60 秒），必须在等待期间
+     * 也定期刷一次心跳 —— 否则 WorkerHeartbeat 会在两次 tick 之间把它判成「已死」，
+     * 后台首页就会一直误报「任务卡住」。（实测 60 秒周期的 worker 有 75% 的时间被判死。）
+     *
+     * 刷的仍然是「这个 worker 进程还在正常循环」这个信号：tick() 卡死时根本
+     * 进不到这里，心跳照样会停，卡死依然能被发现。
      */
-    private static function idleSleep(int $seconds): void
+    private static function idleSleep(int $seconds, string $type = ''): void
     {
         $seconds = max(1, $seconds);
-        for ($i = 0; $i < $seconds; $i++) {
+
+        // 只在「间隔明显长于 TTL」时才需要补刷，短周期 worker 本来每次 tick 都会刷
+        $refreshEvery = ($seconds > WorkerHeartbeat::TTL && $type !== '') ? 10 : 0;
+
+        for ($i = 1; $i <= $seconds; $i++) {
             if (self::$stopRequested) {
                 return;
             }
             sleep(1);
+            if ($refreshEvery > 0 && $i % $refreshEvery === 0) {
+                WorkerHeartbeat::touchWorker($type);
+            }
         }
     }
 

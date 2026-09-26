@@ -78,12 +78,18 @@ if (Request::isPost()) {
                     Response::error('语言代码已被占用');
                 }
 
+                // 表单里的 is_default / enabled 都是原生 checkbox，未勾选时**根本不会提交**该字段，
+                // 因此取不到时必须按「否」处理。
+                //
+                // 此前 create 分支直接引用了 $isDefault —— 它只在 update 分支被赋值过，
+                // 这里从未定义（PHP 8 下为 null），而 is_default 是 NOT NULL 列，
+                // 严格模式下 INSERT 直接被 MySQL 拒绝，于是「添加语言」完全不可用。
                 $model->create([
                     'name' => $name,
                     'code' => $code,
                     'icon' => trim((string) Input::post('icon', '')),
-                    'enabled' => Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
-                    'is_default' => $isDefault,
+                    'enabled' => Input::post('enabled', 'n') === 'y' ? 'y' : 'n',
+                    'is_default' => Input::post('is_default', 'n') === 'y' ? 'y' : 'n',
                 ]);
 
                 $csrfToken = Csrf::refresh();
@@ -127,11 +133,13 @@ if (Request::isPost()) {
 
                 $isDefault = Input::post('is_default', 'n') === 'y' ? 'y' : 'n';
 
+                // enabled 同样必须按「未勾选 = 否」处理。原先默认值是 'y'，
+                // 导致后台取消勾选「启用」后语言仍然是启用状态（改了等于没改）。
                 $model->update($id, [
                     'name' => $name,
                     'code' => $code,
                     'icon' => trim((string) Input::post('icon', '')),
-                    'enabled' => Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
+                    'enabled' => Input::post('enabled', 'n') === 'y' ? 'y' : 'n',
                     'is_default' => $isDefault,
                 ]);
 
@@ -173,8 +181,12 @@ if (Request::isPost()) {
                     Response::error('语言不存在');
                 }
 
-                // 禁止禁用最后一个启用的语言
-                if ($lang['enabled'] === 'y' && $model->count() <= 1) {
+                // 禁止禁用最后一个**启用中**的语言。
+                //
+                // 原判断用的是 $model->count()（语言总数），所以「3 种语言里 2 种已禁用、
+                // 1 种启用」时总数是 3 > 1，守卫放行 —— 于是最后一个启用语言也能被禁掉，
+                // 站点将没有任何可用语言。必须查启用数量。
+                if ($lang['enabled'] === 'y' && count($model->getEnabled()) <= 1) {
                     Response::error('至少需要保留一种启用语言');
                 }
 

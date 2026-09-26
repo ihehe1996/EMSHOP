@@ -201,6 +201,18 @@ $csrfToken = Csrf::token();
 
 
 <script>
+// HTML 转义：昵称/账号由用户自行填写，layer.confirm 会把内容当 HTML 渲染，
+// 直接拼接就是打向管理员的存储型 XSS（管理员一删用户就触发）。
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 $(function(){
     // PJAX 防重复绑定：清掉本页历史 .admUserList handler，避免事件成倍触发
     $(document).off('.admUserList');
@@ -401,7 +413,7 @@ $(function(){
                     openPopup('编辑用户', data.id);
                     break;
                 case 'del':
-                    layer.confirm('确定要删除用户「' + (data.nickname || data.username) + '」吗？此操作不可恢复。', function (idx) {
+                    layer.confirm('确定要删除用户「' + emEsc(data.nickname || data.username) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
                             url: '/admin/user_list.php',
                             type: 'POST',

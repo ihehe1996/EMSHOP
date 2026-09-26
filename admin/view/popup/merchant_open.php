@@ -78,6 +78,18 @@ include __DIR__ . '/header.php';
 </style>
 
 <script>
+// HTML 转义：这里的昵称 / 账号 / 邮箱 / 店铺名都是低权限用户能自行填写的，
+// 直接拼进 HTML 就是打向管理员的存储型 XSS（管理员一搜用户就触发）。
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 $(function () {
     layui.use(['layer', 'form'], function () {
         var layer = layui.layer;
@@ -109,11 +121,11 @@ $(function () {
                     items.forEach(function (u) {
                         var disabled = u.merchant_id > 0;
                         html += '<div class="mch-open-item' + (disabled ? ' is-disabled' : '') + '" '
-                             + 'data-id="' + u.id + '" '
-                             + 'data-name="' + (u.nickname || u.username) + '" '
+                             + 'data-id="' + emEsc(u.id) + '" '
+                             + 'data-name="' + emEsc(u.nickname || u.username) + '" '
                              + 'data-disabled="' + (disabled ? '1' : '0') + '">'
-                             + '<div>' + (u.nickname || u.username) + (disabled ? ' <span class="layui-badge layui-bg-gray">已开店</span>' : '') + '</div>'
-                             + '<div class="mch-open-item__sub">' + u.username + ' · ' + u.email + '</div>'
+                             + '<div>' + emEsc(u.nickname || u.username) + (disabled ? ' <span class="layui-badge layui-bg-gray">已开店</span>' : '') + '</div>'
+                             + '<div class="mch-open-item__sub">' + emEsc(u.username) + ' · ' + emEsc(u.email) + '</div>'
                              + '</div>';
                     });
                     $list.html(html).addClass('active');
@@ -156,9 +168,9 @@ $(function () {
                     if (!items.length) { $list.removeClass('active').html(''); return; }
                     var html = '';
                     items.forEach(function (m) {
-                        html += '<div class="mch-open-item" data-id="' + m.id + '" data-name="' + m.name + '">'
-                             + '<div>' + m.name + '</div>'
-                             + '<div class="mch-open-item__sub">ID: ' + m.id + '</div>'
+                        html += '<div class="mch-open-item" data-id="' + emEsc(m.id) + '" data-name="' + emEsc(m.name) + '">'
+                             + '<div>' + emEsc(m.name) + '</div>'
+                             + '<div class="mch-open-item__sub">ID: ' + emEsc(m.id) + '</div>'
                              + '</div>';
                     });
                     $list.html(html).addClass('active');

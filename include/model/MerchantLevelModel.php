@@ -49,7 +49,14 @@ final class MerchantLevelModel
      */
     public function getEnabledList(): array
     {
-        $sql = 'SELECT `id`, `name`, `price`, `self_goods_fee_rate`, `withdraw_fee_rate`
+        // 必须带上 allow_* 权限位：商户端「自助开通」页要按它们显示
+        // 「自建商品 / 二级域名 / 自定义域名 / 子商户」标签，商户设置页也要据此
+        // 判断能否绑定域名。此前字段列表里没有这几列，消费方读到的永远是 null，
+        // 于是那些标签从来不显示（功能看起来"没做"，实际是查漏了字段）。
+        $sql = 'SELECT `id`, `name`, `price`, `self_goods_fee_rate`, `withdraw_fee_rate`,
+                       `sub_merchant_rebate_rate`,
+                       `allow_url_dir`, `allow_subdomain`, `allow_custom_domain`,
+                       `allow_self_goods`, `allow_sub_merchant`
                   FROM `' . $this->table . '`
                  WHERE `deleted_at` IS NULL AND `is_enabled` = 1
                  ORDER BY `sort` ASC, `id` ASC';

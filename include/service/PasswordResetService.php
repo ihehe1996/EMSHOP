@@ -67,16 +67,24 @@ final class PasswordResetService
         }
         RateLimit::hit($emailKey, self::EMAIL_WINDOW);
 
-        $user = $this->findUserByEmail($email);
-        if ($user === null) {
-            return ['ok' => false, 'msg' => '该邮箱未注册'];
-        }
-        if ((int) ($user['status'] ?? 0) !== 1) {
-            return ['ok' => false, 'msg' => '账号已被禁用，请联系管理员'];
-        }
+        // 对外统一响应：**不区分**「邮箱未注册」「账号已被禁用」「已发送成功」。
+        //
+        // 原实现分别返回「该邮箱未注册」和「账号已被禁用，请联系管理员」，
+        // 这等于提供了一个免登录的账号枚举接口 —— 攻击者可以逐个邮箱试出哪些已注册、
+        // 哪些被封禁（后者还能反推出违规账号）。找回密码接口一律只给同一句提示。
+        $uniformOk = ['ok' => true, 'msg' => '如果该邮箱已注册，重置链接已发送，请查收'];
 
+        // 邮件配置检查必须放在**查用户之前**：它对任何邮箱都返回同一结果，
+        // 不会泄露账号是否存在。若放在查询之后，「未注册」会拿到统一提示、
+        // 「已注册」却报「邮件服务未配置」—— 差异本身又成了一个枚举信号。
         if (!$this->isMailConfigured()) {
             return ['ok' => false, 'msg' => '邮件服务未配置，请联系管理员'];
+        }
+
+        $user = $this->findUserByEmail($email);
+        if ($user === null || (int) ($user['status'] ?? 0) !== 1) {
+            // 不存在或已禁用：不创建令牌、不发送邮件，但对外表现与成功完全一致
+            return $uniformOk;
         }
 
         $rawToken = bin2hex(random_bytes(32));
@@ -92,10 +100,14 @@ final class PasswordResetService
         $html = $this->buildResetEmailHtml($siteName, $resetUrl, self::TOKEN_TTL / 60);
 
         if (!Mailer::send($email, $subject, $html)) {
-            return ['ok' => false, 'msg' => '邮件发送失败，请稍后重试或联系管理员'];
+            // 发信失败也返回**统一提示**：若这里单独报「发送失败」，
+            // 攻击者就能用「未注册 → 统一提示」与「已注册 → 发送失败」的差异继续枚举账号。
+            // 真实原因写系统日志，供站长排查（账号信息只记哈希前缀，不落明文邮箱）。
+            $this->logSendFailure($email);
+            return $uniformOk;
         }
 
-        return ['ok' => true, 'msg' => '重置链接已发送至您的邮箱，请查收'];
+        return $uniformOk;
     }
 
     /**
@@ -181,11 +193,40 @@ final class PasswordResetService
     }
 
     /**
-     * 生成重置密码绝对链接（基于当前请求域名，含子目录）。
+     * 记录发信失败。
+     *
+     * 对外必须保持统一提示（否则「未注册」与「已注册但发信失败」的差异会被用来枚举账号），
+     * 所以真实原因只写系统日志。邮箱只记哈希前缀，避免日志里出现明文地址。
+     */
+    private function logSendFailure(string $email): void
+    {
+        try {
+            if (class_exists('SystemLogModel')) {
+                (new SystemLogModel())->error(
+                    'system',
+                    '重置密码邮件发送失败',
+                    'Mailer::send 返回 false，用户未收到重置邮件（对外仍返回统一提示，避免账号枚举）',
+                    ['email_hash' => substr(hash('sha256', strtolower(trim($email))), 0, 12)]
+                );
+            }
+        } catch (Throwable $ignore) {
+            // 日志失败不影响主流程
+        }
+    }
+
+    /**
+     * 生成重置密码绝对链接。
+     *
+     * 优先使用后台配置的「站点地址」作为基址，**不能**用 Request::baseUrl()：
+     * 后者取的是 HTTP_HOST，而 Host 头完全由请求方控制。攻击者只要用伪造的 Host
+     * 触发一次找回密码，受害者收到的邮件里链接就指向攻击者域名 —— 受害者一点，
+     * 重置令牌就落到攻击者手里，账号随即被接管。
+     * site_url 来自后台配置，不受请求头影响。
      */
     private function buildResetUrl(string $rawToken): string
     {
-        $base = rtrim(Request::baseUrl(), '/');
+        $configured = rtrim(trim((string) Config::get('site_url', '')), '/');
+        $base = $configured !== '' ? $configured : rtrim(Request::baseUrl(), '/');
 
         $query = http_build_query([
             'c' => 'login',

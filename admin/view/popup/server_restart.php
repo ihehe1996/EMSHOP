@@ -17,20 +17,20 @@ include __DIR__ . '/header.php';
     </div>
 
     <div class="popup-section">
-        <div class="server-guide__title">守护进程启动命令</div>
+        <div class="server-guide__title">任务服务启动命令</div>
         <div class="layui-word-aux" style="margin: 0 0 8px;">
             默认 <code>php</code> 为 CLI 默认版本，可用 <code>php -v</code> 查看。无需额外扩展。
         </div>
         <div class="server-guide__cmd">
             <span class="server-guide__cmd-label">默认命令（项目根目录）</span>
-            <code>php server</code>
+            <code>php server start</code>
         </div>
         <div class="server-guide__cmd">
             <span class="server-guide__cmd-label">指定 PHP 版本示例（PHP 8.2）</span>
-            <code>php82 server</code>
+            <code>php82 server start</code>
         </div>
         <div class="layui-word-aux" style="margin-top: 10px;">
-            若守护进程已启动，仅需重启即可。
+            若任务服务已启动（运行模式为 CLI），仅需重启即可。
         </div>
     </div>
 </div>

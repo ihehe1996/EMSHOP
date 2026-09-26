@@ -243,6 +243,15 @@ final class UserListModel
             return false;
         }
 
+        // 改密码时必须同时吊销「记住我」令牌。
+        // 否则旧令牌在库里一直有效（有效期可达 remember_days_checked 天），
+        // 攻击者只要拿到过这个 cookie，改密之后依然能登进来 ——
+        // 而「改密码」正是用户发现账号被盗后的第一反应。
+        // 这里是改密的收口：找回密码（PasswordResetService）与后台改用户密码都走它。
+        if (array_key_exists('password', $data)) {
+            $sets[] = '`remember_token` = NULL';
+        }
+
         $sets[] = '`updated_at` = NOW()';
         $params[] = $id;
 

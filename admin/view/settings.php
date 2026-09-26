@@ -73,9 +73,17 @@ function formSwitch(string $name, string $value): string {
 }
 
 function formMoney(string $name, string $value, string $placeholder = ''): string {
-    // 新版 BIGINT 存储（×1000000，至少7位纯数字），需除以 1000000 显示
-    // 旧版十进制格式直接返回
-    if ($value !== '' && preg_match('/^\d{7,}$/', $value)) {
+    // 金额配置一律以 ×1000000 的整数（micro）存储，显示时除以 1000000。
+    //
+    // 此前用「≥7 位纯数字」来判断是不是 micro 格式 —— 那是为了兼容同时存在的
+    // 十进制旧值。但小于 1.00 的 micro 值只有 6 位（0.50 → "500000"），会被当成
+    // 旧格式原样显示，管理员再保存时又被乘一次 1000000：
+    //   最低充值 0.50 → 显示 500000 → 保存成 500000.00（用户再也无法充值）
+    //
+    // 遗留的十进制值已由迁移 20260926123000 统一成 micro，所以这里不再需要猜格式。
+    // 仍然保留「含小数点则原样返回」的兜底：万一还有没迁移到的值，至少能显示出来，
+    // 而不是被静默除以 1000000 变成近似 0。
+    if ($value !== '' && preg_match('/^\d+$/', $value)) {
         $value = bcdiv($value, '1000000', 2);
     }
     return formInput($name, $value, $placeholder);

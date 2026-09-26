@@ -29,6 +29,12 @@ if (!Request::isPost()) {
     Response::error('仅支持 POST');
 }
 
+// 每个动作都是整站级写操作（下载升级包 / 覆盖站点文件 / 跑迁移 / 回滚），
+// 必须校验 CSRF —— 缺了它可被跨站驱动整条升级流水线。
+if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+    Response::error('请求已失效，请刷新页面后重试');
+}
+
 if (!LicenseService::isActivated()) {
     Response::error('未激活版本不支持在线升级');
 }

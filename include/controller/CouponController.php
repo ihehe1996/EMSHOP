@@ -126,13 +126,18 @@ class CouponController extends BaseController
         }
 
         $code = trim((string) Input::post('code', ''));
-        $goodsAmount = trim((string) Input::post('goods_amount', '0'));
         $goodsItemsJson = (string) Input::post('goods_items', '[]');
 
         if ($code === '') Response::error('请输入优惠券码');
-        if (!is_numeric($goodsAmount) || (float) $goodsAmount <= 0) Response::error('订单金额无效');
 
-        $goodsAmountRaw = (int) bcmul($goodsAmount, '1000000', 0);
+        // Money::parse 先做严格的十进制白名单校验，再换算成主货币 micro 整数。
+        // 此处原先的 bcmul 还在 try 之外 —— 传 1e5 会抛出未捕获的 ValueError，
+        // 使这个免登录接口直接 500（PHP 7.4 下则静默截断成错误金额）。
+        try {
+            $goodsAmountRaw = Money::parse(Input::post('goods_amount', '0'));
+        } catch (InvalidArgumentException $e) {
+            Response::error('订单金额无效');
+        }
         $goodsItems = json_decode($goodsItemsJson, true) ?: [];
 
         $service = new CouponService();

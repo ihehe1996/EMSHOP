@@ -188,6 +188,12 @@ function generateRandomCouponSuffix(int $len = 8): string
 
 /**
  * 收集编辑表单输入（新增/编辑共用）。
+ *
+ * 注意：**不要**把 show_on_front 放进来。
+ * 它不在编辑弹窗表单里，只有列表页那个开关会改它（走独立的 toggle_show_front 动作）。
+ * 此前这里写了 `Input::post('show_on_front', 1)` —— 弹窗编辑时该字段根本不会被提交，
+ * 于是默认值 1 生效，**每次保存都会把「私下发放、不在前台展示」的券重新公开到领券中心**。
+ * 新增时不需要它：列默认值就是 1（展示），行为与之前一致。
  */
 function collectCouponInput(): array
 {
@@ -206,7 +212,6 @@ function collectCouponInput(): array
         'end_at'            => trim((string) Input::post('end_at', '')) ?: null,
         'total_usage_limit' => (int) Input::post('total_usage_limit', -1),
         'is_enabled'        => (int) Input::post('is_enabled', 1),
-        'show_on_front'     => (int) Input::post('show_on_front', 1),
         'sort'              => (int) Input::post('sort', 100),
     ];
 }

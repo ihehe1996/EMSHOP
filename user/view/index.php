@@ -167,6 +167,16 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
 <script>
 window.userCsrfToken = <?= json_encode($csrfToken) ?>;
 
+// 货币展示三件套。用户中心不加载主题 header，所以要在布局里自己注入 ——
+// 缺了它，页面里任何「按访客币种显示、提交前换回主货币」的换算都会退化成 rate=1，
+// 也就是静默不换算（商户提现页此前就是这样失效的）。
+// rate 语义：1 主货币 = N 访客币（见 Currency::visitorFactor()）。
+window.EMSHOP_CURRENCY = {
+    code:   <?= json_encode(Currency::visitorCode()) ?>,
+    symbol: <?= json_encode($currencySymbol ?? Currency::visitorSymbol()) ?>,
+    rate:   <?= json_encode(Currency::visitorFactor()) ?>
+};
+
 (function () {
     var $body = $('body');
     var $loading = $('#ucLoading');

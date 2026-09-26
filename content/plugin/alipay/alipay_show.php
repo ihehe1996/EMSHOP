@@ -623,12 +623,12 @@ foreach ($orderItems as $it) {
             <?php if ($isPaid): ?>
                 <p class="alert alert-ok">支付已完成，正在为你跳转到结果页面。</p>
                 <div class="btns">
-                    <a class="btn btn-primary" href="<?= alipay_show_h($redirectUrl) ?>">查看结果</a>
+                    <a class="btn btn-primary" href="<?= alipay_show_h(safe_url($redirectUrl)) ?>">查看结果</a>
                 </div>
             <?php elseif ($payError !== ''): ?>
                 <p class="alert alert-err">创建支付失败：<?= alipay_show_h($payError) ?></p>
                 <div class="btns">
-                    <a class="btn" href="<?= alipay_show_h($redirectUrl) ?>">返回</a>
+                    <a class="btn" href="<?= alipay_show_h(safe_url($redirectUrl)) ?>">返回</a>
                 </div>
             <?php else: ?>
                 <div class="pay-grid">
@@ -655,7 +655,7 @@ foreach ($orderItems as $it) {
                 </div>
 
                 <div class="btns">
-                    <a class="btn btn-primary" href="<?= alipay_show_h($qrUrl) ?>">打开支付宝支付</a>
+                    <a class="btn btn-primary" href="<?= alipay_show_h(safe_url($qrUrl)) ?>">打开支付宝支付</a>
                 </div>
             <?php endif; ?>
 
@@ -718,7 +718,7 @@ foreach ($orderItems as $it) {
         return map[status] || status || '未知状态';
     }
 
-    var qrText = <?= json_encode($qrUrl, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    var qrText = <?= json_for_script($qrUrl) ?>;
     var qrBox = document.getElementById('alipayQrBox');
     if (typeof QRCode !== 'undefined' && qrBox && qrText) {
         new QRCode(qrBox, {

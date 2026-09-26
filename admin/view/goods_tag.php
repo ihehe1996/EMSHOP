@@ -59,6 +59,18 @@ $csrfToken = Csrf::token();
 </script>
 
 <script>
+// HTML 转义：标签名可由商户创建（全站共享标签池），layer.confirm 会把内容当 HTML 渲染，
+// 直接拼接就是打向管理员的存储型 XSS。
+function emEsc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 $(function(){
     // PJAX 防重复绑定：清掉本页历史 .admGoodsTag handler，避免事件成倍触发
     $(document).off('.admGoodsTag');
@@ -212,7 +224,7 @@ $(function(){
             if (obj.event === 'edit') {
                 openEditForm(obj.data);
             } else if (obj.event === 'delete') {
-                layer.confirm('确定要删除标签"' + obj.data.name + '"吗？删除后将解除所有商品关联。', function (idx) {
+                layer.confirm('确定要删除标签"' + emEsc(obj.data.name) + '"吗？删除后将解除所有商品关联。', function (idx) {
                     $.ajax({
                         url: '/admin/goods_tag.php?_action=delete',
                         type: 'POST',

@@ -104,7 +104,10 @@ final class UserLevelModel
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
         $row = Database::fetchOne($sql, [$id]);
-        if ($row === false) {
+        // Database::fetchOne 查不到时返回的是 null，不是 false。
+        // 原先判 === false 永远不成立，于是把 null 传给了 transformFromDb()，
+        // 在 PHP 8 下抛 TypeError（弹窗接口直接 500）。
+        if ($row === null) {
             return null;
         }
         $this->transformFromDb($row);

@@ -1,0 +1,62 @@
+/**
+ * EmToast —— 公共浮动提示 / 加载遮罩（深色通知卡片）
+ *
+ * 样式来自安装向导页（install/index.php），抽出来供全站复用。
+ * JS 侧见 content/static/js/em-toast.js。
+ *
+ * 依赖：layui 的 layer 组件，本文件必须排在 layui.css 之后引入
+ *       （.layui-layer / .layui-layer-msg 的白底默认值靠后置 + !important 覆盖）。
+ *
+ * 用法：
+ *   EmToast.ok('保存成功');
+ *   EmToast.err('目录不可写');
+ *   var t = EmToast.loading();  EmToast.close(t);
+ */
+
+/* ---------- 卡片外壳：layui 默认是白底方块，统一改成深色通知卡 ---------- */
+.em-toast,
+.em-loading {
+    background: #131a2e !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 13px;
+    box-shadow: 0 20px 44px -20px rgba(15, 23, 41, 0.5);
+}
+
+/* layer.load 默认外圈是 100% 圆 + 透明底，这里跟着换成同样的卡片 */
+.em-loading .layui-layer-loading-icon { color: #c7d2fe; }
+
+/* ---------- 提示文字 + 左侧状态图标 ---------- */
+/* 默认 info：灰色信息图标；--ok / --err / --warn 只换图标和颜色 */
+.em-toast {
+    --em-toast-ico-color: #94a3b8;
+    --em-toast-ico: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>');
+}
+
+.em-toast .layui-layer-content {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 20px 13px 16px !important;
+    font-size: 13.5px; line-height: 1.5; text-align: left; color: #fff;
+}
+
+/* 图标用 mask 上色，所以 SVG 本身画成黑色即可，颜色交给 --em-toast-ico-color */
+.em-toast .layui-layer-content::before {
+    content: ""; flex: none; width: 18px; height: 18px;
+    background: var(--em-toast-ico-color, #94a3b8);
+    -webkit-mask: var(--em-toast-ico) center / contain no-repeat;
+    mask: var(--em-toast-ico) center / contain no-repeat;
+}
+
+.em-toast--ok {
+    --em-toast-ico-color: #34d399;
+    --em-toast-ico: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/></svg>');
+}
+
+.em-toast--err {
+    --em-toast-ico-color: #f87171;
+    --em-toast-ico: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16.5h.01"/></svg>');
+}
+
+.em-toast--warn {
+    --em-toast-ico-color: #fbbf24;
+    --em-toast-ico: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>');
+}

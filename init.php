@@ -30,8 +30,8 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true);
-define('EM_VERSION', '1.3.16');
-define('EM_VERSION_TIMESTAMP', '1316');
+define('EM_VERSION', '1.3.17');
+define('EM_VERSION_TIMESTAMP', '1317');
 
 require EM_ROOT . '/base.php';
 
@@ -60,6 +60,23 @@ if (!function_exists('str_contains')) {
 // 尽早启动 session（Csrf 验证和登录状态依赖 session，尽早启动可避免 CSRF 验证失败）
 // CLI 环境下跳过 session
 if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_NONE) {
+    // 会话 Cookie 安全属性。此前完全依赖 PHP 默认值：HttpOnly 默认开、SameSite 默认空
+    // （由浏览器按 Lax 处理）、Secure 默认关。显式写出来有两个好处：
+    //   1) 老浏览器 SameSite 默认是 None 时，这里强制降到 Lax
+    //   2) HTTPS 站点补上 Secure，避免 Cookie 在明文链路上泄露
+    $emHttps = (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off')
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        // 只在 HTTPS 下打 Secure：否则 HTTP 部署（含开发环境）会因 Cookie 不被回传而无法登录
+        'secure'   => $emHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
     session_start();
 }
 
@@ -137,7 +154,16 @@ try {
         foreach ($activePlugins as $pluginFile) {
             $pluginPath = EM_ROOT . '/content/plugin/' . ltrim($pluginFile, '/') . '/' . ltrim($pluginFile, '/') . '.php';
             if (is_file($pluginPath)) {
-                include_once $pluginPath;
+                // 标记「正在加载哪个插件」，让这个文件里 addAction 注册的回调
+                // 带上归属插件 —— 事件订阅 worker 靠它只调自己的回调，
+                // 否则同一事件有 N 个订阅方时每个插件会被执行 N 次。
+                // try/finally 保证即使插件文件抛错也能复位，不会把归属串到下一个插件。
+                Hooks::setActingPlugin((string) $pluginFile);
+                try {
+                    include_once $pluginPath;
+                } finally {
+                    Hooks::setActingPlugin(null);
+                }
             }
         }
     }

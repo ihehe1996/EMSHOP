@@ -33,11 +33,14 @@ class RechargeController extends BaseController
         $userId = (int) $user['id'];
 
         // —— 金额（用户填的是元）
-        $amount = trim((string) Input::post('amount', ''));
-        if ($amount === '' || !is_numeric($amount) || (float) $amount <= 0) {
+        // Money::parse 先做严格的十进制白名单校验，再换算成主货币 micro 整数。
+        // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
+        // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
+        try {
+            $amountRaw = Money::parse(Input::post('amount', ''));
+        } catch (InvalidArgumentException $e) {
             Response::error('请输入正确的充值金额');
         }
-        $amountRaw = (int) bcmul($amount, '1000000', 0);
 
         // 后台配置的限额
         $minRaw = (int) Config::get('shop_min_recharge', '1000000');

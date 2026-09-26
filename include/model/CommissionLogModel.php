@@ -139,10 +139,22 @@ class CommissionLogModel
      */
     public function paginateByUser(int $userId, array $filter, int $page = 1, int $perPage = 20): array
     {
+        // 「有效状态」：已过冷却期的冻结记录，在**读取时就按可提现处理**。
+        //
+        // 为什么在这里算而不是写库：这个列表接口是 GET。原先它在读之前会调用
+        // promoteMatured() 做状态迁移 —— GET 带副作用，既可被顶层链接/预取器触发，
+        // 也让「读一次列表」变成一次写事务。真正的迁移由提现路径
+        // （RebateService::withdraw）负责，读取侧只需要展示正确的状态。
+        $effective = "CASE WHEN `status` = '" . self::STATUS_FROZEN . "'"
+                   . " AND `frozen_until` IS NOT NULL AND `frozen_until` <= NOW()"
+                   . " THEN '" . self::STATUS_AVAILABLE . "' ELSE `status` END";
+
         $where = ['user_id = ?'];
         $params = [$userId];
         if (!empty($filter['status'])) {
-            $where[] = 'status = ?';
+            // 过滤也要按有效状态，否则「冻结中」标签里会混进已到期的记录、
+            // 「可提现」标签里又看不到它们
+            $where[] = $effective . ' = ?';
             $params[] = $filter['status'];
         }
         if (!empty($filter['level'])) {
@@ -159,13 +171,17 @@ class CommissionLogModel
         $offset = ($page - 1) * $perPage;
 
         $rows = Database::query(
-            "SELECT * FROM {$this->table} WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
+            "SELECT *, ({$effective}) AS `effective_status`
+               FROM {$this->table} WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             $params
         );
         foreach ($rows as &$r) {
             // 返回带货币符号的完整字符串（按访客当前币种换算）；前端直接输出不再拼 ¥
             $r['amount_display']       = Currency::displayAmount((int) $r['amount']);
             $r['basis_amount_display'] = Currency::displayAmount((int) ($r['basis_amount'] ?? 0));
+            // 对外以有效状态为准，前端标签与过滤口径保持一致（原始 status 保留在 raw_status）
+            $r['raw_status'] = (string) ($r['status'] ?? '');
+            $r['status']     = (string) ($r['effective_status'] ?? $r['status']);
         }
         unset($r);
 

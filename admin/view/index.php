@@ -20,8 +20,10 @@ $csrfToken = Csrf::token();
     <link rel="stylesheet" href="/admin/static/css/admin.css">
     <link rel="stylesheet" href="/admin/static/css/admin-modal.css">
     <link rel="stylesheet" href="/admin/static/css/style.css">
+    <link rel="stylesheet" href="/content/static/css/em-toast.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+    <script src="/content/static/js/em-toast.js"></script>
 
     <script src="/content/static/lib/tinymce/tinymce.min.js"></script> 
     <script src="/admin/static/js/em-editor-upload.js"></script>

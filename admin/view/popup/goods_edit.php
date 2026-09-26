@@ -1885,8 +1885,18 @@ $(function() {
         var html = '', count = 0;
         for (var i = 0; i < allTags.length && count < 8; i++) {
             if (allTags[i].name.toLowerCase().indexOf(val) !== -1 && !hasTag(allTags[i].name)) {
-                html += '<div class="goods-tag-suggest-item" data-name="' + $('<span>').text(allTags[i].name).html() + '">'
-                    + $('<span>').text(allTags[i].name).html()
+                // 标签名要进 HTML 属性（data-name），必须连引号一起转义：
+                // $('<span>').text(x).html() 只转义 & < >，**不转义引号**，
+                // 属性上下文里一个双引号就能逃出去注入事件处理器。
+                // 标签池是全站共享的，商户可创建标签 → 可打向管理员。
+                var tagName = String(allTags[i].name == null ? '' : allTags[i].name)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+                html += '<div class="goods-tag-suggest-item" data-name="' + tagName + '">'
+                    + tagName
                     + '<span class="tag-count">' + (allTags[i].goods_count || 0) + '件</span></div>';
                 count++;
             }

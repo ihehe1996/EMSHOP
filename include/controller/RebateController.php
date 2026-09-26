@@ -44,11 +44,14 @@ class RebateController extends BaseController
         $user = $this->requireLogin();
         $userId = (int) $user['id'];
 
-        $amount = trim((string) Input::post('amount', ''));
-        if ($amount === '' || !is_numeric($amount) || (float) $amount <= 0) {
+        // Money::parse 先做严格的十进制白名单校验，再换算成主货币 micro 整数。
+        // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
+        // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
+        try {
+            $amountRaw = Money::parse(Input::post('amount', ''));
+        } catch (InvalidArgumentException $e) {
             Response::error('请输入正确的提现金额');
         }
-        $amountRaw = (int) bcmul($amount, '1000000', 0);
 
         try {
             $withdrawId = RebateService::withdraw($userId, $amountRaw);
@@ -67,8 +70,12 @@ class RebateController extends BaseController
         $user = $this->requireLogin();
         $userId = (int) $user['id'];
 
-        (new CommissionLogModel())->promoteMatured($userId);
-
+        // 这里**不再**调用 promoteMatured()：
+        // 本接口是 GET，而 promoteMatured 会写库（把到期冻结佣金转成可提现）——
+        // GET 带副作用既能被顶层链接/浏览器预取器触发，也让「翻一页列表」变成一次写事务。
+        // 「到期转可用」的真实迁移在提现路径（RebateService::withdraw）里完成；
+        // 列表只需要展示正确的状态，这一点已由 CommissionLogModel::paginateByUser
+        // 按 frozen_until 计算「有效状态」来保证。
         $page = max(1, (int) Input::get('page', 1));
         $perPage = max(1, min(50, (int) Input::get('limit', 20)));
         $status = (string) Input::get('status', '');

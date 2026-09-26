@@ -81,7 +81,10 @@ function goods_card_href_attrs(array $row): string
 {
     $jump = trim((string) ($row['jump_url'] ?? ''));
     if ($jump !== '') {
-        return 'href="' . htmlspecialchars($jump, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="nofollow noopener"';
+        // jump_url 由商品维护者填写，会直接进 href。
+        // 只做 htmlspecialchars 挡不住伪协议：填 javascript: 就能在所有访客点开
+        // 商品卡时执行脚本。必须过 scheme 白名单（不安全时 safe_url 返回 '#'）。
+        return 'href="' . htmlspecialchars(safe_url($jump), ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="nofollow noopener"';
     }
     // 已售罄且开启「售罄禁止访问」：不生成详情链接
     if ((string) Config::get('shop_block_sold_out_access', '1') !== '0'
@@ -460,4 +463,76 @@ function site_favicon_href(): string
     }
 
     return '/' . ltrim(str_replace('\\', '/', $raw), '/');
+}
+
+/**
+ * HTML 文本 / 属性上下文的统一转义。
+ *
+ * 全站此前散落 1400+ 处 htmlspecialchars，其中大量是**裸调用** —— 依赖 PHP 默认
+ * flags，而 PHP 8.1 之前默认是 ENT_COMPAT（不转单引号），单引号包裹的属性里
+ * 可以逃逸。统一走这里，固定 ENT_QUOTES + UTF-8 + ENT_SUBSTITUTE。
+ *
+ * 用法：`<a title="<?= e($title) ?>"><?= e($name) ?></a>`
+ *
+ * @param mixed $value
+ */
+function e($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/**
+ * 把 PHP 数据安全注入到内联 <script> 里。
+ *
+ * 关键点：浏览器解析 `<script>` 时**先找结束标签，再把内容交给 JS 解析** ——
+ * 所以只要字符串里出现 `</script>`，无论它在 JS 里是否合法，脚本块都会被提前
+ * 闭合，后面的内容变成可注入的 HTML。必须打开 JSON_HEX_TAG（把 < > 变成
+ * < >）才能挡住；同时用 JSON_HEX_AMP / APOS / QUOT 挡住其余上下文逃逸。
+ *
+ * **不要**用 Response::json() 的那组 flags —— 它带 JSON_UNESCAPED_SLASHES，
+ * `/` 保持原样，`</script>` 照样能闭合。
+ *
+ * 用法：`var qrText = <?= json_for_script($qrUrl) ?>;`
+ *
+ * @param mixed $value
+ */
+function json_for_script($value): string
+{
+    $json = json_encode(
+        $value,
+        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    );
+
+    // 编码失败（非法 UTF-8 等）时给出 null，避免把 false 输出成空字符串造成 JS 语法错误
+    return $json === false ? 'null' : $json;
+}
+
+/**
+ * URL 是否可用于 href / src / 跳转（防 javascript:、data: 等伪协议）。
+ *
+ * 全站此前只有零散的内联 `preg_match('#^https?://#i')`，且仅用于入参校验。
+ * 输出到 href 时必须过这里 —— 只做 htmlspecialchars 挡不住伪协议。
+ */
+function is_safe_url(string $url): bool
+{
+    $url = trim($url);
+    if ($url === '') {
+        return false;
+    }
+    // 站内相对路径：允许 /path、./path、../path、#anchor，但排除 //host（协议相对，会跳出站外）
+    if (preg_match('#^\.{0,2}/#', $url) === 1) {
+        return strpos($url, '//') !== 0;
+    }
+    if (strpos($url, '#') === 0 || strpos($url, '?') === 0) {
+        return true;
+    }
+    return preg_match('#^https?://#i', $url) === 1;
+}
+
+/**
+ * 输出安全的 URL：不安全时返回 '#'，供 href 直接使用。
+ */
+function safe_url(string $url, string $fallback = '#'): string
+{
+    return is_safe_url($url) ? $url : $fallback;
 }

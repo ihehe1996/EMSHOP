@@ -132,10 +132,28 @@ final class PluginModel
         ];
 
         $inComment = false;
+        $headerBeforeBlock = $header;
+
         while (($line = fgets($fp)) !== false) {
             $line = rtrim($line);
-            if (preg_match('/^\s*\/\*\*\s*$/', $line)) { $inComment = true; continue; }
-            if ($inComment && preg_match('/^\s*\*\/\s*$/', $line)) { $inComment = false; continue; }
+            if (preg_match('/^\s*\/\*\*\s*$/', $line)) {
+                $inComment = true;
+                $headerBeforeBlock = $header;   // 记录进入本块前的状态
+                continue;
+            }
+            if ($inComment && preg_match('/^\s*\*\/\s*$/', $line)) {
+                $inComment = false;
+                // 头部元数据只认**文件开头那个真正提供了字段的 docblock**。
+                //
+                // 原先靠「遇到 <?php 才 break」来收尾，可插件文件往往只有开头一个
+                // <?php，这个条件永不触发 —— 扫描一直走到文件末尾，于是正文里任何一个
+                // /** ... Category: 支付插件 ... */ 的注释块都会覆盖头部声明，
+                // 把普通插件冒名成 SYSTEM_PLUGIN（主站统一启停、强制继承到所有商户站）。
+                if ($header !== $headerBeforeBlock) {
+                    break;
+                }
+                continue;
+            }
 
             if ($inComment) {
                 $line = preg_replace('/^\s*\*\s*/', '', $line);

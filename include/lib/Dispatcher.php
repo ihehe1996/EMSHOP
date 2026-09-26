@@ -165,9 +165,20 @@ final class Dispatcher
         }
 
         // 0.2 前台插件展示页：?plugin=xxx 直接交给插件的 {slug}_show.php 全权输出
-        //     （主题/控制器/钩子流程全部跳过，插件自己输出完整 HTML；常见用法：公开回调页、插件 demo 页）
+        //     （主题/控制器流程全部跳过，插件自己输出完整 HTML；常见用法：公开回调页、插件 demo 页）
         $pluginSlug = (string) ($_GET['plugin'] ?? '');
         if ($pluginSlug !== '') {
+            // 门禁必须在这里先跑一遍。
+            //
+            // front_dispatch_before 是站点密码（site_password）、强制登录（force_login）、
+            // 微信/QQ 守卫（wxqq_guard）三家插件的门禁挂载点，但它原先只在下面第 254 行触发 ——
+            // 而本分支在此之前就 return 了，所以 ?plugin=xxx 可以绕过全部三道门禁。
+            //
+            // 提前触发是安全的：这三家都只读 controller/action 做白名单判断
+            // （插件请求下二者为空，门禁会照常生效），且都自行输出完整页面或 302，
+            // 不依赖主题与后续路由状态。
+            doAction('front_dispatch_before');
+
             $this->dispatchPluginShow($pluginSlug);
             return;
         }

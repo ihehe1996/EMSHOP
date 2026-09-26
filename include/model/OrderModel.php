@@ -23,7 +23,16 @@ class OrderModel
         'paid'             => ['delivering', 'delivered', 'refunding'],
         'delivering'       => ['delivered', 'delivery_failed'],
         'delivered'        => ['completed', 'refunding'],
-        'delivery_failed'  => ['refunding', 'delivering'],
+        // delivery_failed 是「可补发 / 可退款」的中间态，**不是终态**：
+        //   - delivered  ：补发收尾两跳（delivered → completed）的第一跳。缺了它，
+        //                  人工补发或任务重试成功后订单会永久卡在这里，分账/返佣永不结算
+        //                  （两条收尾路径都直接调 delivered，见 checkDeliveryComplete /
+        //                  manualShipOrderGoods）
+        //   - delivering ：保留给 triggerDelivery() 的整单重推
+        //   - refunding  ：已付款但从未发货，退款是站点唯一兜底手段
+        // 刻意不直接放 completed —— changeStatus 只在 delivered 分支写 delivery_time，
+        // 直跳会让前台「发货时间」永久空白。
+        'delivery_failed'  => ['refunding', 'delivering', 'delivered'],
         'completed'        => ['refunding'],
         'refunding'        => ['refunded'],
         // expired 允许管理员手工补单 → paid；其余终态不可流转
@@ -147,9 +156,37 @@ class OrderModel
                     throw new RuntimeException('购买数量不能超过 ' . $maxBuy);
                 }
 
-                // 库存不足抛专用异常，携带商品名 + 剩余数量，调用方按场景选择消息格式
-                if ((int) $spec['stock'] >= 0 && (int) $spec['stock'] < $quantity) {
-                    throw new StockShortageException((string) $goods['title'], (int) $spec['stock']);
+                // 库存：**下单即扣减**，用「条件 UPDATE + 受影响行数」原子完成。
+                //
+                // 此前是「先读库存再比较」，属于 check-then-write 竞态：并发下单会同时
+                // 读到同一个库存值、同时通过校验，等到发货阶段才发现超卖 —— 那时买家
+                // 已经付了钱。改成条件扣减后，库存不足的那一次会在这里就失败。
+                //
+                // stock < 0 表示不限库存（后台可设 -1），这类规格不做扣减与校验。
+                // 扣减发生在本方法的事务内，后续任何一步失败都会随之回滚；
+                // 订单转入未成交终态（expired/cancelled/failed）时由 changeStatus 回补，
+                // 见 releaseOrderReservations()。
+                if ($specId > 0) {
+                    $stockRaw = (int) ($spec['stock'] ?? -1);
+                    if ($stockRaw >= 0) {
+                        $affected = Database::execute(
+                            'UPDATE `' . Database::prefix() . 'goods_spec`
+                                SET `stock` = `stock` - ?
+                              WHERE `id` = ? AND `stock` >= ?',
+                            [$quantity, $specId, $quantity]
+                        );
+                        if ($affected !== 1) {
+                            // 重新读一次拿到「此刻」的剩余量用于提示（并发下刚被人抢走）
+                            $left = Database::fetchOne(
+                                'SELECT `stock` FROM `' . Database::prefix() . 'goods_spec` WHERE `id` = ?',
+                                [$specId]
+                            );
+                            throw new StockShortageException(
+                                (string) $goods['title'],
+                                max(0, (int) ($left['stock'] ?? 0))
+                            );
+                        }
+                    }
                 }
 
                 // 商品类型插件必须已启用，否则下单后续环节（order_submit 校验、
@@ -498,17 +535,82 @@ class OrderModel
             $sets[] = "`{$k}` = ?";
             $params[] = $v;
         }
+        // CAS：只有状态仍是刚读到的那个值才更新。
+        //
+        // 此前是「先查后写」，并发下同一订单会被重复推进 —— 重复入队发货、
+        // 重复写支付流水。受影响行数为 0 说明状态已被并发改走，此时必须抛异常
+        // 让调用方回滚整个事务（不能返回 false：调用方会继续执行写副作用的代码，
+        // 详见 OrderStatusConflictException 的类注释）。
+        //
+        // 注意 $updates['status'] 恒等于 $newStatus，而状态机不允许自流转，
+        // 所以 status 列每次都会真正变化 —— MySQL 的 affected_rows 是「实际改变行数」，
+        // 这里与「匹配行数」等价，不会把正常流转误判成冲突。
         $params[] = $orderId;
+        $params[] = $currentStatus;
 
-        $sql = "UPDATE `" . self::$orderTable . "` SET " . implode(', ', $sets) . " WHERE id = ?";
+        $sql = "UPDATE `" . self::$orderTable . "` SET " . implode(', ', $sets)
+             . " WHERE `id` = ? AND `status` = ?";
         $affected = Database::execute($sql, $params);
-        $ok = $affected > 0;
+
+        if ($affected === 0) {
+            self::writeSystemLog(
+                'warning',
+                '订单状态流转冲突',
+                'CAS 更新未命中，订单状态已被并发修改，本次流转未生效',
+                [
+                    'order_id'        => $orderId,
+                    'expected_status' => $currentStatus,
+                    'target_status'   => $newStatus,
+                ]
+            );
+            throw new OrderStatusConflictException($orderId, $currentStatus, $newStatus);
+        }
+
+        $ok = true;
 
         // 状态钩子：订单完成 → 触发结算；退款完成 → 倒扣
         // 商户订单走 MerchantLedgerService（并跳过主站推广返佣，见 RebateService::settleOrder）
         // 主站订单走 RebateService
         // 失败不影响主状态流转，仅吞掉异常
         if ($ok) {
+            // 未成交终态：把下单时占用的资源还回去（规格库存 / 已核销的优惠券）。
+            //
+            // 放在这里而不是各个调用方，是因为 changeStatus 是订单状态变更的唯一入口 ——
+            // 超时关闭、后台取消、API 下单失败等路径都会经过，不会漏。
+            // refunded 刻意不在列表内：那表示货已发出后退款，库存是真实消耗。
+            if (in_array($newStatus, ['expired', 'cancelled', 'failed'], true)) {
+                try {
+                    self::releaseOrderReservations($orderId);
+                } catch (Throwable $e) {
+                    self::writeSystemLog(
+                        'warning',
+                        '订单资源回滚失败',
+                        '库存或优惠券回滚失败，需人工核对',
+                        [
+                            'order_id' => $orderId,
+                            'target_status' => $newStatus,
+                            'error' => $e->getMessage(),
+                        ]
+                    );
+                }
+            }
+
+            // 管理员补单（expired → paid）：库存已随过期回补，这里要重新占用，
+            // 否则这单不占库存，可能与后续订单重复卖出同一件货。
+            // 另外优惠券**不**重新核销 —— 它可能已被用户用在别的订单上。
+            if ($currentStatus === 'expired' && $newStatus === 'paid') {
+                try {
+                    self::reserveOrderStock($orderId);
+                } catch (Throwable $e) {
+                    self::writeSystemLog(
+                        'warning',
+                        '补单时重新占用库存失败',
+                        '订单已补为已支付，但库存未能重新占用，请核对',
+                        ['order_id' => $orderId, 'error' => $e->getMessage()]
+                    );
+                }
+            }
+
             $merchantId = (int) ($order['merchant_id'] ?? 0);
 
             try {
@@ -646,8 +748,18 @@ class OrderModel
 
     /**
      * 触发发货流程。
-     * 将每个订单商品写入 em_delivery_queue，由后台任务服务队列消费者异步执行。
-     * 不直接调用插件钩子，避免阻塞用户请求。
+     *
+     * 先把每个订单商品写入 em_delivery_queue（队列行是发货历史的唯一真相，
+     * checkDeliveryComplete 靠它区分「自动发货」和「人工发货」），然后分两条路走：
+     *
+     *   - **有发货队列消费者在线**（装了守护进程插件）：交给它异步消费，
+     *     失败按 max_attempts 退避重试。不阻塞当前请求。
+     *
+     *   - **没有消费者在线**（纯 FPM 部署）：本单立即同步发货，失败即
+     *     delivery_failed，**不重试**。因为没有常驻进程，退避时间到了也没人接手，
+     *     留下 retry 行只会让订单无声地卡在 delivering。
+     *
+     * 判据是「queue worker 的能力心跳」而不是宿主心跳：管家活着不等于队列在消费。
      */
     public static function triggerDelivery(int $orderId): void
     {
@@ -680,13 +792,39 @@ class OrderModel
                 continue;
             }
 
+            $ogId = (int) $og['id'];
+
+            // 幂等短路（**按商品行**判，不能按订单判）：
+            //
+            // ① 这一行已经发过货 → 不再入队。
+            //    用 hasDeliveryContent 而不是队列状态：人工发货路径完全不碰队列，
+            //    所以「队列里有 success 行」并不等于「这行发过货」。
+            if (self::hasDeliveryContent($ogId, (string) ($og['delivery_content'] ?? ''))) {
+                continue;
+            }
+
+            // ② 这一行已有活跃任务 → 不重复入队。
+            //    整单重推（如 delivery_failed → delivering）时，上次已成功的行会走到
+            //    上面 ① 被跳过，剩下的行在这里避免叠加重复任务。
+            //    注意必须按 order_goods_id 过滤：若按订单过滤，会把尚未入队的行
+            //    一起跳过，导致缺行。
+            $active = Database::fetchOne(
+                "SELECT `id` FROM `{$queueTable}`
+                  WHERE `order_goods_id` = ? AND `status` IN ('pending','retry','processing')
+                  LIMIT 1",
+                [$ogId]
+            );
+            if ($active !== null) {
+                continue;
+            }
+
             // 生成回调验证令牌
             $callbackToken = bin2hex(random_bytes(16));
 
             // 写入队列任务
             Database::insert('delivery_queue', [
                 'order_id'       => $orderId,
-                'order_goods_id' => (int) $og['id'],
+                'order_goods_id' => $ogId,
                 'task_type'      => 'delivery',
                 'goods_type'     => $goodsType,
                 'payload'        => json_encode([
@@ -697,6 +835,204 @@ class OrderModel
                 'created_at'     => date('Y-m-d H:i:s'),
             ]);
         }
+
+        // 没有发货消费者（FPM 部署 / 发货 worker 没在跑）→ 本单同步发货，不重试。
+        // 只处理本单刚写入的行，不会去清别人的积压，所以不存在「机会式消费」的副作用。
+        //
+        // 这里查的是**能力心跳**（delivery）而不是某个具体的 worker 类型名 ——
+        // 发货 worker 现在由各商品类型插件各自注册（deliver_virtual_card 等），
+        // 核心硬编码任何一个类型名都会判错。
+        if (!WorkerHeartbeat::isAlive(WorkerHeartbeat::CAPABILITY_DELIVERY)) {
+            DeliveryQueueService::drainOrderSync($orderId);
+        }
+    }
+
+    /**
+     * 把超时未支付的订单流转为 expired。
+     *
+     * 原先只在 CLI 的 queue worker 里每 60 秒跑一次；现在抽成本方法，
+     * 队列 worker 与将来的其它调度方都能调，业务规则本身不依赖常驻进程。
+     *
+     * @return int 本次过期的订单数
+     */
+    /**
+     * 把订单在下单时占用的资源还回去：规格库存 + 已核销的优惠券。
+     *
+     * 只在订单进入「未成交」终态（expired / cancelled / failed）时调用。
+     * **refunded 不在此列** —— 那表示货已发出后退款，库存是真实消耗掉的，退回来会造成虚库存。
+     *
+     * 调用约束（很重要）：
+     *   - 只对**未成交终态**（expired / cancelled / failed）生效；订单处于其他状态时
+     *     本方法直接返回，不做任何回滚 —— 否则对一张已支付/已完成的订单调用它
+     *     会凭空虚增库存。
+     *   - 状态机保证「进入未成交终态」每单只发生一次（expired 无法回到 expired，
+     *     expired→paid 之后的 paid 也无路径再回 expired），因此正常流程里只会执行一遍。
+     *     不要在同一个终态上重复调用。
+     *
+     * 库存只回补 `stock >= 0` 的规格（负数表示不限库存，当初没扣过）；
+     * 券只退回 `status='used'` 且 order_id 指向本单的行。
+     */
+    public static function releaseOrderReservations(int $orderId): void
+    {
+        self::tables();
+
+        $row = Database::fetchOne(
+            'SELECT `status` FROM `' . Database::prefix() . 'order` WHERE `id` = ?',
+            [$orderId]
+        );
+        if ($row === null || !in_array((string) $row['status'], ['expired', 'cancelled', 'failed'], true)) {
+            return;
+        }
+
+        // 包一个事务：库存回补与优惠券退回要么都成功、要么都不做，
+        // 避免出现「库存加了但券没退」这种需要人工对账的中间态。
+        Database::begin();
+        try {
+            self::doReleaseOrderReservations($orderId);
+            Database::commit();
+        } catch (Throwable $e) {
+            Database::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * releaseOrderReservations() 的实际动作（调用方负责事务边界）。
+     */
+    private static function doReleaseOrderReservations(int $orderId): void
+    {
+        $prefix = Database::prefix();
+
+        $items = Database::query(
+            "SELECT `spec_id`, `goods_id`, `quantity` FROM {$prefix}order_goods WHERE `order_id` = ?",
+            [$orderId]
+        );
+
+        $touchedGoods = [];
+
+        foreach ($items as $it) {
+            $specId = (int) ($it['spec_id'] ?? 0);
+            $qty    = (int) ($it['quantity'] ?? 0);
+            if ($specId <= 0 || $qty <= 0) {
+                continue;
+            }
+
+            $affected = Database::execute(
+                "UPDATE {$prefix}goods_spec
+                    SET `stock` = `stock` + ?
+                  WHERE `id` = ? AND `stock` >= 0",
+                [$qty, $specId]
+            );
+            if ($affected > 0) {
+                $touchedGoods[(int) ($it['goods_id'] ?? 0)] = true;
+            }
+        }
+
+        // 刷新受影响商品的 min/max 价与总库存缓存（商品列表页读的是这几个字段）
+        foreach (array_keys($touchedGoods) as $gid) {
+            if ($gid > 0) {
+                GoodsModel::updatePriceStockCache($gid);
+            }
+        }
+
+        $released = Database::execute(
+            "UPDATE {$prefix}user_coupon
+                SET `status` = 'unused', `used_at` = NULL, `order_id` = NULL
+              WHERE `order_id` = ? AND `status` = 'used'",
+            [$orderId]
+        );
+
+        if ($released > 0) {
+            self::writeSystemLog('info', '订单资源回滚', '订单未成交，已退回核销的优惠券', [
+                'order_id' => $orderId,
+                'coupons'  => $released,
+            ]);
+        }
+    }
+
+    /**
+     * 重新占用订单的规格库存（管理员补单场景）。
+     *
+     * 订单过期时库存已被 releaseOrderReservations() 回补；若管理员随后把订单手工补成
+     * 已支付（expired → paid），必须重新占用，否则这单不占库存，可能与后续订单重复卖出。
+     *
+     * 这里**尽力而为**而不是硬失败：补单是管理员的强制操作，不应因为库存不足就拦下来。
+     * 扣不足时记一条告警日志，由人工核对。
+     */
+    private static function reserveOrderStock(int $orderId): void
+    {
+        $prefix = Database::prefix();
+        $items = Database::query(
+            "SELECT `spec_id`, `quantity` FROM {$prefix}order_goods WHERE `order_id` = ?",
+            [$orderId]
+        );
+
+        foreach ($items as $it) {
+            $specId = (int) ($it['spec_id'] ?? 0);
+            $qty    = (int) ($it['quantity'] ?? 0);
+            if ($specId <= 0 || $qty <= 0) {
+                continue;
+            }
+
+            $affected = Database::execute(
+                "UPDATE {$prefix}goods_spec
+                    SET `stock` = `stock` - ?
+                  WHERE `id` = ? AND `stock` >= ?",
+                [$qty, $specId, $qty]
+            );
+
+            if ($affected !== 1) {
+                self::writeSystemLog(
+                    'warning',
+                    '补单时库存不足',
+                    '管理员补单但库存不足以重新占用，已按强制补单处理，请核对库存',
+                    ['order_id' => $orderId, 'spec_id' => $specId, 'quantity' => $qty]
+                );
+            }
+        }
+    }
+
+    public static function expirePendingOrders(): int
+    {
+        self::tables();
+
+        $prefix = Database::prefix();
+        $expireMinutes = (int) (Config::get('shop_order_expire_minutes', '30') ?: 30);
+        if ($expireMinutes <= 0) {
+            return 0;
+        }
+
+        // 每轮处理一批。本方法由订单超时 worker 每 60 秒调用一次，批处理可把
+        // 锁持有时间与单次耗时切碎。
+        $rows = Database::query(
+            "SELECT `id` FROM {$prefix}order
+              WHERE `status` = 'pending'
+                AND `created_at` < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+              ORDER BY `id` ASC
+              LIMIT 500",
+            [$expireMinutes]
+        );
+        if ($rows === []) {
+            return 0;
+        }
+
+        // 逐单走状态机，而不是一条批量 UPDATE。
+        //
+        // 批量 UPDATE 会绕过 changeStatus 的全部后置处理 —— 其中最关键的是
+        // releaseOrderReservations()（回补库存、退回优惠券）。少了它，每笔超时订单
+        // 占用的库存就永久留在那里，商品会被逐渐「扣光」而实际无人购买。
+        $expired = 0;
+        foreach ($rows as $r) {
+            try {
+                self::changeStatus((int) $r['id'], 'expired');
+                $expired++;
+            } catch (Throwable $e) {
+                // 并发下该单可能刚被支付回调改成 paid（CAS 会拒绝本次流转）——
+                // 这是正常竞争，跳过即可，不必记日志刷屏
+            }
+        }
+
+        return $expired;
     }
 
     /**
@@ -730,6 +1066,31 @@ class OrderModel
         if ($deliveryContent === '') {
             throw new RuntimeException('发货内容不能为空');
         }
+
+        // 校验整单状态：只有已付款之后的订单才能写发货内容。
+        // 此前这一步只在后台/商户端弹窗的 UI 上把关，POST 端点本身对任意状态都放行 ——
+        // 未支付或已过期/已取消的订单一旦被写入卡密，买家凭订单详情就能直接看到。
+        $orderRow = Database::fetchOne(
+            "SELECT id, status FROM {$prefix}order WHERE id = ?",
+            [(int) $og['order_id']]
+        );
+        if (!$orderRow) {
+            throw new RuntimeException('订单不存在');
+        }
+        if (!in_array((string) $orderRow['status'], ['paid', 'delivering', 'delivery_failed'], true)) {
+            throw new RuntimeException('订单当前状态（' . $orderRow['status'] . '）不允许发货');
+        }
+
+        // 与自动发货队列互斥：把本商品行还在排队（pending/retry）的任务作废。
+        // 否则队列 worker 随后执行它，会覆盖掉刚写好的手工内容，并再消耗一批卡密。
+        // （正在 processing 的任务无法在此撤回，由商品类型插件的发货幂等短路兜住。）
+        Database::execute(
+            "UPDATE {$prefix}delivery_queue
+                SET status = 'success', completed_at = NOW(),
+                    last_error = '人工发货，自动发货任务作废'
+              WHERE order_goods_id = ? AND status IN ('pending','retry')",
+            [$orderGoodsId]
+        );
 
         // 合并 plugin_data：保留原有字段，插件传的字段覆盖同名键
         $mergedPluginData = [];
@@ -817,18 +1178,36 @@ class OrderModel
             return;
         }
 
-        // 全部自动发货完成
+        // 全部自动发货完成。
+        //
+        // 两步必须**各自独立 try**：changeStatus 已改为 CAS 更新，delivered 若因并发
+        // 被别的请求先推掉就会抛异常；若两步共用一个 try，第二个 changeStatus 永远
+        // 不会执行，订单会永久停在 delivered 而不是 completed（分账/返佣也就不结算）。
         try {
             self::changeStatus($orderId, 'delivered');
+        } catch (Throwable $e) {
+            self::writeSystemLog(
+                'warning',
+                '订单流转 delivered 失败',
+                '发货完成后尝试流转到 delivered 失败，订单保持当前状态',
+                [
+                    'order_id' => $orderId,
+                    'target_status' => 'delivered',
+                    'error' => $e->getMessage(),
+                ]
+            );
+        }
+
+        try {
             self::changeStatus($orderId, 'completed');
         } catch (Throwable $e) {
             self::writeSystemLog(
                 'warning',
-                '订单完结状态流转失败',
-                '发货完成后尝试流转 delivered/completed 失败，订单保持当前状态',
+                '订单流转 completed 失败',
+                '发货完成后尝试流转到 completed 失败，订单保持当前状态',
                 [
                     'order_id' => $orderId,
-                    'target_statuses' => ['delivered', 'completed'],
+                    'target_status' => 'completed',
                     'error' => $e->getMessage(),
                 ]
             );
@@ -857,6 +1236,18 @@ class OrderModel
         $callbackUrl = trim((string) ($row['delivery_callback_url'] ?? ''));
         $deliveryContent = self::getDeliveryContent($orderGoodsId, (string) ($row['delivery_content'] ?? ''));
         if ($callbackUrl === '' || $deliveryContent === '') {
+            return;
+        }
+
+        // 请求前再校验一次：地址可能来自更早写入的历史数据（那时入库还没有内网校验），
+        // 也可能在这条记录存下之后才被解析到内网（DNS 变更）。任一情况都不应发出请求。
+        if (!DownloadUrlGuard::isPublicHttpUrl($callbackUrl)) {
+            self::writeSystemLog(
+                'warning',
+                '发货回调地址被拒绝',
+                'delivery_callback_url 指向内网或保留地址，已跳过回调',
+                ['order_id' => (int) ($row['order_id'] ?? 0), 'order_goods_id' => $orderGoodsId]
+            );
             return;
         }
 

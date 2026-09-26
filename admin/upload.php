@@ -10,6 +10,12 @@ if (!Request::isPost()) {
     Response::error('请求方式无效');
 }
 
+// 图片上传会写 em_attachment 并落盘，属于写操作，必须校验 CSRF。
+// 所有调用方（商品/分类/模板/插件设置等弹窗）都已在请求里带上 csrf_token。
+if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+    Response::error('请求已失效，请刷新页面后重试');
+}
+
 
 if (empty($_FILES['file'])) {
     Response::error('请选择图片文件');

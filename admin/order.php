@@ -208,9 +208,26 @@ if (Request::isPost()) {
                     // 分批删除，避免一次 IN 列表过长
                     foreach (array_chunk($ids, 500) as $chunk) {
                         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
-                        Database::execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$placeholders})", $chunk);
-                        Database::execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$placeholders})", $chunk);
-                        $deleted += (int) Database::execute("DELETE FROM {$prefix}order WHERE id IN ({$placeholders})", $chunk);
+
+                        // 事务内加锁重查：上面的 SELECT 与这里的删除之间，订单可能已被
+                        // 支付回调改走（pending → paid）。若不重查就会删掉一笔刚支付的订单；
+                        // 而若只给最终 DELETE 加状态条件，子表却已被删掉，会留下缺
+                        // order_goods 的残单。FOR UPDATE 让并发的状态变更阻塞在此。
+                        $locked = Database::query(
+                            "SELECT id FROM {$prefix}order
+                              WHERE id IN ({$placeholders}) AND status = ?
+                              FOR UPDATE",
+                            array_merge($chunk, [$status])
+                        );
+                        $okIds = array_map(static fn($r) => (int) $r['id'], $locked);
+                        if (!$okIds) {
+                            continue; // 本批已全部变状态，跳过
+                        }
+
+                        $okPlaceholders = implode(',', array_fill(0, count($okIds), '?'));
+                        Database::execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$okPlaceholders})", $okIds);
+                        Database::execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$okPlaceholders})", $okIds);
+                        $deleted += (int) Database::execute("DELETE FROM {$prefix}order WHERE id IN ({$okPlaceholders})", $okIds);
                     }
                     Database::commit();
                 } catch (Throwable $e) {
@@ -308,6 +325,19 @@ if (Request::isPost()) {
                     }
 
                     Database::commit();
+                } catch (OrderStatusConflictException $e) {
+                    // 并发下的重复标记（上一步的状态检查与 CAS 之间不是原子的）。
+                    // 若订单已被并发改成已支付，说明管理员的意图已达成 —— 按成功返回，
+                    // 不要甩一个红字报错；后面的 triggerDelivery 由抢赢的那个请求负责。
+                    Database::rollBack();
+                    $nowRow = Database::fetchOne(
+                        "SELECT status FROM {$prefix}order WHERE id = ?",
+                        [$orderId]
+                    );
+                    if ((string) ($nowRow['status'] ?? '') === 'paid') {
+                        Response::success('订单已是已支付状态', ['csrf_token' => Csrf::refresh()]);
+                    }
+                    Response::error('订单状态已被其他操作变更，请刷新后重试');
                 } catch (Throwable $e) {
                     Database::rollBack();
                     Response::error('标记失败：' . $e->getMessage());

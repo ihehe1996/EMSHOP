@@ -18,8 +18,11 @@ if ((string) Input::get('action', '') === 'logout') {
 // 清除缓存
 if ((string) Input::post('_action', '') === 'clear_cache') {
     adminRequireLogin();
-    $csrf = (string) Input::post('csrf_token', '');
-    
+    // 此前只把 token 读进 $csrf 却从未校验，等于该接口没有 CSRF 防护
+    if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
+        Response::error('请求已失效，请刷新页面后重试');
+    }
+
     Cache::clear();
     Response::success('缓存已清空');
 }
