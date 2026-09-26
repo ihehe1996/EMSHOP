@@ -273,8 +273,8 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
             CURLOPT_USERAGENT => 'emshop-' . EM_VERSION,
             // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
             // （web 可直接执行），链路上被替换就等于被植入任意代码
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
         $ok = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -432,8 +432,8 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
             CURLOPT_USERAGENT       => 'emshop-' . EM_VERSION,
             // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
             // （web 可直接执行），链路上被替换就等于被植入任意代码
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
         $ok = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);

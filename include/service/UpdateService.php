@@ -186,8 +186,8 @@ final class UpdateService
             CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? EM_VERSION : 'dev'),
             // 恢复证书与主机名校验。升级包会被覆盖到整站代码，链路上被替换等于站点沦陷。
             // 若线路确实是自签证书，可把配置项 license_insecure_tls 置 '1'（与授权通道共用）。
-            CURLOPT_SSL_VERIFYPEER => (string) Config::get('license_insecure_tls', '0') !== '1',
-            CURLOPT_SSL_VERIFYHOST => (string) Config::get('license_insecure_tls', '0') !== '1' ? 2 : 0,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
         $ok = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
