@@ -598,20 +598,6 @@ $(function () {
             });
         }
 
-        function parsePaymentCodes(payment) {
-            var raw = Array.isArray(payment) ? payment.join(',') : String(payment || '');
-            if (!raw) return [];
-            var seen = {};
-            var codes = [];
-            raw.split(',').forEach(function (item) {
-                var code = $.trim(String(item || '')).toLowerCase();
-                if (!code || seen[code]) return;
-                seen[code] = true;
-                codes.push(code);
-            });
-            return codes;
-        }
-
         function ensurePayDialogStyle() {
             if (document.getElementById('appstorePayDialogStyle')) return;
             var css = ''
@@ -621,11 +607,12 @@ $(function () {
                 + '.appstore-pay-dialog__line strong{font-weight:600;color:#0f172a;}'
                 + '.appstore-pay-dialog__line--amount strong{color:#dc2626;font-size:16px;font-family:Menlo,Consolas,monospace;}'
                 + '.appstore-pay-dialog__title{font-size:13px;color:#475569;margin:2px 0 10px;}'
-                + '.appstore-pay-dialog__methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px;}'
+                + '.appstore-pay-dialog__methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;}'
                 + '.appstore-pay-dialog__method{position:relative;display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;border-radius:10px;padding:10px;cursor:pointer;background:#fff;transition:all .15s ease;}'
                 + '.appstore-pay-dialog__method:hover{border-color:#c7d2fe;background:#f8faff;}'
                 + '.appstore-pay-dialog__method.is-active{border-color:#6366f1;background:#eef2ff;box-shadow:0 1px 8px rgba(99,102,241,.18);}'
                 + '.appstore-pay-dialog__icon{width:26px;height:26px;object-fit:contain;flex-shrink:0;}'
+                + '.appstore-pay-dialog__icon--fa{display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:#9ca3af;}'
                 + '.appstore-pay-dialog__name{font-size:13px;color:#0f172a;font-weight:500;}'
                 + '.appstore-pay-dialog__empty{padding:16px 10px;text-align:center;font-size:12px;color:#94a3b8;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;margin-bottom:12px;}'
                 + '.appstore-pay-dialog__actions{display:flex;justify-content:flex-end;gap:8px;}'
@@ -634,57 +621,66 @@ $(function () {
             $('head').append('<style id="appstorePayDialogStyle">' + css + '</style>');
         }
 
-        function openPaymentMethodDialog(orderData, app) {
+        // 支付通道弹窗：订单信息、收款页地址、通道清单全部来自下单响应，
+        // 通道 logo 与 pay_url 由后端补成绝对地址，前端不做拼域名的事
+        function openChannelDialog(order) {
             ensurePayDialogStyle();
-            var paymentMeta = {
-                alipay: { name: '支付宝', icon: '/content/static/img/alipay.png' },
-                wxpay:  { name: '微信支付', icon: '/content/static/img/wxpay.png' },
-                trx:    { name: 'TRX', icon: '/content/static/img/trx.png' },
-                usdt:   { name: 'USDT', icon: '/content/static/img/usdt.png' }
-            };
-            var orderNo = String((orderData && orderData.out_trade_no) || '');
-            var amount = String((orderData && orderData.amount) || '');
-            var amountNum = parseFloat(amount);
-            var buttonPrice = !isNaN(amountNum) ? ('¥' + amountNum.toFixed(2)) : '¥--';
-            var subject = String((orderData && orderData.subject) || (app && (app.name_cn || app.name_en)) || '');
-            var codes = parsePaymentCodes(orderData && orderData.payment);
-            var selectedCode = codes.length ? codes[0] : '';
+            order = order || {};
+            var channels = Array.isArray(order.channels) ? order.channels : [];
+            var appMeta  = order.app || {};
+            var orderNo  = String(order.order_no || '');
+            var payUrl   = String(order.pay_url || '');
+            var amountNum = parseFloat(order.amount);
+            var priceText = isNaN(amountNum) ? '¥--' : '¥' + amountNum.toFixed(2);
+            // 默认选中第一个收款通道
+            var selectedId = channels.length ? channels[0].id : '';
 
-            var methodsHtml = '';
-            if (!codes.length) {
-                methodsHtml = '<div class="appstore-pay-dialog__empty">当前订单未返回可用支付方式</div>';
+            var methodsHtml;
+            if (!channels.length) {
+                methodsHtml = '<div class="appstore-pay-dialog__empty">当前订单未返回可用支付通道</div>';
             } else {
-                methodsHtml = codes.map(function (code) {
-                    var meta = paymentMeta[code] || {};
-                    var name = meta.name || code.toUpperCase();
-                    var icon = meta.icon || '';
-                    return '<div class="appstore-pay-dialog__method' + (selectedCode === code ? ' is-active' : '') + '" data-code="' + escapeHtml(code) + '" data-name="' + escapeHtml(name) + '">'
-                        + '<img class="appstore-pay-dialog__icon" src="' + escapeHtml(icon) + '" alt="">'
+                methodsHtml = channels.map(function (ch) {
+                    var logo = String(ch.logo || '');
+                    var name = String(ch.name || ch.type_label || '支付通道');
+                    var icon = logo
+                        ? '<img class="appstore-pay-dialog__icon" src="' + escapeHtml(logo) + '" alt="">'
+                        : '<i class="fa fa-credit-card appstore-pay-dialog__icon appstore-pay-dialog__icon--fa"></i>';
+                    return '<div class="appstore-pay-dialog__method' + (String(ch.id) === String(selectedId) ? ' is-active' : '') + '"'
+                        + ' data-id="' + escapeHtml(ch.id) + '">'
+                        + icon
                         + '<span class="appstore-pay-dialog__name">' + escapeHtml(name) + '</span>'
                         + '</div>';
                 }).join('');
             }
 
+            var lines = ''
+                + '<div class="appstore-pay-dialog__line"><span>订单号</span><strong>' + escapeHtml(orderNo || '-') + '</strong></div>'
+                + '<div class="appstore-pay-dialog__line"><span>应用</span><strong>' + escapeHtml(appMeta.name || '-')
+                +   (appMeta.type_label ? '（' + escapeHtml(appMeta.type_label) + '）' : '') + '</strong></div>';
+            if (order.license_type_label) {
+                lines += '<div class="appstore-pay-dialog__line"><span>授权档位</span><strong>' + escapeHtml(order.license_type_label) + '</strong></div>';
+            }
+            lines += '<div class="appstore-pay-dialog__line appstore-pay-dialog__line--amount"><span>订单金额</span><strong>' + escapeHtml(priceText) + '</strong></div>';
+            if (order.expires_at) {
+                lines += '<div class="appstore-pay-dialog__line"><span>支付有效期至</span><strong>' + escapeHtml(order.expires_at) + '</strong></div>';
+            }
+
             var html = ''
                 + '<div class="appstore-pay-dialog">'
-                +   '<div class="appstore-pay-dialog__meta">'
-                +     '<div class="appstore-pay-dialog__line"><span>订单号</span><strong>' + escapeHtml(orderNo || '-') + '</strong></div>'
-                +     '<div class="appstore-pay-dialog__line"><span>应用</span><strong>' + escapeHtml(subject || '-') + '</strong></div>'
-                +     '<div class="appstore-pay-dialog__line appstore-pay-dialog__line--amount"><span>金额</span><strong>¥' + escapeHtml(amount || '--') + '</strong></div>'
-                +   '</div>'
-                +   '<div class="appstore-pay-dialog__title">请选择支付方式</div>'
+                +   '<div class="appstore-pay-dialog__meta">' + lines + '</div>'
+                +   '<div class="appstore-pay-dialog__title">请选择支付通道</div>'
                 +   '<div class="appstore-pay-dialog__methods">' + methodsHtml + '</div>'
                 +   '<div class="appstore-pay-dialog__actions">'
-                +     '<button type="button" class="em-btn em-save-btn appstore-pay-dialog__confirm"' + (!codes.length ? ' disabled' : '') + '>'
-                +       '<i class="fa fa-shopping-cart"></i>立即购买'
-                +       '<span class="appstore-pay-dialog__confirm-price">' + escapeHtml(buttonPrice) + '</span>'
+                +     '<button type="button" class="em-btn em-save-btn appstore-pay-dialog__confirm"' + (!channels.length ? ' disabled' : '') + '>'
+                +       '<i class="fa fa-shopping-cart"></i>去支付'
+                +       '<span class="appstore-pay-dialog__confirm-price">' + escapeHtml(priceText) + '</span>'
                 +     '</button>'
                 +   '</div>'
                 + '</div>';
 
             layer.open({
                 type: 1,
-                title: '选择支付方式',
+                title: '选择支付通道',
                 skin: 'admin-modal appstore-pay-modal',
                 area: [window.innerWidth >= 640 ? '480px' : '92%', 'auto'],
                 shadeClose: false,
@@ -694,30 +690,31 @@ $(function () {
                     var $layer = $(layero);
                     $layer.on('click', '.appstore-pay-dialog__method', function () {
                         var $item = $(this);
-                        selectedCode = String($item.data('code') || '');
+                        selectedId = String($item.data('id') || '');
                         $item.addClass('is-active').siblings('.appstore-pay-dialog__method').removeClass('is-active');
                     });
                     $layer.on('click', '.appstore-pay-dialog__confirm', function () {
-                        if (!selectedCode) {
-                            layer.msg('请选择支付方式');
-                            return;
-                        }
                         if (!orderNo) {
                             layer.msg('订单号缺失，无法跳转支付');
                             return;
                         }
-                        var payUrl = appstoreAbsUrl(
-                            '/api/app_pay_entry.php?out_trade_no=' + encodeURIComponent(orderNo)
-                            + '&pay_method=' + encodeURIComponent(selectedCode)
-                        );
+                        if (!payUrl) {
+                            layer.msg('未返回收款页地址，无法跳转支付');
+                            return;
+                        }
+                        // 通道选择落在收银台上：pay_url 补 ?channel={通道 id}
+                        var target = payUrl;
+                        if (selectedId !== '' && selectedId !== null && selectedId !== undefined) {
+                            target += (target.indexOf('?') === -1 ? '?' : '&') + 'channel=' + encodeURIComponent(selectedId);
+                        }
                         // Safari 等浏览器在 noopener/noreferrer 场景可能返回 null（即使已成功打开新标签），
                         // 先打开 about:blank 再赋值 URL，避免误判导致当前页也跳转。
                         var payWin = window.open('about:blank', '_blank');
                         if (payWin) {
                             try { payWin.opener = null; } catch (e) {}
-                            payWin.location.href = payUrl;
+                            payWin.location.href = target;
                         } else {
-                            window.location.href = payUrl;
+                            window.location.href = target;
                         }
                     });
                 }
@@ -738,7 +735,7 @@ $(function () {
                 layer.close(loadingIdx);
                 if (res && (res.code === 200 || res.code === 0)) {
                     if (res.data && res.data.csrf_token) APPSTORE_CSRF = res.data.csrf_token;
-                    openPaymentMethodDialog((res && res.data) || {}, app);
+                    openChannelDialog((res && res.data) || {});
                 } else {
                     layer.msg((res && res.msg) || '创建订单失败');
                 }

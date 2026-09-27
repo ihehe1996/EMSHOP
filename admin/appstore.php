@@ -61,6 +61,22 @@ function appstore_resolve_download_url(string $url): string
 }
 
 /**
+ * 把服务端返回的相对地址补成绝对 URL（收款页地址、支付通道 logo 共用）。
+ *
+ * 绝对地址原样返回；相对地址补**当前生效线路**的域名 —— 与服务端 app-list /
+ * 应用包地址同一口径。不要用视图里的 APPSTORE_ASSET_HOST，那个固定取
+ * license_urls[0]，用户切线路后会把收款页拼到另一条线路上。
+ */
+function appstore_absolutize_remote_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') return '';
+    if (stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) return $url;
+    if (!LicenseClient::lines()) return $url;
+    return rtrim(LicenseClient::currentBaseUrl(), '/') . '/' . ltrim($url, '/');
+}
+
+/**
  * 把旧 app_purchased_list.php 的条目映射成 app-list 的字段名。
  *
  * 「已购买」tab 暂时还走旧接口，但前端只认一套字段，所以在这里适配一次，
@@ -143,17 +159,10 @@ function appstore_require_writable_path(string $path): void
 // 两个视图直接引用那两个常量渲染 tab（"全部" / "未归类" / "已购买" 硬编码在视图里）。
 // tab 带的是**服务端**的分类 id，服务端改了分类表就要同步改常量。
 
-// AJAX：拉取已启用的支付方式（/api/pay_methods.php）。兼容旧购买弹窗
-if ((string) Input::get('_action', '') === 'pay_methods') {
-    try {
-        Response::success('', ['list' => LicenseClient::payMethods()]);
-    } catch (Throwable $e) {
-        Response::error($e->getMessage(), ['list' => []]);
-    }
-}
-
-// AJAX：为指定应用创建订单（/api/app_create_order.php）
-// 当前重构阶段仅传 emkey + app_id；前端先提示“订单已创建”
+// AJAX：为指定应用创建购买订单（/api/open/v1/em/order）
+//
+// 一次拿到订单信息 + 收款页地址 + 可用支付通道，前端弹窗让用户挑通道，
+// 再把通道 id 拼到 pay_url 上（?channel={id}）跳收银台。
 if (Request::isPost() && (string) Input::post('_action', '') === 'app_buy') {
     if (!Csrf::validate((string) Input::post('csrf_token', ''))) {
         Response::error('请求已失效，请刷新页面后重试');
@@ -161,7 +170,8 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'app_buy') {
     $appId = (int) Input::post('app_id', 0);
     if ($appId <= 0) Response::error('应用ID不能为空');
 
-    // emkey 从当前激活状态取；未激活直接拦截，防止服务端兜底报错
+    // 下单必须带授权码（应用列表不传也能看，买东西必须有）；未激活直接拦截，
+    // 免得服务端兜底报一个看不懂的错误
     $licenseRow = LicenseService::currentLicense();
     $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
     if ($emkey === '') {
@@ -169,23 +179,39 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'app_buy') {
     }
     $tab = (string) Input::post('tab', 'main');
     if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
+
+    // 有绑定过主授权域名就用它，否则回退当前 HTTP_HOST（与 app-list 一致）
+    $host = LicenseService::effectiveHost();
     try {
         // tab=merchant 仍保留分支，便于后续在服务端做差异化策略
         $data = $tab === 'merchant'
-            ? LicenseClient::merchantAppCreateOrder($emkey, $appId)
-            : LicenseClient::mainAppCreateOrder($emkey, $appId);
-        $outTradeNo = trim((string) ($data['out_trade_no'] ?? ''));
-        if ($outTradeNo === '') {
+            ? LicenseClient::merchantAppCreateOrder($emkey, $host, $appId)
+            : LicenseClient::mainAppCreateOrder($emkey, $host, $appId);
+
+        $orderNo = trim((string) ($data['order_no'] ?? ''));
+        if ($orderNo === '') {
             Response::error('订单创建失败：未返回订单号');
         }
-        Response::success('订单已创建', [
-            'out_trade_no' => $outTradeNo,
-            'amount'       => (string) ($data['amount'] ?? ''),
-            'subject'      => (string) ($data['subject'] ?? ''),
-            'payment'      => (string) ($data['payment'] ?? ''),
-            'csrf_token'   => Csrf::refresh(),
-            'tab'          => $tab,
-        ]);
+
+        // 收款页与通道 logo 都是授权服务器上的相对路径，这里统一补成绝对地址，
+        // 前端拿到即可直接跳转 / 直接渲染
+        $data['pay_url'] = appstore_absolutize_remote_url((string) ($data['pay_url'] ?? ''));
+        if ($data['pay_url'] === '') {
+            Response::error('订单创建失败：未返回收款页地址');
+        }
+        if (!is_array($data['channels'] ?? null)) {
+            $data['channels'] = [];
+        }
+        foreach ($data['channels'] as &$channel) {
+            if (is_array($channel)) {
+                $channel['logo'] = appstore_absolutize_remote_url((string) ($channel['logo'] ?? ''));
+            }
+        }
+        unset($channel);
+
+        $data['csrf_token'] = Csrf::refresh();
+        $data['tab']        = $tab;
+        Response::success('订单已创建', $data);
     } catch (Throwable $e) {
         Response::error($e->getMessage());
     }

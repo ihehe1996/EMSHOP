@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/global_public.php';
-
 /**
  * 查单页（独立页面）：游客与登录用户均可使用。
  *
@@ -15,6 +14,8 @@ require_once __DIR__ . '/global_public.php';
  *   3. password —— 凭订单密码等查单
  *
  * 响应：所有 POST 都返回 JSON（列白名单脱敏，不带 order_password、admin_remark、内部 payment_*）。
+ * 列表结果里的 order_goods 只带列表展示所需字段，不含发货内容（卡密）——发货内容可能上百万字符，
+ * 列表页不展示它，带上会让响应体随卡密数量线性膨胀（详情接口按需取完整内容）。
  */
 
 $siteName = Config::get('sitename', 'EMSHOP');
@@ -42,10 +43,16 @@ $orderWhiteList = [
 
 /**
  * 对一行订单做字段白名单 + 金额显示字段拼接。
+ *
+ * $goods 由调用方取好传入：列表走 getOrderGoodsBatch(..., false)（不带发货内容），
+ * 详情走 getOrderGoods()（带发货内容）。详情页要展示卡密，列表不展示，
+ * 所以不能在列表路径上顺手把发货内容查出来 —— 那会让响应体随卡密数量暴涨。
+ *
  * @param array<string, mixed> $row
+ * @param array<int, array<string, mixed>>|null $goods
  * @return array<string, mixed>
  */
-$sanitizeOrder = function (array $row) use ($orderWhiteList, $prefix): array {
+$sanitizeOrder = function (array $row, ?array $goods = null) use ($orderWhiteList): array {
     $out = [];
     foreach ($orderWhiteList as $k) {
         if (array_key_exists($k, $row)) $out[$k] = $row[$k];
@@ -60,7 +67,7 @@ $sanitizeOrder = function (array $row) use ($orderWhiteList, $prefix): array {
     $out['_disp_rate'] = $dispRate;
 
     // 关联的订单商品（商品字段对外安全，保持原样即可）
-    $out['order_goods'] = OrderModel::getOrderGoods((int) ($row['id'] ?? 0));
+    $out['order_goods'] = $goods ?? [];
     return $out;
 };
 
@@ -182,6 +189,15 @@ if (Request::isPost()) {
             throw new RuntimeException('无效的查询方式');
         }
 
+        // 统一批量补订单商品行：一次 IN 查询覆盖本次所有命中订单（替代原先每单一次的
+        // getOrderGoods）。第二个参数 false = 不查发货内容（卡密），列表不展示它，
+        // 带上会让响应体随卡密数量线性膨胀；详情分支会单独按需取完整的。
+        $goodsMap = OrderModel::getOrderGoodsBatch(array_column($result, 'id'), false);
+        foreach ($result as &$r) {
+            $r['order_goods'] = $goodsMap[(int) ($r['id'] ?? 0)] ?? [];
+        }
+        unset($r);
+
         // 查询成功：把命中订单号加入 session"已授权可看详情"白名单。
         // 详情页 GET ?order_no=xxx 必须命中白名单才能访问，避免攻击者绕过 POST 路径上的
         // captcha + ratelimit，直接遍历订单号偷数据。
@@ -286,7 +302,8 @@ if ($detailOrderNo !== '') {
         );
         if ($row) {
             $detailExtraPairs = OrderModel::parseBuyerContactFields($row)['extra_pairs'];
-            $detailOrder = $sanitizeOrder($row);
+            // 详情要展示卡密，这里取完整商品行（含 delivery_content）
+            $detailOrder = $sanitizeOrder($row, OrderModel::getOrderGoods((int) $row['id']));
             $detailGoods = $detailOrder['order_goods'] ?? [];
             if (OrderModel::isPurchasedStatus((string) ($detailOrder['status'] ?? ''))) {
                 $detailGoods = OrderModel::attachGoodsGuides($detailGoods);

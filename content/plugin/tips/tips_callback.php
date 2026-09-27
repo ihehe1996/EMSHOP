@@ -13,7 +13,7 @@ function callback_rm() {
 }
 
 // 更新插件时执行该函数
-function callback_update() {
+function callback_up() {
     // do something
     
 }

@@ -1424,6 +1424,53 @@ class OrderModel
     }
 
     /**
+     * 批量获取多个订单的商品列表，返回 [order_id => rows]。
+     *
+     * $withDeliveryContent = false 时不查 em_order_goods_delivery_item，也不返回
+     * delivery_content / plugin_data —— 列表场景专用：发货明细可能有上万行，
+     * 而列表页并不展示它，塞进 JSON 会让响应体随发货内容总量线性暴涨。
+     *
+     * @param array<int, int|string> $orderIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    public static function getOrderGoodsBatch(array $orderIds, bool $withDeliveryContent = true): array
+    {
+        self::tables();
+
+        $ids = [];
+        foreach ($orderIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) $ids[$id] = $id;
+        }
+        if ($ids === []) {
+            return [];
+        }
+        $ids = array_values($ids);
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $columns = $withDeliveryContent
+            ? '*'
+            : 'id, order_id, goods_id, spec_id, goods_title, spec_name, cover_image, price, quantity, goods_type, delivery_at';
+        $rows = Database::query(
+            "SELECT {$columns} FROM `" . self::$orderGoodsTable . "`
+              WHERE order_id IN ({$placeholders}) ORDER BY id",
+            $ids
+        );
+        if ($rows === []) {
+            return [];
+        }
+        if ($withDeliveryContent) {
+            self::hydrateDeliveryContent($rows);
+        }
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) ($r['order_id'] ?? 0)][] = $r;
+        }
+        return $map;
+    }
+
+    /**
      * 订单是否已购买（非待付/取消/过期/失败），用于控制「购买后才可见」的内容如使用教程。
      */
     public static function isPurchasedStatus(string $status): bool

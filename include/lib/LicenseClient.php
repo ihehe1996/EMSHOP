@@ -325,60 +325,35 @@ final class LicenseClient
     }
 
     /**
-     * 应用商店 - 创建订单（POST /api/app_create_order.php）。
+     * 应用商店 - 创建购买订单（POST /api/open/v1/em/order）。
      *
-     * 当前重构阶段仅要求传 emkey / app_id。服务端返回 data.out_trade_no。
+     * 下单即把订单信息、收款页地址、可用支付通道一次返回，客户端原样展示即可：
+     * 让用户挑一个通道，再把通道 id 拼到 pay_url 上跳转（收银台按 ?channel={id} 选通道）。
      *
-     * @return array{out_trade_no?:string}
+     * 请求参数（三个都必填，买东西必须有授权码 —— 这点和应用列表不同）：
+     *   code    授权码；必须是有效的、且绑的就是 domain，否则服务端拒绝
+     *   domain  本机在跑的域名（可传完整地址，服务端归一成顶级域名）
+     *   app_id  要买的应用 id（取自 app-list 返回的 data[].id）
+     *
+     * 返回 data：
+     *   order_no / amount / license_type / license_type_label
+     *   app{id,name,type,type_label}
+     *   status / state / expires_at / pay_url / channels[] / created_at
+     * channels[] 每项 {id, name, logo, type, type_label}；logo 是授权服务器上的
+     * 相对路径，调用方要补当前线路域名后再给前端。
+     *
+     * 重试：下单有副作用（重复提交会重复生成订单），**保持不重试**。
+     *
+     * @return array 服务端 data（含 pay_url / channels）
      * @throws RuntimeException
      */
-    public static function appCreateOrder(string $emkey, int $appId): array
+    public static function createOrder(string $code, string $domain, int $appId): array
     {
-        return self::postForm('api/app_create_order.php', [
-            'emkey'  => $emkey,
+        return self::postForm('api/open/v1/em/order', [
+            'code'   => $code,
+            'domain' => $domain,
             'app_id' => $appId,
-        ], 10);
-    }
-
-    /**
-     * 为指定应用创建购买订单（/api/app_buy.php），返回可跳转的收银台 URL。
-     *
-     * 客户端拿到 data.pay_url 后直接跳转即可；订单状态由收银台 / 异步通知回填。
-     *
-     * @param string $emkey      授权码
-     * @param string $host       站点域名（服务端会归一化）
-     * @param int    $appId      要购买的应用 id
-     * @param string $payMethod  支付方式 code（必须在 /api/pay_methods.php 启用列表内）
-     * @param string $memberCode 商户标识；空串表示主站购买
-     * @return array ['out_trade_no','amount','pay_method','pay_method_name','pay_url']
-     * @throws RuntimeException
-     */
-    public static function appBuy(string $emkey, string $host, int $appId, string $payMethod, string $memberCode = ''): array
-    {
-        $res = self::postForm('api/app_buy.php', [
-            'emkey'       => $emkey,
-            'host'        => $host,
-            'app_id'      => $appId,
-            'pay_method'  => $payMethod,
-            'member_code' => $memberCode,
-        ], 10);
-
-        return $res;
-    }
-
-    /**
-     * 获取已启用的支付方式列表（/api/pay_methods.php）。
-     *
-     * 返回的每项只含 code / name 两个公开字段（不含密钥、钱包地址等敏感信息），
-     * 供前端收银台动态渲染可选支付通道；下单时需把选中的 code 回传给下单接口。
-     *
-     * @return array<int, array{code:string, name:string}> 如 [{code:'alipay',name:'支付宝'}, ...]
-     * @throws RuntimeException
-     */
-    public static function payMethods(): array
-    {
-        $data = self::postForm('api/pay_methods.php', [], 10);
-        return is_array($data) ? array_values($data) : [];
+        ], 15);
     }
 
     // --------------------------------------------------------
@@ -666,34 +641,21 @@ final class LicenseClient
 
     /**
      * 主站货架 · 创建购买订单。
+     *
+     * 下单接口只有一个（/api/open/v1/em/order），不带 scope —— 买哪个应用由 app_id 决定。
+     * 镜像方法保留是为了让调用方继续按 tab 分支，将来服务端要差异化时改这里即可。
      */
-    public static function mainAppCreateOrder(string $emkey, int $appId): array
+    public static function mainAppCreateOrder(string $code, string $domain, int $appId): array
     {
-        return self::appCreateOrder($emkey, $appId);
+        return self::createOrder($code, $domain, $appId);
     }
 
     /**
      * 分站货架 · 创建购买订单。
      */
-    public static function merchantAppCreateOrder(string $emkey, int $appId): array
+    public static function merchantAppCreateOrder(string $code, string $domain, int $appId): array
     {
-        return self::appCreateOrder($emkey, $appId);
-    }
-
-    /**
-     * 主站货架 · 创建购买订单（兼容旧调用，后续移除）。
-     */
-    public static function mainAppBuy(string $emkey, string $host, int $appId, string $payMethod): array
-    {
-        return self::mainAppCreateOrder($emkey, $appId);
-    }
-
-    /**
-     * 分站货架 · 创建购买订单（兼容旧调用，后续移除）。
-     */
-    public static function merchantAppBuy(string $emkey, string $host, int $appId, string $payMethod): array
-    {
-        return self::merchantAppCreateOrder($emkey, $appId);
+        return self::createOrder($code, $domain, $appId);
     }
 
     /**
