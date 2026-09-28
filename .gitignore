@@ -29,5 +29,5 @@ AGENTS.md
 /content/server/logs/
 *.log
 /logs/
-/content/plugin/*
-/content/template/*
+# /content/plugin/*
+# /content/template/*
