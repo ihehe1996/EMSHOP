@@ -26,11 +26,15 @@ $csrfToken = Csrf::token();
     </div>
 </script>
 
-<!-- 行内操作 -->
+<!-- 行内操作：自己那一行的删除置灰（服务端也会拦，这里只是别让人白点） -->
 <script type="text/html" id="userRowActionTpl">
     <div class="layui-clear-space">
         <a class="em-btn em-sm-btn em-save-btn" lay-event="edit"><i class="fa fa-pencil"></i>编辑</a>
+        {{# if(d.id === currentAdminId){ }}
+        <a class="em-btn em-sm-btn em-red-btn em-disabled-btn" title="不能删除当前登录的账号"><i class="fa fa-trash"></i>删除</a>
+        {{# } else { }}
         <a class="em-btn em-sm-btn em-red-btn" lay-event="del"><i class="fa fa-trash"></i>删除</a>
+        {{# } }}
     </div>
 </script>
 
@@ -44,6 +48,15 @@ $csrfToken = Csrf::token();
 <!-- 账号 -->
 <script type="text/html" id="userNameTpl">
     <span class="ul-text">{{d.username}}</span>
+</script>
+
+<!-- 角色：区分管理账号与普通用户，避免在列表里认不出来 -->
+<script type="text/html" id="userRoleTpl">
+    {{# if(d.role === 'admin'){ }}
+    <span class="em-tag em-tag--amber">管理员</span>
+    {{# } else { }}
+    <span class="em-tag em-tag--muted">普通用户</span>
+    {{# } }}
 </script>
 
 <!-- 昵称 -->
@@ -139,9 +152,17 @@ $csrfToken = Csrf::token();
     {{# } }}
 </script>
 
-<!-- 状态开关 -->
+<!-- 状态开关：自己那一行照常渲染开关，只加 disabled 变成不可点击的禁用态。
+     layui form 渲染器读 input 的 disabled，会加上 layui-checkbox-disabled layui-disabled，
+     且点击回调里有 `n[0].disabled ||` 短路，不会触发切换。
+     注意：这里**不能**给 input 加 title 解释原因——layui 把 title 当作开关文字用
+     （`t.title || (t.title = i.attr("lay-text"))`），加了会把「正常|禁用」替换掉。 -->
 <script type="text/html" id="userStatusTpl">
+    {{# if(d.id === currentAdminId){ }}
+    <input type="checkbox" name="status" value="{{d.id}}" lay-skin="switch" lay-text="正常|禁用" lay-filter="userStatusFilter" {{d.status == 1 ? 'checked' : ''}} disabled>
+    {{# } else { }}
     <input type="checkbox" name="status" value="{{d.id}}" lay-skin="switch" lay-text="正常|禁用" lay-filter="userStatusFilter" {{d.status == 1 ? 'checked' : ''}}>
+    {{# } }}
 </script>
 
 <style>
@@ -221,6 +242,12 @@ $(function(){
     'use strict';
 
     var csrfToken = <?php echo json_encode($csrfToken); ?>;
+    // 当前登录管理员 id：只用于把「自己」那一行的禁用/删除控件置灰，
+    // 真正的拦截在服务端（admin/user_list.php 的 $currentAdminId 判断）。
+    // 必须挂到 window：上面的行内模板是 layui 的 laytpl，用 new Function 编译，
+    // 作用域是全局而非本闭包，闭包里的局部变量在 {{# }} 里取不到（旁边 updateCsrf
+    // 挂 window 是同一个原因）。
+    window.currentAdminId = <?php echo (int) $currentAdminId; ?>;
     var tableIns;
 
     function updateCsrf(token) {
@@ -272,6 +299,7 @@ $(function(){
                 {type: 'checkbox', width: 50, align: 'center'},
                 {field: 'avatar', title: '头像', width: 70, templet: '#userAvatarTpl', align: 'center'},
                 {field: 'username', title: '账号', minWidth: 130, align: 'center', templet: '#userNameTpl'},
+                {field: 'role', title: '角色', width: 90, align: 'center', templet: '#userRoleTpl'},
                 {field: 'nickname', title: '昵称', minWidth: 110, align: 'center', templet: '#userNickTpl'},
                 {field: 'money', title: '余额', width: 120, align: 'center', templet: '#userBalanceTpl'},
                 {field: 'email', title: '邮箱', minWidth: 200, align: 'center', templet: '#userEmailTpl'},
@@ -413,7 +441,14 @@ $(function(){
                     openPopup('编辑用户', data.id);
                     break;
                 case 'del':
-                    layer.confirm('确定要删除用户「' + emEsc(data.nickname || data.username) + '」吗？此操作不可恢复。', function (idx) {
+                    if (data.id === currentAdminId) {
+                        // layer.msg 不设置 icon
+                        layer.msg('不能删除当前登录的账号');
+                        return;
+                    }
+                    // 现在列表里也有管理员账号，删除前把这一点说清楚
+                    var delTip = data.role === 'admin' ? '（管理员账号）' : '';
+                    layer.confirm('确定要删除用户' + delTip + '「' + emEsc(data.nickname || data.username) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
                             url: '/admin/user_list.php',
                             type: 'POST',
@@ -450,7 +485,19 @@ $(function(){
                 return;
             }
             var ids = checked.data.map(function (row) { return row.id; });
-            layer.confirm('确定要删除选中的 ' + ids.length + ' 个用户吗？此操作不可恢复。', function (idx) {
+            // 自己不能被删除（服务端也会跳过），先剔除让数量提示准确
+            var selfSkipped = ids.indexOf(currentAdminId) !== -1;
+            ids = ids.filter(function (id) { return id !== currentAdminId; });
+            if (ids.length === 0) {
+                // layer.msg 不设置 icon
+                layer.msg('不能删除当前登录的账号');
+                return;
+            }
+            var delTip = selfSkipped ? '（已自动排除当前登录的账号）' : '';
+            if (checked.data.some(function (row) { return row.role === 'admin' && row.id !== currentAdminId; })) {
+                delTip += '，其中包含管理员账号';
+            }
+            layer.confirm('确定要删除选中的 ' + ids.length + ' 个用户吗？此操作不可恢复。' + delTip, function (idx) {
                 $.ajax({
                     url: '/admin/user_list.php',
                     type: 'POST',

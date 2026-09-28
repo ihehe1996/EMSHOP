@@ -84,7 +84,10 @@ final class UserExperienceService
         try {
             $userTable = Database::prefix() . 'user';
             $userRow = Database::fetchOne(
-                'SELECT `id` FROM `' . $userTable . '` WHERE `id` = ? AND `role` = \'user\' LIMIT 1 FOR UPDATE',
+                // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
+                // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
+                // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
+                'SELECT `id` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1 FOR UPDATE',
                 [$userId]
             );
             if ($userRow === null) {
@@ -141,7 +144,10 @@ final class UserExperienceService
         Database::begin();
         try {
             $userRow = Database::fetchOne(
-                'SELECT `id` FROM `' . $userTable . '` WHERE `id` = ? AND `role` = \'user\' LIMIT 1 FOR UPDATE',
+                // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
+                // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
+                // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
+                'SELECT `id` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1 FOR UPDATE',
                 [$userId]
             );
             if ($userRow === null) {
@@ -190,7 +196,7 @@ final class UserExperienceService
         $levelTable = Database::prefix() . 'user_levels';
 
         $user = Database::fetchOne(
-            'SELECT `level_id`, `experience` FROM `' . $userTable . '` WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
+            'SELECT `level_id`, `experience` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1',
             [$userId]
         );
         if ($user === null) {
@@ -231,7 +237,7 @@ final class UserExperienceService
         }
 
         Database::execute(
-            'UPDATE `' . $userTable . '` SET `level_id` = ? WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
+            'UPDATE `' . $userTable . '` SET `level_id` = ? WHERE `id` = ? LIMIT 1',
             [$newLevelId, $userId]
         );
     }

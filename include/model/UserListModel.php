@@ -5,8 +5,12 @@ declare(strict_types=1);
 /**
  * 用户列表数据模型。
  *
- * 只操作 role='user' 的普通用户，不操作管理员账号。
- * 数据来源：em_user 表。
+ * 数据来源：em_user 表。本模型**同时服务前台与后台**，且不再按 role 区分：
+ * 管理账号（role='admin'）也能在前台登录并按普通用户使用前台功能，因此
+ * 读写要覆盖两种 role。这是刻意的——前台走的就是这个模型（findById/update）。
+ *
+ * 例外：create() 强制写入 role='user'，后台新增用户不会造出管理员账号。
+ * 破坏性方法（toggleStatus/delete/deleteBatch）用 $protectId 兜住「不能删/禁自己」。
  */
 final class UserListModel
 {
@@ -44,7 +48,10 @@ final class UserListModel
     {
         $offset = ($page - 1) * $limit;
 
-        $where = "u.`role` = 'user'";
+        // 管理员账号也会被列出（后台用户管理要能管理其它管理账号）。
+        // 注意这里必须是恒真表达式而不是空串：下面用 sprintf('... WHERE %s ...') 拼 SQL，
+        // 空串会拼出 `WHERE ` 直接语法错误、列表整页空白。
+        $where = '1';
         $params = [];
 
         if ($keyword !== '') {
@@ -144,7 +151,7 @@ final class UserListModel
                     `merchant_id`, `shop_balance`, `level_id`,
                     `last_login_ip`, `last_login_at`, `created_at`
              FROM `%s`
-             WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
+             WHERE `id` = ? LIMIT 1',
             $this->table
         );
 
@@ -173,7 +180,12 @@ final class UserListModel
     }
 
     /**
-     * 检查邮箱是否已被其他用户占用（排除自身）。
+     * 检查邮箱是否已被占用（排除自身）。
+     *
+     * 刻意**不按 role 过滤**：登录、找回密码都支持用邮箱作为账号，若允许普通用户
+     * 占用管理员邮箱，就会在 em_user 里造出两行同邮箱，找回密码按邮箱取行时可能
+     * 取中另一行（令牌绑到别的账号上，站长表现为「重置密码永远失败」）。
+     * 管理员自己改资料走 UserModel::isEmailTaken，那边本来就不区分 role。
      */
     public function existsEmail(string $email, int $excludeId = 0): bool
     {
@@ -182,13 +194,13 @@ final class UserListModel
         }
         if ($excludeId > 0) {
             $sql = sprintf(
-                'SELECT `id` FROM `%s` WHERE `email` = ? AND `id` != ? AND `role` = \'user\' LIMIT 1',
+                'SELECT `id` FROM `%s` WHERE `email` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
             $row = Database::fetchOne($sql, [$email, $excludeId]);
         } else {
             $sql = sprintf(
-                'SELECT `id` FROM `%s` WHERE `email` = ? AND `role` = \'user\' LIMIT 1',
+                'SELECT `id` FROM `%s` WHERE `email` = ? LIMIT 1',
                 $this->table
             );
             $row = Database::fetchOne($sql, [$email]);
@@ -197,7 +209,9 @@ final class UserListModel
     }
 
     /**
-     * 检查手机号是否已被其他用户占用（排除自身）。
+     * 检查手机号是否已被占用（排除自身）。
+     *
+     * 与 existsEmail 同理，不按 role 过滤。
      */
     public function existsMobile(string $mobile, int $excludeId = 0): bool
     {
@@ -206,13 +220,13 @@ final class UserListModel
         }
         if ($excludeId > 0) {
             $sql = sprintf(
-                'SELECT `id` FROM `%s` WHERE `mobile` = ? AND `id` != ? AND `role` = \'user\' LIMIT 1',
+                'SELECT `id` FROM `%s` WHERE `mobile` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
             $row = Database::fetchOne($sql, [$mobile, $excludeId]);
         } else {
             $sql = sprintf(
-                'SELECT `id` FROM `%s` WHERE `mobile` = ? AND `role` = \'user\' LIMIT 1',
+                'SELECT `id` FROM `%s` WHERE `mobile` = ? LIMIT 1',
                 $this->table
             );
             $row = Database::fetchOne($sql, [$mobile]);
@@ -255,8 +269,9 @@ final class UserListModel
         $sets[] = '`updated_at` = NOW()';
         $params[] = $id;
 
+        // 不按 role 过滤：前台改资料 / 找回密码对管理账号同样要生效（同一行数据，前后台同步）。
         $sql = sprintf(
-            'UPDATE `%s` SET %s WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
+            'UPDATE `%s` SET %s WHERE `id` = ? LIMIT 1',
             $this->table,
             implode(', ', $sets)
         );
@@ -265,46 +280,62 @@ final class UserListModel
     }
 
     /**
-     * 切换用户状态。
+     * 切换用户状态（可禁用管理账号）。
+     *
+     * @param int $protectId 传入当前登录管理员的 id，则该行不会被改动（防自锁）
      */
-    public function toggleStatus(int $id): bool
+    public function toggleStatus(int $id, int $protectId = 0): bool
     {
         $sql = sprintf(
-            'UPDATE `%s` SET `status` = IF(`status` = 1, 0, 1), `updated_at` = NOW() WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
-            $this->table
+            'UPDATE `%s` SET `status` = IF(`status` = 1, 0, 1), `updated_at` = NOW() WHERE `id` = ?%s LIMIT 1',
+            $this->table,
+            $protectId > 0 ? ' AND `id` != ?' : ''
         );
-        return Database::execute($sql, [$id]) > 0;
+        $params = $protectId > 0 ? [$id, $protectId] : [$id];
+
+        return Database::execute($sql, $params) > 0;
     }
 
     /**
-     * 删除用户。
+     * 删除用户（可删除管理账号）。
+     *
+     * @param int $protectId 传入当前登录管理员的 id，则该行不会被删除（防自锁）
      */
-    public function delete(int $id): bool
+    public function delete(int $id, int $protectId = 0): bool
     {
         $sql = sprintf(
-            'DELETE FROM `%s` WHERE `id` = ? AND `role` = \'user\' LIMIT 1',
-            $this->table
+            'DELETE FROM `%s` WHERE `id` = ?%s LIMIT 1',
+            $this->table,
+            $protectId > 0 ? ' AND `id` != ?' : ''
         );
-        return Database::execute($sql, [$id]) > 0;
+        $params = $protectId > 0 ? [$id, $protectId] : [$id];
+
+        return Database::execute($sql, $params) > 0;
     }
 
     /**
-     * 批量删除用户。
+     * 批量删除用户（可删除管理账号）。
      *
      * @param array<int> $ids
+     * @param int        $protectId 传入当前登录管理员的 id，则跳过该行（防自锁）
      */
-    public function deleteBatch(array $ids): int
+    public function deleteBatch(array $ids, int $protectId = 0): int
     {
         if ($ids === []) {
             return 0;
         }
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = $ids;
         $sql = sprintf(
-            'DELETE FROM `%s` WHERE `id` IN (%s) AND `role` = \'user\'',
+            'DELETE FROM `%s` WHERE `id` IN (%s)',
             $this->table,
-            $placeholders
+            implode(',', array_fill(0, count($ids), '?'))
         );
-        return Database::execute($sql, $ids);
+        if ($protectId > 0) {
+            $sql .= ' AND `id` != ?';
+            $params[] = $protectId;
+        }
+
+        return Database::execute($sql, $params);
     }
 
     /**

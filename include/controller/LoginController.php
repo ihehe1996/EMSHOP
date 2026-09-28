@@ -62,28 +62,57 @@ class LoginController extends BaseController
             Response::error('请输入账号和密码');
         }
 
-        // 查找用户（支持账号、手机号、邮箱登录）
+        // 限流按「账号 + IP」与「纯 IP」两个维度计数（落库，跨会话持久）。
+        // 放在查库之前：被锁时连数据库都不查。
+        // scope 用 'front'，与后台登录分开计数——前台被爆破锁住时不能连带把管理员
+        // 挡在后台之外（这点对管理账号也能前台登录的场景尤其重要）。
+        $throttle = new LoginThrottle(LoginThrottle::SCOPE_FRONT);
+        if ($throttle->isLocked($account)) {
+            $minutes = (int) ceil($throttle->remainingSeconds($account) / 60);
+            Response::error('登录失败次数过多，请在 ' . $minutes . ' 分钟后再试');
+        }
+
+        // 查找账号（支持账号、手机号、邮箱登录）。
+        // 不按 role 过滤：管理账号（role='admin'）也能在前台登录，前台只当它是普通用户。
+        //
+        // 为什么要取多行再逐个验密码，而不是 LIMIT 1 取一行：username 有全局唯一键，
+        // 但 email/mobile 只在 role='user' 范围内去重，放开后同一邮箱/手机可能同时
+        // 命中管理员和普通用户两行——此时「取哪一行」绝不能靠排序偏好角色（那是权限
+        // 提升隐患），而要由密码决定。
+        // ORDER BY 让精确用户名匹配优先（该列唯一、语义最明确），其余按 id 兜底使顺序确定。
+        // LIMIT 20 是防御性上界：bcrypt cost 8 约 10ms/次，把最坏耗时封在 ~200ms。
         $table = Database::prefix() . 'user';
         $sql = sprintf(
-            "SELECT * FROM `%s` WHERE (`username` = ? OR `email` = ? OR `mobile` = ?) AND `role` = 'user' LIMIT 1",
+            'SELECT * FROM `%s` WHERE (`username` = ? OR `email` = ? OR `mobile` = ?)
+              ORDER BY (`username` = ?) DESC, `id` ASC LIMIT 20',
             $table
         );
-        $user = Database::fetchOne($sql, [$account, $account, $account]);
+        $rows = Database::query($sql, [$account, $account, $account, $account]);
+
+        $hasher = new PasswordHash(8, true);
+        $user = null;
+        foreach ($rows as $row) {
+            if ($hasher->CheckPassword($password, (string) $row['password'])) {
+                $user = $row;
+                break;
+            }
+        }
 
         if ($user === null) {
+            $throttle->hit($account);
             Response::error('账号或密码错误');
         }
 
-        // 验证密码
-        $hasher = new PasswordHash(8, true);
-        if (!$hasher->CheckPassword($password, (string) $user['password'])) {
-            Response::error('账号或密码错误');
-        }
-
-        // 检查账号状态
+        // 检查账号状态。放在验密通过之后按行判断：否则密码输错也会拿到「已被禁用」，
+        // 等于把「这个账号存在且被禁用」白送给攻击者，扩大账号枚举面。
         if ((int) $user['status'] !== 1) {
+            // 禁用也计一次失败（与后台一致：后台把 status=1 写进登录 SQL，禁用即算失败），
+            // 否则「禁用账号的密码对不对」能从是否被限流侧信道读出来。
+            $throttle->hit($account);
             Response::error('账号已被禁用，请联系管理员');
         }
+
+        $throttle->clear($account);
 
         // 写入 session
         if (session_status() === PHP_SESSION_NONE) {
@@ -91,6 +120,8 @@ class LoginController extends BaseController
         }
         session_regenerate_id(true);
 
+        // 刻意只存用户字段、**不存 role**：前台登录态是纯用户态，session 里不放任何
+        // 特权信息（管理账号在前台也就是个普通用户），后台登录态另存 em_admin_auth。
         $_SESSION['em_front_user'] = [
             'id'       => (int) $user['id'],
             'username' => (string) $user['username'],

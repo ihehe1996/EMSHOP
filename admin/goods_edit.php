@@ -10,7 +10,8 @@ $action = $_GET['_action'] ?? $_POST['_action'] ?? '';
 
 // 用户搜索（规格"用户专属价"弹窗内联搜索用）
 // GET /admin/goods_edit.php?_action=search_users&q=keyword
-// 按用户名 / 昵称 / 邮箱模糊匹配，仅 role=user 且 status=1，最多 10 条
+// 按用户名 / 昵称 / 邮箱模糊匹配，status=1，最多 10 条。
+// 不按 role 过滤：这里是给买家设专属价，管理账号也能在前台下单，一样要能设。
 if ($action === 'search_users') {
     $q = trim((string) Input::get('q', ''));
     if ($q === '' || mb_strlen($q) < 1) {
@@ -21,10 +22,10 @@ if ($action === 'search_users') {
         $rows = Database::query(
             'SELECT `id`, `username`, `nickname`, `email`, `avatar`
                FROM `' . Database::prefix() . 'user`
-              WHERE `role` = ? AND `status` = 1
+              WHERE `status` = 1
                 AND (`username` LIKE ? OR `nickname` LIKE ? OR `email` LIKE ? OR `id` = ?)
               LIMIT 10',
-            ['user', $like, $like, $like, ctype_digit($q) ? (int) $q : -1]
+            [$like, $like, $like, ctype_digit($q) ? (int) $q : -1]
         );
     } catch (Throwable $e) {
         $rows = [];

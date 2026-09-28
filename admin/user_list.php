@@ -7,10 +7,16 @@ require __DIR__ . '/global.php';
 /**
  * 用户列表管理控制器。
  *
- * 只管理 role='user' 的普通用户，不涉及管理员账号。
+ * 管理 em_user 里的所有账号，**包含管理员账号**（管理员也能在前台登录并按普通用户
+ * 使用前台功能，所以这里要能看见它们、能管理其它管理账号）。
+ *
+ * 唯一的例外是当前登录的这个账号自己：不能禁用、不能删除（防自锁，见 $currentAdminId）。
  */
 adminRequireLogin();
 $user = $adminUser;
+// 当前登录管理员 id 必须单独存一份：下面的 case 里会执行 $user = $model->findById($id)
+// 把 $user 覆盖成「被操作用户」，那时再用 $user['id'] 判断自己就完全错了。
+$currentAdminId = (int) ($adminUser['id'] ?? 0);
 $siteName = Config::get('sitename', 'EMSHOP');
 
 require EM_ROOT . '/include/model/UserListModel.php';
@@ -150,6 +156,12 @@ if (Request::isPost()) {
                 $status = Input::post('status', '1');
                 $status = $status === '1' ? 1 : 0;
 
+                // 编辑弹窗的状态开关会随表单一起提交，所以这里也是「禁用自己」的一条路径，
+                // 只拦 toggle 是不够的。
+                if ($id === $currentAdminId && $status === 0) {
+                    Response::error('不能禁用当前登录的账号');
+                }
+
                 if ($email !== '' && $model->existsEmail($email, $id)) {
                     Response::error('该邮箱已被其他用户占用');
                 }
@@ -190,13 +202,21 @@ if (Request::isPost()) {
                     Response::error('无效的用户ID');
                 }
 
+                if ($id === $currentAdminId) {
+                    Response::error('不能禁用当前登录的账号');
+                }
+
                 $model = new UserListModel();
                 $user = $model->findById($id);
                 if ($user === null) {
                     Response::error('用户不存在');
                 }
 
-                $model->toggleStatus($id);
+                // 接住返回值：以前这里丢弃结果，被 role 过滤挡住时也会回「状态已更新」，
+                // 前端开关回滚了但提示是成功的，排查起来很费劲。
+                if (!$model->toggleStatus($id, $currentAdminId)) {
+                    Response::error('状态更新失败，请刷新后重试');
+                }
 
                 $csrfToken = Csrf::refresh();
                 Response::success('状态已更新', ['csrf_token' => $csrfToken]);
@@ -207,13 +227,18 @@ if (Request::isPost()) {
                 if ($id <= 0) {
                     Response::error('无效的用户ID');
                 }
+                if ($id === $currentAdminId) {
+                    Response::error('不能删除当前登录的账号');
+                }
 
                 $model = new UserListModel();
                 if ($model->findById($id) === null) {
                     Response::error('用户不存在');
                 }
 
-                $model->delete($id);
+                if (!$model->delete($id, $currentAdminId)) {
+                    Response::error('删除失败，请刷新后重试');
+                }
 
                 $csrfToken = Csrf::refresh();
                 Response::success('删除成功', ['csrf_token' => $csrfToken]);
@@ -228,11 +253,22 @@ if (Request::isPost()) {
                     Response::error('请选择要删除的用户');
                 }
 
+                // 剔除自己：批量删除里混进当前登录账号时，删掉其余的更少意外（而不是整批拒绝）。
+                $skippedSelf = in_array($currentAdminId, $ids, true);
+                $ids = array_values(array_diff($ids, [$currentAdminId]));
+                if ($ids === []) {
+                    Response::error('不能删除当前登录的账号');
+                }
+
                 $model = new UserListModel();
-                $deleted = $model->deleteBatch($ids);
+                $deleted = $model->deleteBatch($ids, $currentAdminId);
 
                 $csrfToken = Csrf::refresh();
-                Response::success('已删除 ' . $deleted . ' 个用户', ['csrf_token' => $csrfToken, 'deleted' => $deleted]);
+                $msg = '已删除 ' . $deleted . ' 个用户';
+                if ($skippedSelf) {
+                    $msg .= '，已跳过当前登录账号';
+                }
+                Response::success($msg, ['csrf_token' => $csrfToken, 'deleted' => $deleted]);
                 break;
 
             case 'image':
@@ -261,6 +297,12 @@ if (Request::isPost()) {
                 $u = $userModel->findById($userId);
                 if ($u === null) {
                     Response::error('用户不存在');
+                }
+                // 分站站长只给普通用户开。admin/merchant.php 的同类入口本来就明确拒绝非
+                // role='user'，这里以前是靠「findById 对管理员返回 null」隐式挡住的；
+                // findById 放开后必须显式拦，否则管理员账号会多出一条被开成分站站长的路径。
+                if ((string) ($u['role'] ?? '') !== 'user') {
+                    Response::error('管理员账号不能开通分站');
                 }
                 if ((int) ($u['merchant_id'] ?? 0) > 0) {
                     Response::error('该用户已开通商户分站');

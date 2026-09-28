@@ -154,10 +154,13 @@ final class AuthService
             $this->users->clearRememberToken($userId);
         }
 
+        // 只清后台自己的键。**不要**写成 $_SESSION = []：前后台共用同一个 PHP session
+        // 容器，整表清空会把前台登录态（em_front_user）以及前台专属的
+        // em_find_order_visible / em_last_merchant 一起清掉，还会连累前后台共用的
+        // CSRF 键（em_admin_csrf）与验证码键。后台专属键只有 em_admin_auth 这一个。
         unset($_SESSION[$this->config['session_key']]);
         $this->forgetRememberCookie();
 
-        $_SESSION = [];
         if (session_id() !== '') {
             session_regenerate_id(true);
         }

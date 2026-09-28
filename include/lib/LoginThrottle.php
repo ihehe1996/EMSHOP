@@ -21,8 +21,16 @@ declare(strict_types=1);
  */
 final class LoginThrottle
 {
-    /** 作用域：目前只有后台登录，预留分站后台 */
-    private const SCOPE = 'admin';
+    /** 各作用域的计数互相独立（em_login_attempt 的 uk_scope_key 保证） */
+    public const SCOPE_ADMIN = 'admin';
+    public const SCOPE_FRONT = 'front';
+
+    /**
+     * 作用域：后台登录 / 前台登录 / 预留分站后台。
+     *
+     * 前后台分开计数是有意的：前台被爆破锁住时，不能连带把管理员挡在后台之外。
+     */
+    private string $scope;
 
     /**
      * @var array<string, mixed>
@@ -35,8 +43,9 @@ final class LoginThrottle
     /** 是否已确认过表存在（每请求只检查一次） */
     private static $tableChecked = false;
 
-    public function __construct()
+    public function __construct(string $scope = self::SCOPE_ADMIN)
     {
+        $this->scope = trim($scope) !== '' ? trim($scope) : self::SCOPE_ADMIN;
         $this->config = EM_CONFIG['auth'];
         $this->table = Database::prefix() . 'login_attempt';
     }
@@ -82,7 +91,7 @@ final class LoginThrottle
         foreach ($this->keysFor($account) as $key) {
             Database::execute(
                 'DELETE FROM `' . $this->table . '` WHERE `scope` = ? AND `key_hash` = ?',
-                [self::SCOPE, $key]
+                [$this->scope, $key]
             );
         }
     }
@@ -118,7 +127,7 @@ final class LoginThrottle
                 $row = Database::fetchOne(
                     'SELECT `locked_until` FROM `' . $this->table . '`
                       WHERE `scope` = ? AND `key_hash` = ? LIMIT 1',
-                    [self::SCOPE, $key]
+                    [$this->scope, $key]
                 );
                 if ($row === null || empty($row['locked_until'])) {
                     continue;
@@ -153,14 +162,14 @@ final class LoginThrottle
             'INSERT INTO `' . $this->table . '` (`scope`, `key_hash`, `attempts`, `locked_until`, `updated_at`)
              VALUES (?, ?, 1, NULL, NOW())
              ON DUPLICATE KEY UPDATE `attempts` = `attempts` + 1, `updated_at` = NOW()',
-            [self::SCOPE, $key]
+            [$this->scope, $key]
         );
 
         Database::execute(
             'UPDATE `' . $this->table . '`
                 SET `locked_until` = DATE_ADD(NOW(), INTERVAL ? MINUTE), `attempts` = 0
               WHERE `scope` = ? AND `key_hash` = ? AND `attempts` >= ?',
-            [$lockMinutes, self::SCOPE, $key, $maxAttempts]
+            [$lockMinutes, $this->scope, $key, $maxAttempts]
         );
     }
 

@@ -174,8 +174,11 @@ final class PasswordResetService
     private function findUserByEmail(string $email): ?array
     {
         $table = Database::prefix() . 'user';
+        // 不按 role 过滤：管理账号也能走前台找回密码（后台登录页本身没有找回入口）。
+        // ORDER BY id ASC 让存量重复邮箱的取值确定——改为跨角色后，重复邮箱已由
+        // UserListModel::existsEmail 在写入侧拦住，但历史数据里可能已经存在。
         $sql = sprintf(
-            'SELECT `id`, `email`, `status` FROM `%s` WHERE `email` = ? AND `role` = \'user\' LIMIT 1',
+            'SELECT `id`, `email`, `status` FROM `%s` WHERE `email` = ? ORDER BY `id` ASC LIMIT 1',
             $table
         );
 
