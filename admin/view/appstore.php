@@ -7,8 +7,8 @@ if (!defined('EM_ROOT')) {
 // 分类 tabs 由 PHP 直接渲染(基于 PluginModel::MAIN_PLUGIN_CATEGORIES);列表走
 // /admin/appstore.php?_action=list（服务端 app-list），可购状态来自响应的 can_buy
 
-// 应用图片（封面 / 内容图）统一基于 license_urls 第 0 个线路拼接 —— 永远是第一个，
-// 不跟随用户切换的线路；以此保证资源 URL 在全站稳定、可被浏览器缓存
+// 应用图片（封面 / 内容图）统一基于授权服务器线路拼接；以此保证资源 URL
+// 在全站稳定、可被浏览器缓存
 $__appstoreLines = LicenseClient::lines();
 $appstoreAssetHost = $__appstoreLines ? rtrim($__appstoreLines[0]['url'], '/') : '';
 $csrfToken = $csrfToken ?? Csrf::token();
@@ -413,8 +413,8 @@ function emEsc(v) {
         .replace(/'/g, '&#39;');
 }
 
-// 资源 host（由 PHP 注入）：始终取 license_urls[0].url，不跟随线路切换
-// 注意：只用于展示类资源（封面图）；应用包下载地址不要用它拼，那个要跟随当前线路，
+// 资源 host（由 PHP 注入）：授权服务器地址
+// 注意：只用于展示类资源（封面图）；应用包下载地址不要用它拼，
 // 由后端 appstore_resolve_download_url() 解析
 var APPSTORE_ASSET_HOST = <?= json_encode($appstoreAssetHost, JSON_UNESCAPED_SLASHES) ?>;
 // 是否已授权不看本地了 —— 服务端在列表响应里给了 license + can_buy，按钮判定用 can_buy
@@ -599,8 +599,8 @@ $(function () {
                 csrf_token: APPSTORE_CSRF,
                 name:       d.name_en,
                 type:       d.type === 'template' ? 'template' : 'plugin',
-                // 原样传服务端给的（可能是相对路径）—— 由后端补当前线路域名，
-                // 前端不要用 APPSTORE_ASSET_HOST 拼，那个固定是 license_urls[0]，会拼错线路
+                // 原样传服务端给的（可能是相对路径）—— 由后端补授权服务器域名，
+                // 前端不要用 APPSTORE_ASSET_HOST 拼，那个是给展示类资源用的
                 package_url: d.package_url || '',
                 version:    d.version || '',
                 min_version: d.min_version || '',

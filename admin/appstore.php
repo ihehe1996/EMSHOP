@@ -22,10 +22,9 @@ $csrfToken = Csrf::token();
  * 断言应用包下载地址合法，否则返回错误响应。
  *
  * 判定在 DownloadUrlGuard::isAllowed()（纯函数）：不允许 userinfo、host + 端口必须与
- * **已配置的授权线路之一**完全一致（多线路时逐一比对，不是只认第一条）。
+ * **授权线路**完全一致（按 LicenseClient::lines() 逐一比对）。
  *
- * 显式放行 http：线路里有 http + IP 的备用线路，只认 https 会让那条线路上的应用包下不了
- * （与升级包下载同一口径）。
+ * 显式放行 http，便于后续再挂一条 http 备用线路时无需改判定（与升级包下载同一口径）。
  */
 function appstore_assert_download_url(string $url): void
 {
@@ -128,9 +127,9 @@ function appstore_download_package(string $downloadUrl, string $targetFile): arr
 /**
  * 把服务端返回的相对地址补成绝对 URL（收款页地址、支付通道 logo 共用）。
  *
- * 绝对地址原样返回；相对地址补**当前生效线路**的域名 —— 与服务端 app-list /
- * 应用包地址同一口径。不要用视图里的 APPSTORE_ASSET_HOST，那个固定取
- * license_urls[0]，用户切线路后会把收款页拼到另一条线路上。
+ * 绝对地址原样返回；相对地址补**授权服务器**的域名 —— 与服务端 app-list /
+ * 应用包地址同一口径。不要用视图里的 APPSTORE_ASSET_HOST，那个是给展示类
+ * 资源（封面图）用的。
  */
 function appstore_absolutize_remote_url(string $url): string
 {

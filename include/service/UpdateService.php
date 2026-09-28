@@ -241,12 +241,12 @@ final class UpdateService
     /**
      * 下载地址是否属于已配置的授权线路。
      *
-     * 升级包只应从授权服务器下载，因此白名单就是 license_urls 里的全部线路
-     * （多线路时逐一比对，而不是只认第一条）。判定逻辑复用 DownloadUrlGuard，
+     * 升级包只应从授权服务器下载，因此白名单就是 LicenseClient::lines() 给出的线路
+     * （现在只有一条，仍按列表逐一比对）。判定逻辑复用 DownloadUrlGuard，
      * 避免又写成「字符串前缀比较」那种可被 subdomain / userinfo 绕过的形式。
      *
-     * 这里显式放行 http：只认 https 的话，线路里那条 http + IP 的备用线路就用不了，
-     * 而它恰恰是域名被墙时唯一能下载的线路。host + 端口仍必须与线路完全一致。
+     * 这里显式放行 http，便于后续再挂一条 http 备用线路时无需改判定；
+     * host + 端口仍必须与线路完全一致。
      */
     private static function isAllowedPackageHost(string $url): bool
     {

@@ -6,7 +6,7 @@ declare(strict_types=1);
  * 授权服务器 HTTP 客户端。
  *
  * 职责：把对授权服务器的所有网络调用集中在一处，业务层（LicenseService）只拿结构化结果。
- * 服务端地址列表来自 config.php 的 'license_urls'（本地可在 .env 用 LICENSE_URL_{N} 整体覆盖）。
+ * 服务端地址固定为 init.php 里定义的 EM_LICENSE_SERVER_URL（单线路，不读 config.php）。
  *
  * 约定（详见 a 系统文档/应用商店方案.md §8）：
  *   所有响应 JSON 统一格式：{ ok: bool, data?: ..., code?: string, msg?: string }
@@ -412,44 +412,49 @@ final class LicenseClient
     }
 
     /**
-     * 返回当前生效的线路 URL。
+     * 内置的授权服务器地址（init.php 的 EM_LICENSE_SERVER_URL）。
      *
-     * 线路配置从 EM_CONFIG['license_urls'] 读取；
-     * 当前索引从 Config('license_line_index') 读，未设置默认 0。
+     * 只认常量不读 config.php：地址必须跟着程序版本走，否则用户在线更新后
+     * config.php 里残留的旧地址会继续生效。返回值统一带尾部斜杠，方便拼路径。
      */
-    private static function baseUrl(): string
+    private static function serverUrl(): string
     {
-        $lines = self::lines();
-        if ($lines === []) {
-            throw new RuntimeException('未配置授权服务器地址（请检查 config.php 的 license_urls 或 .env 中的 LICENSE_URL_{N}）');
+        if (!defined('EM_LICENSE_SERVER_URL')) {
+            return '';
         }
-        $idx = (int) (Config::get('license_line_index') ?? 0);
-        if ($idx < 0 || $idx >= count($lines)) $idx = 0;
-        return $lines[$idx]['url'];
+        $url = trim((string) EM_LICENSE_SERVER_URL);
+        return $url === '' ? '' : rtrim($url, '/') . '/';
     }
 
     /**
-     * 规范化 EM_CONFIG['license_urls'] → 统一为 [{'url','name'}] 格式。
+     * 返回当前生效的线路 URL（固定单线路）。
+     *
+     * @throws RuntimeException
+     */
+    private static function baseUrl(): string
+    {
+        $url = self::serverUrl();
+        if ($url === '') {
+            throw new RuntimeException('未配置授权服务器地址（init.php 的 EM_LICENSE_SERVER_URL 缺失）');
+        }
+        return $url;
+    }
+
+    /**
+     * 授权服务器线路列表。
+     *
+     * 现在只有一条线路，返回单元素数组即可；保留「列表」这个形状是为了兼容既有的
+     * 调用方（下载地址白名单、应用资源 host 等），它们只依赖第 0 个元素。
      *
      * @return array<int, array{url:string, name:string}>
      */
     public static function lines(): array
     {
-        $out = [];
-        $rawLines = (defined('EM_CONFIG') && isset(EM_CONFIG['license_urls']) && is_array(EM_CONFIG['license_urls']))
-            ? EM_CONFIG['license_urls']
-            : [];
-        foreach ($rawLines as $i => $row) {
-            if (is_string($row) && $row !== '') {
-                $out[] = ['url' => $row, 'name' => '线路 ' . ($i + 1)];
-            } elseif (is_array($row) && !empty($row['url'])) {
-                $out[] = [
-                    'url'  => (string) $row['url'],
-                    'name' => (string) ($row['name'] ?? ('线路 ' . ($i + 1))),
-                ];
-            }
+        $url = self::serverUrl();
+        if ($url === '') {
+            return [];
         }
-        return $out;
+        return [['url' => $url, 'name' => '官方线路']];
     }
 
     /**

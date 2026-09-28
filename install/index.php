@@ -430,10 +430,8 @@ PHP;
         ],
         'avatar' => '/content/static/img/default-admin-avatar.jpg',
         'placeholder_img' => '/content/static/img/img-1.png',
-        'license_urls' => [
-            ['url' => 'https://emshop.ihehe.me/', 'name' => '官方线路'],
-            ['url' => 'http://154.44.8.63:10000/', 'name' => '备用线路'],
-        ],
+        // 授权服务器地址不再写进 config.php：固定内置在 init.php 的 EM_LICENSE_SERVER_URL，
+        // 免得用户更新程序后 config.php 里的旧地址还在生效
     ];
 
     $export = var_export($config, true);

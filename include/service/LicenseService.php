@@ -481,6 +481,9 @@ final class LicenseService
     }
 
     // ---------- 线路配置 ----------
+    // 服务端地址固定在 init.php 的 EM_LICENSE_SERVER_URL，只有一条线路。
+    // 这里保留列表 / 索引 / 切换这套接口只是为了兼容既有调用方，
+    // 单线路下索引恒为 0，切换入口在前端也不会渲染（count($lines) > 1 才显示）。
 
     /** 所有可用的授权服务器线路。 */
     public static function getAllLines(): array

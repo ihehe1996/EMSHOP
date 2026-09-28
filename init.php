@@ -30,12 +30,17 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true);
-define('EM_VERSION', '1.3.19');
-define('EM_VERSION_TIMESTAMP', '1319');
+define('EM_VERSION', '1.3.20');
+define('EM_VERSION_TIMESTAMP', '1320');
+
+// 授权服务器地址（唯一线路，固定内置）。
+// 刻意写在这里而不是 config.php：config.php 是用户的站点配置，程序在线更新不会覆盖它，
+// 一旦地址走配置，用户更新完程序拿到的还是旧地址。
+define('EM_LICENSE_SERVER_URL', 'https://bs.ihehe.me/');
 
 require EM_ROOT . '/base.php';
 
-// 加载站点配置（包含 db / auth / license_urls 等；内部会解析 .env 覆盖）
+// 加载站点配置（包含 db / auth 等）
 $emFileConfig = require EM_ROOT . '/config.php';
 define('EM_CONFIG', $emFileConfig);
 

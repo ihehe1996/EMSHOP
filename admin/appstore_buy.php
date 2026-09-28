@@ -42,7 +42,7 @@ if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
         window.APPSTORE_BUY_ID = <?= (int) $appId ?>;
         // 当前 tab(main/merchant):JS 调 app_detail / app_buy 时透传,后端按此分发
         window.APPSTORE_BUY_TAB = <?= json_encode($tab) ?>;
-        // 资源 host（应用封面拼接基地址，与列表页保持一致，永远取 license_urls[0]）
+        // 资源 host（应用封面拼接基地址，与列表页保持一致，取授权服务器线路）
         <?php
             $__buyLines = LicenseClient::lines();
             $__buyAssetHost = $__buyLines ? rtrim($__buyLines[0]['url'], '/') : '';

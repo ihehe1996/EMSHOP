@@ -287,6 +287,8 @@ $csrfToken = Csrf::token();
                     // 放在 toolbar 而非单页，原因：
                     //   - 后台首页 / license 页都会请求中心服务；线路不通时任何页都需要能切换
                     //   - PJAX 不会重载 toolbar，切换后状态在所有页面一致
+                    // 当前服务端地址固定在 init.php 的 EM_LICENSE_SERVER_URL，只有一条线路，
+                    // 下面的 count > 1 判定会让这块永不渲染；留着是为了将来再加线路时能直接用
                     $__lines = [];
                     $__lineIdx = 0;
                     try {
