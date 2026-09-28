@@ -2,7 +2,7 @@
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
-/** @var array{from_email:string,from_name:string,host:string,password:string,port:string} $smtpTestCfg */
+/** @var array{from_email:string,from_name:string,host:string,password:string,port:string,to:string} $smtpTestCfg */
 /** @var string $csrfToken */
 
 $esc = static function (?string $s): string {
@@ -27,8 +27,10 @@ include __DIR__ . '/header.php';
             <div class="layui-form-item">
                 <label class="layui-form-label">接收邮箱</label>
                 <div class="layui-input-block">
+                    <?php /* 默认填入当前登录管理员的邮箱，仍可改成任意地址 */ ?>
                     <input type="email" class="layui-input" name="to" id="smtpTestTo"
-                           placeholder="如：test@example.com" autofocus>
+                           placeholder="如：test@example.com"
+                           value="<?= $esc($smtpTestCfg['to']) ?>" autofocus>
                 </div>
             </div>
         </div>

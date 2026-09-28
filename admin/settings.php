@@ -30,6 +30,8 @@ if ((string) Input::get('_popup', '') === 'smtp_test') {
         'host'       => (string) Input::get('host', ''),
         'password'   => (string) Input::get('password', ''),
         'port'       => (string) Input::get('port', '465'),
+        // 收件邮箱默认值：当前登录管理员自己的邮箱（未配置则为空，用户自己填）
+        'to'         => trim((string) ($adminUser['email'] ?? '')),
     ];
     $csrfToken = Csrf::token();
     include __DIR__ . '/view/popup/smtp_test.php';
