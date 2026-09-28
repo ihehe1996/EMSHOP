@@ -362,11 +362,23 @@ $csrfToken = $csrfToken ?? Csrf::token();
 
 <!--
     操作按钮分支(tab=main / tab=merchant 共用模板,文案按 window.APPSTORE_TAB 切换):
-    - 已装/已上架                 → 灰色"已安装"
-    - 未装 · 免费                 → 蓝色"安装" / "采购上架"
-    - 未装 · 付费 · can_buy=false → 紫色"先激活授权"
-    - 未装 · 付费 · can_buy=true  → 红色"购买 ¥price" / "采购 ¥price"
+    - 已装/已上架                     → 灰色"已安装"
+    - 未装 · 已购买(is_pay)           → 蓝色"已购买，安装"
+    - 未装 · 付费 · can_buy=false     → 紫色"先激活授权"
+    - 未装 · 免费                     → 蓝色"安装" / "采购上架"
+    - 未装 · 付费 · can_buy=true      → 红色"购买 ¥price" / "采购 ¥price"
     判定以服务端为准（can_buy），不再靠本地 APPSTORE_LICENSED 推断。
+    优先级同样是 已装 > 已购买 > 限授权 > 免费 > 购买：买过的应用直接给安装入口。
+
+    注意"付费应用"的判定不能用 price：price 是**按你当前档位算出来的实际价**，未授权时
+    服务端会退回 VIP 门槛价，可能正好是 0（实测：SVIP 档 1.00 的应用在未授权时 price=0.00），
+    拿它判免费会让付费应用直接掉进"安装"分支、绕过授权。所以用档位原价
+    price_vip / price_svip 判付费；真·免费应用（三个价都是 0）仍不需要授权码。
+
+    坑：laytpl 默认 condense，编译前会把整份模板的换行/缩进压成一个空格，所以代码块里
+    绝对不能写 // 行注释 —— 压行后它会把它后面的全部内容（含变量声明）一并注释掉，
+    表现为莫名其妙的 "xxx is not defined"。注释写在这里，或在块内用 /* */。
+    另外 is_pay 是服务端给的"是否购买过"（JSON 布尔，这里顺带容忍 1 / '1' / 'true'）。
 -->
 <script type="text/html" id="appstoreActionTpl">
     {{# var tab = window.APPSTORE_TAB || 'main';
@@ -374,13 +386,17 @@ $csrfToken = $csrfToken ?? Csrf::token();
            ? { installed: '已安装', install: '安装', buy: '采购' }
            : { installed: '已安装', install: '安装',     buy: '购买' };
        var free = parseFloat(d.price || 0) <= 0;
-       var canBuy = (d.can_buy === true || d.can_buy === 1 || d.can_buy === '1'); }}
+       var canBuy = (d.can_buy === true || d.can_buy === 1 || d.can_buy === '1');
+       var isPay = (d.is_pay === true || d.is_pay === 1 || d.is_pay === '1' || d.is_pay === 'true');
+       var paidApp = (parseFloat(d.price_vip || 0) > 0 || parseFloat(d.price_svip || 0) > 0); }}
     {{# if (d.is_installed == 1) { }}
         <a class="em-btn em-sm-btn em-reset-btn em-disabled-btn"><i class="fa fa-check"></i>{{ L.installed }}</a>
+    {{# } else if (isPay) { }}
+        <a class="em-btn em-sm-btn em-save-btn" lay-event="install"><i class="fa fa-download"></i>已购买，安装</a>
+    {{# } else if (!canBuy && (paidApp || !free)) { }}
+        <a class="em-btn em-sm-btn em-purple-btn" lay-event="needLicense"><i class="fa fa-shield"></i>先激活授权</a>
     {{# } else if (free) { }}
         <a class="em-btn em-sm-btn em-save-btn" lay-event="install"><i class="fa fa-download"></i>{{ L.install }}</a>
-    {{# } else if (!canBuy) { }}
-        <a class="em-btn em-sm-btn em-purple-btn" lay-event="needLicense"><i class="fa fa-shield"></i>先激活授权</a>
     {{# } else { }}
         <a class="em-btn em-sm-btn em-red-btn" lay-event="buy"><i class="fa fa-shopping-cart"></i>{{ L.buy }} ¥{{ parseFloat(d.price || 0).toFixed(2) }}</a>
     {{# } }}

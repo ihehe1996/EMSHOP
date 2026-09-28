@@ -151,24 +151,16 @@ if (Request::isPost()) {
 }
 
 // ============================================================
-// AJAX 列表 —— 扫磁盘 + 左联 DB 状态,经 AppLicenseGuard 过滤
+// AJAX 列表 —— 扫磁盘 + 左联 DB 状态,并问一次中心"哪些有新版本"
 // ============================================================
 if (!$isPopup && Input::get('_action', '') === 'list') {
     header('Content-Type: application/json; charset=utf-8');
 
     $scanned = $model->scanWithStatus($scope);
 
-
-    // 已装模板批量查最新版本 —— 用磁盘 header 当前版本对比远端
-    $latestVersions = [];
-    $names = array_keys($scanned);
-    if ($names !== []) {
-        try {
-            $latestVersions = LicenseClient::mainAppLatestVersions($names, 'template');
-        } catch (Throwable $e) {
-            // 中心不可达静默降级:已装信息仍可正常展示
-        }
-    }
+    // 已装模板问一次中心"哪些有新版本";中心不可达时 service 内已降级成空数组,
+    // 已装信息仍可正常展示
+    $latestVersions = AppUpdateService::checkInstalled($scanned, 'template');
 
     $data = [];
     foreach ($scanned as $name => $info) {
@@ -194,7 +186,7 @@ if (!$isPopup && Input::get('_action', '') === 'list') {
 
         // 比对远端版本判定有无更新
         $latest = $latestVersions[$name] ?? null;
-        if ($latest && !empty($latest['version']) && (string) $latest['version'] > $version) {
+        if ($latest && !empty($latest['version']) && version_compare((string) $latest['version'], $version, '>')) {
             $row['has_update']       = true;
             $row['latest_version']   = (string) $latest['version'];
             $row['latest_file_path'] = (string) ($latest['file_path'] ?? '');

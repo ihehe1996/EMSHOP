@@ -219,7 +219,10 @@ final class LicenseClient
      *   license     {authorized, domain, type, type_label, all_free, code_masked}
      *   categories  [{id, name}]
      *   meta        {page, per_page, total, last_page}
-     *   data[]      应用列表（price / price_vip / price_svip / can_buy / package_url / screenshots 等）
+     *   data[]      应用列表（price / price_vip / price_svip / can_buy / is_pay / package_url / screenshots 等）
+     *
+     * is_pay 是布尔：该应用是否已经买过（已拥有），前端据此把按钮换成"已购买，安装"。
+     * data[] 原样透传，本方法不裁剪字段。
      *
      * 注意：`name_en` 仍被调用方当作本地安装目录名（slug）使用，不是纯展示字段。
      *
@@ -296,32 +299,43 @@ final class LicenseClient
     }
 
     /**
-     * 按 name_en 批量查询最新版本（/api/app_latest_versions.php），用于本地已装应用的更新检测。
+     * 批量检查已装应用有没有新版本（POST /api/open/v1/em/app-update-check）。
      *
-     * 只返版本 / 下载地址相关字段，不含价格 / 描述等无关数据；比应用列表接口更轻。
+     * 与 app-list 同一套身份口径：domain 必填，code 不传 / 无效一律按未授权算。
+     * **服务端只返回"有更新"的条目**（都最新时 data 为空数组），并原样回显 installed_version，
+     * 所以调用方不需要自己比版本作为"有没有更新"的判据。
      *
-     * @param string[] $names 本地已装的 name_en 列表（最多 50 个，超出截断）
-     * @param string   $type  'template' / 'plugin'（必填，避免跨类型同名歧义）
-     * @return array<string, array{id:int, version:string, file_path:string, min_version:string}>
-     *         以 name_en 为 key 的 map；没查到的 name 不出现在 map 里
+     * 请求体是 JSON：{domain, code, apps:[{name_en, version}]}；apps 上限 100 条，
+     * 超出由调用方分片（见 AppUpdateService::checkInstalled）。
+     *
+     * 返回：
+     *   license  {authorized, domain, type, type_label, all_free, code_masked}
+     *   data[]   {name_en, installed_version, version, type, type_label, scope, scope_label,
+     *             min_version, package_url, package_name, package_size, can_buy,
+     *             purchased, is_pay, updated_at}
+     *
+     * 重试：只读、幂等，开 3 次尝试。
+     *
+     * @param array<int, array{name_en:string, version:string}> $apps 本机已装清单
+     * @return array{license:array<string,mixed>,data:array<int,array>}
      * @throws RuntimeException
      */
-    public static function appLatestVersions(array $names, string $type): array
+    public static function appUpdateCheck(array $apps, string $domain, string $code): array
     {
-        if (!in_array($type, ['template', 'plugin'], true)) return [];
-        // 去重 + 过滤空 / 非字符串
-        $names = array_values(array_unique(array_filter(
-            array_map('strval', $names),
-            static fn(string $v): bool => $v !== ''
-        )));
-        if ($names === []) return [];
-        if (count($names) > 50) $names = array_slice($names, 0, 50);
+        if ($apps === []) {
+            return ['license' => [], 'data' => []];
+        }
 
-        $data = self::postForm('api/app_latest_versions.php', [
-            'names' => $names,
-            'type'  => $type,
-        ], 10);
-        return is_array($data) ? $data : [];
+        $data = self::postJson('api/open/v1/em/app-update-check', [
+            'domain' => $domain,
+            'code'   => $code,
+            'apps'   => array_values($apps),
+        ]);
+
+        return [
+            'license' => is_array($data['license'] ?? null) ? $data['license'] : [],
+            'data'    => is_array($data['data'] ?? null) ? array_values($data['data']) : [],
+        ];
     }
 
     /**
@@ -459,9 +473,43 @@ final class LicenseClient
      */
     private static function postForm(string $path, array $payload, int $timeout = 10, int $maxAttempts = 1): array
     {
+        return self::apiRequest($path, $payload, false, $timeout, $maxAttempts);
+    }
+
+    /**
+     * 通用 JSON POST → 解析 { code, msg|message, data } → 返回 data / 抛异常。
+     *
+     * 与 postForm() 共用同一套重试与信封口径，区别只在请求体是 JSON、Content-Type 是
+     * application/json —— app-update-check 这类接口只收 JSON。
+     *
+     * @param array<string, mixed> $payload
+     * @param int $maxAttempts 最多尝试次数（含首次）；1 = 不重试
+     * @return array 返回 data（保证是数组）
+     * @throws RuntimeException
+     */
+    private static function postJson(string $path, array $payload, int $timeout = 15, int $maxAttempts = 3): array
+    {
+        return self::apiRequest($path, $payload, true, $timeout, $maxAttempts);
+    }
+
+    /**
+     * 表单 / JSON POST 的公共实现，重试策略与信封解析只有这一份。
+     *
+     * @param array<string, mixed> $payload
+     * @return array 返回 data（保证是数组）
+     * @throws RuntimeException
+     */
+    private static function apiRequest(string $path, array $payload, bool $asJson, int $timeout, int $maxAttempts): array
+    {
         $url = self::baseUrl() . ltrim($path, '/');
 
-        $body = http_build_query($payload);
+        $body = $asJson
+            ? json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            : http_build_query($payload);
+        if ($body === false) {
+            throw new RuntimeException('请求数据编码失败');
+        }
+        $contentType = $asJson ? 'application/json' : 'application/x-www-form-urlencoded';
         $maxAttempts = max(1, $maxAttempts);
 
         $lastError = '';
@@ -476,7 +524,7 @@ final class LicenseClient
                 CURLOPT_POSTFIELDS => $body,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/x-www-form-urlencoded',
+                    'Content-Type: ' . $contentType,
                     'Accept: application/json',
                     'X-Em-Client: emshop-' . EM_VERSION,
                 ],
@@ -658,19 +706,4 @@ final class LicenseClient
         return self::createOrder($code, $domain, $appId);
     }
 
-    /**
-     * 主站货架 · 已装应用最新版本(用于本地已装更新检测)。
-     */
-    public static function mainAppLatestVersions(array $names, string $type): array
-    {
-        return self::appLatestVersions($names, $type);
-    }
-
-    /**
-     * 分站货架 · 已上架应用最新版本(主站后台更新检测用)。
-     */
-    public static function merchantAppLatestVersions(array $names, string $type): array
-    {
-        return self::appLatestVersions($names, $type);
-    }
 }

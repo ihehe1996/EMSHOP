@@ -233,7 +233,7 @@ if (Request::isPost()) {
 }
 
 // ============================================================
-// AJAX 列表 —— 扫磁盘 + 左联 DB 状态,经 AppLicenseGuard 过滤后返回
+// AJAX 列表 —— 扫磁盘 + 左联 DB 状态,并问一次中心"哪些有新版本"
 // ============================================================
 if (!$isPopup && Input::get('_action', '') === 'list') {
     header('Content-Type: application/json; charset=utf-8');
@@ -317,15 +317,8 @@ if (!$isPopup && Input::get('_action', '') === 'list') {
     }
 
     $scanned = $model->scanWithStatus($scope);
-    $latestVersions = [];
-    $names = array_keys($scanned);
-    if ($names !== []) {
-        try {
-            $latestVersions = LicenseClient::mainAppLatestVersions($names, 'plugin');
-        } catch (Throwable $e) {
-            $latestVersions = [];
-        }
-    }
+    // 有更新的条目(name → version/file_path);中心不可达时 service 内已降级成空数组
+    $latestVersions = AppUpdateService::checkInstalled($scanned, 'plugin');
 
     // 授权过滤:服务端注册过 ∩ 已购买 → 才保留;系统内置直通
     $licenseError = null;
@@ -337,7 +330,8 @@ if (!$isPopup && Input::get('_action', '') === 'list') {
         if (isset($merchantCodeSet[$name])) continue;
         $version = (string) ($info['version'] ?? '1.0.0');
         $latest = $latestVersions[$name] ?? null;
-        $hasUpdate = (bool) ($latest && !empty($latest['version']) && (string) $latest['version'] > $version);
+        $hasUpdate = (bool) ($latest && !empty($latest['version'])
+            && version_compare((string) $latest['version'], $version, '>'));
         $data[] = [
             'name'         => $name,
             'title'        => (string) ($info['title']       ?? $name),

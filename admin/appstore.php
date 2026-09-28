@@ -61,6 +61,71 @@ function appstore_resolve_download_url(string $url): string
 }
 
 /**
+ * 下载应用包时提交给授权服务器的身份参数。
+ *
+ * 应用包地址本身不含任何身份信息，授权服务器据此判断下载方是谁、有没有资格下这个包：
+ *   domain  绑定的主授权域名；没绑过则回退当前 HTTP_HOST（与 app-list 同口径）
+ *   code    本地激活码；未激活时为空串，服务端会按未授权处理
+ *
+ * 这两个值一律在服务端自己取，**不接受前端传入** —— code 是密钥，让浏览器决定
+ * 等于把授权判定交给客户端。
+ *
+ * @return array{domain:string,code:string}
+ */
+function appstore_download_auth(): array
+{
+    $licenseRow = LicenseService::currentLicense();
+    return [
+        'domain' => LicenseService::effectiveHost(),
+        'code'   => $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '',
+    ];
+}
+
+/**
+ * 流式下载应用包到本地文件（安装 / 更新共用）。
+ *
+ * 身份参数以查询串携带（服务端的下载路由只接受 GET，不接受 POST body），形如
+ *   {线路}/api/open/v1/em/app/{id}/download?domain={域名}&code={授权码}
+ * 其余与升级包下载同口径：不跟随重定向（否则前面的 host 白名单可被授权主机的 302
+ * 绕过），主机名白名单由 appstore_resolve_download_url() 在调用前把关。
+ *
+ * @return array{ok:bool,http:int,error:string}
+ */
+function appstore_download_package(string $downloadUrl, string $targetFile): array
+{
+    $fp = fopen($targetFile, 'wb');
+    if ($fp === false) {
+        return ['ok' => false, 'http' => 0, 'error' => '无法创建临时文件'];
+    }
+
+    // 包地址本身可能已经带参数（如 ?v=2），所以分隔符要看情况用 ? 还是 &
+    $downloadUrl .= (strpos($downloadUrl, '?') === false ? '?' : '&')
+        . http_build_query(appstore_download_auth());
+
+    $ch = curl_init($downloadUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_FILE            => $fp,
+        // 不跟随重定向：否则第一次 host 校验就形同虚设 —— 授权主机可以 302 到任意地址，
+        // 而 TLS 校验与 host 白名单都不会作用于跳转后的目标
+        CURLOPT_FOLLOWLOCATION  => false,
+        CURLOPT_TIMEOUT         => 120,
+        CURLOPT_CONNECTTIMEOUT  => 10,
+        CURLOPT_USERAGENT       => 'emshop-' . EM_VERSION,
+        // 证书校验按项目既有口径关闭（线路可能是自签证书）；别把这两行当安全保证，
+        // 真正兜底的是调用前的 host 白名单
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
+    ]);
+    $ok = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+    fclose($fp);
+
+    return ['ok' => (bool) $ok, 'http' => $httpCode, 'error' => (string) $curlErr];
+}
+
+/**
  * 把服务端返回的相对地址补成绝对 URL（收款页地址、支付通道 logo 共用）。
  *
  * 绝对地址原样返回；相对地址补**当前生效线路**的域名 —— 与服务端 app-list /
@@ -369,29 +434,10 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
 
         if (!is_dir($tmpRoot)) @mkdir($tmpRoot, 0755, true);
         $tmpZip = $tmpRoot . '/zip_u_' . uniqid() . '.zip';
-        $fp = fopen($tmpZip, 'wb');
-        $ch = curl_init($downloadUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_FILE => $fp,
-            // 不跟随重定向：否则第一次 host 校验就形同虚设 —— 授权主机可以 302 到任意地址，
-            // 而下面的 TLS 校验与 host 白名单都不会作用于跳转后的目标
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_TIMEOUT => 120,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_USERAGENT => 'emshop-' . EM_VERSION,
-            // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
-            // （web 可直接执行），链路上被替换就等于被植入任意代码
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-        ]);
-        $ok = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlErr = curl_error($ch);
-        curl_close($ch);
-        fclose($fp);
-        if (!$ok || $httpCode !== 200 || filesize($tmpZip) < 16) {
+        $dl = appstore_download_package($downloadUrl, $tmpZip);
+        if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
             @unlink($tmpZip);
-            Response::error('下载失败：' . ($curlErr !== '' ? $curlErr : 'HTTP ' . $httpCode));
+            Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
         }
 
         if (!class_exists('ZipArchive')) {
@@ -523,29 +569,10 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
         // 下载 zip 到项目内临时目录（避免 Windows 下跨盘 rename 失败）
         if (!is_dir($tmpRoot)) @mkdir($tmpRoot, 0755, true);
         $tmpZip = $tmpRoot . '/zip_' . uniqid() . '.zip';
-        $fp = fopen($tmpZip, 'wb');
-        $ch = curl_init($downloadUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_FILE            => $fp,
-            // 不跟随重定向：否则 host 白名单可被授权主机的 302 绕过
-            CURLOPT_FOLLOWLOCATION  => false,
-            CURLOPT_TIMEOUT         => 120,
-            CURLOPT_CONNECTTIMEOUT  => 10,
-            CURLOPT_USERAGENT       => 'emshop-' . EM_VERSION,
-            // 恢复证书与主机名校验：下载回来的 zip 会被解压进 content/plugin|template
-            // （web 可直接执行），链路上被替换就等于被植入任意代码
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-        ]);
-        $ok = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlErr  = curl_error($ch);
-        curl_close($ch);
-        fclose($fp);
-
-        if (!$ok || $httpCode !== 200 || filesize($tmpZip) < 16) {
+        $dl = appstore_download_package($downloadUrl, $tmpZip);
+        if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
             @unlink($tmpZip);
-            Response::error('下载失败：' . ($curlErr !== '' ? $curlErr : 'HTTP ' . $httpCode));
+            Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
         }
 
         // 解压：若 zip 顶层只有一个目录（通常等于 name），则把它内部内容铺平到 targetDir
