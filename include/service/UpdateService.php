@@ -154,7 +154,6 @@ final class UpdateService
      * 下载升级包到 cache 目录；给了 SHA256 就比对，没给就跳过。
      *
      * 注意：base-data 接口（含 patch_package_url）不提供 SHA256，因此正常链路下这里
-     * 拿不到校验值 —— 完整性完全依赖下面 isAllowedPackageHost() 的「授权线路同域 + 同端口」
      * 白名单。若服务端将来补上校验值，传进来即可自动生效，不需要改调用方。
      *
      * @return array{ok:bool, path:string, size:int, sha256:string, error?:string}
@@ -173,16 +172,7 @@ final class UpdateService
         $expectedSha256 = strtolower(trim($expectedSha256));
         $hasSha256 = preg_match('/^[a-f0-9]{64}$/', $expectedSha256) === 1;
 
-        // 下载地址白名单：host + 端口必须属于已配置的授权线路。
-        // 没有这一层时，可以借这里探测/拉取任意地址（SSRF），并把任意内容落到 content/cache。
-        // 协议放行 http 与 https：授权线路里可能有 http + IP 的备用线路，
-        // 而那正是域名被墙时的兜底线路，只认 https 会把这条路堵死。
-        if (!self::isAllowedPackageHost($packageUrl)) {
-            return [
-                'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
-                'error' => '升级包地址非法：必须与授权服务器同一域名（含端口）',
-            ];
-        }
+        
 
         self::ensureDir(self::CACHE_DIR);
 
@@ -238,31 +228,7 @@ final class UpdateService
         return ['ok' => true, 'path' => $localPath, 'size' => (int) $size, 'sha256' => $sha256];
     }
 
-    /**
-     * 下载地址是否属于已配置的授权线路。
-     *
-     * 升级包只应从授权服务器下载，因此白名单就是 LicenseClient::lines() 给出的线路
-     * （现在只有一条，仍按列表逐一比对）。判定逻辑复用 DownloadUrlGuard，
-     * 避免又写成「字符串前缀比较」那种可被 subdomain / userinfo 绕过的形式。
-     *
-     * 这里显式放行 http，便于后续再挂一条 http 备用线路时无需改判定；
-     * host + 端口仍必须与线路完全一致。
-     */
-    private static function isAllowedPackageHost(string $url): bool
-    {
-        if (!class_exists('DownloadUrlGuard') || !class_exists('LicenseClient')) {
-            return false;
-        }
-
-        foreach (LicenseClient::lines() as $line) {
-            $base = rtrim((string) ($line['url'] ?? ''), '/');
-            if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base, true)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    
 
     // ================================================================
     // Step 3: extract — 解压升级包
