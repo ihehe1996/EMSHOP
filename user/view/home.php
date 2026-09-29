@@ -90,22 +90,26 @@ $hasAvatar = !empty($frontUser['avatar']);
 ?>
 <div class="uc-page uc-home">
 
-    <!-- 欢迎 Hero -->
-    <section class="uc-home-hero uc-glass-card uc-glass-card--hero">
-        <div class="uc-home-hero__glow" aria-hidden="true"></div>
+    <!-- 账户概览 -->
+    <section class="uc-home-hero">
+        <div class="uc-home-hero__glow" aria-hidden="true">
+            <span class="uc-home-hero__orb uc-home-hero__orb--lg"></span>
+            <span class="uc-home-hero__orb uc-home-hero__orb--sm"></span>
+        </div>
+
         <div class="uc-home-hero__inner">
             <div class="uc-home-hero__profile">
                 <div class="uc-home-hero__avatar">
                     <?php if ($hasAvatar): ?>
                     <img src="<?= htmlspecialchars($frontUser['avatar']) ?>" alt="">
                     <?php else: ?>
-                    <span><i class="fa fa-user"></i></span>
+                    <i class="fa fa-user"></i>
                     <?php endif; ?>
                 </div>
                 <div class="uc-home-hero__intro">
                     <p class="uc-home-hero__eyebrow"><?= date('Y年n月j日') ?> · 星期<?= ['日','一','二','三','四','五','六'][(int) date('w')] ?></p>
                     <h1 class="uc-home-hero__title"><?= $greet ?>，<?= $nickname ?></h1>
-                    <p class="uc-home-hero__desc">欢迎回到个人中心，管理订单、钱包与账户设置</p>
+                    <p class="uc-home-hero__desc">订单、钱包与账户设置都在这里</p>
                 </div>
             </div>
             <div class="uc-home-hero__actions">
@@ -119,17 +123,17 @@ $hasAvatar = !empty($frontUser['avatar']);
         </div>
 
         <div class="uc-home-hero__stats">
-            <div class="uc-home-stat-pill">
-                <span class="uc-home-stat-pill__label">账户余额</span>
-                <strong class="uc-home-stat-pill__value"><?= $balanceDisplay ?></strong>
+            <div class="uc-home-stat uc-home-stat--primary">
+                <span class="uc-home-stat__label">账户余额</span>
+                <strong class="uc-home-stat__value"><?= $balanceDisplay ?></strong>
             </div>
-            <div class="uc-home-stat-pill">
-                <span class="uc-home-stat-pill__label">今日消费</span>
-                <strong class="uc-home-stat-pill__value"><?= $fmtMoney((int) $stats['today_spent']) ?></strong>
+            <div class="uc-home-stat">
+                <span class="uc-home-stat__label">今日消费</span>
+                <strong class="uc-home-stat__value"><?= $fmtMoney((int) $stats['today_spent']) ?></strong>
             </div>
-            <div class="uc-home-stat-pill">
-                <span class="uc-home-stat-pill__label">本月消费</span>
-                <strong class="uc-home-stat-pill__value"><?= $fmtMoney((int) $stats['month_spent']) ?></strong>
+            <div class="uc-home-stat">
+                <span class="uc-home-stat__label">本月消费</span>
+                <strong class="uc-home-stat__value"><?= $fmtMoney((int) $stats['month_spent']) ?></strong>
             </div>
         </div>
     </section>
@@ -137,35 +141,35 @@ $hasAvatar = !empty($frontUser['avatar']);
     <!-- 订单概览 -->
     <section class="uc-home-metrics">
         <a href="/user/order.php" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
-            <div class="uc-home-metric__icon uc-home-metric__icon--indigo"><i class="fa fa-shopping-bag"></i></div>
-            <div class="uc-home-metric__body">
-                <span class="uc-home-metric__label">全部订单</span>
+            <span class="uc-home-metric__icon uc-home-metric__icon--indigo"><i class="fa fa-shopping-bag"></i></span>
+            <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_total'] ?></strong>
-            </div>
+                <span class="uc-home-metric__label">全部订单</span>
+            </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
         <a href="/user/order.php?status=pending" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
-            <div class="uc-home-metric__icon uc-home-metric__icon--amber"><i class="fa fa-hourglass-half"></i></div>
-            <div class="uc-home-metric__body">
-                <span class="uc-home-metric__label">待付款</span>
+            <span class="uc-home-metric__icon uc-home-metric__icon--amber"><i class="fa fa-hourglass-half"></i></span>
+            <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_pending'] ?></strong>
-            </div>
+                <span class="uc-home-metric__label">待付款</span>
+            </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
         <a href="/user/order.php?status=delivering" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
-            <div class="uc-home-metric__icon uc-home-metric__icon--blue"><i class="fa fa-truck"></i></div>
-            <div class="uc-home-metric__body">
-                <span class="uc-home-metric__label">待收货</span>
+            <span class="uc-home-metric__icon uc-home-metric__icon--blue"><i class="fa fa-truck"></i></span>
+            <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_delivering'] ?></strong>
-            </div>
+                <span class="uc-home-metric__label">待收货</span>
+            </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
         <a href="/user/order.php?status=completed" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
-            <div class="uc-home-metric__icon uc-home-metric__icon--emerald"><i class="fa fa-check-circle"></i></div>
-            <div class="uc-home-metric__body">
-                <span class="uc-home-metric__label">已完成</span>
+            <span class="uc-home-metric__icon uc-home-metric__icon--emerald"><i class="fa fa-check-circle"></i></span>
+            <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_completed'] ?></strong>
-            </div>
+                <span class="uc-home-metric__label">已完成</span>
+            </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
     </section>

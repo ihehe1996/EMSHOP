@@ -29,67 +29,88 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
     <div class="uc-overlay" id="ucSidebarMask"></div>
 
     <div class="uc-container">
-        <!-- 左侧：仅菜单（对齐后台 admin-sidebar） -->
+        <!-- 左侧：菜单 -->
+        <?php
+        $merchantId = (int) ($frontUser['merchant_id'] ?? 0);
+        $inMerchantContext = class_exists('MerchantContext') && MerchantContext::currentId() > 0;
+
+        // 菜单表：侧栏渲染、当前项高亮、页头标题三处共用一份，别再各写一遍
+        $ucMenu = [
+            [
+                'title' => '账户',
+                'items' => [
+                    ['href' => '/user/home.php',    'icon' => 'fa-dashboard',     'label' => '概览'],
+                    ['href' => '/user/profile.php', 'icon' => 'fa-user-circle-o', 'label' => '个人资料'],
+                ],
+            ],
+            [
+                'title' => '交易',
+                'items' => array_values(array_filter([
+                    ['href' => '/user/order.php',       'icon' => 'fa-file-text-o', 'label' => '我的订单'],
+                    ['href' => '/user/wallet.php',      'icon' => 'fa-credit-card', 'label' => '我的钱包'],
+                    ['href' => '/user/balance_log.php', 'icon' => 'fa-list-alt',    'label' => '余额明细'],
+                    shop_coupon_enabled() ? ['href' => '/user/coupon.php', 'icon' => 'fa-ticket', 'label' => '我的优惠券'] : null,
+                    MerchantContext::currentId() === 0 ? ['href' => '/user/rebate.php', 'icon' => 'fa-share-alt', 'label' => '我的推广'] : null,
+                    ['href' => '/user/address.php', 'icon' => 'fa-map-marker', 'label' => '收货地址'],
+                ])),
+            ],
+        ];
+
+        // 分站入口：商户站内登录时隐藏（那边进的是商户后台，不是「开通分站」）
+        if ($merchantId > 0 || !$inMerchantContext) {
+            $ucMenu[] = [
+                'title' => '分站',
+                'items' => [
+                    $merchantId > 0
+                        ? ['href' => '/user/merchant/home.php',  'icon' => 'fa-sitemap',     'label' => '我的分站', 'pjax' => false]
+                        : ['href' => '/user/merchant/apply.php', 'icon' => 'fa-plus-circle', 'label' => '开通分站', 'pjax' => false],
+                ],
+            ];
+        }
+
+        $ucMenu[] = [
+            'title' => '开发',
+            'items' => [
+                ['href' => '/user/api.php', 'icon' => 'fa-plug', 'label' => 'API 对接'],
+            ],
+        ];
+
+        // 当前页：菜单里命中哪一项，就高亮哪一项、页头标题显示哪个名字
+        $ucCurrentNav = null;
+        $ucCurrentPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+        foreach ($ucMenu as $ucGroup) {
+            foreach ($ucGroup['items'] as $ucItem) {
+                if ($ucItem['href'] === $ucCurrentPath) { $ucCurrentNav = $ucItem; break 2; }
+            }
+        }
+        // 命中不到（订单详情、/user/ 根路径等）就只留「个人中心」，不硬塞站点名
+        $ucPageTitle = $ucCurrentNav['label'] ?? '';
+        ?>
         <aside class="uc-sidebar" id="ucSidebar">
             <div class="uc-sidebar__header">
-                <a href="/user/home.php" data-pjax="#userContent" class="uc-sidebar__site-name">个人中心</a>
-            </div>
-            <div class="uc-sidebar__body">
-                <div class="uc-menu-title">账户</div>
-                <a href="/user/home.php" data-pjax="#userContent" class="uc-menu-item is-active">
-                    <i class="fa fa-dashboard"></i><span>概览</span>
-                </a>
-                <a href="/user/profile.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-user-circle-o"></i><span>个人资料</span>
-                </a>
-
-                <div class="uc-menu-title">交易</div>
-                <a href="/user/order.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-file-text-o"></i><span>我的订单</span>
-                </a>
-                <a href="/user/wallet.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-credit-card"></i><span>我的钱包</span>
-                </a>
-                <a href="/user/balance_log.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-list-alt"></i><span>余额明细</span>
-                </a>
-                <?php if (shop_coupon_enabled()): ?>
-                <a href="/user/coupon.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-ticket"></i><span>我的优惠券</span>
-                </a>
-                <?php endif; ?>
-                <?php if (MerchantContext::currentId() === 0): ?>
-                <a href="/user/rebate.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-share-alt"></i><span>我的推广</span>
-                </a>
-                <?php endif; ?>
-                <a href="/user/address.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-map-marker"></i><span>收货地址</span>
-                </a>
-
-                <?php
-                $merchantId = (int) ($frontUser['merchant_id'] ?? 0);
-                $inMerchantContext = class_exists('MerchantContext') && MerchantContext::currentId() > 0;
-                $showMerchantSection = ($merchantId > 0) || !$inMerchantContext;
-                ?>
-                <?php if ($showMerchantSection): ?>
-                <div class="uc-menu-title">分站</div>
-                <?php if ($merchantId > 0): ?>
-                <a href="/user/merchant/home.php" class="uc-menu-item">
-                    <i class="fa fa-sitemap"></i><span>我的分站</span>
-                </a>
-                <?php else: ?>
-                <a href="/user/merchant/apply.php" class="uc-menu-item">
-                    <i class="fa fa-plus-circle"></i><span>开通分站</span>
-                </a>
-                <?php endif; ?>
-                <?php endif; ?>
-
-                <div class="uc-menu-title">开发</div>
-                <a href="/user/api.php" data-pjax="#userContent" class="uc-menu-item">
-                    <i class="fa fa-plug"></i><span>API 对接</span>
+                <a href="/user/home.php" data-pjax="#userContent" class="uc-sidebar__brand">
+                    <?php if ($siteLogoType === 'image' && $siteLogo !== ''): ?>
+                    <img src="<?= htmlspecialchars($siteLogo) ?>" alt="" class="uc-sidebar__brand-img">
+                    <?php else: ?>
+                    <span class="uc-sidebar__brand-mark"><i class="fa fa-user-circle-o"></i></span>
+                    <?php endif; ?>
+                    <span class="uc-sidebar__brand-text">
+                        <strong>个人中心</strong>
+                        <small><?= htmlspecialchars($siteName) ?></small>
+                    </span>
                 </a>
             </div>
+
+            <nav class="uc-sidebar__body">
+                <?php foreach ($ucMenu as $ucGroup): ?>
+                <div class="uc-menu-title"><?= htmlspecialchars($ucGroup['title']) ?></div>
+                <?php foreach ($ucGroup['items'] as $ucItem): ?>
+                <a href="<?= htmlspecialchars($ucItem['href']) ?>"<?= ($ucItem['pjax'] ?? true) ? ' data-pjax="#userContent"' : '' ?> class="uc-menu-item<?= ($ucCurrentNav !== null && $ucCurrentNav['href'] === $ucItem['href']) ? ' is-active' : '' ?>">
+                    <i class="fa <?= htmlspecialchars($ucItem['icon']) ?>"></i><span><?= htmlspecialchars($ucItem['label']) ?></span>
+                </a>
+                <?php endforeach; ?>
+                <?php endforeach; ?>
+            </nav>
         </aside>
 
         <!-- 右侧：工具栏 + 内容 -->
@@ -99,7 +120,11 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
                     <button type="button" class="uc-toolbar__toggle" id="ucSidebarToggle" aria-label="切换菜单">
                         <i class="fa fa-bars"></i>
                     </button>
-                    <span class="uc-toolbar__title"><?= htmlspecialchars($siteName) ?></span>
+                    <nav class="uc-toolbar__crumb" aria-label="当前位置">
+                        <a href="/user/home.php" data-pjax="#userContent" class="uc-toolbar__crumb-home">个人中心</a>
+                        <i class="fa fa-angle-right uc-toolbar__crumb-sep"<?= $ucPageTitle === '' ? ' hidden' : '' ?>></i>
+                        <span class="uc-toolbar__crumb-current" id="ucPageTitle"<?= $ucPageTitle === '' ? ' hidden' : '' ?>><?= htmlspecialchars($ucPageTitle) ?></span>
+                    </nav>
                 </div>
                 <div class="uc-toolbar__right">
                     <?php
@@ -278,13 +303,20 @@ window.EMSHOP_CURRENCY = {
 
     function updateNavActive(url) {
         var path = url.replace(location.origin, '').split('?')[0];
+        var title = '';
         $('.uc-menu-item').removeClass('is-active');
         $('.uc-menu-item[href]').each(function () {
             var href = $(this).attr('href').split('?')[0];
             if (href === path) {
                 $(this).addClass('is-active');
+                title = $.trim($(this).find('span').text());
             }
         });
+        // 面包屑跟着菜单走；命中不到（如订单详情）就保留上一个，别退化成站点名
+        if (title) {
+            $('#ucPageTitle').text(title).removeAttr('hidden');
+            $('.uc-toolbar__crumb-sep').removeAttr('hidden');
+        }
     }
 
     updateNavActive(location.href);
