@@ -1,10 +1,25 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
 
-$current_category = (int) ($_GET['category_id'] ?? 0);
-$current_tag = (int) ($_GET['tag_id'] ?? 0);
+/**
+ * 文章列表页。
+ *
+ * 本模板只有渲染：取数在 module.php 的 template_blog_list_data()。请求参数（分类 /
+ * 标签 / 页码）由 module.php 解析后 assign 成 $blog_q 传下来 —— 页面标题必须早于
+ * body 渲染，所以参数解析不能在模板里做。
+ */
+$_d = template_blog_list_data(is_array($blog_q ?? null) ? $blog_q : []);
+
+// 与改造前同名的变量，下面正文一个字都不用改
+$article_list      = $_d['article_list'];
+$pagination        = $_d['pagination'];
+$blog_categories   = $_d['blog_categories'];
+$popular_blog_tags = $_d['popular_blog_tags'];
+$current_category  = $_d['current_category'];
+$current_tag       = $_d['current_tag'];
+$announcement      = $_d['announcement'];
 ?>
-<!-- 文章列表 · BlogController::_list() -->
+<!-- 文章列表（BlogController::display） -->
 <div class="page-body">
 
     <!-- 面包屑 -->

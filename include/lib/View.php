@@ -197,6 +197,46 @@ final class View
     }
 
     /**
+     * 渲染「独立页」：模板自带完整 HTML 骨架，不套主题的 header/footer。
+     *
+     * 给登录 / 注册这类**公共账号页**用：它们自成一套外观（见 content/static/css/auth.css），
+     * 不跟主题走 —— 所以既不渲染主题的 header/footer，也不加载主题 module.php
+     * （顺带省掉为这两页查导航），页面要的变量自己从核心配置里读。
+     *
+     * @param string $bodyTemplate body 模板名（不含 .php）
+     * @param array<string, mixed> $bodyData
+     */
+    public function renderStandalone(string $bodyTemplate, array $bodyData = []): void
+    {
+        if ($this->rendered) {
+            return;
+        }
+        $this->rendered = true;
+
+        $allData = array_merge($this->data, $bodyData, [
+            'page_title' => $this->pageTitle,
+            'site_name'  => $this->data['site_name'] ?? 'EMSHOP',
+            'site_url'   => $this->data['site_url'] ?? '',
+            '_theme'     => $this->theme,
+        ]);
+
+        // PJAX 请求不能拿整页文档去替换 #main（响应里没有 #main，会把页面清空）：
+        // 回一小段脚本让它整页跳转，等价于「这条链接不做 PJAX」。
+        if (Request::isPjax()) {
+            if (!headers_sent()) {
+                header('Content-Type: text/html; charset=utf-8');
+            }
+            echo '<script>window.location.href=' . json_encode($this->getCurrentUrl(), JSON_UNESCAPED_SLASHES) . ';</script>';
+            return;
+        }
+
+        if (!headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+        }
+        $this->renderBody($bodyTemplate, $allData);
+    }
+
+    /**
      * 渲染完整页面（header + body + footer）。
      *
      * @param string $bodyTemplate
@@ -286,26 +326,46 @@ final class View
     }
 
     /**
-     * 查找模板文件，优先当前主题，降级到 default 主题。
+     * 模板文件名的历史别名：新名 => [旧名, ...]。
+     *
+     * 已改过名的：首页 goods_index.php → index.php、商品详情 goods.php → goods_content.php。
+     * 自带旧名模板的主题（含已分发到应用商店的）不能因此失效，所以每层里**先找新名、再回落旧名**——
+     * 关键是"同一层内回落"，旧主题自己的定制才不会被 default 的新模板顶掉。
+     */
+    private const TEMPLATE_ALIASES = [
+        'index.php'         => ['goods_index.php'],
+        'goods_content.php' => ['goods.php'],
+        'blog_content.php'  => ['blog.php'],
+        // 找回/重置密码原先在 include/view/auth/ 下，主题按老路径覆盖的仍能找到
+        'forgot_password.php' => ['auth/forgot_password.php'],
+        'reset_password.php'  => ['auth/reset_password.php'],
+    ];
+
+    /**
+     * 查找模板文件，优先当前主题，降级到 default 主题，最后回落核心视图。
      *
      * @return string|null 文件路径，未找到返回 null
      */
     private function findTemplate(string $file): ?string
     {
-        $path = EM_ROOT . '/content/template/' . $this->theme . '/' . $file;
-        if (is_file($path)) {
-            return $path;
-        }
+        $names = array_merge([$file], self::TEMPLATE_ALIASES[$file] ?? []);
 
-        $path = EM_ROOT . '/content/template/default/' . $file;
-        if (is_file($path)) {
-            return $path;
-        }
+        $dirs = [
+            EM_ROOT . '/content/template/' . $this->theme . '/',
+            EM_ROOT . '/content/template/default/',
+            // 公共视图（user/view/）：登录 / 注册 / 找回密码等账号页，全站共用一份。
+            // 放在主题目录之后：主题里自带同名文件时仍优先用主题的（老主题定制不失效）。
+            EM_ROOT . '/user/view/',
+            // 核心视图回退（include/view/），供各模板共用
+            EM_ROOT . '/include/view/',
+        ];
 
-        // 核心视图回退（include/view/），供各模板共用
-        $corePath = EM_ROOT . '/include/view/' . $file;
-        if (is_file($corePath)) {
-            return $corePath;
+        foreach ($dirs as $dir) {
+            foreach ($names as $name) {
+                if (is_file($dir . $name)) {
+                    return $dir . $name;
+                }
+            }
         }
 
         return null;

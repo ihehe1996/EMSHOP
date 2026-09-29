@@ -7,20 +7,27 @@ declare(strict_types=1);
  *
  * GET  ?c=register   显示注册表单
  * POST ?c=register   处理注册请求（AJAX JSON）
+ *
+ * 页面动作名是 `display()`（不是 `_index`），入口登记在 Dispatcher::DEFAULT_ACTIONS。
+ * 注册视图是**公共视图**，放在 user/view/ 全站共用，不跟着主题走，所以它自己不依赖
+ * 主题 module.php 取数（令牌、必填项都在视图里从核心读）。
+ *
+ * display() 只留「发 POST 就转交处理器」和两个必须在输出前完成的判断（已登录跳转、
+ * 功能未开启）。
  */
 class RegisterController extends BaseController
 {
     /**
-     * 入口：根据请求方法分发。
+     * 注册页：GET 显示表单，POST 转交注册处理。
      */
-    public function _index(): void
+    public function display(): void
     {
         if (Request::isPost()) {
             $this->handleRegister();
             return;
         }
 
-        // 已登录则跳转到用户中心
+        // 已登录则跳转到用户中心（重定向必须在任何输出之前，所以留在控制器）
         if (!empty($_SESSION['em_front_user'])) {
             header('Location: ?c=user');
             exit;
@@ -31,14 +38,9 @@ class RegisterController extends BaseController
             Response::error('当前站点已关闭注册功能');
         }
 
-        $regFieldsRaw = (string) Config::get('user_register_fields', 'mobile,email');
-        $regFields = array_filter(array_map('trim', explode(',', $regFieldsRaw)));
-
         $this->view->setTitle('注册');
-        $this->view->setData('csrf_token', Csrf::token());
-        $this->view->setData('register_require_mobile', in_array('mobile', $regFields, true));
-        $this->view->setData('register_require_email', in_array('email', $regFields, true));
-        $this->view->render('register');
+        // 独立页：不套主题 header/footer（见 View::renderStandalone）
+        $this->view->renderStandalone('register');
     }
 
     /**

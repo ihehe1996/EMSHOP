@@ -3,13 +3,14 @@
 /**
  * 前台入口文件。
  *
- * 站点首页类型（商城 / 博客）：
- *   HOMEPAGE_MODE = 'mall'  → 站点首页为商城首页
- *   HOMEPAGE_MODE = 'blog'  → 站点首页为博客首页
+ * 站点首页类型（商城 / 商品列表 / 文章列表）：
+ *   HOMEPAGE_MODE = 'mall'       → 站点首页为商城首页
+ *   HOMEPAGE_MODE = 'goods_list' → 站点首页为商品列表页
+ *   HOMEPAGE_MODE = 'blog'       → 站点首页为文章列表页（原博客首页已并入列表页）
  * 优先读取后台配置（homepage_mode），未配置时默认 mall。
  *
  * 导航对应关系：
- *   mall 模式：商城→goods_list、博客→blog_index
+ *   mall 模式：商城→goods_list、博客→blog_list
  *   blog 模式：商城→goods_index、博客→blog_list
  *
  * @package EMSHOP

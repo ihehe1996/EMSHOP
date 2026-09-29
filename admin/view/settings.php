@@ -247,6 +247,37 @@ function formRadio(string $name, array $options, string $selected = ''): string 
 
 /* 店铺公告富文本 */
 #shopAnnouncementTextarea { max-width: 920px; }
+
+/* 首页入口：卡片式单选。
+   原生 input 藏起来自己画（与上面 .em-checkbox 同一套做法：:has(input:checked) 驱动选中态）；
+   input 上带 lay-ignore，layui 的 form.render('radio') 不会把它包装成 .layui-form-radio。 */
+.admin-radio-cards { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 0 10px; }
+.admin-radio-card {
+    position: relative; flex: 1 1 240px; max-width: 330px;
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px; cursor: pointer;
+    background: #fff; border: 1px solid #e8e8e8; border-radius: 10px;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.admin-radio-card:hover { border-color: #c7d2fe; }
+.admin-radio-card:has(input:checked) {
+    border-color: #4e6ef2; background: #eef2ff;
+    box-shadow: 0 0 0 3px rgba(78, 110, 242, .10);
+}
+.admin-radio-card input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.admin-radio-card__dot {
+    flex-shrink: 0; width: 16px; height: 16px; margin-top: 3px;
+    border: 1px solid #cfd6e4; border-radius: 50%; background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+}
+.admin-radio-card:has(input:checked) .admin-radio-card__dot {
+    border-color: #4e6ef2;
+    box-shadow: inset 0 0 0 4px #4e6ef2;
+}
+.admin-radio-card:focus-within { box-shadow: 0 0 0 3px rgba(78, 110, 242, .18); }
+.admin-radio-card__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.admin-radio-card__title { font-size: 13px; font-weight: 600; color: #1f2937; }
+.admin-radio-card__desc { font-size: 12px; color: #6b7280; line-height: 1.6; }
 </style>
 
 <div class="admin-page admin-settings">
@@ -361,20 +392,31 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <div class="layui-form-item">
                             <label class="layui-form-label">首页入口</label>
                             <div class="layui-input-block">
-                                <select class="layui-input" name="homepage_mode">
-                                    <?php
-                                    $hmodes = [
-                                        'mall'       => '商城首页',
-                                        'goods_list' => '商品列表页',
-                                        'blog'       => '博客首页',
-                                    ];
-                                    $currentHm = $cfg['homepage_mode'] ?? 'mall';
-                                    foreach ($hmodes as $val => $label) {
-                                        $sel = $currentHm === $val ? ' selected' : '';
-                                        echo '<option value="' . $esc($val) . '"' . $sel . '>' . $esc($label) . '</option>';
-                                    }
-                                    ?>
-                                </select>
+                                <?php
+                                // 只有两档：商城首页 / 商品列表页（原「博客首页」已去掉）。
+                                // 库里若残留别的值（例如老站的 blog），一律按商城首页显示与保存。
+                                $currentHm = (string) ($cfg['homepage_mode'] ?? 'mall');
+                                if ($currentHm !== 'goods_list') {
+                                    $currentHm = 'mall';
+                                }
+                                $hmodes = [
+                                    'mall'       => ['商城首页',   '展示精选商品与最新动态'],
+                                    'goods_list' => ['商品列表页', '一进站就是商品列表，带分类筛选与排序'],
+                                ];
+                                ?>
+                                <div class="admin-radio-cards">
+                                    <?php foreach ($hmodes as $val => $item): ?>
+                                    <label class="admin-radio-card">
+                                        <?php /* lay-ignore：让 layui 的 form.render('radio') 跳过，保留自定义外观 */ ?>
+                                        <input type="radio" name="homepage_mode" value="<?= $esc($val) ?>" lay-ignore<?= $currentHm === $val ? ' checked' : '' ?>>
+                                        <span class="admin-radio-card__dot" aria-hidden="true"></span>
+                                        <span class="admin-radio-card__main">
+                                            <span class="admin-radio-card__title"><?= $esc($item[0]) ?></span>
+                                            <span class="admin-radio-card__desc"><?= $esc($item[1]) ?></span>
+                                        </span>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                         <div class="layui-form-item">

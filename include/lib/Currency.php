@@ -79,33 +79,40 @@ final class Currency
 
     /**
      * 根据货币代码获取一条记录。
+     *
+     * 从 all() 的内存列表里筛，不再每次查库。原因：displayAmount() 会经
+     * visitorCode() → getPrimary()/getByCode()/getFrontendDefault() 连着调它好几次，
+     * 早先的实现导致「渲染一个商品价格 = 4~5 次 SQL」——首页 53 个商品约 200+ 次
+     * 货币查询，5000 个商品约 2 万次（实测纯 PHP 6.2 秒）。
+     * 货币表的 6 个写方法都会调 reload()，所以读内存列表不会读到旧值。
      */
     public function getByCode(string $code): ?array
     {
-        $table = Database::prefix() . 'currency';
-        $row = Database::fetchOne(
-            "SELECT * FROM `{$table}` WHERE `code` = ?",
-            [strtoupper($code)]
-        );
-        return $row ?: null;
+        $needle = strtoupper($code);
+        if ($needle === '') {
+            return null;
+        }
+        foreach ($this->all() as $row) {
+            if (strtoupper((string) ($row['code'] ?? '')) === $needle) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     /**
-     * 根据 ID 获取一条记录。
+     * 根据 ID 获取一条记录（走 all() 内存列表，不再查库）。
      */
     public function getById(int $id): ?array
     {
-        $table = Database::prefix() . 'currency';
-        $row = Database::fetchOne(
-            "SELECT * FROM `{$table}` WHERE `id` = ?",
-            [$id]
-        );
-        return $row ?: null;
+        foreach ($this->all() as $row) {
+            if ((int) ($row['id'] ?? 0) === $id) {
+                return $row;
+            }
+        }
+        return null;
     }
 
-    /**
-     * 获取主货币。
-     */
     /**
      * 获取"前台默认货币"（is_frontend_default=1 且 enabled=1 的唯一一条）。
      * 访客首次进站、cookie 里没选过时用它作为展示默认；没设时 null → 由调用方回退主货币。
@@ -114,10 +121,13 @@ final class Currency
      */
     public function getFrontendDefault(): ?array
     {
-        $table = Database::prefix() . 'currency';
-        return Database::fetchOne(
-            "SELECT * FROM `{$table}` WHERE `is_frontend_default` = 1 AND `enabled` = 1 LIMIT 1"
-        );
+        // 走 all() 内存列表（原先是每次查库，见 getByCode() 的说明）
+        foreach ($this->all() as $row) {
+            if ((int) ($row['is_frontend_default'] ?? 0) === 1 && (int) ($row['enabled'] ?? 1) === 1) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     /**
@@ -145,13 +155,19 @@ final class Currency
         return true;
     }
 
+    /**
+     * 获取主货币（走 all() 内存列表，不再查库 —— 它在前台每个价格上都会被调到）。
+     *
+     * @return array<string, mixed>|null
+     */
     public function getPrimary(): ?array
     {
-        $table = Database::prefix() . 'currency';
-        $row = Database::fetchOne(
-            "SELECT * FROM `{$table}` WHERE `is_primary` = 1 LIMIT 1"
-        );
-        return $row ?: null;
+        foreach ($this->all() as $row) {
+            if ((int) ($row['is_primary'] ?? 0) === 1) {
+                return $row;
+            }
+        }
+        return null;
     }
 
     /**

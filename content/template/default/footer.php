@@ -114,12 +114,12 @@
         </a>
         <?php else: ?>
         <?php if (!empty($user_login_enabled)): ?>
-        <a href="?c=login" data-pjax class="mobile-nav-item">
+        <a href="?c=login" class="mobile-nav-item">
             <i class="fa fa-sign-in"></i><span>登录</span>
         </a>
         <?php endif; ?>
         <?php if (!empty($user_register_enabled)): ?>
-        <a href="?c=register" data-pjax class="mobile-nav-item">
+        <a href="?c=register" class="mobile-nav-item">
             <i class="fa fa-user-plus"></i><span>注册</span>
         </a>
         <?php endif; ?>
@@ -485,6 +485,15 @@ function updateNavActive(url) {
             $arrow.addClass('is-open');
             $children.stop(true).slideDown(250);
         }
+    });
+
+    // 商品列表页 · 移动端分类抽屉：按钮唤出、点遮罩或 × 关闭
+    // （全局委托一次绑定：PJAX 换页后依然生效，不必在模板里重复绑）
+    $(document).on('click', '#shopFilterBtn', function(){
+        $('#shopSide, #shopMask').addClass('is-open');
+    });
+    $(document).on('click', '#shopMask, #shopSideClose', function(){
+        $('#shopSide, #shopMask').removeClass('is-open');
     });
 })();
 

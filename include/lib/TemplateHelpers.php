@@ -162,7 +162,7 @@ function url_goods_list(array $params = []): string
  * 按分类构建商品列表页 URL（有 slug 优先 slug，无 slug 用 id）。
  *
  * 商户自建分类（source=merchant）会在 URL 上加 category_source=merchant，
- * 让 GoodsController._list 区分主站分类与商户分类（id 在两套表里可能撞号）。
+ * 让 GoodsController.display 区分主站分类与商户分类（id 在两套表里可能撞号）。
  *
  * @param array<string,mixed> $extra 合并进列表 URL 的查询参数（如 sort、tag_id）
  */
@@ -185,7 +185,7 @@ function url_goods_category(array $cat, array $extra = []): string
  * 商城首页 URL（显式指向 goods_index 控制器）。
  *
  * 不能简单返回 "/" —— 因为 "/" 在 HOMEPAGE_MODE='blog' / 'goods_list' 时
- * 会被 Dispatcher 替换成博客首页 / 商品列表，点"商城"导航就回不到商城首页了。
+ * 会被 Dispatcher 替换成文章列表 / 商品列表，点"商城"导航就回不到商城首页了。
  * 必须用显式路径，让路由跳过首页模式替换。
  */
 function url_goods_index(array $params = []): string
@@ -295,7 +295,11 @@ function url_blog_list(array $params = []): string
 }
 
 /**
- * 博客首页 URL。
+ * 博客入口 URL（原「博客首页」，该页已并入文章列表页）。
+ *
+ * 三种格式生成的都是老入口（/blog.html、/blog/、?c=blog_index），路由与模板都已
+ * 指向文章列表页——保留此函数是为了自带旧模板 / 插件的主题继续可用。
+ * 新代码请直接用 url_blog_list()。
  */
 function url_blog_index(array $params = []): string
 {
@@ -535,4 +539,36 @@ function is_safe_url(string $url): bool
 function safe_url(string $url, string $fallback = '#'): string
 {
     return is_safe_url($url) ? $url : $fallback;
+}
+
+/**
+ * 当前主题的全部配置，一次取完。
+ *
+ * 主题侧只调一次，之后任意取键（值已按 TemplateStorage::getValue() 的规则解码）：
+ *
+ *   $cfg = template_config();
+ *   $n   = (int) ($cfg['featured_count'] ?? 6);
+ *
+ * 这里**不认识任何具体配置项**——各主题有什么配置、默认值是多少，由主题自己在
+ * setting.php / 模板里决定；核心只提供"把当前主题配置整包取出来"这一个入口。
+ * 底层一次查询即全部加载（TemplateStorage::ensureLoaded），重复调用无额外开销。
+ *
+ * @param string|null $theme 主题目录名；null/空 = 当前正在渲染的主题（后台读不到就用 default）
+ * @return array<string, mixed>
+ */
+function template_config(?string $theme = null): array
+{
+    $name = trim((string) $theme);
+    if ($name === '') {
+        $name = View::getInstance()->getTheme();
+        if ($name === '') {
+            $name = 'default';
+        }
+    }
+
+    try {
+        return TemplateStorage::getInstance($name)->getAll();
+    } catch (Throwable $e) {
+        return [];
+    }
 }

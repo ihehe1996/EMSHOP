@@ -389,7 +389,7 @@ class ApiController extends BaseController
      *   category_source = main|merchant（有 category_id 或 category_ids 时生效，默认 main）
      *   keyword         标题/简介模糊
      *
-     * 未传 category_id / category_ids 时：不按 category_source 做「伪全部分类」过滤；可见范围与 GoodsController::_list 未选分类一致（当前域名对应的 MerchantContext + applyMerchantScope，与会员身份无关），并叠加 goods_ids / keyword 等请求条件；另 require_api_enabled 仅保留可对接下单的商品。
+     * 未传 category_id / category_ids 时：不按 category_source 做「伪全部分类」过滤；可见范围与 GoodsController::display 未选分类一致（当前域名对应的 MerchantContext + applyMerchantScope，与会员身份无关），并叠加 goods_ids / keyword 等请求条件；另 require_api_enabled 仅保留可对接下单的商品。
      *
      * 传 goods_id(s) 拉取明细时，每条在基础字段外附带：intro、content、cover_images（数组）、configs（完整 JSON 对象，与后台保存一致）、tag_names、min_buy、max_buy（与规格表一致，可 null）、specs（完整规格列表）、
      * spec_dim_name（维度名，格式同后台 goods_edit 提交值），upstream_goods_type（溯源）；另保留 extra_fields 便于旧客户端。

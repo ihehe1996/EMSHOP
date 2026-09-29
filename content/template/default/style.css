@@ -36,7 +36,7 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 /* width:100% 是给 grid item 用的：body 改成 grid 后，margin:0 auto 会让 #main 触发
  * shrink-to-fit、塌缩到内容宽度；显式 width:100% 让它先撑满列再由 max-width 限顶 */
 #main { max-width: 1320px; width: 100%; margin: 0 auto; padding: 0 12px; }
-.page-body { padding-top: 24px; }
+.page-body { padding-top: 5px; }
 
 /* --- PJAX Progress Bar --- */
 .pjax-bar {
@@ -832,14 +832,52 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .article-nav a:hover { color: #4e6ef2; }
 
 /* --- Search --- */
-.search-box { display: flex; gap: 12px; margin-bottom: 20px; }
+/* 搜索区：白卡里放输入框，下面同一行挂「结果数 + 类型切换」 */
+.search-hero {
+    background: #fff; border: 1px solid #ebeef5; border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 22px;
+}
+.search-box { display: flex; gap: 10px; align-items: center; margin: 0; }
+.search-box__field { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+.search-box__ico {
+    position: absolute; left: 15px; font-size: 14px; color: #adb5bd;
+    pointer-events: none; transition: color 0.2s;
+}
+.search-box__field:focus-within .search-box__ico { color: #4e6ef2; }
 .search-input {
-    flex: 1; padding: 10px 16px; border: 1px solid #dcdfe6;
-    border-radius: 6px; font-size: 14px; outline: none;
-    transition: border-color 0.2s; background: #fff;
+    width: 100%; padding: 12px 16px 12px 40px; border: 1px solid #dcdfe6;
+    border-radius: 10px; font-size: 14px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s; background: #fff;
 }
 .search-input:focus { border-color: #4e6ef2; box-shadow: 0 0 0 3px rgba(78,110,242,0.08); }
-.search-hint { font-size: 13px; color: #adb5bd; margin-bottom: 16px; }
+.search-submit { padding: 12px 26px; border-radius: 10px; flex-shrink: 0; }
+
+.search-result-head {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    margin-top: 16px; padding-top: 16px; border-top: 1px solid #f1f3f7;
+}
+.search-result-count { font-size: 13px; color: #868e96; }
+.search-result-count strong { color: #4e6ef2; font-weight: 600; }
+.search-result-count em { font-style: normal; color: #2c3e50; }
+
+/* 搜索结果的两个板块（商品 / 文章） */
+.search-sec { margin-bottom: 28px; }
+.search-sec:last-child { margin-bottom: 0; }
+.search-sec__head { display: flex; align-items: center; margin-bottom: 14px; }
+.search-sec__title {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 600; color: #2c3e50;
+}
+.search-sec__title i { font-size: 14px; color: #4e6ef2; }
+.search-sec__count {
+    font-size: 12px; font-weight: 400; color: #868e96;
+    background: #f4f6f9; border-radius: 999px; padding: 1px 9px; line-height: 18px;
+}
+@media (max-width: 640px) {
+    .search-hero { padding: 14px; }
+    .search-submit { padding: 12px 18px; }
+}
 
 /* --- Order Result --- */
 .order-result { max-width: 680px; margin: 0 auto; }
@@ -1522,16 +1560,19 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 }
 
 /* --- Search Result Page Tabs --- */
-.search-type-tabs {
-    display: flex; gap: 0; margin-bottom: 20px;
-    border-bottom: 1px solid #ebeef5;
-}
+/* 与商品/文章列表页的分类筛选同一套胶囊样式，避免两处长得不一样 */
+.search-type-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .search-type-tab {
-    padding: 10px 20px; font-size: 14px; color: #888;
-    border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 8px; font-size: 13px;
+    border: 1px solid #e5e7eb; color: #666; background: #fff;
+    transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
-.search-type-tab:hover { color: #4e6ef2; }
-.search-type-tab.active { color: #4e6ef2; border-bottom-color: #4e6ef2; font-weight: 500; }
+.search-type-tab:hover { border-color: #4e6ef2; color: #4e6ef2; }
+.search-type-tab.active {
+    background: #4e6ef2; color: #fff; border-color: #4e6ef2;
+    box-shadow: 0 2px 6px rgba(78, 110, 242, 0.25);
+}
 
 /* --- Pagination --- */
 .pagination {
@@ -2550,3 +2591,113 @@ body.search-modal-open {
     backdrop-filter: blur(4px);
 }
 .btn--outline:hover { background: #fff; color: #4e6ef2; border-color: #fff; }
+
+/* 首页板块（.home-* 前缀，只作用于首页，不影响其它页面） */
+.home-sec .section-title { font-size: 22px; }
+.home-sec:last-child { margin-bottom: 0; }
+
+/* 板块右上角「查看全部商品」按钮 */
+.home-all-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 999px;
+    background: #fff; border: 1px solid #e9ecef;
+    font-size: 13px; color: #555; white-space: nowrap;
+    transition: color .2s, border-color .2s, background .2s;
+}
+.home-all-btn:hover { color: #4e6ef2; border-color: #c7d2fb; background: #eef2fe; }
+.home-all-btn i { font-size: 12px; }
+
+/* 精选商品：一行 6 个（.goods-grid 基准 5 列）。
+   注意 .goods-grid.home-featured 比 .goods-grid 优先级高，会盖掉基准的响应式规则，
+   所以下面必须逐断点补回来。 */
+.goods-grid.home-featured { grid-template-columns: repeat(6, 1fr); gap: 14px; }
+@media (max-width: 1024px) { .goods-grid.home-featured { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 768px)  { .goods-grid.home-featured { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px)  { .goods-grid.home-featured { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
+/* ============================
+   商品列表页：左侧分类 + 右侧商品（.shop- 前缀，只作用于本页）
+   ============================ */
+.shop-layout { display: grid; grid-template-columns: 216px 1fr; gap: 16px; align-items: start; }
+.shop-main { min-width: 0; }
+.shop-side { position: sticky; top: 72px; }
+.shop-side-card { background: #fff; border-radius: 10px; padding: 14px 16px; }
+.shop-side-title {
+    font-size: 15px; font-weight: 600; color: #333;
+    padding-bottom: 10px; margin-bottom: 2px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* 当前分类高亮（.sidebar-cat-* 原本没有 active 态，这里补上） */
+.sidebar-cat-parent.is-active,
+.sidebar-cat-child.is-active { color: #4e6ef2; }
+.sidebar-cat-parent.is-active { font-weight: 600; }
+/* 分类名前的图标占位（用 fa 图标代替图片时） */
+.sidebar-cat-ico { width: 22px; text-align: center; color: #4e6ef2; font-size: 14px; flex-shrink: 0; }
+
+/* 移动端分类抽屉的三个控件：桌面端一律不显示 */
+.shop-filter-btn { display: none; }
+.shop-side-close { display: none; }
+.shop-mask { display: none; }
+
+/* 右栏商品网格：一行 5 个（与整页基准一致）。
+   注意 .shop-main .goods-grid 优先级高于 .goods-grid，会盖掉基准的响应式规则，所以逐断点补回来。 */
+.shop-main .goods-grid { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 1024px) {
+    .shop-layout { grid-template-columns: 180px 1fr; }
+    .shop-main .goods-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 768px) {
+    .shop-layout { grid-template-columns: 1fr; }
+    .shop-main .goods-grid { grid-template-columns: repeat(3, 1fr); }
+
+    /* 分类栏改成左侧抽屉：默认移出屏幕外，加 .is-open 滑入 */
+    .shop-side {
+        position: fixed; top: 0; left: 0; bottom: 0; z-index: 1001;
+        width: 264px; max-width: 84vw;
+        padding: 14px 16px; background: #fff;
+        overflow-y: auto;
+        transform: translateX(-102%);
+        transition: transform .25s ease;
+    }
+    .shop-side.is-open { transform: translateX(0); }
+    .shop-side-card { padding: 0; border-radius: 0; }
+    .shop-side-title { display: flex; align-items: center; justify-content: space-between; }
+    .shop-side-close {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; color: #adb5bd; cursor: pointer;
+    }
+
+    /* 抽屉遮罩 */
+    .shop-mask {
+        display: block; position: fixed; inset: 0; z-index: 1000;
+        background: rgba(0, 0, 0, .45);
+        opacity: 0; visibility: hidden;
+        transition: opacity .25s ease, visibility .25s;
+    }
+    .shop-mask.is-open { opacity: 1; visibility: visible; }
+
+    /* 唤出抽屉的按钮：整宽入口行 —— 图标 + 两行文字（「筛选分类」/ 当前分类）+ 右箭头 */
+    .shop-filter-btn {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; margin-bottom: 12px; padding: 10px 14px;
+        border: 1px solid #e9ecef; border-radius: 10px;
+        background: #fff; text-align: left; cursor: pointer;
+    }
+    .shop-filter-btn:active { background: #f8f9fc; }
+    .shop-filter-btn__ico {
+        flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #eef2fe; color: #4e6ef2; font-size: 14px;
+    }
+    .shop-filter-btn__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .shop-filter-btn__label { font-size: 12px; color: #888; line-height: 1.3; }
+    .shop-filter-btn__cur {
+        font-size: 15px; font-weight: 600; color: #333; line-height: 1.3;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .shop-filter-btn__arrow { margin-left: auto; color: #c0c4cc; font-size: 15px; }
+}
+@media (max-width: 480px) {
+    .shop-main .goods-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}

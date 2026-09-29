@@ -1,7 +1,27 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
+
+/**
+ * 文章详情页。
+ *
+ * 本模板只有渲染：文章行由控制器为「这一页能不能打开」的判断和页面标题查过一次，
+ * 通过 $article_row 传下来复用（不再重复查库）；正文装配、上下篇、评论数、侧栏
+ * 都由 module.php 的 template_blog_content_data() 取。
+ */
+$_d = template_blog_content_data(is_array($article_row ?? null) ? $article_row : null);
+
+// 与改造前同名的变量，下面正文一个字都不用改
+$article           = $_d['article'];
+$prev_id           = $_d['prev_id'];
+$prev_title        = $_d['prev_title'];
+$next_id           = $_d['next_id'];
+$next_title        = $_d['next_title'];
+$comment_count     = $_d['comment_count'];
+$recent_articles   = $_d['recent_articles'];
+$blog_categories   = $_d['blog_categories'];
+$popular_blog_tags = $_d['popular_blog_tags'];
 ?>
-<!-- 文章详情 · BlogController::_detail() -->
+<!-- 文章详情（BlogController::displayContent） -->
 <div class="page-body">
 
     <!-- 面包屑 -->
@@ -89,7 +109,7 @@ defined('EM_ROOT') || exit('access denied!');
                         <i class="fa fa-commenting-o"></i>
                         <?php if (!empty($user_login_enabled)): ?>
                         <span>登录后参与评论</span>
-                        <a href="?c=login" data-pjax class="comment-login-btn">登录</a>
+                        <a href="?c=login" class="comment-login-btn">登录</a>
                         <?php else: ?>
                         <span>评论功能暂未开放</span>
                         <?php endif; ?>

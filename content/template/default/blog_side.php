@@ -1,7 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
 /**
- * 博客侧边栏（blog_index / blog 详情共用）
+ * 博客侧边栏（文章列表页 / 文章详情页共用）
  *
  * 依赖控制器提供的变量：
  * - $front_user        当前登录用户（或 null）
@@ -46,10 +46,10 @@ defined('EM_ROOT') || exit('access denied!');
         </div>
         <div class="sidebar-user-links">
             <?php if (!empty($user_login_enabled)): ?>
-            <a href="?c=login" data-pjax class="sidebar-user-btn sidebar-user-btn--primary"><i class="fa fa-sign-in"></i> 登录</a>
+            <a href="?c=login" class="sidebar-user-btn sidebar-user-btn--primary"><i class="fa fa-sign-in"></i> 登录</a>
             <?php endif; ?>
             <?php if (!empty($user_register_enabled)): ?>
-            <a href="?c=register" data-pjax class="sidebar-user-btn<?= empty($user_login_enabled) ? ' sidebar-user-btn--primary' : '' ?>"><i class="fa fa-user-plus"></i> 注册</a>
+            <a href="?c=register" class="sidebar-user-btn<?= empty($user_login_enabled) ? ' sidebar-user-btn--primary' : '' ?>"><i class="fa fa-user-plus"></i> 注册</a>
             <?php endif; ?>
         </div>
         <?php endif; ?>

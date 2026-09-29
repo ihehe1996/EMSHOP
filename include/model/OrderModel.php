@@ -144,7 +144,7 @@ class OrderModel
                     throw new RuntimeException('商品规格不存在：' . $goods['title']);
                 }
 
-                // 起购 / 限购（goods_spec.min_buy、max_buy；与详情页 goods.js 一致）
+                // 起购 / 限购（goods_spec.min_buy、max_buy；与详情页 main.js 一致）
                 $minBuyRaw = $spec['min_buy'] ?? null;
                 $minBuy = ($minBuyRaw === null || $minBuyRaw === '') ? 1 : max(1, (int) $minBuyRaw);
                 $maxBuyRaw = $spec['max_buy'] ?? null;
@@ -242,7 +242,7 @@ class OrderModel
             // —— 商品级满减：按每条 order_goods 的 itemTotal 匹配该商品 configs.discount_rules 的最大档
             //   - threshold/discount 在 DB 里已经是 ×1000000 的 BIGINT raw，单位和 itemTotal 一致
             //   - 多条 order_goods 的满减独立累加；不跨商品合并门槛
-            //   - 前端 goods.js pickDiscountAmount 同款规则，保持两端一致
+            //   - 前端 main.js pickDiscountAmount 同款规则，保持两端一致
             $reduceAmount = 0;
             foreach ($orderGoodsRows as $r) {
                 $configs = json_decode((string) ($r['_goods_configs'] ?? ''), true);

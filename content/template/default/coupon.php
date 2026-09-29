@@ -1,6 +1,19 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
 
+/**
+ * 领券中心。
+ *
+ * 本模板只有渲染：取数在 module.php 的 template_coupon_data()（可领券列表 +
+ * 登录态 + 已领过的券 id）。页面标题也由 module.php 定（body 之前必须确定）。
+ */
+$_d = template_coupon_data();
+
+// 与改造前同名的变量，下面正文一个字都不用改
+$coupons      = $_d['coupons'];
+$is_logged_in = $_d['is_logged_in'];
+$claimed_ids  = $_d['claimed_ids'];
+
 // 优惠券类型文案映射（前端展示用）
 $typeLabel = [
     'fixed_amount'  => '满减券',

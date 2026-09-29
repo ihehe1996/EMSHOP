@@ -113,13 +113,22 @@ if (Request::isPost()) {
                     'site_enabled',
                     'sitename', 'site_keywords', 'site_description',
                     'site_favicon', 'site_logo', 'site_logo_type', 'site_icp', 'site_statistical_code',
-                    'site_rewrite', 'site_timezone', 'homepage_mode',
+                    'site_rewrite', 'site_timezone',
                 ];
                 foreach ($fields as $field) {
                     $val = (string) Input::post($field, '');
                     Config::set($field, $val);
                     $saved++;
                 }
+
+                // 首页入口：只允许这两档（首页按它决定渲染哪张模板）。
+                // 老版本还有 'blog' 一档，已从设置里去掉；表单里没勾任何一项时按 mall 存。
+                $homepageMode = (string) Input::post('homepage_mode', 'mall');
+                if (!in_array($homepageMode, ['mall', 'goods_list'], true)) {
+                    $homepageMode = 'mall';
+                }
+                Config::set('homepage_mode', $homepageMode);
+                $saved++;
 
                 // 站点地址：允许留空；非空时必须是 http(s) 且仅保留 origin（scheme + host[:port]）
                 // 统一落库为带尾斜杠格式，便于各处读取时行为一致。

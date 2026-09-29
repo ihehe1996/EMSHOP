@@ -12,20 +12,27 @@ declare(strict_types=1);
  * POST ?c=login&a=forgot       发送重置邮件 / 刷新验证码
  * GET  ?c=login&a=reset&token  重置密码表单
  * POST ?c=login&a=reset         提交新密码
+ *
+ * 页面动作名是 `display()`（不是 `_index`），入口登记在 Dispatcher::DEFAULT_ACTIONS。
+ * 三个页面视图（login / forgot_password / reset_password）都是**公共视图**，放在
+ * user/view/ 全站共用，不跟着主题走，所以它们自己不依赖主题 module.php 取数。
+ *
+ * display() 只留「发 POST 就转交处理器」和几个必须在输出前完成的判断（已登录跳转、
+ * 功能未开启），数据由视图自己取。
  */
 class LoginController extends BaseController
 {
     /**
-     * 入口：根据请求方法分发。
+     * 登录页：GET 显示表单，POST 转交登录处理。
      */
-    public function _index(): void
+    public function display(): void
     {
         if (Request::isPost()) {
             $this->handleLogin();
             return;
         }
 
-        // 已登录则跳转到用户中心
+        // 已登录则跳转到用户中心（重定向必须在任何输出之前，所以留在控制器）
         if (!empty($_SESSION['em_front_user'])) {
             header('Location: ?c=user');
             exit;
@@ -37,8 +44,8 @@ class LoginController extends BaseController
         }
 
         $this->view->setTitle('登录');
-        $this->view->setData('csrf_token', Csrf::token());
-        $this->view->render('login');
+        // 独立页：不套主题 header/footer（见 View::renderStandalone）
+        $this->view->renderStandalone('login');
     }
 
     /**
@@ -188,11 +195,8 @@ class LoginController extends BaseController
         }
 
         $this->view->setTitle('找回密码');
-        $this->view->setData([
-            'csrf_token' => Csrf::token(),
-            'captcha_expr' => Captcha::issue('forgot_password'),
-        ]);
-        $this->view->render('auth/forgot_password');
+        // 独立页：不套主题 header/footer（与登录/注册同一套）
+        $this->view->renderStandalone('forgot_password');
     }
 
     /**
@@ -205,17 +209,9 @@ class LoginController extends BaseController
             return;
         }
 
-        $token = trim((string) $this->getArg('token', ''));
-        $service = new PasswordResetService();
-        $valid = $service->validateToken($token);
-
         $this->view->setTitle('重置密码');
-        $this->view->setData([
-            'csrf_token' => Csrf::token(),
-            'token' => $token,
-            'token_valid' => $valid !== null,
-        ]);
-        $this->view->render('auth/reset_password');
+        // 独立页：不套主题 header/footer（与登录/注册同一套）
+        $this->view->renderStandalone('reset_password');
     }
 
     private function handleForgotSendRequest(): void

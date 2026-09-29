@@ -9,24 +9,28 @@ declare(strict_types=1);
  * 加载控制器并调用对应方法输出页面。
  *
  * URL 格式（query string 模式）：
- *   ?c=index         → IndexController::_index()    首页
- *   ?c=goods_list    → GoodsController::_list()     商品列表
- *   ?c=goods&id=1   → GoodsController::_detail()   商品详情
- *   ?c=blog_list     → BlogController::_list()     文章列表
- *   ?c=blog&id=1    → BlogController::_detail()    文章详情
- *   ?c=blog_index    → BlogController::_index()     博客首页
- *   ?c=search&q=关键词 → SearchController::_list()  搜索结果
- *   ?c=notfound     → ErrorController::_index()    404
+ *   ?c=index         → IndexController::display()          首页
+ *   ?c=goods_list    → GoodsController::display()          商品列表
+ *   ?c=goods&id=1    → GoodsController::displayContent()   商品详情
+ *   ?c=blog_list     → BlogController::display()           文章列表
+ *   ?c=blog&id=1     → BlogController::displayContent()    文章详情
+ *   ?c=blog_index    → BlogController::display()           博客首页入口（与列表页同一个页面）
+ *   ?c=search&q=关键词 → SearchController::display()          搜索结果
+ *   ?c=notfound      → ErrorController::_index()           404
  *
  * URL 格式（pathinfo 模式）：
- *   /goods_list        → GoodsController::_list()
- *   /goods/1          → GoodsController::_detail()
- *   /blog_index       → BlogController::_index()
+ *   /goods_list        → GoodsController::display()
+ *   /goods/1           → GoodsController::displayContent()
+ *   /blog_list         → BlogController::display()
  *
  * 方法命名约定：
- *   _index()  首页
+ *   _index()  单页入口（首页/登录页等）
  *   _list()   列表页
  *   _detail() 详情页
+ *
+ * 例外：动作名不叫上面三个常规名的控制器，登记在两张表里（见各自常量的注释）：
+ *   - DEFAULT_ACTIONS：无 `a` 参数时走哪个动作（Index / Goods / Blog 用 display）
+ *   - DETAIL_ACTIONS ：路由带 id 时走哪个动作（Goods / Blog 用 displayContent）
  */
 final class Dispatcher
 {
@@ -36,30 +40,63 @@ final class Dispatcher
     /** 默认动作名 */
     private const DEFAULT_ACTION = '_list';
 
-    /** 单页控制器（默认动作为 _index） */
-    private const INDEX_CONTROLLERS = [
-        'index' => true,  // 首页
-        'order' => true,
-        'login' => true,
-        'register' => true,
-        'forgot_password' => true,
-        'blog_index' => true,
-        'blog_comment' => true,  // 评论 API
-        'goods_index' => true,
-        'search' => true,
-        'password' => true,
-        'plugin' => true,
-        'callback' => true,
-        'setting' => true,
-        'coupon' => true,
-        'rebate' => true,
-        'recharge' => true,
-        'withdraw' => true,
-        'api' => true,
+    /** 详情动作名（路由带 id 时用）。动作名不是 _detail 的控制器登记在 DETAIL_ACTIONS */
+    private const DEFAULT_DETAIL_ACTION = '_detail';
+
+    /**
+     * 控制器 => 详情动作名（只有不叫 _detail 的才登记）。
+     *
+     * 与 DEFAULT_ACTIONS 同理：存动作方法名而非布尔值，改过方法名的控制器才找得到入口。
+     */
+    private const DETAIL_ACTIONS = [
+        'goods' => 'displayContent',   // 商品详情 GoodsController::displayContent()
+        'blog'  => 'displayContent',   // 文章详情 BlogController::displayContent()
     ];
 
-    /** 博客模式默认控制器 */
-    private const BLOG_DEFAULT_CONTROLLER = 'blog_index';
+    /**
+     * 控制器 => 默认动作名（无 `a` 参数时走哪个动作）。不在此表的走 DEFAULT_ACTION。
+     *
+     * 表里存的是**动作方法名**而不是布尔值：大多数入口的动作叫 `_index()` / `_list()`，
+     * 但有两个控制器的动作叫 `display()`，若这里只存 true/false，改过方法名的控制器
+     * 就再也找不到入口。
+     *
+     * 两类：
+     *   - 单页入口：动作名是 `_index`（首页 IndexController 例外，用 display）
+     *   - 列表入口：动作名默认是 DEFAULT_ACTION(`_list`)，GoodsController 例外（用 display，
+     *     因为它的列表页与商城首页入口是同一个页面、同一个动作）
+     */
+    private const DEFAULT_ACTIONS = [
+        'index' => 'display',        // 首页 IndexController::display()
+        'goods_index' => 'display',  // 商城首页入口 GoodsController::display()
+        'goods_list' => 'display',   // 商品列表页（同一个 action）
+        'blog_index' => 'display',   // 博客首页入口 BlogController::display()（同一个 action）
+        'blog_list' => 'display',    // 文章列表页（同一个 action）
+        'login' => 'display',
+        'register' => 'display',
+        'forgot_password' => '_index',
+        'blog_comment' => '_index',  // 评论 API
+        'search' => 'display',
+        'password' => '_index',
+        'plugin' => '_index',
+        'callback' => '_index',
+        'setting' => '_index',
+        'coupon' => 'display',
+        'rebate' => '_index',
+        'recharge' => '_index',
+        'withdraw' => '_index',
+        'api' => '_index',
+    ];
+
+    /**
+     * 详情动作名：路由带 id（或详情类路径）时用哪个动作。
+     */
+    private function detailAction(string $controller): string
+    {
+        return self::DETAIL_ACTIONS[$controller] ?? self::DEFAULT_DETAIL_ACTION;
+    }
+
+    /** 博客模式默认控制器（原「博客首页」，已并入文章列表页） */
+    private const BLOG_DEFAULT_CONTROLLER = 'blog_list';
 
     /**
      * 控制器映射表。
@@ -68,12 +105,12 @@ final class Dispatcher
      * value: 控制器类名（不含后缀 Controller）
      */
     private const CONTROLLER_MAP = [
-        'index'       => 'Index',    // 首页 → IndexController::_index()
+        'index'       => 'Index',    // 首页 → IndexController::display()
         'goods_list'  => 'Goods',
         'goods'       => 'Goods',
         'goods_index' => 'Goods',    // 商城首页（博客模式下独立入口）
         'blog_list'   => 'Blog',
-        'blog_index'  => 'Blog',     // 博客首页
+        'blog_index'  => 'Blog',     // 博客首页入口（已并入列表页，仅保留入口）
         'blog'        => 'Blog',
         'blog_comment' => 'BlogComment', // 博客评论 API
         'blog_tag'    => 'BlogTag',     // 博客标签页
@@ -298,13 +335,13 @@ final class Dispatcher
         // —— Query string 模式：?post=1 / ?blog=1
         $postId = (int) ($_GET['post'] ?? 0);
         if ($postId > 0) {
-            $this->controller = 'goods'; $this->action = '_detail';
+            $this->controller = 'goods'; $this->action = $this->detailAction('goods');
             $this->pathArgs = ['id' => $postId] + $extraQuery;
             return true;
         }
         $blogId = (int) ($_GET['blog'] ?? 0);
         if ($blogId > 0) {
-            $this->controller = 'blog'; $this->action = '_detail';
+            $this->controller = 'blog'; $this->action = $this->detailAction('blog');
             $this->pathArgs = ['id' => $blogId] + $extraQuery;
             return true;
         }
@@ -332,11 +369,11 @@ final class Dispatcher
             $base = substr($path, 0, -5);
 
             // 静态页：cart / coupon / search / blog / post（商城首页）
-            // post 显式指向 goods_index，避免被 HOMEPAGE_MODE 替换成博客首页
-            $staticMap = ['coupon' => ['coupon', '_index'],
-                          'search' => ['search', '_index'],
-                          'blog' => ['blog_index', '_index'],
-                          'post' => ['goods_index', '_index']];
+            // post / blog 显式指向各自入口，避免被 HOMEPAGE_MODE 替换成别的页面
+            $staticMap = ['coupon' => ['coupon', 'display'],
+                          'search' => ['search', 'display'],
+                          'blog' => ['blog_list', 'display'],
+                          'post' => ['goods_index', 'display']];
             if (isset($staticMap[$base])) {
                 [$this->controller, $this->action] = $staticMap[$base];
                 $this->pathArgs = $extraQuery;
@@ -345,7 +382,7 @@ final class Dispatcher
             // blog-tag-N / blog-tag-N-M（带分页，放在 blog-* 前面匹配）
             // BlogTagController 只有 _detail（按 id 列出该标签下文章），故直接派发到 _detail
             if (preg_match('/^blog-tag-(\d+)(?:-(\d+))?$/', $base, $m)) {
-                $this->controller = 'blog_tag'; $this->action = '_detail';
+                $this->controller = 'blog_tag'; $this->action = $this->detailAction('blog_tag');
                 $this->pathArgs = ['id' => (int) $m[1]] + $extraQuery;
                 if (!empty($m[2])) $this->pathArgs['page'] = (int) $m[2];
                 return true;
@@ -356,18 +393,18 @@ final class Dispatcher
 
                 // blog-list（== 全部第 1 页）/ blog-list-all / blog-list-all-N
                 if ($tail === 'list' || $tail === 'list-all') {
-                    $this->controller = 'blog_list'; $this->action = '_list';
+                    $this->controller = 'blog_list'; $this->action = 'display';
                     $this->pathArgs = $extraQuery;
                     return true;
                 }
                 if (preg_match('/^list-all-(\d+)$/', $tail, $mm)) {
-                    $this->controller = 'blog_list'; $this->action = '_list';
+                    $this->controller = 'blog_list'; $this->action = 'display';
                     $this->pathArgs = ['page' => (int) $mm[1]] + $extraQuery;
                     return true;
                 }
                 // blog-list-ID 或 blog-list-ID-N（分类 + 可选分页）
                 if (preg_match('/^list-(\d+)(?:-(\d+))?$/', $tail, $mm)) {
-                    $this->controller = 'blog_list'; $this->action = '_list';
+                    $this->controller = 'blog_list'; $this->action = 'display';
                     $this->pathArgs = ['category_id' => (int) $mm[1]] + $extraQuery;
                     if (!empty($mm[2])) $this->pathArgs['page'] = (int) $mm[2];
                     return true;
@@ -375,18 +412,18 @@ final class Dispatcher
 
                 // blog-N（详情）
                 if (ctype_digit($tail)) {
-                    $this->controller = 'blog'; $this->action = '_detail';
+                    $this->controller = 'blog'; $this->action = $this->detailAction('blog');
                     $this->pathArgs = ['id' => (int) $tail] + $extraQuery;
                     return true;
                 }
                 // blog-slug-N（slug + 分页，末段纯数字视为页码）
                 if (preg_match('/^(.+)-(\d+)$/', $tail, $mm)) {
-                    $this->controller = 'blog_list'; $this->action = '_list';
+                    $this->controller = 'blog_list'; $this->action = 'display';
                     $this->pathArgs = ['slug' => $mm[1], 'page' => (int) $mm[2]] + $extraQuery;
                     return true;
                 }
                 // blog-slug
-                $this->controller = 'blog_list'; $this->action = '_list';
+                $this->controller = 'blog_list'; $this->action = 'display';
                 $this->pathArgs = ['slug' => $tail] + $extraQuery;
                 return true;
             }
@@ -396,18 +433,18 @@ final class Dispatcher
 
                 // post-list / post-list-all / post-list-all-N（全部 + 可选分页）
                 if ($tail === 'list' || $tail === 'list-all') {
-                    $this->controller = 'goods_list'; $this->action = '_list';
+                    $this->controller = 'goods_list'; $this->action = 'display';
                     $this->pathArgs = $extraQuery;
                     return true;
                 }
                 if (preg_match('/^list-all-(\d+)$/', $tail, $mm)) {
-                    $this->controller = 'goods_list'; $this->action = '_list';
+                    $this->controller = 'goods_list'; $this->action = 'display';
                     $this->pathArgs = ['page' => (int) $mm[1]] + $extraQuery;
                     return true;
                 }
                 // post-list-ID / post-list-ID-N（分类 id + 可选分页）
                 if (preg_match('/^list-(\d+)(?:-(\d+))?$/', $tail, $mm)) {
-                    $this->controller = 'goods_list'; $this->action = '_list';
+                    $this->controller = 'goods_list'; $this->action = 'display';
                     $this->pathArgs = ['category_id' => (int) $mm[1]] + $extraQuery;
                     if (!empty($mm[2])) $this->pathArgs['page'] = (int) $mm[2];
                     return true;
@@ -415,31 +452,31 @@ final class Dispatcher
 
                 // post-N（详情）
                 if (ctype_digit($tail)) {
-                    $this->controller = 'goods'; $this->action = '_detail';
+                    $this->controller = 'goods'; $this->action = $this->detailAction('goods');
                     $this->pathArgs = ['id' => (int) $tail] + $extraQuery;
                     return true;
                 }
                 // post-slug-N（slug + 分页）
                 if (preg_match('/^(.+)-(\d+)$/', $tail, $mm)) {
-                    $this->controller = 'goods_list'; $this->action = '_list';
+                    $this->controller = 'goods_list'; $this->action = 'display';
                     $this->pathArgs = ['slug' => $mm[1], 'page' => (int) $mm[2]] + $extraQuery;
                     return true;
                 }
                 // post-slug
-                $this->controller = 'goods_list'; $this->action = '_list';
+                $this->controller = 'goods_list'; $this->action = 'display';
                 $this->pathArgs = ['slug' => $tail] + $extraQuery;
                 return true;
             }
             // tag-N 或 tag-N-M（带分页）/ search-xxx
             // GoodsTagController 只有 _detail（按 id 列出该标签下商品），故直接派发到 _detail
             if (preg_match('/^tag-(\d+)(?:-(\d+))?$/', $base, $m)) {
-                $this->controller = 'goods_tag'; $this->action = '_detail';
+                $this->controller = 'goods_tag'; $this->action = $this->detailAction('goods_tag');
                 $this->pathArgs = ['id' => (int) $m[1]] + $extraQuery;
                 if (!empty($m[2])) $this->pathArgs['page'] = (int) $m[2];
                 return true;
             }
             if (preg_match('/^search-(.+)$/', $base, $m)) {
-                $this->controller = 'search'; $this->action = '_index';
+                $this->controller = 'search'; $this->action = 'display';
                 $this->pathArgs = ['q' => $m[1]] + $extraQuery;
                 return true;
             }
@@ -453,13 +490,13 @@ final class Dispatcher
 
         // /coupon/（单段静态）
         if ($n === 1 && in_array($first, ['coupon'], true)) {
-            $this->controller = $first; $this->action = '_index';
+            $this->controller = $first; $this->action = 'display';
             $this->pathArgs = $extraQuery;
             return true;
         }
         // /search 或 /search/xxx
         if ($first === 'search') {
-            $this->controller = 'search'; $this->action = '_index';
+            $this->controller = 'search'; $this->action = 'display';
             if ($n >= 2 && $segments[1] !== '') {
                 $this->pathArgs = ['q' => $segments[1]] + $extraQuery;
             } else {
@@ -469,7 +506,7 @@ final class Dispatcher
         }
         // /tag/N 或 /tag/N/M（带分页）
         if ($first === 'tag' && $n >= 2 && ctype_digit($segments[1])) {
-            $this->controller = 'goods_tag'; $this->action = '_detail';
+            $this->controller = 'goods_tag'; $this->action = $this->detailAction('goods_tag');
             $this->pathArgs = ['id' => (int) $segments[1]] + $extraQuery;
             if ($n >= 3 && ctype_digit($segments[2])) {
                 $this->pathArgs['page'] = (int) $segments[2];
@@ -479,7 +516,7 @@ final class Dispatcher
         // /p/{slug} —— 自定义页面（WordPress 式 Pages）
         if ($first === 'p' && $n >= 2 && $segments[1] !== '') {
             $this->controller = 'page';
-            $this->action = '_detail';
+            $this->action = $this->detailAction($this->controller);
             $this->pathArgs = ['slug' => $segments[1]] + $extraQuery;
             return true;
         }
@@ -487,14 +524,14 @@ final class Dispatcher
         // /blog 及 /blog/...
         if ($first === 'blog') {
             if ($n === 1) {
-                $this->controller = 'blog_index'; $this->action = '_index';
+                $this->controller = 'blog_list'; $this->action = 'display';
                 $this->pathArgs = $extraQuery;
                 return true;
             }
             $seg = $segments[1];
             // /blog/list（全部 p1）/ /blog/list/all[/N] / /blog/list/ID[/N]
             if ($seg === 'list') {
-                $this->controller = 'blog_list'; $this->action = '_list';
+                $this->controller = 'blog_list'; $this->action = 'display';
                 $this->pathArgs = $extraQuery;
                 if ($n >= 3) {
                     $third = $segments[2];
@@ -513,13 +550,13 @@ final class Dispatcher
             }
             // /blog/N（详情）
             if (ctype_digit($seg)) {
-                $this->controller = 'blog'; $this->action = '_detail';
+                $this->controller = 'blog'; $this->action = $this->detailAction('blog');
                 $this->pathArgs = ['id' => (int) $seg] + $extraQuery;
                 return true;
             }
             // /blog/c/slug 或 /blog/c/slug/N
             if ($seg === 'c' && isset($segments[2])) {
-                $this->controller = 'blog_list'; $this->action = '_list';
+                $this->controller = 'blog_list'; $this->action = 'display';
                 $this->pathArgs = ['slug' => $segments[2]] + $extraQuery;
                 if ($n >= 4 && ctype_digit($segments[3])) {
                     $this->pathArgs['page'] = (int) $segments[3];
@@ -528,7 +565,7 @@ final class Dispatcher
             }
             // /blog/tag/N 或 /blog/tag/N/M
             if ($seg === 'tag' && isset($segments[2]) && ctype_digit($segments[2])) {
-                $this->controller = 'blog_tag'; $this->action = '_detail';
+                $this->controller = 'blog_tag'; $this->action = $this->detailAction('blog_tag');
                 $this->pathArgs = ['id' => (int) $segments[2]] + $extraQuery;
                 if ($n >= 4 && ctype_digit($segments[3])) {
                     $this->pathArgs['page'] = (int) $segments[3];
@@ -541,14 +578,14 @@ final class Dispatcher
         if (in_array($first, ['post', 'buy'], true)) {
             if ($n === 1) {
                 // 单独 /post/ 视为商城首页 —— 显式 goods_index，避免被 HOMEPAGE_MODE 替换
-                $this->controller = 'goods_index'; $this->action = '_index';
+                $this->controller = 'goods_index'; $this->action = 'display';
                 $this->pathArgs = $extraQuery;
                 return true;
             }
             $seg = $segments[1];
             // /post/list（全部 p1）/ /post/list/all[/N] / /post/list/ID[/N]
             if ($seg === 'list') {
-                $this->controller = 'goods_list'; $this->action = '_list';
+                $this->controller = 'goods_list'; $this->action = 'display';
                 $this->pathArgs = $extraQuery;
                 if ($n >= 3) {
                     $third = $segments[2];
@@ -567,13 +604,13 @@ final class Dispatcher
             }
             // /post/N（详情）
             if (ctype_digit($seg)) {
-                $this->controller = 'goods'; $this->action = '_detail';
+                $this->controller = 'goods'; $this->action = $this->detailAction('goods');
                 $this->pathArgs = ['id' => (int) $seg] + $extraQuery;
                 return true;
             }
             // /post/c/slug 或 /post/c/slug/N
             if ($seg === 'c' && isset($segments[2])) {
-                $this->controller = 'goods_list'; $this->action = '_list';
+                $this->controller = 'goods_list'; $this->action = 'display';
                 $this->pathArgs = ['slug' => $segments[2]] + $extraQuery;
                 if ($n >= 4 && ctype_digit($segments[3])) {
                     $this->pathArgs['page'] = (int) $segments[3];
@@ -614,7 +651,7 @@ final class Dispatcher
             $this->action = $this->sanitize(trim(Input::get('a', self::DEFAULT_ACTION)));
             $this->pathArgs = array_diff_key($_GET, array_flip(['c', 'a']));
         } elseif ($pathinfo !== '' && $pathinfo !== '/') {
-            // pathinfo 模式：/goods_list、/goods/1、/blog_index
+            // pathinfo 模式：/goods_list、/goods/1、/blog_list、/blog/1
             $segments = array_values(array_filter(explode('/', trim($pathinfo, '/')), 'strlen'));
             $this->rawController = !empty($segments[0]) ? $this->sanitize($segments[0]) : self::DEFAULT_CONTROLLER;
             $this->controller = $this->rawController;
@@ -623,7 +660,7 @@ final class Dispatcher
             if (count($segments) >= 2) {
                 // segments[1] 是动作或 ID
                 if (is_numeric($segments[1])) {
-                    $this->action = '_detail';
+                    $this->action = $this->detailAction($this->controller);
                     $this->pathArgs = ['id' => (int) $segments[1]];
                     // segments[2+] 作为额外参数
                     for ($i = 2; $i < count($segments); $i++) {
@@ -639,8 +676,8 @@ final class Dispatcher
                     }
                 }
             } else {
-                // 无第二段：单页控制器 → _index，其他 → _list
-                $this->action = isset(self::INDEX_CONTROLLERS[$this->controller]) ? '_index' : self::DEFAULT_ACTION;
+                // 无第二段：单页控制器 → 该控制器的默认动作名（多数是 _index），其他 → _list
+                $this->action = self::DEFAULT_ACTIONS[$this->controller] ?? self::DEFAULT_ACTION;
             }
         } else {
             // query string 模式：?c=goods_list&a=_list&id=1
@@ -659,13 +696,13 @@ final class Dispatcher
         // 站点根 "/" 的入口替换：按"页面首页 → homepage_mode"两级优先分流
         //   优先级 1（最高）：当前 scope 在 em_page 表里设了 is_homepage=1 的页面 → 走 PageController
         //   优先级 2：settings.homepage_mode（mall / goods_list / blog）
-        //     mall（默认）：保持 controller='index'（IndexController → goods_index 模板）
-        //     blog       ：替换成 blog_index（博客首页）
+        //     mall（默认）：保持 controller='index'（IndexController::display() → index 模板）
+        //     blog       ：替换成 blog_list（文章列表页；原「博客首页」已并入列表页）
         //     goods_list ：替换成 goods_list（商品列表页）
         // 注意：只替换显式 controller='index'（即 "/" 入口）；用户访问 /post/ 等显式路径时
         // 控制器已被 parseRoute 设成 goods_index 等，不会走到这里。
         //
-        // 替换会丢失"是首页"这个语义（替换后 controller 看起来就是 goods_list / blog_index 等），
+        // 替换会丢失"是首页"这个语义（替换后 controller 看起来就是 goods_list / blog_list 等），
         // 模板里"首页"导航的高亮就不知道该不该亮。所以替换前先记录一下原始判断。
         $this->isHomepage = ($this->controller === self::DEFAULT_CONTROLLER);
         if ($this->isHomepage) {
@@ -677,7 +714,7 @@ final class Dispatcher
             if ($homepagePage !== null && !empty($homepagePage['slug'])) {
                 $this->controller = 'page';
                 $this->rawController = 'page';
-                $this->action = '_detail';
+                $this->action = $this->detailAction($this->controller);
                 // PageController::_detail 用 getArg('slug') 解析；pathArgs 兼容 query 模式
                 $this->pathArgs['slug'] = (string) $homepagePage['slug'];
                 $_GET['slug'] = (string) $homepagePage['slug'];
@@ -689,20 +726,20 @@ final class Dispatcher
                 } elseif (HOMEPAGE_MODE === 'goods_list') {
                     $this->controller = 'goods_list';
                     $this->rawController = 'goods_list';
-                    $this->action = '_list';
+                    $this->action = 'display';
                 }
             }
         }
 
-        // 首页/单页控制器默认动作为 _index，列表/详情控制器默认动作为 _list
+        // 默认动作取 DEFAULT_ACTIONS 里登记的名字（多数是 _index，改过名的用 display）
         if ($this->action === self::DEFAULT_ACTION) {
-            $this->action = isset(self::INDEX_CONTROLLERS[$this->controller]) ? '_index' : '_list';
+            $this->action = self::DEFAULT_ACTIONS[$this->controller] ?? self::DEFAULT_ACTION;
         }
 
-        // query string 模式下，如果有 id 参数，自动使用 _detail action
+        // query string 模式下，如果有 id 参数，自动用详情动作（DETAIL_ACTIONS 表）
         // （pathinfo 模式在 parseRoute() 中已处理）
         if (!empty($_GET['id']) && $this->action === '_list') {
-            $this->action = '_detail';
+            $this->action = $this->detailAction($this->controller);
         }
 
         // 校验控制器是否在白名单中，不存在则 404

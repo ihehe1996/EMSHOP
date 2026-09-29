@@ -61,12 +61,7 @@ final class TemplateStorage
     {
         $this->ensureLoaded();
         if (array_key_exists($key, $this->data)) {
-            $val = $this->data[$key];
-            $decoded = json_decode($val, true);
-            if (json_last_error() === JSON_ERROR_NONE && $decoded !== null) {
-                return $decoded;
-            }
-            return $val;
+            return self::decodeValue($this->data[$key]);
         }
         return $default;
     }
@@ -140,14 +135,41 @@ final class TemplateStorage
     }
 
     /**
-     * 批量获取模板配置。
+     * 批量获取本主题（当前 scope）的全部配置。
+     *
+     * 值按 getValue() 的同一规则解码（存 JSON 的会变回数组），
+     * 所以调用方一次拿到就能直接当配置数组用，不必逐个 getValue。
+     * 底层只查一次库（ensureLoaded），重复调用无额外开销。
      *
      * @return array<string, mixed>
      */
     public function getAll(): array
     {
         $this->ensureLoaded();
-        return $this->data;
+
+        $out = [];
+        foreach ($this->data as $key => $val) {
+            $out[$key] = self::decodeValue($val);
+        }
+        return $out;
+    }
+
+    /**
+     * 配置值的解码规则（getValue / getAll 共用）。
+     *
+     * 存进去时数组/对象会被 json_encode，读的时候能解回数组就解回数组，
+     * 否则原样返回字符串。集中在这里，避免两处各写一遍 json_decode 而慢慢走偏。
+     *
+     * @param string $val 库里的原始字符串
+     * @return mixed
+     */
+    private static function decodeValue(string $val)
+    {
+        $decoded = json_decode($val, true);
+        if (json_last_error() === JSON_ERROR_NONE && $decoded !== null) {
+            return $decoded;
+        }
+        return $val;
     }
 
     /**

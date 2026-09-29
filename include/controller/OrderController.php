@@ -6,9 +6,11 @@ declare(strict_types=1);
  * 订单控制器。
  *
  * 方法说明：
- * - create()   AJAX 创建订单（商品详情页直接购买）
- * - pay()      AJAX 支付订单
- * - _detail()  订单详情/结果页
+ * - create()  AJAX 创建订单（商品详情页直接购买）
+ *
+ * 前台不再提供「订单详情」页面：订单详情统一走页面脚本 /user/order_detail.php
+ * （登录用户）与 /user/find_order.php（游客查单），核心 JS、支付插件、支付回调都指向它们。
+ * 原先 ?c=order 下的订单结果页（order_result 模板）全站没有任何入口，已连同动作一起删除。
  */
 class OrderController extends BaseController
 {
@@ -239,46 +241,6 @@ class OrderController extends BaseController
         } catch (RuntimeException $e) {
             Response::error($e->getMessage());
         }
-    }
-
-    /**
-     * 订单结果页（默认页面）。
-     */
-    public function _index(): void
-    {
-        $orderNo = (string) Input::get('order_no', '');
-
-        $order = null;
-        $orderGoods = [];
-
-        if ($orderNo !== '') {
-            $order = OrderModel::getByOrderNo($orderNo);
-
-            // 权限校验：只能查看自己的订单
-            if ($order) {
-                $identity = $this->getIdentity();
-                $isOwner = false;
-
-                if ($identity['user_id'] > 0 && (int) $order['user_id'] === $identity['user_id']) {
-                    $isOwner = true;
-                } elseif ($identity['user_id'] === 0 && $order['guest_token'] === $identity['guest_token']) {
-                    $isOwner = true;
-                }
-
-                if (!$isOwner) {
-                    $order = null;
-                } else {
-                    $orderGoods = OrderModel::getOrderGoods((int) $order['id']);
-                }
-            }
-        }
-
-        $this->view->setTitle($order ? '订单详情' : '订单不存在');
-        $this->view->setData([
-            'order'       => $order,
-            'order_goods' => $orderGoods,
-        ]);
-        $this->view->render('order_result');
     }
 
     /**

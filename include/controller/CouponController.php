@@ -6,10 +6,20 @@ declare(strict_types=1);
  * 前台优惠券控制器。
  *
  * 路由：
- *   _index()  领券中心 → coupon.php 模板
+ *   display() 领券中心 → coupon.php 模板
  *   receive() AJAX 领取（登录用户）
  *   check()   AJAX 校验券码 + 返回折扣预估（供下单页）
  *   mine()    AJAX 获取当前用户的可用券列表（下单页"选择"弹窗用）
+ *
+ * 与商品 / 文章 / 搜索侧同一套约定：页面动作**不取数**，数据由 coupon.php 开头调
+ * module.php 的 template_coupon_data() 取，页面标题也归 module.php。
+ * 控制器只留下「功能是否开启」这个必须在任何输出之前完成的守卫（未开启直接 404）。
+ *
+ * 动作名不叫 `_index`，入口登记在 Dispatcher::DEFAULT_ACTIONS（'coupon' → display），
+ * pretty 路由（/coupon.html、/coupon/）也各自写死这个动作名。
+ *
+ * receive / check / mine 是 AJAX 接口（返回 JSON、不渲染模板），其中的入参校验与
+ * 业务调用属于控制器本职，保持原样。
  */
 class CouponController extends BaseController
 {
@@ -29,38 +39,20 @@ class CouponController extends BaseController
 
     /**
      * 领券中心（前台页面）。
+     *
+     * 券列表与领取状态由 coupon.php 自己取（module.php 的 template_coupon_data()）。
+     * 标题固定，就放在守卫之后由控制器设——不能放 module.php：功能未开启时走的是
+     * render404()，module.php 会把「页面不存在」覆盖掉。
      */
-    public function _index(): void
+    public function display(): void
     {
+        // 「功能没开就不给进」必须在任何输出之前判断，所以留在控制器
         if (!shop_coupon_enabled()) {
             $this->dispatcher->render404('优惠券功能未启用');
             return;
         }
 
         $this->view->setTitle('领券中心');
-
-        $couponModel = new CouponModel();
-        $coupons = $couponModel->getPubliclyClaimable(100);
-
-        $identity = $this->getIdentity();
-        $isLoggedIn = $identity['user_id'] > 0;
-
-        // 已登录：查出哪些券已领取，用于按钮状态
-        $claimedIds = [];
-        if ($isLoggedIn) {
-            $prefix = Database::prefix();
-            $rows = Database::query(
-                "SELECT coupon_id FROM {$prefix}user_coupon WHERE user_id = ?",
-                [$identity['user_id']]
-            );
-            $claimedIds = array_map(fn($r) => (int) $r['coupon_id'], $rows);
-        }
-
-        $this->view->setData([
-            'coupons'       => $coupons,
-            'is_logged_in'  => $isLoggedIn,
-            'claimed_ids'   => $claimedIds,
-        ]);
         $this->view->render('coupon');
     }
 

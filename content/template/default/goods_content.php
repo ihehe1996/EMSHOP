@@ -1,9 +1,32 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
+
+/**
+ * 商品详情页。
+ *
+ * 数据由 module.php 的 template_goods_content_data() 取好——商品行由控制器为
+ * 「这一页能不能打开」的判断（跳转 / 下架 / 售罄）查过一次，通过 $goods_row 传下来复用，
+ * 不再重复查库。本模板只有渲染。
+ */
+$_d = template_goods_content_data(is_array($goods_row ?? null) ? $goods_row : null);
+
+// 与改造前同名的变量，下面正文一个字都不用改
+$goods              = $_d['goods'];
+$specs              = $_d['specs'];
+$spec_dims          = $_d['spec_dims'];
+$specs_json         = $_d['specs_json'];
+$payment_methods    = $_d['payment_methods'];
+$form_sections      = $_d['form_sections'];
+$needs_address      = $_d['needs_address'];
+$user_addresses     = $_d['user_addresses'];
+$default_address_id = $_d['default_address_id'];
+// $unavailable_reason 由控制器（守卫判断）直接 setData 下来，不经过数据方法
+
+// 商品卡片上的展示开关
 $_shopDispStock = (string) Config::get('shop_display_stock', '1') !== '0';
 $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
 ?>
-<!-- 商品详情 · GoodsController::_detail() -->
+<!-- 商品详情（GoodsController::displayContent） -->
 <div class="page-body">
 
     <!-- 面包屑 -->
@@ -188,7 +211,7 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                 </div>
 
                 <?php
-                // 表单字段（附加选项 + 查单模式）由控制器 buildDetailFormSections() 统一组装。
+                // 表单字段（附加选项 + 查单模式）由 module.php 的 template_goods_form_sections() 统一组装。
                 // 顺序：附加选项 → 查单模式；查单模式仅未登录用户可见。
                 //
                 // 字段描述字段名：name / id / label / type / placeholder / required / maxlength / hidden
@@ -354,14 +377,16 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
     </div>
     <?php endif; ?>
 
-    <!-- 游客查单组件 + 商品详情 JS -->
-    <script src="<?= htmlspecialchars(theme_asset_url('guest_find.js', 'default')) ?>"></script>
+    <!-- 核心：游客查单组件 + 下单/券接口（所有主题共用，必须在本主题 main.js 之前加载） -->
+    <script src="/content/static/js/guest_find.js"></script>
     <?php if (!empty($needs_address)): ?>
     <!-- 收货地址选择（立即购买时弹层用）：cascade 库 + 样式 -->
     <link rel="stylesheet" href="/content/static/lib/cityAreaSelect/dist/css/cityAreaSelect.css">
     <script src="/content/static/lib/cityAreaSelect/dist/js/cityAreaSelect.min.js"></script>
     <?php endif; ?>
-    <script src="<?= htmlspecialchars(theme_asset_url('goods.js', 'default')) ?>"></script>
+    <script src="/content/static/js/goods_order.js"></script>
+    <!-- 本主题的界面逻辑 -->
+    <script src="<?= htmlspecialchars(theme_asset_url('main.js', 'default')) ?>"></script>
     <script>
     // PJAX 导航时，jQuery 对外部 <script src> 走异步加载，而内联 <script> 会立即执行；
     // 会出现 GoodsDetail 还未定义就调用 init 的情况。用轮询等依赖就绪再启动。

@@ -134,7 +134,7 @@ final class MerchantContext
      *   - 商户上下文：owner_id = 0（主站引用）或 owner_id = 当前商户主用户 id（本店自建）可见
      *     —— 商户不能越权访问别家商户的自建商品
      *
-     * 用于 GoodsController::_detail / OrderController 的下单校验等，
+     * 用于 GoodsController::displayContent / OrderController 的下单校验等，
      * 避免"漏到主站前台"或"跨商户越权下单"。
      *
      * @param array<string, mixed> $goods em_goods 行（至少含 owner_id 字段）

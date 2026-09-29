@@ -1,7 +1,13 @@
 /**
- * 商品详情页 JS（test 模板）。
+ * 商品详情页 JS（default 主题，主题目录下唯一的 JS）。
  *
- * 依赖：jQuery、layui.layer、Viewer.js、guest_find.js（游客查单模式）
+ * 只放**主题自己的界面逻辑**：规格选择、价格渲染、数量、图片查看器、选项卡、
+ * 券弹层与地址弹层、按钮态与提示文案。与后端接口绑定、所有主题共用的部分在核心：
+ *   - /content/static/js/guest_find.js   游客查单组件（GuestFind）
+ *   - /content/static/js/goods_order.js  下单 / 券接口（GoodsOrder）
+ *
+ * 依赖：jQuery、layui.layer、Viewer.js、GuestFind、GoodsOrder
+ * （后两个必须在 main.js 之前加载，见 goods_content.php 的 script 顺序）
  *
  * 使用方式：
  *   GoodsDetail.init({
@@ -465,9 +471,7 @@ var GoodsDetail = (function () {
         });
 
         $(document).on('click.goodsDetail', '#detailCouponChooseBtn', function () {
-            $.get('?c=coupon&a=mine', function (res) {
-                if (res.code !== 200) { layer.msg(res.msg || '获取失败'); return; }
-                var list = (res.data && res.data.coupons) || [];
+            GoodsOrder.myCoupons(function (list) {
                 if (!list.length) { layer.msg('您暂无可用优惠券'); return; }
                 var html = '<div class="detail-coupon-picker">';
                 // 券面额 / 门槛按访客币种展示（主货币值 × rate）
@@ -503,7 +507,9 @@ var GoodsDetail = (function () {
                         });
                     }
                 });
-            }, 'json');
+            }, function (res) {
+                layer.msg(res.msg || '获取失败');
+            });
         });
 
         // applyDetailCoupon 赋值给模块顶层符号，renderCurrentPrice 里 revalidateCouponIfNeeded 能调到
@@ -518,12 +524,26 @@ var GoodsDetail = (function () {
             // 是不是"revalidate"调用（数量变化后重校验，失败时自动回退而不是弹 toast 吓用户）
             var isRevalidate = detailCouponState.applied && detailCouponState.code === code;
 
-            $.post('?c=coupon&a=check', {
+            GoodsOrder.checkCoupon({
                 code: code,
                 goods_amount: goodsAmount,
                 goods_items: JSON.stringify([{ goods_id: gid }])
+            }, function (data) {
+                var d = parseFloat(data.discount) || 0;
+                detailCouponState = { applied: true, code: code };
+                $('#detailCouponInput').prop('readonly', true);
+                $('#detailCouponApplyBtn').text('更换')
+                    .removeClass('detail-coupon-btn--primary').addClass('detail-coupon-btn--ghost');
+                // discount (d) 是主货币值（服务端按主货币返回），显示时按访客币种展示
+                var _cur = (window.EMSHOP_CURRENCY || { symbol: '¥', rate: 1 });
+                $('#detailCouponApplied')
+                    .find('.detail-coupon-applied-name').text(data.coupon.title).end()
+                    .find('.detail-coupon-applied-saved').text('已优惠 ' + _cur.symbol + (d * _cur.rate).toFixed(2)).end()
+                    .show();
+                if (!isRevalidate) layer.msg('优惠券已应用');
             }, function (res) {
-                if (res.code !== 200) {
+                // 接口答了但券不可用（code !== 200）与网络错误要分开：只有前者才自动回退
+                if (res && res.code) {
                     if (isRevalidate) {
                         // 数量变少导致门槛不够 → 自动取消已应用券，让用户重新选
                         detailCouponState = { applied: false, code: '' };
@@ -535,21 +555,10 @@ var GoodsDetail = (function () {
                     } else {
                         layer.msg(res.msg || '优惠券不可用');
                     }
-                    return;
+                } else {
+                    layer.msg('网络异常');
                 }
-                var d = parseFloat(res.data.discount) || 0;
-                detailCouponState = { applied: true, code: code };
-                $('#detailCouponInput').prop('readonly', true);
-                $('#detailCouponApplyBtn').text('更换')
-                    .removeClass('detail-coupon-btn--primary').addClass('detail-coupon-btn--ghost');
-                // discount (d) 是主货币值（服务端按主货币返回），显示时按访客币种展示
-                var _cur = (window.EMSHOP_CURRENCY || { symbol: '¥', rate: 1 });
-                $('#detailCouponApplied')
-                    .find('.detail-coupon-applied-name').text(res.data.coupon.title).end()
-                    .find('.detail-coupon-applied-saved').text('已优惠 ' + _cur.symbol + (d * _cur.rate).toFixed(2)).end()
-                    .show();
-                if (!isRevalidate) layer.msg('优惠券已应用');
-            }, 'json').fail(function () { layer.msg('网络异常'); });
+            });
         };
 
         }
@@ -582,28 +591,20 @@ var GoodsDetail = (function () {
         });
 
         // —— 提交订单：统一出口（不需地址的商品 & 需地址的商品最终都经由此） ——
+        // 请求与「成功后去哪」在 GoodsOrder.create（核心）；按钮态与提示是主题的事
         function submitOrder(postData, $btn) {
             var origHtml = $btn.html();
             $btn.addClass('is-loading').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 提交中...');
-            $.post('?c=order&a=create', postData, function (res) {
-                $btn.removeClass('is-loading').prop('disabled', false).html(origHtml);
-                if (res.code === 200) {
-                    var orderDetailUrl = '/user/order_detail.php?order_no=' + encodeURIComponent(res.data.order_no || '');
-                    var guestFindUrl = '/user/find_order.php';
-                    if (res.data.paid) {
-                        layer.msg('支付成功');
-                        location.href = opts.isGuest ? guestFindUrl : orderDetailUrl;
-                    } else if (res.data.pay_url) {
-                        location.href = res.data.pay_url;
-                    } else {
-                        location.href = opts.isGuest ? guestFindUrl : orderDetailUrl;
-                    }
-                } else {
+            GoodsOrder.create(postData, { isGuest: !!opts.isGuest }, {
+                onFinish: function () {
+                    $btn.removeClass('is-loading').prop('disabled', false).html(origHtml);
+                },
+                onPaid: function () {
+                    layer.msg('支付成功');
+                },
+                onError: function (res) {
                     layer.msg(res.msg || '下单失败');
                 }
-            }, 'json').fail(function () {
-                $btn.removeClass('is-loading').prop('disabled', false).html(origHtml);
-                layer.msg('网络异常');
             });
         }
 
