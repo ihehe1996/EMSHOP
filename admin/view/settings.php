@@ -541,13 +541,6 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             <div class="layui-form-mid layui-word-aux">首页 &lt;title&gt; 显示内容；列表/详情页会附加当前页面名称</div>
                         </div>
                         <div class="layui-form-item">
-                            <label class="layui-form-label">站点关键词</label>
-                            <div class="layui-input-block">
-                                <?php echo formInput('seo_keywords', $cfg['seo_keywords'] ?? '', '用英文逗号分隔，如：卡密,自动发货,虚拟商品'); ?>
-                            </div>
-                            <div class="layui-form-mid layui-word-aux">写入所有页面的 &lt;meta name="keywords"&gt;</div>
-                        </div>
-                        <div class="layui-form-item">
                             <label class="layui-form-label">站点描述</label>
                             <div class="layui-input-block">
                                 <?php echo formTextarea('seo_description', $cfg['seo_description'] ?? '', '用于 <meta name="description">，建议 70-150 字'); ?>

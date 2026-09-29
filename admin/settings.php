@@ -90,7 +90,7 @@ if (Request::isPost()) {
                 Config::set('url_format', $format);
                 $saved++;
 
-                foreach (['seo_title', 'seo_keywords', 'seo_description'] as $field) {
+                foreach (['seo_title', 'seo_description'] as $field) {
                     Config::set($field, trim((string) Input::post($field, '')));
                     $saved++;
                 }
