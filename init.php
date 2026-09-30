@@ -30,8 +30,8 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true);
-define('EM_VERSION', '1.3.21');
-define('EM_VERSION_TIMESTAMP', '1321');
+define('EM_VERSION', '1.3.22');
+define('EM_VERSION_TIMESTAMP', '1322');
 
 // 授权服务器地址（唯一线路，固定内置）。
 // 刻意写在这里而不是 config.php：config.php 是用户的站点配置，程序在线更新不会覆盖它，
