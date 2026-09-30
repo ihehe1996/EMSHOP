@@ -204,8 +204,7 @@ class OrderController extends BaseController
             if ($in1) $createData['inviter_l1'] = $in1;
             if ($in2) $createData['inviter_l2'] = $in2;
 
-            // 详情页只有 1 个商品，StockShortageException::getMessage() 返回的简短消息即可，
-            // 无需拼商品名。其他 RuntimeException 由外层 catch 统一响应。
+            // create() 抛出的 RuntimeException 由外层 catch 统一响应
             $result = OrderModel::create($createData, [
                 ['goods_id' => $goodsId, 'spec_id' => $specId, 'quantity' => $quantity],
             ]);

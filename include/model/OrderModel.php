@@ -156,38 +156,7 @@ class OrderModel
                     throw new RuntimeException('购买数量不能超过 ' . $maxBuy);
                 }
 
-                // 库存：**下单即扣减**，用「条件 UPDATE + 受影响行数」原子完成。
-                //
-                // 此前是「先读库存再比较」，属于 check-then-write 竞态：并发下单会同时
-                // 读到同一个库存值、同时通过校验，等到发货阶段才发现超卖 —— 那时买家
-                // 已经付了钱。改成条件扣减后，库存不足的那一次会在这里就失败。
-                //
-                // stock < 0 表示不限库存（后台可设 -1），这类规格不做扣减与校验。
-                // 扣减发生在本方法的事务内，后续任何一步失败都会随之回滚；
-                // 订单转入未成交终态（expired/cancelled/failed）时由 changeStatus 回补，
-                // 见 releaseOrderReservations()。
-                if ($specId > 0) {
-                    $stockRaw = (int) ($spec['stock'] ?? -1);
-                    if ($stockRaw >= 0) {
-                        $affected = Database::execute(
-                            'UPDATE `' . Database::prefix() . 'goods_spec`
-                                SET `stock` = `stock` - ?
-                              WHERE `id` = ? AND `stock` >= ?',
-                            [$quantity, $specId, $quantity]
-                        );
-                        if ($affected !== 1) {
-                            // 重新读一次拿到「此刻」的剩余量用于提示（并发下刚被人抢走）
-                            $left = Database::fetchOne(
-                                'SELECT `stock` FROM `' . Database::prefix() . 'goods_spec` WHERE `id` = ?',
-                                [$specId]
-                            );
-                            throw new StockShortageException(
-                                (string) $goods['title'],
-                                max(0, (int) ($left['stock'] ?? 0))
-                            );
-                        }
-                    }
-                }
+                // 库存不在这里扣 —— 付款成功时由 changeStatus() 统一扣减，见 deductOrderStock()。
 
                 // 商品类型插件必须已启用，否则下单后续环节（order_submit 校验、
                 // order_paid 发货、needs_address 判断等）的钩子都接不上，订单会卡成半残。
@@ -573,42 +542,19 @@ class OrderModel
         // 主站订单走 RebateService
         // 失败不影响主状态流转，仅吞掉异常
         if ($ok) {
-            // 未成交终态：把下单时占用的资源还回去（规格库存 / 已核销的优惠券）。
+            // 付款减库存：订单转入 paid 时就地扣减规格库存。
             //
             // 放在这里而不是各个调用方，是因为 changeStatus 是订单状态变更的唯一入口 ——
-            // 超时关闭、后台取消、API 下单失败等路径都会经过，不会漏。
-            // refunded 刻意不在列表内：那表示货已发出后退款，库存是真实消耗。
-            if (in_array($newStatus, ['expired', 'cancelled', 'failed'], true)) {
-                try {
-                    self::releaseOrderReservations($orderId);
-                } catch (Throwable $e) {
-                    self::writeSystemLog(
-                        'warning',
-                        '订单资源回滚失败',
-                        '库存或优惠券回滚失败，需人工核对',
-                        [
-                            'order_id' => $orderId,
-                            'target_status' => $newStatus,
-                            'error' => $e->getMessage(),
-                        ]
-                    );
-                }
+            // 余额支付、0 元下单、各支付插件回调、后台手工补单都会经过，不会漏。
+            // 未付款的订单自始至终不占库存，所以不需要「回补」逻辑。
+            if ($newStatus === 'paid') {
+                self::deductOrderStock($orderId);
             }
 
-            // 管理员补单（expired → paid）：库存已随过期回补，这里要重新占用，
-            // 否则这单不占库存，可能与后续订单重复卖出同一件货。
-            // 另外优惠券**不**重新核销 —— 它可能已被用户用在别的订单上。
-            if ($currentStatus === 'expired' && $newStatus === 'paid') {
-                try {
-                    self::reserveOrderStock($orderId);
-                } catch (Throwable $e) {
-                    self::writeSystemLog(
-                        'warning',
-                        '补单时重新占用库存失败',
-                        '订单已补为已支付，但库存未能重新占用，请核对',
-                        ['order_id' => $orderId, 'error' => $e->getMessage()]
-                    );
-                }
+            // 未成交终态：退回该单核销掉的优惠券（库存没扣过，不用管）。
+            // refunded 刻意不在列表内：那表示货已发出后退款，券是真实消耗。
+            if (in_array($newStatus, ['expired', 'cancelled', 'failed'], true)) {
+                self::releaseOrderCoupons($orderId);
             }
 
             $merchantId = (int) ($order['merchant_id'] ?? 0);
@@ -848,61 +794,18 @@ class OrderModel
     }
 
     /**
-     * 把超时未支付的订单流转为 expired。
+     * 付款时扣减订单商品占用的规格库存。
      *
-     * 原先只在 CLI 的 queue worker 里每 60 秒跑一次；现在抽成本方法，
-     * 队列 worker 与将来的其它调度方都能调，业务规则本身不依赖常驻进程。
+     * 由 changeStatus() 在订单转入 paid 时调用。未付款的订单自始至终不占库存，
+     * 所以不需要「回补」；已付款的订单也不会回到未成交状态，扣一次就是一次。
      *
-     * @return int 本次过期的订单数
+     * stock < 0 表示不限库存（后台可设 -1），这类规格不参与扣减。
+     * 付款时库存已不够的（下单后到付款前被别人买光）记一条告警日志，不阻断支付 ——
+     * 网关回调里抛异常会让回调一直失败重试，而钱那时候已经收了。
      */
-    /**
-     * 把订单在下单时占用的资源还回去：规格库存 + 已核销的优惠券。
-     *
-     * 只在订单进入「未成交」终态（expired / cancelled / failed）时调用。
-     * **refunded 不在此列** —— 那表示货已发出后退款，库存是真实消耗掉的，退回来会造成虚库存。
-     *
-     * 调用约束（很重要）：
-     *   - 只对**未成交终态**（expired / cancelled / failed）生效；订单处于其他状态时
-     *     本方法直接返回，不做任何回滚 —— 否则对一张已支付/已完成的订单调用它
-     *     会凭空虚增库存。
-     *   - 状态机保证「进入未成交终态」每单只发生一次（expired 无法回到 expired，
-     *     expired→paid 之后的 paid 也无路径再回 expired），因此正常流程里只会执行一遍。
-     *     不要在同一个终态上重复调用。
-     *
-     * 库存只回补 `stock >= 0` 的规格（负数表示不限库存，当初没扣过）；
-     * 券只退回 `status='used'` 且 order_id 指向本单的行。
-     */
-    public static function releaseOrderReservations(int $orderId): void
-    {
-        self::tables();
-
-        $row = Database::fetchOne(
-            'SELECT `status` FROM `' . Database::prefix() . 'order` WHERE `id` = ?',
-            [$orderId]
-        );
-        if ($row === null || !in_array((string) $row['status'], ['expired', 'cancelled', 'failed'], true)) {
-            return;
-        }
-
-        // 包一个事务：库存回补与优惠券退回要么都成功、要么都不做，
-        // 避免出现「库存加了但券没退」这种需要人工对账的中间态。
-        Database::begin();
-        try {
-            self::doReleaseOrderReservations($orderId);
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * releaseOrderReservations() 的实际动作（调用方负责事务边界）。
-     */
-    private static function doReleaseOrderReservations(int $orderId): void
+    private static function deductOrderStock(int $orderId): void
     {
         $prefix = Database::prefix();
-
         $items = Database::query(
             "SELECT `spec_id`, `goods_id`, `quantity` FROM {$prefix}order_goods WHERE `order_id` = ?",
             [$orderId]
@@ -919,12 +822,20 @@ class OrderModel
 
             $affected = Database::execute(
                 "UPDATE {$prefix}goods_spec
-                    SET `stock` = `stock` + ?
-                  WHERE `id` = ? AND `stock` >= 0",
-                [$qty, $specId]
+                    SET `stock` = `stock` - ?
+                  WHERE `id` = ? AND `stock` >= ?",
+                [$qty, $specId, $qty]
             );
+
             if ($affected > 0) {
                 $touchedGoods[(int) ($it['goods_id'] ?? 0)] = true;
+            } else {
+                self::writeSystemLog(
+                    'warning',
+                    '付款时库存不足',
+                    '订单已支付但规格库存不足以扣减，请核对库存',
+                    ['order_id' => $orderId, 'spec_id' => $specId, 'quantity' => $qty]
+                );
             }
         }
 
@@ -934,6 +845,18 @@ class OrderModel
                 GoodsModel::updatePriceStockCache($gid);
             }
         }
+    }
+
+    /**
+     * 退回未成交订单核销掉的优惠券。
+     *
+     * 只在订单进入「未成交」终态（expired / cancelled / failed）时调用；
+     * refunded 不在此列 —— 那表示货已发出后退款，券是真实消耗。
+     * 库存不在这里处理：库存在付款时才扣，未付款的订单从没占过。
+     */
+    private static function releaseOrderCoupons(int $orderId): void
+    {
+        $prefix = Database::prefix();
 
         $released = Database::execute(
             "UPDATE {$prefix}user_coupon
@@ -943,7 +866,7 @@ class OrderModel
         );
 
         if ($released > 0) {
-            self::writeSystemLog('info', '订单资源回滚', '订单未成交，已退回核销的优惠券', [
+            self::writeSystemLog('info', '优惠券退回', '订单未成交，已退回核销的优惠券', [
                 'order_id' => $orderId,
                 'coupons'  => $released,
             ]);
@@ -951,47 +874,13 @@ class OrderModel
     }
 
     /**
-     * 重新占用订单的规格库存（管理员补单场景）。
+     * 把超时未支付的订单流转为 expired。
      *
-     * 订单过期时库存已被 releaseOrderReservations() 回补；若管理员随后把订单手工补成
-     * 已支付（expired → paid），必须重新占用，否则这单不占库存，可能与后续订单重复卖出。
+     * 原先只在 CLI 的 queue worker 里每 60 秒跑一次；现在抽成本方法，
+     * 队列 worker 与将来的其它调度方都能调，业务规则本身不依赖常驻进程。
      *
-     * 这里**尽力而为**而不是硬失败：补单是管理员的强制操作，不应因为库存不足就拦下来。
-     * 扣不足时记一条告警日志，由人工核对。
+     * @return int 本次过期的订单数
      */
-    private static function reserveOrderStock(int $orderId): void
-    {
-        $prefix = Database::prefix();
-        $items = Database::query(
-            "SELECT `spec_id`, `quantity` FROM {$prefix}order_goods WHERE `order_id` = ?",
-            [$orderId]
-        );
-
-        foreach ($items as $it) {
-            $specId = (int) ($it['spec_id'] ?? 0);
-            $qty    = (int) ($it['quantity'] ?? 0);
-            if ($specId <= 0 || $qty <= 0) {
-                continue;
-            }
-
-            $affected = Database::execute(
-                "UPDATE {$prefix}goods_spec
-                    SET `stock` = `stock` - ?
-                  WHERE `id` = ? AND `stock` >= ?",
-                [$qty, $specId, $qty]
-            );
-
-            if ($affected !== 1) {
-                self::writeSystemLog(
-                    'warning',
-                    '补单时库存不足',
-                    '管理员补单但库存不足以重新占用，已按强制补单处理，请核对库存',
-                    ['order_id' => $orderId, 'spec_id' => $specId, 'quantity' => $qty]
-                );
-            }
-        }
-    }
-
     public static function expirePendingOrders(): int
     {
         self::tables();
@@ -1018,9 +907,8 @@ class OrderModel
 
         // 逐单走状态机，而不是一条批量 UPDATE。
         //
-        // 批量 UPDATE 会绕过 changeStatus 的全部后置处理 —— 其中最关键的是
-        // releaseOrderReservations()（回补库存、退回优惠券）。少了它，每笔超时订单
-        // 占用的库存就永久留在那里，商品会被逐渐「扣光」而实际无人购买。
+        // 批量 UPDATE 会绕过 changeStatus 的后置处理 —— 最要紧的是退回优惠券
+        // （releaseOrderCoupons），少了它，买家核销掉的券就随着超时订单一去不返。
         $expired = 0;
         foreach ($rows as $r) {
             try {
