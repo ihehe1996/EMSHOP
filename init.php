@@ -29,7 +29,7 @@ if (ob_get_level() === 0) {
 if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
-define('EM_INITIALIZED', true);
+define('EM_INITIALIZED', true); 
 define('EM_VERSION', '1.3.22');
 define('EM_VERSION_TIMESTAMP', '1322');
 
