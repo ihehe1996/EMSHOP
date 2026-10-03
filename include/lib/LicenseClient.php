@@ -542,7 +542,12 @@ final class LicenseClient
             curl_close($ch);
 
             if ($resp === false) {
-                $lastError = '当前使用线路请求失败，请切换其他线路后重试，错误信息：' . $err;
+                if($err == 'Recv failure: Connection was reset'){
+                    $lastError = '请求失败，服务端线路被墙，请重试~';
+                }else{
+                    $lastError = '当前使用线路请求失败，请切换其他线路后重试，错误信息：' . $err;
+                }
+                
                 continue;
             }
 

@@ -119,12 +119,56 @@ if (!defined('EM_ROOT')) {
 .plugin-card__price { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:7px; padding:6px 9px; }
 .plugin-card__price i { font-size:11px; }
 
-/* ===== 空状态 ===== */
-.plugin-empty { text-align: center; padding: 80px 20px; }
-.plugin-empty__icon { width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(129, 140, 248, 0.05)); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px; color: #a5b4fc; }
-.plugin-empty__text { font-size: 16px; font-weight: 600; color: #374151; margin-bottom: 8px; }
-.plugin-empty__sub { font-size: 13px; color: #9ca3af; margin-bottom: 24px; }
+/* ===== 空状态：与插件卡片同款白卡，浮在灰底画布上 ===== */
+.plugin-empty { display: flex; justify-content: center; padding: 32px 20px 72px; }
+.plugin-empty__panel {
+    width: 100%;
+    max-width: 460px;
+    padding: 40px 32px 36px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #e8e8ec;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    animation: pluginEmptyIn .26s ease-out both;
+}
+@keyframes pluginEmptyIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* 插画：渐变圆角块 + 光晕 + 装饰点 */
+.plugin-empty__art { position: relative; width: 96px; height: 96px; margin: 0 auto 22px; }
+.plugin-empty__art-ring { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 42%, rgba(99, 102, 241, 0.16), rgba(99, 102, 241, 0) 70%); }
+.plugin-empty__art-core {
+    position: absolute; left: 50%; top: 50%;
+    width: 64px; height: 64px; margin: -32px 0 0 -32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    color: #fff; font-size: 26px;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.28);
+}
+.plugin-empty__dot { position: absolute; border-radius: 50%; background: #c7d2fe; }
+.plugin-empty__dot--1 { width: 9px; height: 9px; left: 0; top: 30px; }
+.plugin-empty__dot--2 { width: 6px; height: 6px; right: 4px; top: 12px; opacity: .75; }
+.plugin-empty__dot--3 { width: 11px; height: 11px; right: 10px; bottom: 4px; opacity: .5; }
+
+.plugin-empty__text { font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 8px; }
+.plugin-empty__sub { font-size: 13px; color: #9ca3af; line-height: 1.7; margin-bottom: 26px; }
 .plugin-empty__sub code { background: #f5f5f7; padding: 2px 8px; border-radius: 5px; font-family: 'Courier New', monospace; font-size: 12px; color: #4f46e5; }
+
+/* 空状态操作按钮 */
+.plugin-empty__actions { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.plugin-empty__btn {
+    height: 36px; padding: 0 18px;
+    border: none; border-radius: 8px;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.plugin-empty__btn--primary { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25); }
+.plugin-empty__btn--primary:hover { background: linear-gradient(135deg, #4338ca, #4f46e5); }
+.plugin-empty__btn--ghost { background: #fff; border: 1px solid #e5e7eb; color: #4b5563; }
+.plugin-empty__btn--ghost:hover { background: #f8f9ff; border-color: #c7d2fe; color: #4f46e5; }
 </style>
 
 <div class="admin-page admin-page-plugin">
@@ -164,11 +208,23 @@ if (!defined('EM_ROOT')) {
     <!-- 插件卡片网格 -->
     <div class="plugin-grid" id="pluginGrid" style="display:none;"></div>
 
-    <!-- 空状态 -->
+    <!-- 空状态：主站无插件 / 分站未上架两套文案，由 setEmptyState() 切换 -->
     <div class="plugin-empty" id="pluginEmpty" style="display:none;">
-        <div class="plugin-empty__icon"><i class="fa fa-puzzle-piece"></i></div>
-        <div class="plugin-empty__text">暂未检测到任何插件</div>
-        <div class="plugin-empty__sub">请将插件包解压后放入 <code>content/plugin/</code> 目录</div>
+        <div class="plugin-empty__panel">
+            <div class="plugin-empty__art">
+                <span class="plugin-empty__art-ring"></span>
+                <span class="plugin-empty__art-core"><i class="fa fa-puzzle-piece"></i></span>
+                <span class="plugin-empty__dot plugin-empty__dot--1"></span>
+                <span class="plugin-empty__dot plugin-empty__dot--2"></span>
+                <span class="plugin-empty__dot plugin-empty__dot--3"></span>
+            </div>
+            <div class="plugin-empty__text">暂未安装任何插件</div>
+            <div class="plugin-empty__sub">请将插件包解压后放入 <code>content/plugin/</code> 目录</div>
+            <div class="plugin-empty__actions">
+                <button type="button" class="plugin-empty__btn plugin-empty__btn--primary" id="pluginEmptyAppstoreBtn"><i class="fa fa-shopping-basket"></i> 去应用商店安装</button>
+                <button type="button" class="plugin-empty__btn plugin-empty__btn--ghost" id="pluginEmptyRefreshBtn"><i class="fa fa-refresh"></i> 刷新页面</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -224,6 +280,20 @@ layui.use(function(){
         renderStats();
     }
 
+    // ===== 空状态文案：主站「无插件」/ 分站「未上架」两套 =====
+    function setEmptyState(variant) {
+        var $empty = $('#pluginEmpty');
+        var isMerchant = variant === 'merchant';
+        $empty.find('.plugin-empty__art-core i').attr('class', isMerchant ? 'fa fa-cubes' : 'fa fa-puzzle-piece');
+        $empty.find('.plugin-empty__text').text(isMerchant ? '暂未上架分站插件' : '暂未安装任何插件');
+        $empty.find('.plugin-empty__sub').html(isMerchant
+            ? '请先前往 <code>应用商店 · 分站货架</code> 采购并上架插件'
+            : '请前往 <code>应用商店</code> 安装插件');
+        $empty.find('#pluginEmptyAppstoreBtn').html(isMerchant
+            ? '<i class="fa fa-shopping-basket"></i> 前往分站货架采购'
+            : '<i class="fa fa-shopping-basket"></i> 去应用商店安装');
+    }
+
     // ===== 渲染插件卡片 =====
     function renderPlugins(plugins) {
         var $grid = $('#pluginGrid');
@@ -236,13 +306,7 @@ layui.use(function(){
         var filtered = filterPlugins(plugins);
         if (filtered.length === 0) {
             $grid.hide();
-            if (currentFilter === 'merchant') {
-                $empty.find('.plugin-empty__text').text('暂未上架分站插件');
-                $empty.find('.plugin-empty__sub').html('请先前往 <code>应用商店 · 分站货架</code> 采购上架插件');
-            } else {
-                $empty.find('.plugin-empty__text').text('暂未检测到任何插件');
-                $empty.find('.plugin-empty__sub').html('请将插件包解压后放入 <code>content/plugin/</code> 目录');
-            }
+            setEmptyState(currentFilter === 'merchant' ? 'merchant' : 'main');
             $empty.show();
             return;
         }
@@ -640,11 +704,15 @@ layui.use(function(){
     // 刷新
     $('#pluginRefreshBtn').on('click', function(){ loadPlugins(); });
 
-    // 应用商店
-    $('#pluginAppstoreBtn').on('click', function(){
+    // 应用商店（工具条按钮 + 空状态主按钮走同一入口）
+    function goAppstore(){
         var url = currentFilter === 'merchant' ? '/admin/appstore.php?tab=merchant' : '/admin/appstore.php';
         $.pjax({ url: url, container: '#adminContent' });
-    });
+    }
+    $('#pluginAppstoreBtn, #pluginEmptyAppstoreBtn').on('click', goAppstore);
+
+    // 空状态：重新检测
+    $('#pluginEmptyRefreshBtn').on('click', function(){ loadPlugins(); });
 
     // em-tabs 分类筛选：同款切换（是否已激活跳过）
     $('#pluginTabs').on('click', '.em-tabs__item', function(){

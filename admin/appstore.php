@@ -47,7 +47,7 @@ function appstore_assert_download_url(string $url): void
 function appstore_resolve_download_url(string $url): string
 {
     if ($url === '') {
-        Response::error('缺少下载地址');
+        Response::error('EM官方未提供下载地址');
     }
     if (stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) {
         appstore_assert_download_url($url);
@@ -420,7 +420,7 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         $version = trim((string) Input::post('version', ''));
         if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) Response::error('非法应用名');
         if (!in_array($type, ['plugin', 'template'], true)) Response::error('未知应用类型');
-        if ($filePath === '') Response::error('缺少下载地址');
+        if ($filePath === '') Response::error('EM官方未提供下载地址');
         $targetRoot = $type === 'template' ? EM_ROOT . '/content/template' : EM_ROOT . '/content/plugin';
         $targetDir = $targetRoot . '/' . $name;
         if (!is_dir($targetDir)) Response::error('应用尚未安装，无法更新');
@@ -436,6 +436,9 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'update') {
         $dl = appstore_download_package($downloadUrl, $tmpZip);
         if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
             @unlink($tmpZip);
+            if($dl['error'] == 'Recv failure: Connection was reset'){
+                Response::error('下载失败，服务端线路被墙，请重试~');
+            }
             Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
         }
 
@@ -571,6 +574,9 @@ if (Request::isPost() && (string) Input::post('_action', '') === 'install') {
         $dl = appstore_download_package($downloadUrl, $tmpZip);
         if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
             @unlink($tmpZip);
+            if($dl['error'] == 'Recv failure: Connection was reset'){
+                Response::error('下载失败，服务端线路被墙，请重试~');
+            }
             Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
         }
 

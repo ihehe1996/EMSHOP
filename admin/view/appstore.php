@@ -612,8 +612,9 @@ $(function () {
                 EmToast.close(loadingIdx);
                 if (res && (res.code === 200 || res.code === 0)) {
                     if (res.data && res.data.csrf_token) APPSTORE_CSRF = res.data.csrf_token;
-                    EmToast.ok(typeLabel + actionLabel + '成功：' + emEsc(displayName));
-                    reloadTable();
+                    EmToast.ok('已安装：' + emEsc(displayName));
+                    // 只刷当前页：reloadTable 会带 page.curr=1 把人甩回第一页
+                    refreshTable();
                 } else {
                     EmToast.err((res && res.msg) || (actionLabel + '失败'));
                 }

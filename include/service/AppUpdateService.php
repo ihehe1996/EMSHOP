@@ -77,7 +77,7 @@ final class AppUpdateService
                 // 未授权 / 授权与域名不匹配时，服务端只回"有新版本"但不给下载地址
                 // （package_url 为空串）。这种条目不能当成"可更新"：页面会画出更新按钮，
                 // 点下去却因为 file_path 为空被 admin/appstore.php 的 update 分支拒绝
-                // （"缺少下载地址"）。宁可这条不显示更新，也不给一个必然失败的按钮。
+                // （"EM官方未提供下载地址"）。宁可这条不显示更新，也不给一个必然失败的按钮。
                 if ($filePath === '') continue;
 
                 $out[$slug] = [

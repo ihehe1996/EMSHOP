@@ -593,7 +593,8 @@ $(function () {
                 if (res && (res.code === 200 || res.code === 0)) {
                     if (res.data && res.data.csrf_token) APPSTORE_CSRF = res.data.csrf_token;
                     layer.msg(typeLabel + actionLabel + '成功：' + displayName);
-                    reloadTable();
+                    // 只刷当前页：reloadTable 会带 page.curr=1 把人甩回第一页
+                    refreshTable();
                 } else {
                     layer.msg((res && res.msg) || (actionLabel + '失败'));
                 }
