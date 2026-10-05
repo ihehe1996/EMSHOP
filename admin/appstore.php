@@ -368,6 +368,14 @@ if ((string) Input::get('_action', '') === 'list') {
             $result = $tab === 'merchant' ? LicenseClient::merchantAppList($params) : LicenseClient::mainAppList($params);
         }
 
+        // 这次列表是带着本地激活码去问的：服务端明确回未授权 → 清空本地授权
+        // （码不存在 / 已作废 / 域名对不上都是这个值，口径与 license/status 一致）
+        // 前提是**确实带了码**：没带码时服务端照样回 false，那不是「码失效」，
+        // 不能拿它清本地（例如用未授权的域名进后台时 currentLicense() 本就返 null）
+        if ($emkey !== '' && ($result['license']['authorized'] ?? null) === false) {
+            LicenseService::clearLocalAuthorization();
+        }
+
         if ($tab === 'main') {
             // tab=main:主站自用,合并已装状态
             //   插件:磁盘有目录 = 已装(version 走 parseHeader);em_plugin 表已废弃,启用列表在 em_config

@@ -107,10 +107,11 @@ final class LicenseClient
     /**
      * 校验域名是否已授权（POST /api/open/v1/em/license/status）。
      *
-     * 请求参数只有 domain —— 按域名判，不需要激活码。
+     * 请求参数：domain + code（授权码）。与 app-list / app-update-check 同口径 ——
+     * 都是「这个码 + 这个域名」算不算一条有效授权；code 为空串时服务端按未授权算。
      *
      * 服务端响应 data：
-     *   authorized          true=这个域名已授权 / false=没授权
+     *   authorized          true=已授权 / false=没授权（码不存在 / 已作废 / 域名对不上都是它）
      *   domain              归一之后的域名
      *   license_type        档位数字：1=VIP / 2=SVIP / 3=至尊；没授权时是 null
      *   license_type_label  档位文本；没授权时是 null
@@ -123,10 +124,11 @@ final class LicenseClient
      * @return array{authorized?:bool, domain?:string, license_type?:string|null, license_type_label?:string|null}
      * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public static function status(string $domain): array
+    public static function status(string $domain, string $code = ''): array
     {
         return self::postForm('api/open/v1/em/license/status', [
             'domain' => $domain,
+            'code'   => $code,
         ], 8, 3);
     }
 

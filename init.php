@@ -37,6 +37,7 @@ define('EM_VERSION_TIMESTAMP', '1322');
 // 刻意写在这里而不是 config.php：config.php 是用户的站点配置，程序在线更新不会覆盖它，
 // 一旦地址走配置，用户更新完程序拿到的还是旧地址。
 define('EM_LICENSE_SERVER_URL', 'https://bs.ihehe.me/');
+// define('EM_LICENSE_SERVER_URL', 'http://127.0.0.1:3000/');
 
 require EM_ROOT . '/base.php';
 

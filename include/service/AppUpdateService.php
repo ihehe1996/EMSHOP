@@ -67,6 +67,13 @@ final class AppUpdateService
                 continue;
             }
 
+            // 这次检测是带着本地激活码去问的：服务端明确回未授权 → 清空本地授权
+            // （口径与 license/status、应用商店列表一致）。前提是**确实带了码** ——
+            // 没带码时服务端照样回 false，那不是「码失效」，不能拿它清本地
+            if ($code !== '' && ($res['license']['authorized'] ?? null) === false) {
+                LicenseService::clearLocalAuthorization();
+            }
+
             foreach ($res['data'] as $row) {
                 if (!is_array($row)) continue;
                 $slug = (string) ($row['name_en'] ?? '');

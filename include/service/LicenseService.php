@@ -199,9 +199,9 @@ final class LicenseService
     /**
      * 周期性校验当前激活状态（进入 license 页或后台首页时触发）。
      *
-     * 走 api/open/v1/em/license/status（只传 domain）：
+     * 走 api/open/v1/em/license/status（传 domain + code，与 app-list / app-update-check 同口径）：
      *  - 本地没绑域名（未激活）→ 跳过，不发请求
-     *  - authorized === false → 服务端明确判定该域名没授权 → 清 main_host + emkey_type，等同解绑
+     *  - authorized === false → 服务端明确判定未授权 → 清空本地授权（见 clearLocalAuthorization）
      *  - authorized === true  → 档位与服务端不一致就以服务端为准（改本地 emkey_type）
      *  - 字段缺失 / 网络异常  → 保守保留，不动本地
      *
@@ -215,18 +215,22 @@ final class LicenseService
         }
 
         try {
-            $result = LicenseClient::status(self::effectiveHost());
+            $result = LicenseClient::status(
+                self::effectiveHost(),
+                (string) Config::get('license_emkey', '')
+            );
         } catch (Throwable $e) {
             // 网络异常 / 服务端 500 等 → 保守保留
             return;
         }
 
+        // var_dump($result); die;
+
         $authorized = $result['authorized'] ?? null;
 
         if ($authorized === false) {
-            // 服务端明确判定该域名未授权 → 等同解绑（清 main_host + emkey_type）
-            Config::set('license_main_host', '');
-            Config::set('license_emkey_type', '0');
+            // 服务端明确判定未授权 → 清空本地授权
+            self::clearLocalAuthorization();
             return;
         }
 
@@ -242,6 +246,22 @@ final class LicenseService
         if ((int) Config::get('license_emkey_type', '0') !== $type) {
             Config::set('license_emkey_type', (string) $type);
         }
+    }
+
+    /**
+     * 清空本地授权：把站点打回「未授权」。
+     *
+     * 只清授权状态本身 —— main_host + emkey_type（判据见 currentLicense()）；
+     * **emkey 与别名保留**，与 unbind() 的口径一致（换码 / 迁站后重新绑定还用得上）。
+     *
+     * 调用点：服务端在检测授权接口里**明确**回了 authorized === false
+     * （license/status、应用商店列表 app-list、应用更新检测 app-update-check）——
+     * 只有明确的 false 才清；字段缺失（老服务端）或网络异常一律不动本地。
+     */
+    public static function clearLocalAuthorization(): void
+    {
+        Config::set('license_main_host', '');
+        Config::set('license_emkey_type', '0');
     }
 
     /**
