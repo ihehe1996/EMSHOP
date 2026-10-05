@@ -33,11 +33,7 @@ define('EM_INITIALIZED', true);
 define('EM_VERSION', '1.3.22');
 define('EM_VERSION_TIMESTAMP', '1322');
 
-// 授权服务器地址（唯一线路，固定内置）。
-// 刻意写在这里而不是 config.php：config.php 是用户的站点配置，程序在线更新不会覆盖它，
-// 一旦地址走配置，用户更新完程序拿到的还是旧地址。
-define('EM_LICENSE_SERVER_URL', 'https://bs.ihehe.me/');
-// define('EM_LICENSE_SERVER_URL', 'http://127.0.0.1:3000/');
+// 授权服务器地址定义在 Config::load() 之后（要读「开发模式」开关），见下方。
 
 require EM_ROOT . '/base.php';
 
@@ -99,6 +95,14 @@ Autoloader::register([
 Hooks::boot();
 
 Config::load();
+
+// 授权服务器地址（唯一线路）：
+//   默认走官方地址；后台「设置 › 安全设置 › 开发模式」开启后走本地开发线路，
+//   本地联调不用再改代码。
+// 必须等 Config::load() 之后才定义 —— 这之前的代码（base.php / config.php）不读它。
+define('EM_LICENSE_SERVER_URL', (string) Config::get('license_dev_mode', '0') === '1'
+    ? 'http://127.0.0.1:3000/'
+    : 'https://bs.ihehe.me/');
 
 // 应用后台设置的时区，让 php 的 date() 与 mysql NOW() 保持一致；
 // 不然 web 环境 php.ini 没有 date.timezone 时 date() 返回 UTC，

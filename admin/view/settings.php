@@ -480,6 +480,20 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         </div>
                     </div>
 
+                    <div class="admin-settings__block">
+                        <div class="admin-settings__block-title"><i class="fa fa-code"></i>开发者选项</div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">开发模式</label>
+                            <div class="layui-input-block">
+                                <?php echo formSwitch('license_dev_mode', $cfg['license_dev_mode'] ?? '0'); ?>
+                            </div>
+                            <div class="layui-form-mid layui-word-aux" style="line-height:1.8;">
+                                <span style="color:#f59e0b;">⚠ 仅本地调试时开启，正式站点请保持关闭。</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="admin-settings__actions-block">
                         <button type="submit" class="em-btn em-save-btn"><i class="fa fa-check"></i>保存设置</button>
                     </div>

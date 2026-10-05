@@ -319,26 +319,19 @@ $csrfToken = $csrfToken ?? Csrf::token();
     </div>
 </script>
 
-<script type="text/html" id="appstoreInstallTpl">
-    <span style="font-family:Menlo,Consolas,monospace;color:#374151;">{{ (Number(d.install_count) || 0).toLocaleString() }}</span>
+<script type="text/html" id="appstoreVersionTpl">
+    <span style="font-family:Menlo,Consolas,monospace;color:#374151;">{{ d.version || '-' }}</span>
 </script>
 
 <!--
-    价格：price 是「按你当前档位算出来的实际价」，price_vip / price_svip 是两档原价（做对比用）。
-    未授权时 price 等于 VIP 门槛价、且 can_buy 为 false。
+    档位价格：price_vip / price_svip 是两档的价格；至尊档全场免费，固定显示「免费」。
 -->
-<!-- 我的价格 -->
-<script type="text/html" id="appstorePriceMineTpl">
-    {{# if(parseFloat(d.price || 0) <= 0){ }}
-        <span class="appstore-chip appstore-chip--free">免费</span>
-    {{# } else { }}
-        <span class="appstore-chip appstore-chip--paid">
-            <span class="appstore-chip__cur">¥</span>{{ parseFloat(d.price).toFixed(2) }}
-        </span>
-    {{# } }}
+<!-- 至尊价格（至尊档全场免费，硬编码） -->
+<script type="text/html" id="appstorePriceSupremeTpl">
+    <span class="appstore-chip appstore-chip--free">免费</span>
 </script>
 
-<!-- SVIP 原价 -->
+<!-- SVIP 价格 -->
 <script type="text/html" id="appstorePriceSvipTpl">
     {{# if(parseFloat(d.price_svip || 0) <= 0){ }}
         <span class="appstore-chip appstore-chip--free">免费</span>
@@ -349,7 +342,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
     {{# } }}
 </script>
 
-<!-- VIP 原价 -->
+<!-- VIP 价格 -->
 <script type="text/html" id="appstorePriceVipTpl">
     {{# if(parseFloat(d.price_vip || 0) <= 0){ }}
         <span class="appstore-chip appstore-chip--free">免费</span>
@@ -503,10 +496,10 @@ $(function () {
                     }
                 },
                 { field: 'name_cn', title: '应用名称', minWidth: 240, templet: '#appstoreTitleTpl' },
-                { field: 'install_count', title: '安装量', width: 100, templet: '#appstoreInstallTpl', align: 'center', sort: true },
-                { title: '我的价格', width: 120, templet: '#appstorePriceMineTpl', align: 'center' },
-                { field: 'price_vip', title: 'VIP 原价', width: 130, templet: '#appstorePriceVipTpl', align: 'center' },
-                { field: 'price_svip', title: 'SVIP 原价', width: 130, templet: '#appstorePriceSvipTpl', align: 'center' },
+                { field: 'version', title: '版本号', width: 100, templet: '#appstoreVersionTpl', align: 'center' },
+                { title: '至尊价格', width: 120, templet: '#appstorePriceSupremeTpl', align: 'center' },
+                { field: 'price_vip', title: 'VIP 价格', width: 130, templet: '#appstorePriceVipTpl', align: 'center' },
+                { field: 'price_svip', title: 'SVIP 价格', width: 130, templet: '#appstorePriceSvipTpl', align: 'center' },
                 { title: '操作', width: 200, align: 'center', toolbar: '#appstoreActionTpl' }
             ]]
         });

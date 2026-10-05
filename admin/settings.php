@@ -105,6 +105,11 @@ if (Request::isPost()) {
                 }
                 Config::set('admin_entry_key', $raw);
                 $saved++;
+
+                // 开发模式：开启后授权服务器地址走本地开发线路
+                // （init.php 读这个值决定 EM_LICENSE_SERVER_URL；未勾选时表单不传，按 0 存）
+                Config::set('license_dev_mode', Input::post('license_dev_mode', '') === '' ? '0' : '1');
+                $saved++;
                 break;
 
             // 基础设置
