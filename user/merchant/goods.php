@@ -205,8 +205,11 @@ if (Request::isPost()) {
                         $ownerUserId,
                         $discountRate
                     );
-                    $costUnit = $wholesale['min'] > 0 ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
-                    $maxCostUnit = $wholesale['max'] > 0 ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
+                    // 有没有专属拿货价，不能用「算出来是不是 > 0」判断 —— 站长专属价 0 元算出来就是 0，
+                    // 按 > 0 判断会当成没配置、回退显示成主站原价，跟实际扣款对不上。
+                    $hasExclusiveWholesale = GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
+                    $costUnit = $hasExclusiveWholesale ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
+                    $maxCostUnit = $hasExclusiveWholesale ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
                     $markup = (int) $row['markup_rate'];
                     $row['base_price_view'] = Currency::displayAmount($mainMin);
                     $row['cost_view'] = Currency::displayAmount($costUnit);
@@ -932,14 +935,15 @@ if ((string) Input::get('_popup', '') === 'ref_edit') {
     $mainMax = (int) ($row['max_price'] ?? 0);
     $markup = (int) $row['markup_rate'];
     $wholesale = GoodsModel::resolveGoodsWholesalePriceRange((int) $row['goods_id'], $ownerUserId, $discountRate);
-    $cost = $wholesale['min'] > 0 ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
-    $maxCost = $wholesale['max'] > 0 ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
+    // 同上：0 元专属拿货价是合法值，用 hasExclusive 判断而不是 > 0
+    $hasExclusiveWholesale = GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
+    $cost = $hasExclusiveWholesale ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
+    $maxCost = $hasExclusiveWholesale ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
     if ($maxCost < $cost) {
         $maxCost = $cost;
     }
     $sell = mcCalcRefSellPrice($mainMin, $markup);
     $maxSell = $mainMax > $mainMin ? mcCalcRefSellPrice($mainMax, $markup) : $sell;
-    $hasExclusiveWholesale = GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
     $basePrice = $mainMin;
     $maxBasePrice = $mainMax;
 

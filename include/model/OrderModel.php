@@ -201,7 +201,10 @@ class OrderModel
                     'goods_owner_id'=> (int) ($goods['owner_id'] ?? 0),
                     'markup_rate'   => (int) ($spec['_shop_markup_rate'] ?? 0),
                     '_base_price'   => $basePriceBigint,
-                    '_owner_cost'   => (int) ($spec['_owner_cost_raw'] ?? 0),
+                    // 引用主站货时 getSpecsByGoodsId 会挂 _owner_cost_raw；未挂上（非商户上下文）→ null，
+                    // 由下方回退到「原价 × 站长折扣」。注意 0 是合法的拿货价（如站长专属价 0 元），
+                    // 必须原样带下去，不能在这里用 ?? 0 抹平成"没取到"。
+                    '_owner_cost'   => isset($spec['_owner_cost_raw']) ? (int) $spec['_owner_cost_raw'] : null,
                     // 本商品原始配置，下面算满减时用（configs.discount_rules 是商品级的阶梯折扣）
                     '_goods_configs' => (string) ($goods['configs'] ?? ''),
                     '_item_total'    => $itemTotal,
@@ -391,8 +394,11 @@ class OrderModel
                     $goodsOwnerId = (int) $row['goods_owner_id'];
                     if ($goodsOwnerId === 0) {
                         // 引用商品：拿货成本 = 站长拿货单价 × 数量（与对客售价无关）
-                        $ownerUnitCost = (int) ($row['_owner_cost'] ?? 0);
-                        if ($ownerUnitCost <= 0) {
+                        // 只有 _owner_cost === null（拿货价压根没取到）才回退到「原价 × 站长折扣」；
+                        // 用 === null 而不是 <= 0 —— 0 元拿货价是合法配置（站长专属价 0），
+                        // 按 <= 0 判断会把 0 元当缺省、回退成原价，站长白掏一份成本。
+                        $ownerUnitCost = $row['_owner_cost'];
+                        if ($ownerUnitCost === null) {
                             $ownerUnitCost = (int) round(
                                 (int) $row['_base_price'] * MerchantLedgerService::resolveOwnerDiscountRate($ownerId)
                             );
