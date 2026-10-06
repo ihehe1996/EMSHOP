@@ -22,6 +22,14 @@
     box-shadow: 0 20px 44px -20px rgba(15, 23, 41, 0.5);
 }
 
+/* 宽度交回给内容自己定。
+   layer.msg 会把默认皮肤拼在自定义皮肤前面（skin = "layui-layer-msg em-toast em-toast--ok"），
+   于是 .layui-layer-msg 的 min-width:180px 一直挂在我们卡上：短文案（如「订单号已复制」，约 145px）
+   右侧会被硬撑出 30 多 px 空白。同优先级 + 后置 + !important 覆盖掉 */
+.em-toast {
+    min-width: 0 !important;
+}
+
 /* ---------- 加载转圈 ---------- */
 /* type 1：layui 用图标字体画，颜色直接吃 color */
 .em-loading .layui-layer-loading-icon { color: #c7d2fe; }

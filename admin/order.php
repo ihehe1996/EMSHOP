@@ -32,6 +32,8 @@ if (Request::isPost()) {
 
                 $keyword = trim((string) Input::post('keyword', ''));
                 $status = trim((string) Input::post('status', ''));
+                // 站点归属筛选：'' / 'main' / 'sub'；只影响本次查询，历史订单按 order.merchant_id 快照归属
+                $scope = trim((string) Input::post('scope', ''));
 
                 $where = '1=1';
                 $params = [];
@@ -62,6 +64,12 @@ if (Request::isPost()) {
                 if ($status !== '') {
                     $where .= ' AND o.status = ?';
                     $params[] = $status;
+                }
+                // 主站 = merchant_id 0；分站 = > 0（走 idx_merchant_status）。取值固定在白名单内，直接拼字面量
+                if ($scope === 'main') {
+                    $where .= ' AND o.merchant_id = 0';
+                } elseif ($scope === 'sub') {
+                    $where .= ' AND o.merchant_id > 0';
                 }
 
                 // 总数
