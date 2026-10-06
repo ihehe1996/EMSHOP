@@ -73,7 +73,7 @@ if (Request::isPost()) {
                 // 二级域名
                 if ($allowSubdomain) {
                     if ($subdomain !== '') {
-                        if (!preg_match('/^[a-z0-9]([a-z0-9\-]{1,30})[a-z0-9]$/', $subdomain)) {
+                        if (!preg_match('/^[a-z0-9]([a-z0-9\-]{0,30}[a-z0-9])?$/', $subdomain)) {
                             Response::error('二级域名格式不合法（仅字母/数字/短横线）');
                         }
                         // 唯一性

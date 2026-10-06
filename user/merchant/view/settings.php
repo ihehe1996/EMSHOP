@@ -144,14 +144,10 @@ $csrfTokenJson = json_encode($csrfToken, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED
                 <input type="text" class="mc-input mc-input--readonly" readonly placeholder="当前等级不允许">
                 <?php endif; ?>
                 <div class="mc-field__hint">
-                    <?php if ($allowSubdomain): ?>
-                        <?php if ($mainDomain === ''): ?>
-                        主站根域名未配置，二级域名暂不生效
-                        <?php else: ?>
-                        需在 DNS 中把 <code><?= $esc($mainDomain) ?></code> 的 <code>*</code> 子域名 CNAME 指向主站
-                        <?php endif; ?>
-                    <?php else: ?>
+                    <?php if (!$allowSubdomain): ?>
                         当前等级不允许绑定二级域名
+                    <?php elseif ($mainDomain === ''): ?>
+                        主站根域名未配置，二级域名暂不生效
                     <?php endif; ?>
                 </div>
             </div>
