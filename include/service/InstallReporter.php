@@ -71,7 +71,7 @@ final class InstallReporter
             if ($url === '') {
                 return;
             }
-
+            
             self::post($url, self::payload($context));
         } catch (Throwable $ignored) {
             /* 见类注释：这里**故意**什么也不做，连日志都不写 ——
