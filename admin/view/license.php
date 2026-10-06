@@ -4,12 +4,17 @@ if (!defined('EM_ROOT')) {
 }
 /** @var array<string, mixed>|null $current */
 /** @var string $csrfToken */
+/** @var array<int, array{url:string, name:string}> $lines */
+/** @var int $currentLineIndex */
 
 $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
 $activated = $current !== null;
+
+// 「官方网站」入口 = 当前生效的授权服务端线路地址（单线路，见 LicenseService::getAllLines）
+$officialSiteUrl = (string) ($lines[$currentLineIndex]['url'] ?? '');
 ?>
 <div class="lic-page lic-page--centered">
 
@@ -48,6 +53,11 @@ $activated = $current !== null;
                 <button type="button" class="lic-btn-ghost-primary js-lic-contact">
                     <i class="fa fa-headphones"></i> 联系客服
                 </button>
+                <?php if ($officialSiteUrl !== ''): ?>
+                <a href="<?= $esc($officialSiteUrl) ?>" target="_blank" rel="noopener noreferrer" class="lic-btn-ghost-primary">
+                    <i class="fa fa-globe"></i> 官方网站
+                </a>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -117,6 +127,11 @@ $activated = $current !== null;
                 <button type="button" class="lic-btn-ghost-primary js-lic-contact" id="btnContactSupport">
                     <i class="fa fa-headphones"></i> 联系客服
                 </button>
+                <?php if ($officialSiteUrl !== ''): ?>
+                <a href="<?= $esc($officialSiteUrl) ?>" target="_blank" rel="noopener noreferrer" class="lic-btn-ghost-primary">
+                    <i class="fa fa-globe"></i> 官方网站
+                </a>
+                <?php endif; ?>
             </div>
         </div>
         <?php endif; ?>
@@ -688,6 +703,7 @@ $activated = $current !== null;
     font-size: 13px; font-weight: 500;
     cursor: pointer;
     transition: all 0.18s ease;
+    text-decoration: none; /* 该样式也用于 <a>（官方网站入口） */
 }
 .lic-btn-ghost-primary:hover {
     background: #eef2ff;
