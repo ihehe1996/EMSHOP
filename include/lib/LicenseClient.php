@@ -18,6 +18,19 @@ declare(strict_types=1);
 final class LicenseClient
 {
     /**
+     * 官方线路地址。**这里是全站唯一的定义处** —— `init.php` 用它定义
+     * `EM_LICENSE_SERVER_URL`，安装程序（`InstallReporter`）在 `init.php`
+     * 还没加载时直接读它，两边不会各写一份。
+     *
+     * 为什么写死在代码里而不是配置文件里：地址必须**跟着程序版本走**。
+     * 放 config.php 的话，老站升级后残留的旧地址会继续生效（见 `serverUrl()`）。
+     */
+    public const OFFICIAL_BASE_URL = 'https://bs.ihehe.me/';
+
+    /** 本地联调用的线路（后台「开发模式」开启时走它，见 init.php） */
+    public const DEV_BASE_URL = 'http://127.0.0.1:3000/';
+
+    /**
      * 授权激活：把激活码绑到域名上（POST /api/open/v1/em/license/bind）。
      *
      * 请求参数（与解绑一致）：

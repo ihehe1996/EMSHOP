@@ -1351,6 +1351,19 @@ if (@file_put_contents(EM_INSTALL_LOCK, (string) $lockPayload, LOCK_EX) === fals
     installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
 }
 
+// 跟授权服务器报一次「这台机器装好了」（服务端落在安装记录表里，代理端能看见）。
+//
+// **放在最后一步**：前面的步骤全过了才报，装失败的机器不该留一条安装记录。
+// **绝不影响安装**：InstallReporter 内部把所有异常都吞了、超时压到 5 秒、不重试，
+// 连不上就是这一次记录丢掉（细节和代价见那个类的注释）—— 所以这里不用判返回值。
+InstallReporter::report([
+    'version' => installer_system_version(),
+    'site_url' => installer_detect_site_url(),
+    'admin_username' => $adminClean['username'],
+    'admin_email' => $adminClean['email'],
+    'is_reinstall' => $droppedTables > 0,
+]);
+
 installer_success_response(
     $action,
     $droppedTables > 0

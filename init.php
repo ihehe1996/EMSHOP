@@ -100,9 +100,11 @@ Config::load();
 //   默认走官方地址；后台「设置 › 安全设置 › 开发模式」开启后走本地开发线路，
 //   本地联调不用再改代码。
 // 必须等 Config::load() 之后才定义 —— 这之前的代码（base.php / config.php）不读它。
+// 两个地址本身写在 LicenseClient 的常量里（那里是全站唯一一份）：安装程序
+// 在 init.php 还没加载时也要发一次请求（见 InstallReporter），得有个共同的出处。
 define('EM_LICENSE_SERVER_URL', (string) Config::get('license_dev_mode', '0') === '1'
-    ? 'http://127.0.0.1:3000/'
-    : 'https://bs.ihehe.me/');
+    ? LicenseClient::DEV_BASE_URL
+    : LicenseClient::OFFICIAL_BASE_URL);
 
 // 应用后台设置的时区，让 php 的 date() 与 mysql NOW() 保持一致；
 // 不然 web 环境 php.ini 没有 date.timezone 时 date() 返回 UTC，
