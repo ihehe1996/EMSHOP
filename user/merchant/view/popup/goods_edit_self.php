@@ -12,20 +12,13 @@ $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 }; 
 
-// 解析 configs JSON（附加选项、营销配置）
+// 解析 configs JSON（附加选项等核心字段）
 $goodsConfigs = [];
 if ($isEdit && !empty($goods['configs'])) {
     $goodsConfigs = json_decode($goods['configs'], true) ?: [];
 }
 $extraFields = $goodsConfigs['extra_fields'] ?? [];
-$discountRules = $goodsConfigs['discount_rules'] ?? [];
 $rebateConfig = $goodsConfigs['rebate'] ?? ['l1' => 0, 'l2' => 0];
-// 营销配置中的金额字段还原为前端展示值（DB 存的是 ×1000000 后的整数）
-foreach ($discountRules as &$_dr) {
-    $_dr['threshold'] = GoodsModel::moneyFromDb($_dr['threshold'] ?? 0);
-    $_dr['discount'] = GoodsModel::moneyFromDb($_dr['discount'] ?? 0);
-}
-unset($_dr);
 
 include EM_ROOT . '/admin/view/popup/header.php';
 ?>
@@ -337,42 +330,6 @@ include EM_ROOT . '/admin/view/popup/header.php';
                 <!-- ========== Tab 5: 营销配置 ========== -->
                 <div class="layui-tab-item">
                     <div class="popup-section">
-                        <blockquote class="layui-elem-quote" style="margin-bottom:15px;">
-                            设置满减规则：当订单金额满足阈值时，自动减去对应金额。可设置多个阶梯。
-                        </blockquote>
-                        <div class="spec-table-wrap">
-                        <table class="layui-table discount-table" id="discountTable">
-                            <colgroup>
-                                <col width="30">
-                                <col width="200">
-                                <col width="200">
-                                <col width="60">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>满（元）</th>
-                                    <th>减（元）</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="discountList">
-                                <?php if (!empty($discountRules)): ?>
-                                    <?php foreach ($discountRules as $drIdx => $dr): ?>
-                                        <tr class="discount-row">
-                                            <td class="drag-handle"><i class="fa fa-bars"></i></td>
-                                            <td><input type="number" step="0.01" name="discount_rules[<?php echo $drIdx; ?>][threshold]" class="layui-input" value="<?php echo $dr['threshold']; ?>" placeholder="满额"></td>
-                                            <td><input type="number" step="0.01" name="discount_rules[<?php echo $drIdx; ?>][discount]" class="layui-input" value="<?php echo $dr['discount']; ?>" placeholder="减额"></td>
-                                            <td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                        </div>
-                        <button type="button" class="layui-btn layui-btn-sm" id="addDiscountBtn"><i class="fa fa-plus"></i> 添加阶梯</button>
-                    </div>
-                    <div class="popup-section">
                         <div class="layui-form-item">
                             <label class="layui-form-label">推荐商品</label>
                             <div class="layui-input-block">
@@ -519,11 +476,10 @@ div.image-preview-list.has-images { display: block; }
 .img-clickable { cursor: pointer; transition: opacity 0.2s; }
 .img-clickable:hover { opacity: 0.8; }
 
-/* 规格/附加选项/满减表格通用样式 */
-.spec-table, .extra-fields-table, .discount-table { margin-bottom: 10px; }
+/* 规格/附加选项表格通用样式 */
+.spec-table, .extra-fields-table { margin-bottom: 10px; }
 .spec-table th, .spec-table td,
-.extra-fields-table th, .extra-fields-table td,
-.discount-table th, .discount-table td {
+.extra-fields-table th, .extra-fields-table td {
     text-align: center; padding: 5px 8px !important; min-width: 70px;
 }
 .spec-td, .spec-th{
@@ -532,8 +488,7 @@ div.image-preview-list.has-images { display: block; }
 }
 /* 拖拽列（第一列）覆盖 min-width */
 .spec-table th:first-child, .spec-table td:first-child,
-.extra-fields-table th:first-child, .extra-fields-table td:first-child,
-.discount-table th:first-child, .discount-table td:first-child {
+.extra-fields-table th:first-child, .extra-fields-table td:first-child {
     min-width: 30px !important; width: 30px; padding: 0 !important;
 }
 /* 第二列左对齐（原第一列内容列） */
@@ -541,19 +496,17 @@ div.image-preview-list.has-images { display: block; }
 .extra-fields-table th:nth-child(2), .extra-fields-table td:nth-child(2) {
     text-align: left;
 }
-.spec-table td:last-child, .extra-fields-table td:last-child, .discount-table td:last-child {
+.spec-table td:last-child, .extra-fields-table td:last-child {
     text-align: center !important;
 }
 .spec-table .layui-input:not([type="radio"]):not([type="checkbox"]),
-.extra-fields-table .layui-input,
-.discount-table .layui-input {
+.extra-fields-table .layui-input {
     height: 32px; line-height: 32px; padding: 0 10px; text-align: center;
     border-radius: 4px; border: 1px solid #dcdfe6;
     transition: border-color .2s, box-shadow .2s;
 }
 .spec-table .layui-input:focus,
-.extra-fields-table .layui-input:focus,
-.discount-table .layui-input:focus {
+.extra-fields-table .layui-input:focus {
     border-color: #1e9fff;
     box-shadow: 0 0 0 2px rgba(30, 159, 255, 0.12);
 }
@@ -645,7 +598,6 @@ $(function() {
         var goodsId = <?php echo $isEdit ? $goods['id'] : 0; ?>;
         var specIndex = <?php echo ($isEdit && !empty($specs)) ? count($specs) : 0; ?>;
         var extraFieldIndex = <?php echo !empty($extraFields) ? count($extraFields) : 0; ?>;
-        var discountIndex = <?php echo !empty($discountRules) ? count($discountRules) : 0; ?>;
         var $previewList = $('#imagePreviewList');
         var $coverInput = $('#coverImagesInput');
         var placeholderImg = <?php echo json_encode($placeholderImg); ?>;
@@ -848,12 +800,6 @@ $(function() {
                 handle: '.drag-handle',
                 ghostClass: 'sortable-ghost'
             });
-            // 满减配置表格排序
-            new Sortable(document.getElementById('discountList'), {
-                animation: 150,
-                handle: '.drag-handle',
-                ghostClass: 'sortable-ghost'
-            });
         } else {
             console.warn('Sortable.js 未加载，拖拽排序不可用');
         }
@@ -1002,20 +948,6 @@ $(function() {
         });
 
         // ============================================================
-        // 满减配置
-        // ============================================================
-        $('#addDiscountBtn').on('click', function() {
-            var idx = discountIndex++;
-            var html = '<tr class="discount-row">' +
-                '<td class="drag-handle"><i class="fa fa-bars"></i></td>' +
-                '<td><input type="number" step="0.01" name="discount_rules[' + idx + '][threshold]" class="layui-input" placeholder="满额"></td>' +
-                '<td><input type="number" step="0.01" name="discount_rules[' + idx + '][discount]" class="layui-input" placeholder="减额"></td>' +
-                '<td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>' +
-                '</tr>';
-            $('#discountList').append(html);
-        });
-
-        // ============================================================
         // 商品类型切换：弹出类型配置弹窗
         // ============================================================
         var openPluginConfigPopup = function(goodsType) {
@@ -1140,9 +1072,6 @@ $(function() {
         }
         if ($('#extraFieldsList tr').length === 0) {
             $('#addExtraFieldBtn').trigger('click');
-        }
-        if ($('#discountList tr').length === 0) {
-            $('#addDiscountBtn').trigger('click');
         }
 
         // 重新渲染选项卡，确保所有tab可切换

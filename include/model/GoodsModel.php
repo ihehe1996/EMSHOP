@@ -505,7 +505,7 @@ class GoodsModel
     }
 
     /**
-     * 后台/商户保存商品时合并 configs：通用表单只提交 extra_fields、满减、返佣、SEO 等，
+     * 后台/商户保存商品时合并 configs：通用表单只提交 extra_fields、返佣、SEO 等，
      * 若直接整体覆盖 DB 中的 configs，会抹掉对接插件写入的命名空间（如 ycy_shared 的 delivery_way），
      * 导致误判发货方式、下单校验异常等。
      *

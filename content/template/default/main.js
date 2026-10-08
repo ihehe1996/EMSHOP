@@ -175,26 +175,29 @@ var GoodsDetail = (function () {
         renderCurrentPrice();
     }
 
-    // 商品级满减：从 opts.discountRules 里找"threshold ≤ 当前商品总额"里 discount 最大的一条
-    // 满减规则假定已按门槛升序（PHP 解析时未排序则这里多一层保障），取最后一条匹配即为最优
-    function pickDiscountAmount(goodsAmount) {
-        var hit = pickDiscountRule(goodsAmount);
-        return hit ? (parseFloat(hit.discount) || 0) : 0;
-    }
-    // 同样的匹配逻辑，但返回完整规则对象（threshold + discount），用于价格框右侧的"满 X 减 Y"提示文案
-    function pickDiscountRule(goodsAmount) {
-        var rules = opts.discountRules || [];
-        var bestRule = null;
-        var best = 0;
-        for (var i = 0; i < rules.length; i++) {
-            var t = parseFloat(rules[i].threshold) || 0;
-            var d = parseFloat(rules[i].discount)  || 0;
-            if (goodsAmount >= t && d > best) { best = d; bestRule = rules[i]; }
+    // —— 价格扩展点 ——
+    // 插件（如「商品满减」）用 GoodsDetail.addPriceAdjuster(fn) 注册调整器，
+    // fn(ctx) 里 ctx = {spec, qty, subtotal}（单位：主货币元），返回 {discount: 元} 或 null。
+    // 核心只负责「单价 × 数量」，具体让利玩法（满减/第二件半价…）都由插件算。
+    var priceAdjusters = [];
+    function sumPriceAdjusters(ctx) {
+        var total = 0;
+        for (var i = 0; i < priceAdjusters.length; i++) {
+            var ret = null;
+            try {
+                ret = priceAdjusters[i](ctx);
+            } catch (e) {
+                // 单个插件出错不能带崩价格渲染
+                if (window.console && console.warn) console.warn('[GoodsDetail] priceAdjuster 执行失败', e);
+                ret = null;
+            }
+            var d = ret && ret.discount !== undefined ? parseFloat(ret.discount) : parseFloat(ret);
+            if (!isNaN(d) && d > 0) total += d;
         }
-        return bestRule;
+        return total;
     }
 
-    // 按"单价 × 数量 - 满减"渲染 .detail-price-box
+    // 按"单价 × 数量 - 插件让利"渲染 .detail-price-box
     // 规格切换 / 数量 +/-/手填 都走这里
     // 优惠券不融入这里显示（它在 #detailCouponApplied 独立展示"已优惠 ¥X"）—— 价格框只表达"商品小计"
     function renderCurrentPrice() {
@@ -207,24 +210,18 @@ var GoodsDetail = (function () {
         if (qty < 1) qty = 1;
 
         var subtotal = parseFloat(currentSpec.price) * qty;
-        var discount = pickDiscountAmount(subtotal);
+        // 插件让利（满减等）：ctx 里给主货币元值，插件返回的 discount 也是主货币元
+        var priceCtx = { spec: currentSpec, qty: qty, subtotal: subtotal };
+        var discount = sumPriceAdjusters(priceCtx);
         var finalPrice = Math.max(0, subtotal - discount);
         $('#specPrice').text(cs + (finalPrice * CUR.rate).toFixed(2));
 
-        // 满减命中：在价格右侧展示"原小计（删除线） · 满 X 元减 Y 元"
-        if (discount > 0) {
-            var hitRule = pickDiscountRule(subtotal);
-            $('#specSubtotalStrike').text(cs + (subtotal * CUR.rate).toFixed(2));
-            $('#specDiscountLabel').text(
-                '满 ' + cs + (parseFloat(hitRule.threshold) * CUR.rate).toFixed(2)
-                + ' 减 ' + cs + (parseFloat(hitRule.discount) * CUR.rate).toFixed(2)
-            );
-            $('#specDiscountHint').show();
-        } else {
-            $('#specDiscountHint').hide();
-        }
+        // 通知扩展方：本规格/数量下的价格已重算（插件据此刷新自己的让利提示，如"满 X 减 Y"）
+        priceCtx.discount = discount;
+        priceCtx.finalPrice = finalPrice;
+        $(document).trigger('em:goodsPriceRendered', [priceCtx]);
 
-        // 划线原价：按"市场价 × 数量"展示，不扣满减（满减是针对实价的让利，原价展示本身就是对比参照）
+        // 划线原价：按"市场价 × 数量"展示，不参与让利（让利是针对实价的，原价本身就是对比参照）
         if (currentSpec.market_price && currentSpec.market_price > currentSpec.price) {
             $('#specMarketPrice').text(cs + (parseFloat(currentSpec.market_price) * qty * CUR.rate).toFixed(2)).show();
         } else {
@@ -518,7 +515,7 @@ var GoodsDetail = (function () {
             var sp = currentSpec || specs[0];
             if (!sp) { layer.msg('商品无规格'); return; }
             var qty = parseInt($('#qtyInput').val()) || 1;
-            // 服务端 coupon check 用当前商品总额做门槛校验（单价 × 数量；满减由服务端/下单时独立处理）
+            // 服务端 coupon check 用当前商品总额做门槛校验（单价 × 数量；插件让利不参与券门槛）
             var goodsAmount = (sp.price * qty).toFixed(2);
             var gid = parseInt($('#buyNowBtn').data('goods-id'));
             // 是不是"revalidate"调用（数量变化后重校验，失败时自动回退而不是弹 toast 吓用户）
@@ -805,6 +802,10 @@ var GoodsDetail = (function () {
             initSelection();
             initViewer();
 
+            // 通知插件：本页已完成初始化（PJAX 每次重进详情页都会重新 init，
+            // 插件在这个事件里重新注册价格调整器，幂等由 addPriceAdjuster 去重保证）
+            $(document).trigger('em:goodsDetailInit');
+
             // 支付页返回时，浏览器会自动 restore qty input 的用户输入值（但不触发 change 事件）。
             // initSelection 里 $qty.val(minBuy) 先把数量写成最小值 → renderCurrentPrice 按最小值算出单价，
             // 然后浏览器 form restoration 才把 qty 改回 2（用户离开前的值），顺序由浏览器决定，
@@ -817,6 +818,40 @@ var GoodsDetail = (function () {
                     if (currentSpec) renderCurrentPrice();
                 });
             }
+        },
+
+        /**
+         * 注册价格调整器（插件用；所有主题共用同一套签名）。
+         *
+         * @param {Function} fn fn(ctx) → {discount: number}|number|null
+         *        ctx = {spec, qty, subtotal}，金额单位是主货币元（与 spec.price 一致）
+         * @return {boolean} 是否注册成功
+         */
+        addPriceAdjuster: function (fn) {
+            if (typeof fn !== 'function') return false;
+            // 同一函数引用只注册一次：PJAX 重入 / 重复绑定不会导致重复计算
+            if ($.inArray(fn, priceAdjusters) === -1) {
+                priceAdjusters.push(fn);
+            }
+            // 立刻按新规则重算一次（脚本通常晚于 init 到达）
+            if (currentSpec) renderCurrentPrice();
+            return true;
+        },
+
+        /** 主动重算一次价格（插件数据异步就绪时用） */
+        refreshPrice: function () {
+            if (currentSpec) renderCurrentPrice();
+        },
+
+        /**
+         * 当前价格上下文：{spec, qty, subtotal}；未选中规格时 spec 为 null。
+         * 插件渲染自己的让利提示时用它取当前规格与数量。
+         */
+        getPriceContext: function () {
+            if (!currentSpec) return { spec: null, qty: 1, subtotal: 0 };
+            var qty = parseInt($('#qtyInput').val()) || 1;
+            if (qty < 1) qty = 1;
+            return { spec: currentSpec, qty: qty, subtotal: parseFloat(currentSpec.price) * qty };
         }
     };
 })();

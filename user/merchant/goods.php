@@ -503,26 +503,10 @@ if (Request::isPost()) {
                     }
                 }
 
-                // 满减规则
-                $discountRules = [];
-                $rawDiscountRules = $_POST['discount_rules'] ?? [];
-                if (is_array($rawDiscountRules)) {
-                    foreach ($rawDiscountRules as $idx => $rule) {
-                        if (!is_numeric($idx)) continue;
-                        $threshold = (float)($rule['threshold'] ?? 0);
-                        $discount = (float)($rule['discount'] ?? 0);
-                        if ($threshold > 0 && $discount > 0) {
-                            $discountRules[] = [
-                                'threshold' => GoodsModel::moneyToDb($threshold),
-                                'discount' => GoodsModel::moneyToDb($discount),
-                            ];
-                        }
-                    }
-                }
-
+                // 注：商品级 configs 只放核心认识的键（附加选项/返佣等）；
+                // 规格级数据（如满减规则）由插件在 goods_spec_saved 钩子里自己写
                 $configs = [];
                 if (!empty($extraFields))   $configs['extra_fields'] = $extraFields;
-                if (!empty($discountRules)) $configs['discount_rules'] = $discountRules;
                 $rebate = [
                     'l1' => max(0, (int) Input::post('rebate_l1', 0)),
                     'l2' => max(0, (int) Input::post('rebate_l2', 0)),
@@ -772,6 +756,10 @@ if (Request::isPost()) {
                     }
 
                     GoodsModel::updatePriceStockCache($goodsId);
+
+                    // 规格落库后的扩展点：插件据 $specIdMap（表单规格行 index => 落库后的 spec_id）
+                    // 把自己随表单提交的规格级数据写进 em_goods_spec.configs（与主站后台同一套钩子）
+                    doAction('goods_spec_saved', $goodsId, $specIdMap);
 
                     // 商品标签（共用主站 em_goods_tag 标签池；商户标签命中相同名时自动合并）
                     $goodsTagsStr = trim((string) Input::post('goods_tags', ''));

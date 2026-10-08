@@ -205,33 +205,44 @@ class OrderModel
                     // 由下方回退到「原价 × 站长折扣」。注意 0 是合法的拿货价（如站长专属价 0 元），
                     // 必须原样带下去，不能在这里用 ?? 0 抹平成"没取到"。
                     '_owner_cost'   => isset($spec['_owner_cost_raw']) ? (int) $spec['_owner_cost_raw'] : null,
-                    // 本商品原始配置，下面算满减时用（configs.discount_rules 是商品级的阶梯折扣）
+                    // 下面两个扩展点的上下文：规格/商品原始 configs + 本行小计
+                    // （order_amount_adjustment 算金额调整、goods_needs_address 判地址，用完统一清掉）
+                    '_spec_configs'  => (string) ($spec['configs'] ?? ''),
                     '_goods_configs' => (string) ($goods['configs'] ?? ''),
                     '_item_total'    => $itemTotal,
                 ];
             }
 
-            // —— 商品级满减：按每条 order_goods 的 itemTotal 匹配该商品 configs.discount_rules 的最大档
-            //   - threshold/discount 在 DB 里已经是 ×1000000 的 BIGINT raw，单位和 itemTotal 一致
-            //   - 多条 order_goods 的满减独立累加；不跨商品合并门槛
-            //   - 前端 main.js pickDiscountAmount 同款规则，保持两端一致
-            $reduceAmount = 0;
+            // —— 下单优惠扩展点：核心不认任何具体优惠规则（满减之类的玩法由插件实现），
+            //    插件按订单行/整单算出优惠额（×1000000 整数，与 item_total 同单位）返回。
+            //    返回值下面会与优惠券折扣相加，并统一做「不超过商品总额」的钳制。
+            $adjustItems = [];
             foreach ($orderGoodsRows as $r) {
-                $configs = json_decode((string) ($r['_goods_configs'] ?? ''), true);
-                $rules = is_array($configs) ? ($configs['discount_rules'] ?? []) : [];
-                if (!is_array($rules) || !$rules) continue;
-                $itemTotal = (int) $r['_item_total'];
-                $itemReduce = 0;
-                foreach ($rules as $rule) {
-                    $t = (int) ($rule['threshold'] ?? 0);
-                    $d = (int) ($rule['discount'] ?? 0);
-                    if ($itemTotal >= $t && $d > $itemReduce) $itemReduce = $d;
-                }
-                $reduceAmount += $itemReduce;
+                $adjustItems[] = [
+                    'goods_id'      => (int) ($r['goods_id'] ?? 0),
+                    'spec_id'       => (int) ($r['spec_id'] ?? 0),
+                    'quantity'      => (int) ($r['quantity'] ?? 0),
+                    'price_raw'     => (int) ($r['price'] ?? 0),
+                    'item_total'    => (int) ($r['_item_total'] ?? 0),
+                    'spec_configs'  => (string) ($r['_spec_configs'] ?? ''),
+                    'goods_configs' => (string) ($r['_goods_configs'] ?? ''),
+                ];
             }
+            // —— 下单金额扩展点：核心不认任何具体玩法（满减、第二件半价、手续费、包装费…都由插件实现），
+            //    插件返回本单的金额调整（×1000000 整数，与 item_total 同单位）：
+            //      负数 = 优惠，正数 = 加收；多个插件直接叠加（往同一个值上加减即可）。
+            //    下面是「商品总额 - 优惠 + 加收 = 应付」的拆账：discount_amount 只记优惠（保持 >= 0 的老语义，
+            //    退款/分账依赖它），加收只体现在 pay_amount 上。
+            $amountAdjustment = (int) applyFilter('order_amount_adjustment', 0, [
+                'items'        => $adjustItems,
+                'goods_amount' => $goodsAmount,
+                'order_data'   => $orderData,
+            ]);
+            $pluginDiscount = $amountAdjustment < 0 ? -$amountAdjustment : 0;
+            $amountSurcharge = $amountAdjustment > 0 ? $amountAdjustment : 0;
             // 内部字段不入表，循环结束立即清掉，避免 Database::insert 把未知字段传进 SQL
             foreach ($orderGoodsRows as &$_r) {
-                unset($_r['_goods_configs'], $_r['_item_total']);
+                unset($_r['_spec_configs'], $_r['_item_total']);
             }
             unset($_r);
 
@@ -243,11 +254,12 @@ class OrderModel
                 $couponCode = (string) $orderData['coupon']['code'];
                 $couponDiscount = (int) ($orderData['coupon_discount'] ?? 0);
             }
-            // 总折扣 = 商品级满减 + 优惠券折扣；上限为商品总额，避免出现负应付
-            $discountAmount = $reduceAmount + $couponDiscount;
+            // 总折扣 = 插件优惠 + 优惠券折扣；上限为商品总额，避免出现负应付
+            $discountAmount = $pluginDiscount + $couponDiscount;
             if ($discountAmount > $goodsAmount) $discountAmount = $goodsAmount;
 
-            $payAmount = $goodsAmount - $discountAmount;
+            // 应付 = 商品总额 - 总折扣 + 插件加收（没有加收插件时最后一项恒为 0）
+            $payAmount = $goodsAmount - $discountAmount + $amountSurcharge;
             if ($payAmount < 0) $payAmount = 0;
 
             // 商户上下文：下单时所在的商户（由调用方从 MerchantContext 取入）
@@ -296,6 +308,12 @@ class OrderModel
                     break;
                 }
             }
+            // _goods_configs 是上面两个扩展点的上下文（先算优惠、再判 needs_address），用完即弃
+            // （清掉后 needs_address 那边若还要商品 configs，走它自己的按 goods_id 回查 + 进程内缓存）
+            foreach ($orderGoodsRows as &$_r) {
+                unset($_r['_goods_configs']);
+            }
+            unset($_r);
             $addressSnapshot = null;
             if ($needsAddress) {
                 $buyerId = (int) ($orderData['user_id'] ?? 0);

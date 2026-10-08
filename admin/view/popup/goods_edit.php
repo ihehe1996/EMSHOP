@@ -18,19 +18,12 @@ if ($isEdit && !empty($goods['configs'])) {
     $goodsConfigs = json_decode($goods['configs'], true) ?: [];
 }
 $extraFields = $goodsConfigs['extra_fields'] ?? [];
-$discountRules = $goodsConfigs['discount_rules'] ?? [];
 // 返佣：未设置时保持 null（表单显示空），不要默认成 0 —— 0 也是合法值，会被理解为"不返佣"而非"未设置"
 $rebateConfig = $goodsConfigs['rebate'] ?? null;
 // 显示用：DB 存万分位（500 = 5%），前端展示百分比（/100）；null 保持 null
 $rebateL1Pct = ($rebateConfig !== null && isset($rebateConfig['l1'])) ? $rebateConfig['l1'] / 100 : null;
 $rebateL2Pct = ($rebateConfig !== null && isset($rebateConfig['l2'])) ? $rebateConfig['l2'] / 100 : null;
 $rebateMode  = ($rebateConfig !== null && !empty($rebateConfig['mode'])) ? (string) $rebateConfig['mode'] : '';
-// 营销配置中的金额字段还原为前端展示值（DB 存的是 ×1000000 后的整数）
-foreach ($discountRules as &$_dr) {
-    $_dr['threshold'] = GoodsModel::moneyFromDb($_dr['threshold'] ?? 0);
-    $_dr['discount'] = GoodsModel::moneyFromDb($_dr['discount'] ?? 0);
-}
-unset($_dr);
 
 include __DIR__ . '/header.php';
 ?>
@@ -255,7 +248,7 @@ include __DIR__ . '/header.php';
                                                     <td><input type="number" step="1" min="0" name="specs[<?php echo $index; ?>][sold_count]" class="layui-input" value="<?php echo (int) ($spec['sold_count'] ?? 0); ?>" placeholder="0" title="前台展示销量"></td>
                                                     <td><input type="radio" name="specs[is_default]" lay-skin="primary" value="<?php echo $index; ?>" <?php echo $spec['is_default'] ? 'checked' : ''; ?>></td>
                                                     <td class="spec-col-actions">
-                                                        <!-- 隐藏字段承载 configs JSON（images/level_prices/user_prices），弹窗保存时会回写 -->
+                                                        <!-- 隐藏字段承载 configs JSON（核心认 images/level_prices/user_prices）；插件的数据走 goods_spec_saved 钩子自己写，不进这里 -->
                                                         <input type="hidden" class="spec-configs" name="specs[<?php echo $index; ?>][configs]" value='<?php echo $esc($specConfigsJson); ?>'>
                                                         <div class="spec-actions">
                                                             <button type="button" class="spec-action-btn" data-action="levelPrice" title="用户等级专属价"><i class="fa fa-id-badge"></i></button>
@@ -360,42 +353,6 @@ include __DIR__ . '/header.php';
 
                 <!-- ========== Tab 5: 营销配置 ========== -->
                 <div class="layui-tab-item">
-                    <div class="popup-section">
-                        <blockquote class="layui-elem-quote" style="margin-bottom:15px;">
-                            设置满减规则：当订单金额满足阈值时，自动减去对应金额。可设置多个阶梯。
-                        </blockquote>
-                        <div class="spec-table-wrap">
-                        <table class="layui-table discount-table" id="discountTable">
-                            <colgroup>
-                                <col width="30">
-                                <col width="200">
-                                <col width="200">
-                                <col width="60">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>满（元）</th>
-                                    <th>减（元）</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="discountList">
-                                <?php if (!empty($discountRules)): ?>
-                                    <?php foreach ($discountRules as $drIdx => $dr): ?>
-                                        <tr class="discount-row">
-                                            <td class="drag-handle"><i class="fa fa-bars"></i></td>
-                                            <td><input type="number" step="0.01" name="discount_rules[<?php echo $drIdx; ?>][threshold]" class="layui-input" value="<?php echo $dr['threshold']; ?>" placeholder="满额"></td>
-                                            <td><input type="number" step="0.01" name="discount_rules[<?php echo $drIdx; ?>][discount]" class="layui-input" value="<?php echo $dr['discount']; ?>" placeholder="减额"></td>
-                                            <td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest('tr').remove()"><i class="fa fa-trash"></i></button></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                        </div>
-                        <button type="button" class="layui-btn layui-btn-sm" id="addDiscountBtn"><i class="fa fa-plus"></i> 添加阶梯</button>
-                    </div>
                     <div class="popup-section">
                         <div class="layui-form-item">
                             <label class="layui-form-label">推荐商品</label>
@@ -762,12 +719,11 @@ div.image-preview-list.has-images { display: block; }
 .img-clickable { cursor: pointer; transition: opacity 0.2s; }
 .img-clickable:hover { opacity: 0.8; }
 
-/* 规格/附加选项/满减表格通用样式 */
-.spec-table, .extra-fields-table, .discount-table { margin-bottom: 10px; }
+/* 规格/附加选项表格通用样式 */
+.spec-table, .extra-fields-table { margin-bottom: 10px; }
 .extra-fields-table { min-width: 760px; }
 .spec-table th, .spec-table td,
-.extra-fields-table th, .extra-fields-table td,
-.discount-table th, .discount-table td {
+.extra-fields-table th, .extra-fields-table td {
     text-align: center; padding: 5px 8px !important; min-width: 70px;
 }
 .spec-td, .spec-th{
@@ -776,8 +732,7 @@ div.image-preview-list.has-images { display: block; }
 }
 /* 拖拽列（第一列）覆盖 min-width */
 .spec-table th:first-child, .spec-table td:first-child,
-.extra-fields-table th:first-child, .extra-fields-table td:first-child,
-.discount-table th:first-child, .discount-table td:first-child {
+.extra-fields-table th:first-child, .extra-fields-table td:first-child {
     min-width: 30px !important; width: 30px; padding: 0 !important;
 }
 /* 第二列左对齐（原第一列内容列） */
@@ -785,22 +740,20 @@ div.image-preview-list.has-images { display: block; }
 .extra-fields-table th:nth-child(2), .extra-fields-table td:nth-child(2) {
     text-align: left;
 }
-.extra-fields-table td:last-child, .discount-table td:last-child {
+.extra-fields-table td:last-child {
     text-align: center !important;
 }
 .spec-table td.spec-col-actions {
     text-align: center !important;
 }
 .spec-table .layui-input:not([type="radio"]):not([type="checkbox"]),
-.extra-fields-table .layui-input,
-.discount-table .layui-input {
+.extra-fields-table .layui-input {
     height: 32px; line-height: 32px; padding: 0 10px; text-align: center;
     border-radius: 4px; border: 1px solid #dcdfe6;
     transition: border-color .2s, box-shadow .2s;
 }
 .spec-table .layui-input:focus,
-.extra-fields-table .layui-input:focus,
-.discount-table .layui-input:focus {
+.extra-fields-table .layui-input:focus {
     border-color: #1e9fff;
     box-shadow: 0 0 0 2px rgba(30, 159, 255, 0.12);
 }
@@ -969,7 +922,6 @@ $(function() {
         var goodsId = <?php echo $isEdit ? $goods['id'] : 0; ?>;
         var specIndex = <?php echo ($isEdit && !empty($specs)) ? count($specs) : 0; ?>;
         var extraFieldIndex = <?php echo !empty($extraFields) ? count($extraFields) : 0; ?>;
-        var discountIndex = <?php echo !empty($discountRules) ? count($discountRules) : 0; ?>;
         var $previewList = $('#imagePreviewList');
         var $coverInput = $('#coverImagesInput');
         var placeholderImg = <?php echo json_encode($placeholderImg); ?>;
@@ -1146,12 +1098,6 @@ $(function() {
                 handle: '.drag-handle',
                 ghostClass: 'sortable-ghost'
             });
-            // 满减配置表格排序
-            new Sortable(document.getElementById('discountList'), {
-                animation: 150,
-                handle: '.drag-handle',
-                ghostClass: 'sortable-ghost'
-            });
         } else {
             console.warn('Sortable.js 未加载，拖拽排序不可用');
         }
@@ -1242,7 +1188,7 @@ $(function() {
                 delete obj.user_labels;   // 价格清了 label 也没意义
             }
             $row.find('.spec-configs').val(JSON.stringify(obj));
-            // 三个按钮各自根据自己的字段是否有值显示小徽记
+            // 每个按钮各自根据自己的字段是否有值显示小徽记（插件按钮的徽记由插件自己按它的键决定）
             $row.find('[data-action="levelPrice"]').toggleClass('has-value', !!(obj.level_prices && Object.keys(obj.level_prices).length));
             $row.find('[data-action="userPrice"]').toggleClass('has-value', !!(obj.user_prices && Object.keys(obj.user_prices).length));
             $row.find('[data-action="images"]').toggleClass('has-value', !!(obj.images && obj.images.length));
@@ -1271,6 +1217,7 @@ $(function() {
         }
 
         // 统一入口：点击任意规格行的 3 个动作按钮
+        // （插件往 .spec-actions 里加的按钮自带 data-action，不在此列 —— 它自己绑事件）
         $(document).on('click', '.spec-action-btn[data-action]', function () {
             var action = $(this).data('action');
             var $row = $(this).closest('.spec-row');
@@ -1653,20 +1600,6 @@ $(function() {
         });
 
         // ============================================================
-        // 满减配置
-        // ============================================================
-        $('#addDiscountBtn').on('click', function() {
-            var idx = discountIndex++;
-            var html = '<tr class="discount-row">' +
-                '<td class="drag-handle"><i class="fa fa-bars"></i></td>' +
-                '<td><input type="number" step="0.01" name="discount_rules[' + idx + '][threshold]" class="layui-input" placeholder="满额"></td>' +
-                '<td><input type="number" step="0.01" name="discount_rules[' + idx + '][discount]" class="layui-input" placeholder="减额"></td>' +
-                '<td style="text-align:center;"><button type="button" class="layui-btn layui-btn-danger layui-btn-xs" onclick="$(this).closest(\'tr\').remove()"><i class="fa fa-trash"></i></button></td>' +
-                '</tr>';
-            $('#discountList').append(html);
-        });
-
-        // ============================================================
         // 商品类型切换：弹出类型配置弹窗
         // ============================================================
         var openPluginConfigPopup = function(goodsType) {
@@ -1784,9 +1717,6 @@ $(function() {
         }
         if ($('#extraFieldsList tr').length === 0) {
             $('#addExtraFieldBtn').trigger('click');
-        }
-        if ($('#discountList tr').length === 0) {
-            $('#addDiscountBtn').trigger('click');
         }
 
         // 重新渲染选项卡，确保所有tab可切换

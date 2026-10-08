@@ -39,18 +39,6 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
     </div>
 
     <?php if (!empty($goods)): ?>
-    <?php
-    // 解析满减配置（金额除以 1000000 还原）
-    $discountRules = [];
-    if (!empty($goods['configs']['discount_rules'])) {
-        foreach ($goods['configs']['discount_rules'] as $rule) {
-            $discountRules[] = [
-                'threshold' => bcdiv((string) ($rule['threshold'] ?? 0), '1000000', 2),
-                'discount'  => bcdiv((string) ($rule['discount'] ?? 0), '1000000', 2),
-            ];
-        }
-    }
-    ?>
     <!-- 商品信息 -->
     <div class="detail-card">
         <div class="detail-layout">
@@ -121,18 +109,17 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                 <?php endif; ?>
 
                 <div class="detail-price-box">
-                    <!-- 首屏渲染用 displayMain 自动按访客币种换算；后续 JS renderCurrentPrice 会覆盖（数量×单价-满减） -->
+                    <!-- 首屏渲染用 displayMain 自动按访客币种换算；后续 JS renderCurrentPrice 会覆盖（单价 × 数量 - 插件优惠） -->
                     <span class="detail-price" id="specPrice"><?= Currency::displayMain((float) $goods['price']) ?></span>
                     <?php if (!empty($goods['original_price'])): ?>
                     <span class="detail-price-original" id="specMarketPrice"><?= Currency::displayMain((float) $goods['original_price']) ?></span>
                     <?php else: ?>
                     <span class="detail-price-original" id="specMarketPrice" style="display:none;"></span>
                     <?php endif; ?>
-                    <!-- 满减命中时 JS 填充：原小计（删除线）+ "满 X 减 Y" 标签 -->
-                    <span class="detail-price-discount-hint" id="specDiscountHint" style="display:none;">
-                        <span class="detail-price-strike" id="specSubtotalStrike"></span>
-                        <span class="detail-price-discount-label" id="specDiscountLabel"></span>
-                    </span>
+                    <!-- 价格区扩展点：插件渲染自己的让利提示（如「满 X 减 Y」）。
+                         插件通过 GoodsDetail.addPriceAdjuster 参与价格计算，并监听
+                         em:goodsPriceRendered 事件（ctx: {spec, qty, subtotal, discount, finalPrice}）刷新这里的展示。 -->
+                    <?php doAction('goods_detail_price_extra', $goods, $specs); ?>
                 </div>
 
                 <?php if (!empty($specs) && count($specs) > 1): ?>
@@ -309,13 +296,20 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                     <button class="btn btn-primary btn-lg" id="buyNowBtn" data-goods-id="<?= $goods['id'] ?>">立即购买</button>
                 </div>
 
-                <!-- 商品数据 / 优惠信息 选项卡 -->
+                <!-- 商品数据 / （插件提供的）附加选项卡 -->
+                <?php
+                // 附加选项卡扩展点：插件返回 [['id' => '元素id', 'label' => '导航文字', 'html' => '面板 HTML'], ...]
+                // 有附加项时才显示 tab 导航，否则只展示「商品数据」的内容
+                $extraMetaTabs = applyFilter('goods_detail_meta_tabs', [], $goods, $specs);
+                $extraMetaTabs = is_array($extraMetaTabs) ? $extraMetaTabs : [];
+                ?>
                 <div class="detail-meta-tabs">
-                    <?php if (!empty($discountRules)): ?>
-                    <!-- 仅当有优惠信息时才显示 tab 导航，否则单一块内容直接展示 -->
+                    <?php if (!empty($extraMetaTabs)): ?>
                     <div class="detail-meta-tab-nav">
                         <button type="button" class="detail-meta-tab-btn active" data-tab="metaInfo">商品数据</button>
-                        <button type="button" class="detail-meta-tab-btn" data-tab="discountInfo">优惠信息</button>
+                        <?php foreach ($extraMetaTabs as $tab): ?>
+                        <button type="button" class="detail-meta-tab-btn" data-tab="<?= htmlspecialchars((string) ($tab['id'] ?? '')) ?>"><?= htmlspecialchars((string) ($tab['label'] ?? '')) ?></button>
+                        <?php endforeach; ?>
                     </div>
                     <?php endif; ?>
                     <div class="detail-meta-tab-pane active" id="metaInfo">
@@ -344,18 +338,9 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                             <?php endif; ?>
                         </div>
                     </div>
-                    <?php if (!empty($discountRules)): ?>
-                    <div class="detail-meta-tab-pane" id="discountInfo">
-                        <div class="detail-discount-list">
-                            <?php foreach ($discountRules as $rule): ?>
-                            <div class="detail-discount-item">
-                                <span class="detail-discount-tag">满减</span>
-                                满 <?= Currency::displayMain((float) $rule['threshold']) ?> 减 <?= Currency::displayMain((float) $rule['discount']) ?>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
+                    <?php foreach ($extraMetaTabs as $tab): ?>
+                    <div class="detail-meta-tab-pane" id="<?= htmlspecialchars((string) ($tab['id'] ?? '')) ?>"><?= $tab['html'] ?? '' ?></div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -399,10 +384,7 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
             specs: <?= $specs_json ?? '[]' ?>,
             currencySymbol: <?= json_encode($currency_symbol) ?>,
             goodsUnit: <?= json_encode($goods['unit'] ?? '件') ?>,
-            // 满减规则（商品静态配置；已按门槛升序，JS 直接在数量变化时匹配最大适用门槛减免）
-            discountRules: <?= json_encode(array_map(static function ($r) {
-                return ['threshold' => (float) $r['threshold'], 'discount' => (float) $r['discount']];
-            }, $discountRules ?? []), JSON_UNESCAPED_UNICODE) ?>,
+            // 插件要下发给前台 JS 的数据，走 specs_json（goods_detail_specs 过滤器）或自己的接口
             // 下单地址相关：controller 已按 goods_type.needs_address + 登录态预取
             needsAddress: <?= !empty($needs_address) ? 'true' : 'false' ?>,
             isGuest: <?= empty($front_user) ? 'true' : 'false' ?>,

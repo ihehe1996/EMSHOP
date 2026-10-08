@@ -138,30 +138,11 @@ if ($action === 'save') {
         }
     }
 
-    // 营销配置（满减规则，金额转为 BIGINT 存储）
-    $discountRules = [];
-    $rawDiscountRules = $_POST['discount_rules'] ?? [];
-    if (is_array($rawDiscountRules)) {
-        foreach ($rawDiscountRules as $idx => $rule) {
-            if (!is_numeric($idx)) continue;
-            $threshold = (float)($rule['threshold'] ?? 0);
-            $discount = (float)($rule['discount'] ?? 0);
-            if ($threshold > 0 && $discount > 0) {
-                $discountRules[] = [
-                    'threshold' => GoodsModel::moneyToDb($threshold),
-                    'discount' => GoodsModel::moneyToDb($discount),
-                ];
-            }
-        }
-    }
-
-    // 构建 configs JSON（存储附加选项、营销配置、返佣配置）
+    // 构建 configs JSON（存储附加选项、返佣配置）
+    // 注：商品级 configs 只放核心认识的键；插件的数据走各自钩子（规格级见 goods_spec_saved）
     $configs = [];
     if (!empty($extraFields)) {
         $configs['extra_fields'] = $extraFields;
-    }
-    if (!empty($discountRules)) {
-        $configs['discount_rules'] = $discountRules;
     }
     // 返佣配置：前端按"百分比"输入（5 = 5%），落库转成万分位（500）
     // 空 = 未设置（不记该字段），0 = 明确"不返佣"（记 0），区分两种含义
@@ -376,7 +357,7 @@ if ($action === 'save') {
 
             $specName = trim($spec['name']);
 
-            // 规格级 configs JSON：现在只存 images。
+            // 规格级 configs JSON：核心只写自己的 images（插件的数据走 goods_spec_saved 钩子自己写）。
             // level_prices / user_prices 从 JSON 中剥离出来，稍后同步到独立表 em_goods_price_level / em_goods_price_user
             $specConfigsJson = null;
             $pendingLevelPrices = [];   // 供稍后写入 em_goods_price_level
@@ -399,7 +380,8 @@ if ($action === 'save') {
                             }
                         }
                     }
-                    // 只保留 images 存到 configs
+                    // 核心只写自己认识的 images；插件要存的规格级数据不经过这里
+                    // （插件在 goods_spec_saved 钩子里自己写 em_goods_spec.configs，核心不替插件保管数据结构）
                     $keepConfigs = [];
                     if (!empty($decoded['images']) && is_array($decoded['images'])) {
                         $keepConfigs['images'] = array_values(array_filter($decoded['images'], 'is_string'));
@@ -461,6 +443,10 @@ if ($action === 'save') {
                 ]);
             }
         }
+
+        // 规格落库后的扩展点：插件据 $specIdMap（表单规格行 index => 落库后的 spec_id）
+        // 把自己随表单提交的规格级数据写进 em_goods_spec.configs（核心不认这些数据）
+        doAction('goods_spec_saved', $goodsId, $specIdMap);
 
         // 5. 重建维度/维度值/组合映射（这些是轻量级展示数据，安全重建）
         Database::execute("DELETE FROM {$prefix}goods_spec_combo WHERE goods_id = ?", [$goodsId]);
@@ -649,6 +635,7 @@ if ($action === 'get_specs_json') {
         Response::error('商品ID不能为空');
     }
     // 编辑表单"刷新规格"AJAX 端点：必须返回 raw 价
+    // （specs[i].configs 原样返回，插件自己负责把自己写进去的键转成表单可编辑的形态）
     $specs = GoodsModel::getSpecsByGoodsId($goodsId, false);
     Response::success('', ['specs' => $specs]);
 }

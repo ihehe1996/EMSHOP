@@ -666,14 +666,7 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 }
 .detail-price { font-size: 28px; font-weight: 700; color: #fa5252; letter-spacing: -0.5px; }
 .detail-price-original { font-size: 15px; color: #adb5bd; text-decoration: line-through; }
-/* 命中商品满减时：原小计删除线 + "满 X 减 Y" 标签（仅当 JS pickDiscountAmount 返回 > 0 时显示） */
-.detail-price-discount-hint { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.detail-price-strike { font-size: 14px; color: #adb5bd; text-decoration: line-through; }
-.detail-price-discount-label {
-    font-size: 12px; color: #fa5252;
-    background: #ffe5e5; border-radius: 4px;
-    padding: 2px 8px;
-}
+/* 价格区右侧的让利提示（如满减）由插件渲染，样式也归插件（见 goods_detail_price_extra 挂载点） */
 .detail-meta { margin-bottom: 24px; }
 .detail-meta-row { display: flex; padding: 10px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
 .detail-meta-label { color: #999; width: 80px; flex-shrink: 0; }
@@ -771,15 +764,7 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 .detail-meta-tab-btn.active { color: #4e6ef2; border-bottom-color: #4e6ef2; font-weight: 500; }
 .detail-meta-tab-pane { display: none; }
 .detail-meta-tab-pane.active { display: block; }
-.detail-discount-list { display: flex; flex-direction: column; gap: 8px; }
-.detail-discount-item {
-    font-size: 14px; color: #333; padding: 8px 12px;
-    background: #fff7ed; border-radius: 6px; display: flex; align-items: center; gap: 8px;
-}
-.detail-discount-tag {
-    display: inline-block; padding: 1px 8px; font-size: 12px;
-    color: #fff; background: #f59e0b; border-radius: 4px; flex-shrink: 0;
-}
+/* 附加选项卡（如「优惠信息」）的内容样式归提供它的插件 */
 
 /* 销量/库存 */
 .detail-stats-row {

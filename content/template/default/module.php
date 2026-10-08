@@ -728,6 +728,14 @@ function template_goods_content_data(?array $row): array
                         ];
                     }
 
+                    // 规格数据扩展点：插件可往每个规格上挂自己的载荷（随 specs_json 一起下发给前台 JS），
+                    // 例如按规格的优惠规则。核心不认这些键，原样透传。
+                    // 这里 $goods 还没组装出来，给的是商品原始行（$row），插件需要什么自己取。
+                    $specs = applyFilter('goods_detail_specs', $specs, $row);
+                    if (!is_array($specs)) {
+                        $specs = [];
+                    }
+
                     // 获取多维规格数据（维度 + 维度值）
                     // 注意：tags 不会被注入到 dim.value 上 —— 因为 tags 是"规格组合行"级别（如"红+S"），
                     // 把它并集到维度值（如"红"）会让按钮挂上其它组合的标签，语义不准。
@@ -752,7 +760,7 @@ function template_goods_content_data(?array $row): array
                     );
 
                     $covers = json_decode($row['cover_images'] ?? '[]', true) ?: [];
-                    // 解析商品配置（满减等）
+                    // 解析商品配置（附加选项 / 返佣 / SEO 等；插件的数据走各自挂载点）
                     $configs = json_decode($row['configs'] ?? '{}', true) ?: [];
                     $defaultDeliveryType = 'manual';
                     if (!empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
