@@ -35,6 +35,55 @@ function adminRequireLogin(): void
     // 当前请求作用域：主站后台固定 'main'
     // TemplateStorage / Storage / PluginModel 等"按 scope 存取"的组件会读这个全局
     $GLOBALS['__em_current_scope'] = 'main';
+
+    // 演示模式：登录放行，写操作一律拦掉
+    adminDemoGuard();
+}
+
+/**
+ * 演示模式守卫：后台禁止一切写操作，只放行只读请求。
+ *
+ * 放在 adminRequireLogin() 里收口：后台除 sign.php（登录）之外的所有页面第一件事
+ * 都是调 adminRequireLogin()，而它们自己的 POST/GET 处理都在其后，所以这里拦下就
+ * 没有漏网的写入口（登录不经过本函数，演示账号照常能登）。
+ *
+ * 判据是"请求是否带 csrf_token"（GET 或 POST）：后台所有写入口（保存/删除/上下架/
+ * 批量/上传/设置/升级）都必须过 CSRF 校验，而只读接口（layui list、summary、stats、
+ * trend、search_users 等）不带 token。
+ *
+ * 不能直接拦 Request::isPost()——layui 表格的列表接口本身就是 POST（goods.php?_action=list），
+ * 拦了整页表格都出不来；反过来 goods.php?_action=toggle_sale 这类写操作走的是 GET 链接，
+ * 只拦 POST 又会漏。
+ */
+function adminDemoGuard(): void
+{
+    if (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) {
+        return;
+    }
+
+    $token = trim((string) Input::get('csrf_token', ''));
+    if ($token === '') {
+        $token = trim((string) Input::post('csrf_token', ''));
+    }
+    if ($token === '') {
+        return; // 不带 token：只读请求
+    }
+
+    // 少数只读接口会带 token（详情/弹窗类），逐个放行
+    $readOnlyActions = [
+        'view',            // system_log.php 查看日志详情
+        'list',            // popup/merchant_open.php 商户选择器
+        'get_plugin_form', // goods_edit.php 商品类型插件的配置表单
+    ];
+    $action = (string) Input::get('_action', '');
+    if ($action === '') {
+        $action = (string) Input::post('_action', '');
+    }
+    if (in_array(trim($action), $readOnlyActions, true)) {
+        return;
+    }
+
+    Response::error('铁铁，演示模式下无权限执行该操作哦~');
 }
 
 /**

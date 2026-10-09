@@ -14,7 +14,11 @@ if (
     $_SERVER['HTTPS'] = 'on';
 }
 
-
+/**
+ * 是否启用演示模式（DEMO MODE）。
+ * 开启：true 关闭：false
+ */
+define('EM_DEMO_MODE', false);
 
 /**
  * 系统初始化文件。

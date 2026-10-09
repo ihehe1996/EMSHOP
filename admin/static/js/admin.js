@@ -194,25 +194,13 @@
                 data: {csrf_token: csrfToken, _action: 'clear_cache'},
                 success: function (res) {
                     if (res.code === 200) {
-                        if (typeof layui !== 'undefined' && layui.layer) {
-                            layui.layer.msg(res.msg || '缓存已清空', {icon: 1});
-                        } else {
-                            alert(res.msg || '缓存已清空');
-                        }
+                        EmToast.ok(res.msg || '缓存已清空');
                     } else {
-                        if (typeof layui !== 'undefined' && layui.layer) {
-                            layui.layer.msg(res.msg || '操作失败', {icon: 2});
-                        } else {
-                            alert(res.msg || '操作失败');
-                        }
+                        EmToast.err(res.msg || '操作失败');
                     }
                 },
                 error: function () {
-                    if (typeof layui !== 'undefined' && layui.layer) {
-                        layui.layer.msg('网络异常', {icon: 2});
-                    } else {
-                        alert('网络异常');
-                    }
+                    EmToast.err('网络异常');
                 }
             });
         });
