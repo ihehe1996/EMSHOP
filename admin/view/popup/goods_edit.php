@@ -474,6 +474,7 @@ include __DIR__ . '/header.php';
                         </div>
                         <div class="layui-form-mid">非空时点击商品跳转至外部链接</div>
                     </div>
+                    <?php doAction('admin_goods_edit_other_settings', $goods ?? null, $isEdit); ?>
                     </div>
                 </div>
 

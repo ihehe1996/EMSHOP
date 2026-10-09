@@ -282,7 +282,7 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                         ?>
                         <button type="button" class="<?= $classes ?>"
                                 data-code="<?= htmlspecialchars($pm['code']) ?>"
-                                <?= !empty($pm['disabled']) ? 'disabled title="未登录用户无法使用余额支付"' : '' ?>>
+                                <?= !empty($pm['disabled']) ? 'disabled title="' . htmlspecialchars($pm['disabled_tip'] ?? '未登录用户无法使用余额支付') . '"' : '' ?>>
                             <img src="<?= htmlspecialchars($pm['image']) ?>" alt="<?= htmlspecialchars($pm['name']) ?>">
                             <span><?= htmlspecialchars($pm['display_name'] ?? $pm['name']) ?></span>
                         </button>

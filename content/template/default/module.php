@@ -823,6 +823,12 @@ function template_goods_content_data(?array $row): array
             }
         }
         unset($pm);
+
+        // 商品级支付方式限制：插件按本商品过滤列表 / 把不允许的方式标成禁用态
+        // 必须放在上面的 disabled/selected 循环之后：插件才能看到核心已算好的标记，
+        // 并在过滤后负责重算默认选中项（否则原选中项被隐藏会没人 active）
+        $paymentMethods = applyFilter('goods_detail_payment_methods', $paymentMethods, $goods, $row, $isGuest);
+
         $formSections = $goods
             ? template_goods_form_sections($goods['configs'] ?? [], $isGuest)
             : [];

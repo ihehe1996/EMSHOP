@@ -122,6 +122,20 @@ class OrderController extends BaseController
         // —— 查找支付方式信息
         $payment = $this->findPaymentMethod($paymentCode);
 
+        // 商品级支付方式强校验（插件扩展点）：插件返回非空字符串则中断下单。
+        // 前端只跳过 .is-disabled 的按钮，构造请求可绕过，所以必须在这里兜底。
+        $payMethodError = applyFilter(
+            'order_payment_method_validate',
+            '',
+            $goodsRow,
+            $paymentCode,
+            $payment,
+            $identity['user_id']
+        );
+        if (is_string($payMethodError) && $payMethodError !== '') {
+            Response::error($payMethodError);
+        }
+
         try {
             // 商户上下文：在商户店铺下单 → 订单归属该商户
             $merchantId = MerchantContext::currentId();
