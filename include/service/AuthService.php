@@ -25,17 +25,11 @@ final class AuthService
      */
     private $hasher;
 
-    /**
-     * @var LoginThrottle
-     */
-    private $throttle;
-
     public function __construct()
     {
         $this->config = EM_CONFIG['auth'];
         $this->users = new UserModel();
         $this->hasher = new PasswordHash(8, true);
-        $this->throttle = new LoginThrottle();
     }
 
     /**
@@ -105,24 +99,26 @@ final class AuthService
     public function attemptAdminLogin(string $account, string $password, bool $remember): array
     {
         $account = trim($account);
+
+        // 登录前置拦截：登录频率限制等插件在此计数 / 判断封禁，返回非空字符串即拦截。
+        // 传入 $account 才能挡住针对某个账号的定向爆破；纯 IP 维度挡住换账号名喷洒。
+        // 作用域传 'admin'，与前台登录分开计数。
+        $blocked = (string) applyFilter('login_before_attempt', '', 'admin', $account);
+        if ($blocked !== '') {
+            throw new RuntimeException($blocked);
+        }
+
         if ($account === '' || $password === '') {
             throw new InvalidArgumentException('账号和密码不能为空');
         }
 
-        // 限流按「账号 + IP」与「纯 IP」两个维度计数（落库，跨会话持久）。
-        // 传入 $account 才能挡住针对某个账号的定向爆破；纯 IP 维度挡住换账号名喷洒。
-        if ($this->throttle->isLocked($account)) {
-            $minutes = (int) ceil($this->throttle->remainingSeconds($account) / 60);
-            throw new RuntimeException('登录失败次数过多，请在 ' . $minutes . ' 分钟后再试');
-        }
-
         $user = $this->users->findAdminByAccount($account);
         if ($user === null || !$this->hasher->CheckPassword($password, (string) $user['password'])) {
-            $this->throttle->hit($account);
+            doAction('login_attempt_failed', 'admin', $account);
             throw new RuntimeException('账号或密码错误');
         }
 
-        $this->throttle->clear($account);
+        doAction('login_attempt_succeeded', 'admin', $account);
         $this->startSession();
         session_regenerate_id(true);
         $_SESSION[$this->config['session_key']] = $this->sessionPayload($user);

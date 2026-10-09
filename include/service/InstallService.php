@@ -488,22 +488,6 @@ final class InstallService
             $prefix . 'delivery_queue'
         ));
 
-        // 登录失败计数表（跨会话持久化，取代原先只存 session 的做法）
-        Database::statement(sprintf(
-            'CREATE TABLE IF NOT EXISTS `%s` (
-                `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                `scope` VARCHAR(32) NOT NULL COMMENT \'作用域，如 admin\',
-                `key_hash` CHAR(64) NOT NULL COMMENT \'计数键的 sha256（账号+IP 或 纯 IP）\',
-                `attempts` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'当前窗口内失败次数\',
-                `locked_until` DATETIME DEFAULT NULL COMMENT \'锁定到期时间\',
-                `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_scope_key` (`scope`, `key_hash`),
-                KEY `idx_locked_until` (`locked_until`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'登录失败计数（跨会话持久化）\'',
-            $prefix . 'login_attempt'
-        ));
-
         // 插件事件表（跨插件通知的落库载体）
         //
         // 后台任务里的跨插件通知不再走内存钩子（那会让被通知方的代码住进

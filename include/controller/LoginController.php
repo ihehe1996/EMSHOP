@@ -65,18 +65,18 @@ class LoginController extends BaseController
         $account  = trim(Input::post('account', ''));
         $password = (string) Input::post('password', '');
 
-        if ($account === '' || $password === '') {
-            Response::error('请输入账号和密码');
+        // 登录前置拦截：登录频率限制等插件在此「计一次请求 / 判断是否封禁」，
+        // 返回非空字符串即视为拦截（文案直接回给用户）。
+        // 放在其它校验之前，让所有尝试都进入插件计数，被拦截时连数据库都不查。
+        // 作用域传 'front'，与后台登录分开计数 —— 前台被爆破锁住时不能连带把管理员
+        // 挡在后台之外（管理账号也能在前台登录的场景尤其重要）。
+        $blocked = (string) applyFilter('login_before_attempt', '', 'front', $account);
+        if ($blocked !== '') {
+            Response::error($blocked);
         }
 
-        // 限流按「账号 + IP」与「纯 IP」两个维度计数（落库，跨会话持久）。
-        // 放在查库之前：被锁时连数据库都不查。
-        // scope 用 'front'，与后台登录分开计数——前台被爆破锁住时不能连带把管理员
-        // 挡在后台之外（这点对管理账号也能前台登录的场景尤其重要）。
-        $throttle = new LoginThrottle(LoginThrottle::SCOPE_FRONT);
-        if ($throttle->isLocked($account)) {
-            $minutes = (int) ceil($throttle->remainingSeconds($account) / 60);
-            Response::error('登录失败次数过多，请在 ' . $minutes . ' 分钟后再试');
+        if ($account === '' || $password === '') {
+            Response::error('请输入账号和密码');
         }
 
         // 查找账号（支持账号、手机号、邮箱登录）。
@@ -106,7 +106,7 @@ class LoginController extends BaseController
         }
 
         if ($user === null) {
-            $throttle->hit($account);
+            doAction('login_attempt_failed', 'front', $account);
             Response::error('账号或密码错误');
         }
 
@@ -115,11 +115,11 @@ class LoginController extends BaseController
         if ((int) $user['status'] !== 1) {
             // 禁用也计一次失败（与后台一致：后台把 status=1 写进登录 SQL，禁用即算失败），
             // 否则「禁用账号的密码对不对」能从是否被限流侧信道读出来。
-            $throttle->hit($account);
+            doAction('login_attempt_failed', 'front', $account);
             Response::error('账号已被禁用，请联系管理员');
         }
 
-        $throttle->clear($account);
+        doAction('login_attempt_succeeded', 'front', $account);
 
         // 写入 session
         if (session_status() === PHP_SESSION_NONE) {
