@@ -218,6 +218,11 @@ $csrfToken = Csrf::token();
                     <span><?= t('插件管理'); ?></span>
                 </a>
 
+                <!-- 插件侧栏菜单挂载点：插件自行 addAction('adm_sidebar_menu') 输出菜单项。
+                     只在插件启用（已加载）时才会注册，禁用即不出现。
+                     单项写法参考上面的「插件管理」：<a href="..." data-pjax="#adminContent" class="admin-menu-item"> -->
+                <?php doAction('adm_sidebar_menu'); ?>
+
                 <!-- 9. 系统管理 -->
                 <div class="admin-menu-group">
                     <div class="admin-menu-group__header" data-group="system">
