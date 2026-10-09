@@ -61,7 +61,7 @@ class RegisterController extends BaseController
         $password = (string) Input::post('password', '');
         $confirm  = (string) Input::post('password_confirm', '');
 
-        $regFieldsRaw = (string) Config::get('user_register_fields', 'mobile,email');
+        $regFieldsRaw = (string) Config::get('user_register_fields', '');
         $regFields = array_filter(array_map('trim', explode(',', $regFieldsRaw)));
         $requireMobile = in_array('mobile', $regFields, true);
         $requireEmail = in_array('email', $regFields, true);

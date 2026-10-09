@@ -169,7 +169,6 @@ if (Request::isPost()) {
             case 'user':
                 Config::set('user_login', Input::post('user_login', '') === '' ? '0' : '1');
                 Config::set('user_register', Input::post('user_register', '') === '' ? '0' : '1');
-                Config::set('user_verify_email', Input::post('user_verify_email', '') === '' ? '0' : '1');
                 $rawRegFields = $_POST['user_register_fields'] ?? [];
                 if (!is_array($rawRegFields)) {
                     $rawRegFields = [];
@@ -180,7 +179,7 @@ if (Request::isPost()) {
                 Config::set('user_credit_name', trim((string) Input::post('user_credit_name', '经验')));
                 Config::set('user_credit_initial', (string) max(0, (int) Input::post('user_credit_initial', 0)));
                 Config::set('user_exp_per_yuan', (string) max(0, (int) Input::post('user_exp_per_yuan', 0)));
-                $saved += 7;
+                $saved += 6;
                 break;
 
             // 商城设置

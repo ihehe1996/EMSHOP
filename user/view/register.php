@@ -13,7 +13,7 @@ if (!defined('EM_ROOT')) {
 $csrf_token = Csrf::token();
 
 // 需要填哪些字段（后台「注册必填项」，逗号分隔）
-$regFields = array_filter(array_map('trim', explode(',', (string) Config::get('user_register_fields', 'mobile,email'))));
+$regFields = array_filter(array_map('trim', explode(',', (string) Config::get('user_register_fields', ''))));
 
 $user_login_enabled      = (string) Config::get('user_login', '1') === '1';
 $register_require_mobile = in_array('mobile', $regFields, true);

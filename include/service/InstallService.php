@@ -58,7 +58,8 @@ final class InstallService
             ['config_name' => 'url_format', 'config_value' => 'default', 'description' => '链接格式'],
             ['config_name' => 'user_register', 'config_value' => '1', 'description' => '开放注册'],
             ['config_name' => 'user_login', 'config_value' => '1', 'description' => '开放登录'],
-            ['config_name' => 'user_register_fields', 'config_value' => 'mobile,email', 'description' => '注册必填项（mobile/email，逗号分隔）'],
+            // 默认不勾选任何必填项：新装站注册只要求账号 + 密码，手机号/邮箱都选填
+            ['config_name' => 'user_register_fields', 'config_value' => '', 'description' => '注册必填项（mobile/email，逗号分隔；空=都选填）'],
             ['config_name' => 'user_credit_name', 'config_value' => '经验', 'description' => '前台经验名称展示'],
             ['config_name' => 'user_credit_initial', 'config_value' => '0', 'description' => '注册赠送初始经验值'],
             ['config_name' => 'user_exp_per_yuan', 'config_value' => '0', 'description' => '每消费1元赠送经验值'],
