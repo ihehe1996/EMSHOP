@@ -53,10 +53,14 @@ $authBrandHtml = ($authLogoType === 'image' && $authLogo !== '')
 <link rel="icon" href="<?= htmlspecialchars(site_favicon_href()) ?>">
 <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
 <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
+<!-- 全站统一提示（EmToast）样式：必须排在 layui.css 之后才能盖掉它的默认白底 -->
+<link rel="stylesheet" href="/content/static/css/em-toast.css">
 <!-- 账号页专属样式：自给自足，不依赖主题 style.css -->
 <link rel="stylesheet" href="/content/static/css/auth.css">
 <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
 <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+<!-- 全站统一提示（EmToast）：账号页的弹出提示都走它，和后台保持一致 -->
+<script src="/content/static/js/em-toast.js"></script>
 </head>
 <body>
 <div class="auth-screen">

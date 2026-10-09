@@ -42,6 +42,11 @@ ob_start();
                placeholder="请输入邮箱地址" autocomplete="email" required>
     </div>
     <?php endif; ?>
+    <?php
+    // 注册表单附加字段挂载点（如「邮箱注册验证」插件注入验证码输入框 + 发送按钮）。
+    // 传 $register_require_email 是为了让插件判断邮箱是否被后台设为必填。
+    doAction('register_form_extra', $register_require_email);
+    ?>
     <div>
         <label class="auth-label" for="regPassword">密码</label>
         <div class="auth-input-wrap">
@@ -87,19 +92,19 @@ ob_start();
         var password = $('input[name="password"]').val();
         var confirm = $('input[name="password_confirm"]').val();
         if (username.length < 3 || username.length > 20) {
-            layer.msg('账号长度为 3-20 个字符');
+            EmToast.err('账号长度为 3-20 个字符');
             return;
         }
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            layer.msg('账号只能包含字母、数字和下划线，不能包含中文');
+            EmToast.err('账号只能包含字母、数字和下划线，不能包含中文');
             return;
         }
         if (password.length < 6) {
-            layer.msg('密码长度不能少于 6 位');
+            EmToast.err('密码长度不能少于 6 位');
             return;
         }
         if (password !== confirm) {
-            layer.msg('两次输入的密码不一致');
+            EmToast.err('两次输入的密码不一致');
             return;
         }
 
@@ -114,12 +119,12 @@ ob_start();
                 if (res.code === 200) {
                     location.href = '?';
                 } else {
-                    layer.msg(res.msg || '注册失败');
+                    EmToast.err(res.msg || '注册失败');
                     $btn.removeClass('is-loading').text('注 册');
                 }
             },
             error: function () {
-                layer.msg('网络异常，请稍后重试');
+                EmToast.err('网络异常，请稍后重试');
                 $btn.removeClass('is-loading').text('注 册');
             }
         });

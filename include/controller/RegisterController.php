@@ -110,6 +110,13 @@ class RegisterController extends BaseController
             Response::error('两次输入的密码不一致');
         }
 
+        // 注册前置校验：邮箱验证等插件在此拦截（返回非空字符串即视为拦截，文案直接回给用户）。
+        // 放在唯一性检查之前：验证码不过就没必要再查库。
+        $registerBlocked = (string) applyFilter('register_before_submit', '', $email, $username);
+        if ($registerBlocked !== '') {
+            Response::error($registerBlocked);
+        }
+
         // 唯一性检查
         $userModel = new UserListModel();
         if ($userModel->existsUsername($username)) {
@@ -153,6 +160,9 @@ class RegisterController extends BaseController
         if ($userId <= 0) {
             Response::error('注册失败，请稍后重试');
         }
+
+        // 注册成功：插件可在此收尾（例如作废已用掉的邮箱验证码，防重放）
+        doAction('register_succeeded', $email, $username);
 
         try {
             UserExperienceService::applyRegisterBonus($userId);
