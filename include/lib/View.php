@@ -233,7 +233,10 @@ final class View
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=utf-8');
         }
+        // 独立页也带完整 HTML 骨架，同样在 <body> 之后注入未授权横幅
+        ob_start();
         $this->renderBody($bodyTemplate, $allData);
+        echo $this->injectLicenseBanner((string) ob_get_clean());
     }
 
     /**
@@ -244,8 +247,11 @@ final class View
      */
     private function renderFullPage(string $bodyTemplate, array $data): void
     {
-        // 1. 渲染头部布局
+        // 1. 渲染头部布局（未授权横幅要插在 <body> 之后、站点 header 之前，
+        //    所以先把 header 单独缓冲一下再注入）
+        ob_start();
         $this->renderLayout('header', $data);
+        echo $this->injectLicenseBanner((string) ob_get_clean());
 
         // 2. 头部后置挂载点：适合插入全站浮层、全局脚本等
         doAction('front_header');
@@ -323,6 +329,55 @@ final class View
         }
         extract($data);
         include $tplFile;
+    }
+
+    /**
+     * 把未授权横幅插到 HTML 的 `<body ...>` 之后（没有 body 时追加到末尾）。
+     */
+    private function injectLicenseBanner(string $html): string
+    {
+        $banner = $this->licenseBannerHtml();
+        if ($banner === '') {
+            return $html;
+        }
+
+        $pos = stripos($html, '<body');
+        if ($pos === false) {
+            return $html . $banner;
+        }
+        $gt = strpos($html, '>', $pos);
+        if ($gt === false) {
+            return $html . $banner;
+        }
+
+        return substr($html, 0, $gt + 1) . $banner . substr($html, $gt + 1);
+    }
+
+    /**
+     * 未授权横幅的 HTML；已授权 / 用户今天已关闭 / 本次会话已确认时返回空串。
+     *
+     * 隐藏状态放在 Cookie 里（而不是 localStorage），这样服务端能直接判断，
+     * 刷新时横幅根本不会输出，不会出现「先闪一下再消失」。
+     */
+    private function licenseBannerHtml(): string
+    {
+        // isActivated() 只读本地 Config（init.php 已经预热过），
+        // 不发任何远程请求、不触发授权核对 —— 前台每次渲染都走这里，必须零网络开销。
+        if (!class_exists('LicenseService') || LicenseService::isActivated()) {
+            return '';
+        }
+
+        $hidden = (string) ($_COOKIE['em_license_notice'] ?? '');
+        if ($hidden === 'session') {
+            return '';
+        }
+        if (strncmp($hidden, 'today:', 6) === 0 && substr($hidden, 6) === date('Y-m-d')) {
+            return '';
+        }
+
+        ob_start();
+        include EM_ROOT . '/include/view/partials/license_banner.php';
+        return (string) ob_get_clean();
     }
 
     /**
