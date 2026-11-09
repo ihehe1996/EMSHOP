@@ -233,7 +233,11 @@ final class View
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=utf-8');
         }
+        // 独立页也带完整 HTML 骨架，同样在 <body> 之后注入未授权横幅
+        ob_start();
         $this->renderBody($bodyTemplate, $allData);
+        $html = $this->injectLicenseBanner((string) ob_get_clean());
+        echo $this->injectVersionLog($html);
     }
 
     /**
@@ -244,8 +248,12 @@ final class View
      */
     private function renderFullPage(string $bodyTemplate, array $data): void
     {
-        // 1. 渲染头部布局
+        // 1. 渲染头部布局（未授权横幅要插在 <body> 之后、站点 header 之前，
+        //    所以先把 header 单独缓冲一下再注入）
+        ob_start();
         $this->renderLayout('header', $data);
+        $headerHtml = $this->injectLicenseBanner((string) ob_get_clean());
+        echo $this->injectVersionLog($headerHtml);
 
         // 2. 头部后置挂载点：适合插入全站浮层、全局脚本等
         doAction('front_header');
@@ -323,6 +331,101 @@ final class View
         }
         extract($data);
         include $tplFile;
+    }
+
+    /**
+     * 把未授权横幅插到 HTML 的 `<body ...>` 之后（没有 body 时追加到末尾）。
+     */
+    private function injectLicenseBanner(string $html): string
+    {
+        $banner = $this->licenseBannerHtml();
+        if ($banner === '') {
+            return $html;
+        }
+
+        $pos = stripos($html, '<body');
+        if ($pos === false) {
+            return $html . $banner;
+        }
+        $gt = strpos($html, '>', $pos);
+        if ($gt === false) {
+            return $html . $banner;
+        }
+
+        return substr($html, 0, $gt + 1) . $banner . substr($html, $gt + 1);
+    }
+
+    /**
+     * 在 `</head>` 前插入版本号 + 授权等级日志，前台浏览器控制台可看到。
+     *
+     * 纯前端展示用，不参与任何业务判断；没有 EM_VERSION（极老的包）时直接跳过。
+     * 等级只读本地 Config（currentLevel() 不联网），不拖慢前台。
+     */
+    private function injectVersionLog(string $html): string
+    {
+        if (!defined('EM_VERSION') || (string) EM_VERSION === '') {
+            return $html;
+        }
+
+        $level      = 'none';
+        $levelLabel = '未授权';
+        if (class_exists('LicenseService')) {
+            $level      = LicenseService::currentLevel();
+            $levelLabel = LicenseService::levelLabel($level);
+        }
+
+        $levelStyles = [
+            'none'    => 'background:#fef2f2;color:#dc2626',
+            'vip'     => 'background:#eff6ff;color:#2563eb',
+            'svip'    => 'background:#f5f3ff;color:#7c3aed',
+            'supreme' => 'background:linear-gradient(135deg,#fbbf24,#d97706);color:#fff',
+        ];
+        $levelStyle = ($levelStyles[$level] ?? $levelStyles['none'])
+            . ';border-radius:0 3px 3px 0;padding:2px 6px;font-weight:600';
+
+        $badge = 'background:#4f46e5;color:#fff;border-radius:3px 0 0 3px;padding:2px 6px;font-weight:600';
+        $ver   = 'background:#eef2ff;color:#4f46e5;padding:2px 6px;font-weight:600';
+
+        $script = '<script>console.log('
+            . json_encode('%c EMSHOP %c v' . (string) EM_VERSION . ' %c ' . $levelLabel . ' ', JSON_UNESCAPED_SLASHES)
+            . ', ' . json_encode($badge, JSON_UNESCAPED_SLASHES)
+            . ', ' . json_encode($ver, JSON_UNESCAPED_SLASHES)
+            . ', ' . json_encode($levelStyle, JSON_UNESCAPED_SLASHES)
+            . ');</script>';
+
+        $pos = stripos($html, '</head>');
+        if ($pos === false) {
+            return $html . $script;
+        }
+
+        return substr($html, 0, $pos) . $script . substr($html, $pos);
+    }
+
+    /**
+     * 未授权横幅的 HTML；已授权 / 用户今天已关闭 / 本次会话已确认时返回空串。
+     *
+     * 隐藏状态放在 Cookie 里（而不是 localStorage），这样服务端能直接判断，
+     * 刷新时横幅根本不会输出，不会出现「先闪一下再消失」。
+     */
+    private function licenseBannerHtml(): string
+    {
+        // isActivated() 只读本地 Config（init.php 已经预热过），
+        // 不发任何远程请求、不触发授权核对 —— 前台每次渲染都走这里，必须零网络开销。
+        if (!class_exists('LicenseService') || LicenseService::isActivated()) {
+            return '';
+        }
+
+        $hidden = (string) ($_COOKIE['em_license_notice'] ?? '');
+        if ($hidden === 'session') {
+            return '';
+        }
+        if (strncmp($hidden, 'today:', 6) === 0 && substr($hidden, 6) === date('Y-m-d')) {
+            return '';
+        }
+
+        ob_start();
+        include EM_ROOT . '/include/view/partials/license_banner.php';
+        return (string) ob_get_clean();
     }
 
     /**

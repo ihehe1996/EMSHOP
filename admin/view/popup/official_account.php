@@ -39,6 +39,15 @@ include __DIR__ . '/header.php';
 ?>
 
 <div class="popup-inner oa-wrap">
+<!-- 代理商 / 管理员打开时的欢迎特效（每次打开都会播放一次） -->
+<div class="oa-welcome" id="oaAgentWelcome" hidden aria-hidden="true">
+    <div class="oa-welcome__sparks" id="oaWelcomeSparks"></div>
+    <div class="oa-welcome__content">
+        <span class="oa-welcome__icon"><i class="fa fa-diamond"></i></span>
+        <div class="oa-welcome__title" id="oaWelcomeTitle">欢迎尊贵的 EMSHOP 代理商</div>
+        <div class="oa-welcome__sub">专属权益已解锁</div>
+    </div>
+</div>
 <?php if (!$logged): ?>
     <div class="oa-empty">
         <div class="oa-empty__icon"><i class="fa fa-user-circle-o"></i></div>
@@ -156,6 +165,56 @@ include __DIR__ . '/header.php';
             </span>
             <span class="oa-tile__value oa-tile__value--note">客户安装上报</span>
             <span class="oa-tile__desc">装的哪一版、在哪台机器</span>
+        </div>
+    </div>
+
+    <!-- 普通用户：代理商开通引导；代理 / 管理账号自动隐藏（角色以概览返回的实时资料为准） -->
+    <div class="oa-promo" id="oaAgentPromo"<?= $isAgent ? ' hidden' : '' ?>>
+        <div class="oa-promo__head">
+            <span class="oa-promo__icon"><i class="fa fa-handshake-o"></i></span>
+            <span class="oa-promo__heading">
+                <span class="oa-promo__title">开通代理商</span>
+                <span class="oa-promo__sub">解锁代理专属权益</span>
+            </span>
+            <span class="oa-promo__badge">代理专享</span>
+        </div>
+
+        <div class="oa-promo__perks">
+            <div class="oa-promo__perk">
+                <span class="oa-promo__perk-icon oa-promo__perk-icon--amber"><i class="fa fa-gift"></i></span>
+                <span class="oa-promo__perk-body">
+                    <span class="oa-promo__perk-title">赠送授权码</span>
+                    <span class="oa-promo__perk-desc">开通即送价值 1000 元的授权码</span>
+                </span>
+            </div>
+            <div class="oa-promo__perk">
+                <span class="oa-promo__perk-icon oa-promo__perk-icon--indigo"><i class="fa fa-tags"></i></span>
+                <span class="oa-promo__perk-body">
+                    <span class="oa-promo__perk-title">半价生成</span>
+                    <span class="oa-promo__perk-desc">授权码生成享 5 折</span>
+                </span>
+            </div>
+            <div class="oa-promo__perk">
+                <span class="oa-promo__perk-icon oa-promo__perk-icon--green"><i class="fa fa-line-chart"></i></span>
+                <span class="oa-promo__perk-body">
+                    <span class="oa-promo__perk-title">应用商店返佣</span>
+                    <span class="oa-promo__perk-desc">名下客户消费返佣 ≥ 50%</span>
+                </span>
+            </div>
+            <div class="oa-promo__perk">
+                <span class="oa-promo__perk-icon oa-promo__perk-icon--cyan"><i class="fa fa-sliders"></i></span>
+                <span class="oa-promo__perk-body">
+                    <span class="oa-promo__perk-title">自定义配置</span>
+                    <span class="oa-promo__perk-desc">客服信息 / 售卖链接 / 广告位</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="oa-promo__actions">
+            <button type="button" class="oa-btn oa-btn--primary" id="oaAgentApply">
+                <i class="fa fa-comments-o"></i> 联系客服开通
+            </button>
+            <span class="oa-promo__hint">咨询代理价格与开通条件</span>
         </div>
     </div>
 <?php endif; ?>
@@ -316,6 +375,204 @@ include __DIR__ . '/header.php';
     text-align: center;
 }
 
+/* ---------- 普通用户：代理商开通引导 ---------- */
+.oa-promo {
+    position: relative;
+    margin-top: 12px;
+    padding: 18px 20px;
+    border: 1px solid #dbe3ff;
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+        radial-gradient(420px 200px at 100% -40%, rgba(99, 102, 241, 0.18), transparent 70%),
+        radial-gradient(300px 180px at -10% 120%, rgba(14, 165, 233, 0.12), transparent 70%),
+        linear-gradient(135deg, #f7f8ff 0%, #eef2ff 100%);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.08);
+}
+/* hidden 属性优先级低于本类的样式，显式覆盖 */
+.oa-promo[hidden] { display: none; }
+.oa-promo__head {
+    display: flex; align-items: center; gap: 10px;
+}
+.oa-promo__icon {
+    width: 34px; height: 34px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.3);
+}
+.oa-promo__heading {
+    display: flex; flex-direction: column;
+    min-width: 0;
+}
+.oa-promo__title {
+    font-size: 14px; font-weight: 600; color: #0f172a;
+    letter-spacing: 0.2px;
+}
+.oa-promo__sub {
+    margin-top: 1px;
+    font-size: 11.5px; color: #818cf8;
+}
+.oa-promo__badge {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 3px 10px; border-radius: 999px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #fff;
+    font-size: 11px; font-weight: 600;
+    box-shadow: 0 3px 8px rgba(245, 158, 11, 0.28);
+}
+.oa-promo__perks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 14px;
+}
+.oa-promo__perk {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    border-radius: 11px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.oa-promo__perk:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: #fff;
+}
+.oa-promo__perk-icon {
+    width: 26px; height: 26px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px;
+}
+.oa-promo__perk-icon--amber  { background: #fffbeb; color: #d97706; }
+.oa-promo__perk-icon--indigo { background: #eef2ff; color: #4f46e5; }
+.oa-promo__perk-icon--green  { background: #ecfdf5; color: #059669; }
+.oa-promo__perk-icon--cyan   { background: #ecfeff; color: #0891b2; }
+.oa-promo__perk-body {
+    display: flex; flex-direction: column;
+    min-width: 0;
+}
+.oa-promo__perk-title {
+    font-size: 12.5px; font-weight: 600; color: #1f2937;
+    line-height: 1.4;
+}
+.oa-promo__perk-desc {
+    margin-top: 1px;
+    font-size: 11.5px; color: #6b7280;
+    line-height: 1.5;
+}
+.oa-promo__actions {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 14px;
+}
+.oa-promo__hint { font-size: 11.5px; color: #9ca3af; }
+
+/* ---------- 代理商 / 管理员欢迎特效 ---------- */
+.oa-welcome {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at 50% 42%, rgba(49, 46, 129, 0.55), rgba(15, 23, 42, 0.72));
+    transition: opacity 0.35s ease;
+}
+.oa-welcome[hidden] { display: none; }
+.oa-welcome.is-show { opacity: 1; }
+.oa-welcome.is-hide { opacity: 0; }
+.oa-welcome__content {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 26px 34px 24px;
+    border-radius: 18px;
+    background:
+        radial-gradient(240px 120px at 50% -20%, rgba(251, 191, 36, 0.32), transparent 70%),
+        linear-gradient(135deg, rgba(79, 70, 229, 0.94), rgba(30, 27, 75, 0.96));
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    transform: scale(0.92);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.4s ease;
+}
+.oa-welcome.is-show .oa-welcome__content {
+    transform: scale(1);
+    opacity: 1;
+}
+.oa-welcome__icon {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    color: #fff;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+    animation: oaWelcomePulse 1.6s ease-in-out infinite;
+}
+.oa-welcome__title {
+    margin-top: 14px;
+    font-size: 18px; font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #fde68a;
+    text-align: center;
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .oa-welcome__title {
+        background: linear-gradient(90deg, #fde68a 0%, #ffffff 45%, #fcd34d 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 2px 10px rgba(251, 191, 36, 0.28));
+    }
+}
+.oa-welcome__sub {
+    margin-top: 7px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.72);
+}
+.oa-welcome__sparks {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+.oa-spark {
+    position: absolute;
+    top: -12px;
+    border-radius: 50%;
+    opacity: 0;
+    animation-name: oaSparkFall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+@keyframes oaSparkFall {
+    0%   { transform: translate3d(0, -10px, 0) scale(0.6); opacity: 0; }
+    15%  { opacity: 1; }
+    100% { transform: translate3d(var(--drift, 0), 110vh, 0) scale(1); opacity: 0; }
+}
+@keyframes oaWelcomePulse {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+    }
+    50% {
+        transform: translateY(-3px) scale(1.06);
+        box-shadow: 0 10px 26px rgba(245, 158, 11, 0.6);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .oa-welcome__icon { animation: none; }
+    .oa-spark { animation: none; display: none; }
+    .oa-welcome__content { transition: opacity 0.2s ease; transform: none; }
+    .oa-welcome.is-show .oa-welcome__content { transform: none; }
+}
+
 /* ---------- 按钮 ---------- */
 .oa-btn {
     display: inline-flex; align-items: center; gap: 6px;
@@ -346,6 +603,10 @@ include __DIR__ . '/header.php';
     .oa-user__meta { flex: 1 1 100%; order: 3; }
     .oa-grid { grid-template-columns: 1fr; }
     .oa-tile { padding: 14px; }
+    .oa-promo { padding: 14px; }
+    .oa-promo__perks { grid-template-columns: 1fr; }
+    .oa-promo__actions { flex-wrap: wrap; }
+    .oa-promo__actions .oa-btn { width: 100%; justify-content: center; }
 }
 </style>
 
@@ -359,6 +620,63 @@ $(function () {
             email: <?= json_encode($accEmail) ?>,
             initial: <?= json_encode($accInitial) ?>
         };
+
+        // 欢迎特效：先用服务端快照，概览接口返回后再按实时角色校正
+        var welcomeRole = <?= json_encode($isAgent ? (string) ($officialAccount['role'] ?? '') : '') ?>;
+        var welcomeShown = false;
+        var welcomeTimers = [];
+
+        function welcomeText(role) {
+            return role === 'admin'
+                ? '欢迎尊贵的 EMSHOP 管理员'
+                : '欢迎尊贵的 EMSHOP 代理商';
+        }
+
+        function hideAgentWelcome() {
+            var $w = $('#oaAgentWelcome');
+            if (!$w.length || $w.prop('hidden')) return;
+            for (var i = 0; i < welcomeTimers.length; i++) clearTimeout(welcomeTimers[i]);
+            welcomeTimers = [];
+            $w.removeClass('is-show').addClass('is-hide');
+            welcomeTimers.push(setTimeout(function () {
+                $w.prop('hidden', true).removeClass('is-hide');
+                $('#oaWelcomeSparks').empty();
+            }, 400));
+        }
+
+        function showAgentWelcome(role) {
+            if (welcomeShown) return;
+            var $w = $('#oaAgentWelcome');
+            if (!$w.length) return;
+            welcomeShown = true;
+
+            $('#oaWelcomeTitle').text(welcomeText(role));
+
+            // 彩色光点：随机位置 / 大小 / 速度 / 横向漂移
+            var colors = ['#fbbf24', '#fcd34d', '#818cf8', '#a78bfa', '#67e8f9', '#ffffff'];
+            var html = '';
+            for (var i = 0; i < 26; i++) {
+                var size = (4 + Math.random() * 5).toFixed(1);
+                var color = colors[Math.floor(Math.random() * colors.length)];
+                html += '<span class="oa-spark" style="'
+                     + 'left:' + (Math.random() * 100).toFixed(2) + '%;'
+                     + 'width:' + size + 'px;height:' + size + 'px;'
+                     + 'background:' + color + ';box-shadow:0 0 8px ' + color + ';'
+                     + 'animation-duration:' + (2.4 + Math.random() * 2.2).toFixed(2) + 's;'
+                     + 'animation-delay:' + (Math.random() * 1.2).toFixed(2) + 's;'
+                     + '--drift:' + (Math.random() * 80 - 40).toFixed(0) + 'px'
+                     + '"></span>';
+            }
+            $('#oaWelcomeSparks').html(html);
+
+            $w.prop('hidden', false);
+            void $w[0].offsetWidth; // 强制回流，让淡入过渡生效
+            $w.addClass('is-show');
+
+            welcomeTimers.push(setTimeout(function () {
+                hideAgentWelcome();
+            }, 2600));
+        }
 
         // 本页是后台里的 iframe 弹窗，自身 layer 开的窗口会被 iframe 裁切；
         // 所以窗口类弹层一律开到父窗口顶层。
@@ -465,6 +783,11 @@ $(function () {
             }
         });
 
+        // 普通用户的开通引导：打开客服弹窗（与授权页「联系客服」同一个 iframe）
+        $('#oaAgentApply').on('click', function () {
+            openFrame('/admin/license.php?_popup=contact', '联系客服', 480, 620);
+        });
+
         // ---------- 添加激活码（独立 iframe 窗口） ----------
         function bumpLicenseCount(delta) {
             var $count = $('#oaLicCount');
@@ -531,10 +854,18 @@ $(function () {
             $('#oaUserRole').text(role);
             $('#oaUserEmail').text(email).prop('hidden', email === '');
 
-            // 代理 / 管理账号才显示「代理配置」「激活码仓库」
+            // 代理 / 管理账号才显示代理功能；普通用户显示开通引导
             var isStaff = user.role === 'agent' || user.role === 'admin';
             $('#oaAgentTile, #oaWarehouseTile, #oaVersionsTile, #oaOrdersTile, #oaAdsTile, #oaInstallsTile')
                 .prop('hidden', !isStaff);
+            $('#oaAgentPromo').prop('hidden', isStaff);
+
+            // 欢迎特效以实时角色为准：快照可能已过期
+            if (isStaff) {
+                showAgentWelcome(String(user.role || ''));
+            } else {
+                hideAgentWelcome();
+            }
 
             ACCOUNT.name = name;
             ACCOUNT.email = email;
@@ -758,6 +1089,11 @@ $(function () {
                 }
             });
         });
+
+        // 每次打开弹窗都播一次；角色以服务端快照先播，概览回来后再校正
+        if (welcomeRole === 'agent' || welcomeRole === 'admin') {
+            setTimeout(function () { showAgentWelcome(welcomeRole); }, 220);
+        }
 
     });
 });

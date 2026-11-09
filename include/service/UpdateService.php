@@ -526,7 +526,20 @@ final class UpdateService
             Config::set('last_update_at', (string) time());
         }
 
-        return ['ok' => true];
+        // 上报更新成功（官方站版本管理的「更新数」+1）。
+        // finalize 是独立的一次请求，此时新文件已经覆盖完，init.php 里的
+        // EM_VERSION 就是这次升级到的目标版本（不是升级前的旧版本）。
+        // 尽力而为：网络 / 接口异常都不影响升级结果，方法内部已吞掉异常。
+        $reported = false;
+        if (defined('EM_VERSION') && class_exists('LicenseClient')) {
+            try {
+                $reported = LicenseClient::reportUpdateSuccess((string) EM_VERSION);
+            } catch (Throwable $e) {
+                $reported = false;
+            }
+        }
+
+        return ['ok' => true, 'update_reported' => $reported];
     }
 
     // ================================================================

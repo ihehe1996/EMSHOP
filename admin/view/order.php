@@ -6,9 +6,21 @@ $csrfToken = Csrf::token();
 $cs = $currencySymbol ?? '¥';
 ?>
 <style>
-    .em-quick-search input{
-        width: 420px;
-        padding-right: 0;
+    /* 工具栏与下方表格之间留出间距（只作用于本页订单表格） */
+    .admin-page .layui-table-view[lay-table-id="orderTableId"] .layui-table-tool{
+        padding-bottom: 10px;
+    }
+    /* 手机端：站点筛选下拉与搜索框同一行（公共样式里搜索框是 flex-basis:100%，会换行） */
+    @media (max-width: 992px){
+        .admin-page .layui-table-view[lay-table-id="orderTableId"] .em-quick-search{
+            flex: 1 1 0;
+            width: auto;
+            min-width: 0;
+        }
+        .admin-page .layui-table-view[lay-table-id="orderTableId"] .em-quick-search input{
+            width: 100%;
+            box-sizing: border-box;
+        }
     }
     /* 站点归属筛选下拉：尺寸对齐右侧的快捷搜索框（32px 高 / 6px 圆角 / 同款聚焦态） */
     .em-toolbar-select{
@@ -65,7 +77,7 @@ $cs = $currencySymbol ?? '¥';
         </select>
         <form class="em-quick-search" id="orderQuickSearchForm" autocomplete="off">
             <i class="fa fa-search em-quick-search__ico"></i>
-            <input type="search" id="orderQuickSearch" placeholder="订单号 / 商品名 / 昵称 / 账号 / 手机号 / 邮箱 / 游客查单项" enterkeyhint="search">
+            <input type="search" id="orderQuickSearch" placeholder="输入关键词搜索" enterkeyhint="search">
             <button type="button" class="em-quick-search__clear" id="orderQuickClear" title="清空"><i class="fa fa-times"></i></button>
         </form>
     </div>
