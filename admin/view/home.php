@@ -90,7 +90,7 @@ $todayRevenueYuan = number_format(((int) $stats['today_revenue']) / 1000000, 2);
 /* ============================================================
  * 6 指标卡数据采集（今日 / 昨日 / 日环比 / 本月）
  * —— 订单类指标都按 status=completed + complete_time 聚合
- * —— 利润 = 销售额 − 商户订单的拿货价合计（主站订单 cost_amount=0，暂视为毛利=销售额）
+ * —— 利润 = 销售额 − 商品成本价合计（goods_spec.cost_price × 数量；未设成本价的按 0 计）
  * —— 访问量暂无后端存储，占位为 0；待接入 PV 统计后填充
  * ============================================================ */
 $__dayStart   = $__today . ' 00:00:00';
@@ -109,10 +109,15 @@ $__queryOrder = function ($start, $end) use ($__prefix) {
               WHERE status = ? AND complete_time >= ? AND complete_time < ?',
             ['completed', $start, $end]
         );
+        // 成本取规格成本价（goods_spec.cost_price × 数量），和「按订单利润」返佣同口径。
+        // 不能用 order_goods.cost_amount —— 那是商户的拿货价（主站收入），只有商户引用
+        // 主站商品的订单行才非 0；主站自营、商户自建商品都是 0，会把利润算成等于销售额。
+        // cost_price 为 NULL（未设置）的行按 0 计，SUM 会自然跳过。
         $c = Database::fetchOne(
-            'SELECT COALESCE(SUM(og.cost_amount), 0) AS c
+            'SELECT COALESCE(SUM(gs.cost_price * og.quantity), 0) AS c
                FROM `' . $__prefix . 'order_goods` og
           INNER JOIN `' . $__prefix . 'order` o ON o.id = og.order_id
+           LEFT JOIN `' . $__prefix . 'goods_spec` gs ON gs.id = og.spec_id
               WHERE o.status = ? AND o.complete_time >= ? AND o.complete_time < ?',
             ['completed', $start, $end]
         );
@@ -174,9 +179,10 @@ $metrics = [
         'key'       => 'profit',   'label' => '利润',
         'icon'      => 'fa-line-chart', 'color' => '#f59e0b', 'soft' => '#fffbeb',
         'unit'      => $currencySymbol, 'decimals' => 2,
-        'today'     => $__toYuan(max(0, $__t['revenue'] - $__t['cost'])),
-        'yesterday' => $__toYuan(max(0, $__y['revenue'] - $__y['cost'])),
-        'month'     => $__toYuan(max(0, $__m['revenue'] - $__m['cost'])),
+        // 不钳制到 0：优惠券由主站承担时，成本可能高于实付，负数也要如实展示
+        'today'     => $__toYuan($__t['revenue'] - $__t['cost']),
+        'yesterday' => $__toYuan($__y['revenue'] - $__y['cost']),
+        'month'     => $__toYuan($__m['revenue'] - $__m['cost']),
     ],
     [
         // 客单价 → 青绿（客均值）
@@ -202,18 +208,21 @@ $metrics = [
 // zero  → 持平（含两侧都为 0、非 0 但完全相等），红色 + 横线图标
 // up    → 上升（含昨日 0 今日 > 0 的 ∞），绿色
 // down  → 下降，红色
+// 注意：利润允许为负，基数要按绝对值算，否则「昨日 -10 今日 -20」会算出 -100%
 $calcRatio = static function (float $today, float $yesterday): array {
-    if ($yesterday <= 0.0001 && $today <= 0.0001) {
+    $base = abs($yesterday);
+    if ($base <= 0.0001 && abs($today) <= 0.0001) {
         return ['state' => 'zero', 'pct' => '0.0'];
     }
-    if ($yesterday <= 0.0001) {
-        return ['state' => 'up', 'pct' => '∞'];
+    if ($base <= 0.0001) {
+        // 从 0 出发：正数算上升，负数算下降
+        return ['state' => $today > 0 ? 'up' : 'down', 'pct' => '∞'];
     }
     $diff = $today - $yesterday;
     if (abs($diff) <= 0.0001) {
         return ['state' => 'zero', 'pct' => '0.0'];
     }
-    $pct = abs($diff) / $yesterday * 100;
+    $pct = abs($diff) / $base * 100;
     $pctStr = number_format($pct, $pct >= 100 ? 0 : 1);
     return ['state' => $diff > 0 ? 'up' : 'down', 'pct' => $pctStr];
 };
@@ -389,8 +398,11 @@ $__officialAccount = LicenseService::officialAccount();
         <?php
             $isEmpty = isset($m['empty']);
             $ratio = $calcRatio((float) $m['today'], (float) $m['yesterday']);
-            $fmt = static function (float $v, int $d) {
-                return number_format($v, $d);
+            // 负数把符号放在货币符号前面：-¥1.00 而不是 ¥-1.00
+            $fmt = static function (float $v, int $d, string $unit) use ($esc): string {
+                $rounded = round($v, $d);
+                $sign    = $rounded < 0 ? '-' : '';
+                return $sign . $esc($unit) . number_format(abs($rounded), $d);
             };
         ?>
         <div class="dash-metric" style="--m-color: <?= $m['color'] ?>; --m-soft: <?= $m['soft'] ?>;">
@@ -402,20 +414,20 @@ $__officialAccount = LicenseService::officialAccount();
 
             <div class="dash-metric__main">
                 <div class="dash-metric__value-row">
-                    <span class="dash-metric__today-value"><?= $esc((string) $m['unit']) . $fmt((float) $m['today'], (int) $m['decimals']) ?></span>
+                    <span class="dash-metric__today-value"><?= $fmt((float) $m['today'], (int) $m['decimals'], (string) $m['unit']) ?></span>
                     <span class="dash-ratio dash-ratio--<?= $ratio['state'] ?>" title="环比昨日">
                         <i class="fa fa-arrow-<?= $ratio['state'] === 'down' ? 'down' : 'up' ?>"></i>
                         <?= $ratio['pct'] ?>%
                     </span>
                 </div>
                 <div class="dash-metric__yesterday">
-                    昨日 <?= $esc((string) $m['unit']) . $fmt((float) $m['yesterday'], (int) $m['decimals']) ?>
+                    昨日 <?= $fmt((float) $m['yesterday'], (int) $m['decimals'], (string) $m['unit']) ?>
                 </div>
             </div>
 
             <div class="dash-metric__month">
                 <span class="dash-metric__month-label">本月</span>
-                <span class="dash-metric__month-value"><?= $esc((string) $m['unit']) . $fmt((float) $m['month'], (int) $m['decimals']) ?></span>
+                <span class="dash-metric__month-value"><?= $fmt((float) $m['month'], (int) $m['decimals'], (string) $m['unit']) ?></span>
             </div>
         </div>
         <?php endforeach; ?>
