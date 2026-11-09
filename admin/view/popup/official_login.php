@@ -80,7 +80,6 @@ include __DIR__ . '/header.php';
                 </div>
             </div>
 
-            <div class="form-group__error" id="olgLoginError"></div>
         </div>
 
         <div class="olg-panel" data-panel="register" hidden>
@@ -305,20 +304,6 @@ $(function () {
             closeSelf();
         }
 
-        function errorBox(name) {
-            return name === 'register' ? $('#olgRegError') : $('#olgLoginError');
-        }
-
-        function showError(name, msg) {
-            errorBox(name).text(msg).addClass('is-visible');
-            setTimeout(syncHeight, 30);
-        }
-
-        function clearError(name) {
-            errorBox(name).removeClass('is-visible').text('');
-            setTimeout(syncHeight, 30);
-        }
-
         /* ---------- 选项卡 ---------- */
         $('.olg-tab').on('click', function () {
             var tab = String($(this).data('tab') || 'login');
@@ -330,7 +315,6 @@ $(function () {
             $('.olg-panel[data-panel="' + tab + '"]').addClass('is-active').prop('hidden', false);
 
             setHero(tab);
-            clearError(tab);
             setTimeout(syncHeight, 30);
 
             setTimeout(function () {
@@ -343,7 +327,6 @@ $(function () {
 
             $('.olg-sub').removeClass('is-active').prop('hidden', true);
             $('.olg-sub[data-mode="' + mode + '"]').addClass('is-active').prop('hidden', false);
-            clearError('login');
             setTimeout(syncHeight, 30);
 
             if (mode === 'password') {
@@ -357,7 +340,7 @@ $(function () {
         function sendCode(email, scene, $btn, name) {
             email = $.trim(email);
             if (email === '') {
-                showError(name, '请先填邮箱');
+                EmToast.err('请先填邮箱');
                 return;
             }
             if ($btn.prop('disabled')) return;
@@ -367,7 +350,7 @@ $(function () {
             post({ _action: 'official_email_code', email: email, scene: scene }).done(function (res) {
                 if (!res || res.code !== 200) {
                     $btn.prop('disabled', false).text('获取验证码');
-                    showError(name, (res && res.msg) || '发送失败');
+                    EmToast.err((res && res.msg) || '发送失败');
                     return;
                 }
 
@@ -387,7 +370,7 @@ $(function () {
                 }, 1000);
             }).fail(function () {
                 $btn.prop('disabled', false).text('获取验证码');
-                showError(name, '网络异常，请稍后重试');
+                EmToast.err('网络异常，请稍后重试');
             });
         }
 
@@ -403,22 +386,21 @@ $(function () {
             var account = $.trim(String($('#olgAccount').val() || ''));
             var password = String($('#olgPassword').val() || '');
 
-            clearError('login');
-            if (account === '') { showError('login', '请输入账号'); return; }
-            if (password === '') { showError('login', '请输入密码'); return; }
+            if (account === '') { EmToast.err('请输入账号'); return; }
+            if (password === '') { EmToast.err('请输入密码'); return; }
 
             $btn.prop('disabled', true).text('登录中…');
 
             post({ _action: 'official_login', account: account, password: password }).done(function (res) {
                 if (!res || res.code !== 200) {
                     $btn.prop('disabled', false).text('登录');
-                    showError('login', (res && res.msg) || '登录失败');
+                    EmToast.err((res && res.msg) || '登录失败');
                     return;
                 }
                 notifyAndClose();
             }).fail(function () {
                 $btn.prop('disabled', false).text('登录');
-                showError('login', '网络异常，请稍后重试');
+                EmToast.err('网络异常，请稍后重试');
             });
         }
 
@@ -429,22 +411,21 @@ $(function () {
             var email = $.trim(String($('#olgLoginEmail').val() || ''));
             var code = $.trim(String($('#olgLoginCode').val() || ''));
 
-            clearError('login');
-            if (email === '') { showError('login', '请输入邮箱'); return; }
-            if (code === '') { showError('login', '请输入验证码'); return; }
+            if (email === '') { EmToast.err('请输入邮箱'); return; }
+            if (code === '') { EmToast.err('请输入验证码'); return; }
 
             $btn.prop('disabled', true).text('登录中…');
 
             post({ _action: 'official_login_code', email: email, code: code }).done(function (res) {
                 if (!res || res.code !== 200) {
                     $btn.prop('disabled', false).text('登录');
-                    showError('login', (res && res.msg) || '登录失败');
+                    EmToast.err((res && res.msg) || '登录失败');
                     return;
                 }
                 notifyAndClose();
             }).fail(function () {
                 $btn.prop('disabled', false).text('登录');
-                showError('login', '网络异常，请稍后重试');
+                EmToast.err('网络异常，请稍后重试');
             });
         }
 
