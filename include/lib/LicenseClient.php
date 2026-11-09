@@ -202,6 +202,47 @@ final class LicenseClient
     }
 
     /**
+     * 上报一次「更新成功」（POST /api/open/v1/em/update-report）。
+     *
+     * 在线升级 `finalize` 成功后调一次，官方站给目标版本的「更新次数」+1
+     * （版本管理列表里的「更新数」）。
+     *
+     * 请求参数：
+     *   version  升级后的版本号（服务端会去 v、转小写后与版本表匹配）
+     *
+     * 服务端响应 data：{version_counted: bool}
+     *   版本表里没有这一版 → false（开发版比已发布的新等，正常情况，不当错误）
+     *
+     * 这是**尽力而为**的上报：升级已经完成，统计失败绝不能反过来影响升级结果。
+     * 所以本方法自己吞掉所有异常，只返回 bool。
+     *
+     * 换线：不自动换线，只请求当前选中的线路；超时压到 5s（同安装上报的口径）。
+     *
+     * @return bool 服务端有没有真的给版本加上计数
+     */
+    public static function reportUpdateSuccess(string $version): bool
+    {
+        $version = strtolower(trim($version));
+        if (strncmp($version, 'v', 1) === 0) {
+            $version = trim(substr($version, 1));
+        }
+
+        // 版本号只允许字母数字和 . _ -，长度与官方站 VersionBase::VERSION_MAX（32）对齐
+        if ($version === '' || strlen($version) > 32
+            || preg_match('/^[0-9a-z._-]+$/', $version) !== 1
+        ) {
+            return false;
+        }
+
+        try {
+            $data = self::postForm('api/open/v1/em/update-report', ['version' => $version], 5);
+            return !empty($data['version_counted']);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * 后台基础数据聚合（POST /api/open/v1/em/base-data）。
      *
      * 一次请求拿到授权状态 + 代理配置 + 公告 + 广告位 + 版本信息，是后台首页与
