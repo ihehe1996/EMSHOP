@@ -253,7 +253,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                     <div class="admin-menu-group__body">
                         <a href="/admin/settings.php?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
                         <a href="/admin/currency.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('货币配置'); ?></a>
-                        <a href="/admin/attachment.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
+                        <a href="/admin/attachment" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
                         <a href="/admin/system_log.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('系统日志'); ?></a>
                         <a href="/admin/disclaimer.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('免责协议'); ?></a>
                     </div>

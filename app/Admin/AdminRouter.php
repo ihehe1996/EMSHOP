@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Admin;
 
+use App\Admin\Controller\AttachmentController;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogController;
@@ -63,6 +64,7 @@ final class AdminRouter
         'recharge' => [RechargeController::class, 'index'],
         'user_level' => [UserLevelController::class, 'index'],
         'merchant_level' => [MerchantLevelController::class, 'index'],
+        'attachment' => [AttachmentController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
