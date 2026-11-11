@@ -8,6 +8,7 @@ use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
+use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsTagController;
@@ -53,6 +54,7 @@ final class AdminRouter
         'page' => [PageController::class, 'index'],
         'blog' => [BlogController::class, 'index'],
         'blog_comment' => [BlogCommentController::class, 'index'],
+        'commission' => [CommissionController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

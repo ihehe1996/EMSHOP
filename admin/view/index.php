@@ -182,7 +182,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <a href="/admin/user_list.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户列表'); ?></a>
                         <a href="/admin/user_level.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户等级'); ?></a>
                         <a href="/admin/merchant_level.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商户等级'); ?></a>
-                        <a href="/admin/commission.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('推广返佣'); ?></a>
+                        <a href="/admin/commission" data-pjax="#adminContent" class="admin-menu-item"><?= t('推广返佣'); ?></a>
                     </div>
                 </div>
 
