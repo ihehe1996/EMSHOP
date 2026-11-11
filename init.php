@@ -316,6 +316,9 @@ Cache::init();
 // 算术验证码服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Captcha::class, Captcha::instance());
 
+// 下载地址校验服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\DownloadUrlGuard::class, DownloadUrlGuard::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

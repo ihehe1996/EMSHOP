@@ -889,6 +889,37 @@ smoke_check('Captcha 过期拒绝', Captcha::verify('3', 'smoke_exp') === false)
 $_SESSION = $oldSessionForCaptcha;
 smoke_check('Captcha 容器实例与门面一致', $container->make(\App\Support\Captcha::class) === Captcha::instance());
 
+// DownloadUrlGuard：白名单、SSRF 防护与容器一致性
+smoke_check('DownloadUrlGuard 同源 https 放行',
+    DownloadUrlGuard::isAllowed('https://license.example.com/x.zip', 'https://license.example.com') === true);
+smoke_check('DownloadUrlGuard 默认拒绝 http',
+    DownloadUrlGuard::isAllowed('http://license.example.com/x.zip', 'https://license.example.com') === false);
+smoke_check('DownloadUrlGuard 显式允许 http',
+    DownloadUrlGuard::isAllowed('http://license.example.com/x.zip', 'https://license.example.com', true) === true);
+smoke_check('DownloadUrlGuard 拒绝子域名伪装',
+    DownloadUrlGuard::isAllowed('https://license.example.com.attacker.com/x.zip', 'https://license.example.com') === false);
+smoke_check('DownloadUrlGuard 拒绝 userinfo',
+    DownloadUrlGuard::isAllowed('https://license.example.com@attacker.com/x.zip', 'https://license.example.com') === false);
+smoke_check('DownloadUrlGuard 端口必须一致',
+    DownloadUrlGuard::isAllowed('https://license.example.com/x.zip', 'https://license.example.com:10000') === false
+    && DownloadUrlGuard::isAllowed('https://license.example.com:10000/x.zip', 'https://license.example.com:10000') === true);
+smoke_check('DownloadUrlGuard 默认端口规则',
+    DownloadUrlGuard::isAllowed('https://license.example.com:443/x.zip', 'https://license.example.com') === true
+    && DownloadUrlGuard::isAllowed('https://license.example.com:8443/x.zip', 'https://license.example.com') === false);
+
+smoke_check('DownloadUrlGuard 拒绝内网 IP',
+    DownloadUrlGuard::isPublicHttpUrl('http://127.0.0.1/') === false
+    && DownloadUrlGuard::isPublicHttpUrl('http://169.254.169.254/latest/meta-data/') === false
+    && DownloadUrlGuard::isPublicHttpUrl('http://10.0.0.1/') === false);
+smoke_check('DownloadUrlGuard 拒绝非 http(s)',
+    DownloadUrlGuard::isPublicHttpUrl('ftp://example.com/x') === false);
+smoke_check('DownloadUrlGuard 拒绝 userinfo 地址',
+    DownloadUrlGuard::isPublicHttpUrl('http://user:pass@example.com/') === false);
+smoke_check('DownloadUrlGuard 公网 IP 放行',
+    DownloadUrlGuard::isPublicHttpUrl('https://8.8.8.8/') === true);
+
+smoke_check('DownloadUrlGuard 容器实例与门面一致', $container->make(\App\Support\DownloadUrlGuard::class) === DownloadUrlGuard::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
