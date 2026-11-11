@@ -44,6 +44,7 @@ use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
 use App\Admin\Controller\SystemLogController;
 use App\Admin\Controller\TemplateController;
+use App\Admin\Controller\UpdateController;
 use App\Admin\Controller\UploadController;
 use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\UserListController;
@@ -117,6 +118,7 @@ final class AdminRouter
         'page_edit' => [PageEditController::class, 'index'],
         'media' => [MediaController::class, 'index'],
         'upload' => [UploadController::class, 'index'],
+        'update' => [UpdateController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

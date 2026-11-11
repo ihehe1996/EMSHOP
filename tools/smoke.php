@@ -95,6 +95,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\CouponController', class_
 smoke_check('新类可加载：App\\Admin\\Controller\\OrderController', class_exists('App\\Admin\\Controller\\OrderController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\MediaController', class_exists('App\\Admin\\Controller\\MediaController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\UploadController', class_exists('App\\Admin\\Controller\\UploadController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\UpdateController', class_exists('App\\Admin\\Controller\\UpdateController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogEditController', class_exists('App\\Admin\\Controller\\BlogEditController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\PageEditController', class_exists('App\\Admin\\Controller\\PageEditController'));
 
@@ -446,6 +447,14 @@ smoke_check(
     '后台路由 /admin/upload → UploadController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\UploadController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/update');
+smoke_check(
+    '后台路由 /admin/update → UpdateController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\UpdateController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -2200,6 +2209,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/upload 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/update', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/update 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 
