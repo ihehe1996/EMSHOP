@@ -266,7 +266,7 @@ $csrfTokenJson = json_encode($csrfToken, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED
 </style>
 
 <script src="/content/static/lib/tinymce/tinymce.min.js"></script>
-<script src="/admin/static/js/em-tinymce.js"></script>
+<script src="/content/static/admin/js/em-tinymce.js"></script>
 
 <script>
 $(function(){

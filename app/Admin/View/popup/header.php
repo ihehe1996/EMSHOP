@@ -11,15 +11,15 @@ if (!defined('EM_ROOT')) {
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/cropper.min.css">
-    <link rel="stylesheet" href="/admin/static/css/popup.css">
-    <link rel="stylesheet" href="/admin/static/css/reset-layui.css">
-    <link rel="stylesheet" href="/admin/static/css/style.css">
+    <link rel="stylesheet" href="/content/static/admin/css/popup.css">
+    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css">
+    <link rel="stylesheet" href="/content/static/admin/css/style.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
-    <script src="/admin/static/js/em-editor-upload.js"></script>
+    <script src="/content/static/admin/js/em-editor-upload.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/content/static/lib/cropper.min.js"></script>
     <script src="/content/static/lib/sortable.min.js"></script>
-    <script src="/admin/static/js/admin.js?v=<?= EM_VERSION; ?>"></script>
+    <script src="/content/static/admin/js/admin.js?v=<?= EM_VERSION; ?>"></script>
     <script>
     // 弹窗里的模板 / 插件 setting.php 保存 URL 应读 parent.TEMPLATE_SAVE_URL / parent.PLUGIN_SAVE_URL，
     // 而不是硬编码 /admin/template.php /admin/plugin.php —— 这样同一份 setting.php 既能在主站后台弹窗里用，
@@ -35,7 +35,7 @@ if (!defined('EM_ROOT')) {
     </script>
 
 <script src="/content/static/lib/tinymce/tinymce.min.js"></script>
-    <script src="/admin/static/js/em-tinymce.js"></script> 
+    <script src="/content/static/admin/js/em-tinymce.js"></script> 
     <?php if (isset($extraHead)) echo $extraHead; ?>
 </head> 
 <body class="popup-body">

@@ -10,7 +10,7 @@ if (!defined('EM_ROOT')) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>选择图片</title>
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
-    <link rel="stylesheet" href="/admin/static/css/admin.css">
+    <link rel="stylesheet" href="/content/static/admin/css/admin.css">
     <style>
         html, body { height: 100%; overflow: hidden; }
         body { background: #fff; padding: 16px; display: flex; flex-direction: column; }

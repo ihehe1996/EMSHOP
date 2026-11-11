@@ -38,7 +38,7 @@ if ($visitorCurRow !== null) {
     <title><?= $esc($pageTitle) ?></title>
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="/admin/static/css/popup.css">
+    <link rel="stylesheet" href="/content/static/admin/css/popup.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
 </head>

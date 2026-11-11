@@ -212,7 +212,7 @@ $(function() {
         var csrfToken = <?= json_encode($csrfToken) ?>;
         var placeholderImg = <?= json_encode($placeholderImg) ?>;
 
-        // 富文本编辑器（封装见 /admin/static/js/em-tinymce.js）
+        // 富文本编辑器（封装见 /content/static/admin/js/em-tinymce.js）
         window.emTinymceInit({
             context: 'blog_image',
             onCsrf: function(token) { csrfToken = token; },

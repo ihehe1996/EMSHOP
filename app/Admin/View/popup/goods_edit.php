@@ -927,7 +927,7 @@ $(function() {
         var $coverInput = $('#coverImagesInput');
         var placeholderImg = <?php echo json_encode($placeholderImg); ?>;
 
-        // 富文本编辑器（封装见 /admin/static/js/em-tinymce.js）
+        // 富文本编辑器（封装见 /content/static/admin/js/em-tinymce.js）
         window.emTinymceInit({
             context: 'goods_image',
             onCsrf: function(token) { csrfToken = token; }, 

@@ -1,0 +1,769 @@
+/* ============================================================
+   弹窗公共样式 —— 适用于所有后台弹窗页面
+   使用方式：
+     layer.open({
+       type: 2,
+       skin: 'admin-modal',
+       area: ['480px', 'auto'],
+       content: '/admin/xxx.php'
+     });
+   ============================================================ */
+
+/* body 基础 */
+html, body.popup-body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #f0f2f5;
+    box-sizing: border-box;
+}
+
+.mr-5{
+    margin-right: 5px;
+}
+.mr-6{
+    margin-right: 6px;
+}
+.mr-8{
+    margin-right: 8px;
+}
+.mr-10{
+    margin-right: 10px;
+}
+.mb-10{
+    margin-bottom: 10px;
+}
+.mb-15{ 
+    margin-bottom: 15px;
+}   
+
+/* 外层容器：内容撑开高度，最大不超过视口 80% */
+.popup-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 内容区：flex=1，高度不足时自动撑开，超出时内部滚动 */
+.popup-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* ============================================================
+   layer 弹窗定制（skin: 'admin-modal'）
+   ============================================================ */
+
+.layui-layer.admin-modal {
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+.layui-layer.admin-modal .layui-layer-main {
+    padding: 0;
+}
+
+/* admin-modal 弹窗底部按钮样式（与 popup-btn 风格一致） */
+.layui-layer.admin-modal .layui-layer-btn {
+    text-align: right;
+    padding: 8px 15px;
+    border-top: 1px solid #f0f0f0;
+}
+.layui-layer.admin-modal .layui-layer-btn a {
+    height: 34px;
+    line-height: 34px;
+    padding: 0 15px;
+    border-radius: 4px;
+    font-size: 14px;
+    border: none;
+    transition: background 0.2s;
+}
+/* 确认按钮（第一个按钮） */
+.layui-layer.admin-modal .layui-layer-btn .layui-layer-btn0 {
+    background: #1e9fff;
+    color: #fff;
+    border: none;
+}
+.layui-layer.admin-modal .layui-layer-btn .layui-layer-btn0:hover {
+    background: #1d87e2;
+}
+/* 取消按钮（第二个按钮） */
+.layui-layer.admin-modal .layui-layer-btn .layui-layer-btn1 {
+    background: #fff;
+    color: #333;
+    border: 1px solid #e0e0e0;
+}
+.layui-layer.admin-modal .layui-layer-btn .layui-layer-btn1:hover {
+    background: #f5f5f5;
+}
+
+/* ============================================================
+   公共表单元素
+   ============================================================ */
+
+.popup-inner {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    min-height: 0;
+    padding-bottom: 0;
+}
+
+/* ============================================================
+   弹窗表单分组样式
+   ============================================================ */
+.popup-section {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 14px 16px;
+    padding-top: 9px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.popup-section .layui-form-item {
+    margin-bottom: 12px;
+}
+
+.popup-section .layui-form-item:last-child {
+    margin-bottom: 0;
+}
+
+
+/* ============================================================
+   图片上传区域视觉改进
+   ============================================================ */
+.admin-img-field {
+    border: 1.5px dashed #c0c4cc;
+    border-radius: 6px;
+    padding: 5px 8px;
+    background: #fafbfc;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    cursor: text;
+}
+
+.admin-img-field:hover {
+    border-color: #409eff;
+    background: #ecf5ff;
+}
+
+.admin-img-field:focus-within {
+    border-color: #409eff;
+    border-style: solid;
+    background: #ecf5ff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12);
+}
+
+.admin-img-url {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding-left: 44px !important;
+}
+
+/* ============================================================
+   帮助文字样式
+   ============================================================ */
+.popup-section .layui-form-mid {
+    color: #909399;
+    font-size: 13px;
+    padding: 2px 0 !important;
+    margin-left: 0 !important;
+}
+
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group__label {
+    display: block;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 6px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.form-group__input {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+    color: #333;
+    background: #fff;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.form-group__input:focus {
+    border-color: #1e9fff;
+}
+
+.form-group__input:disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.form-group__textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+    color: #333;
+    background: #fff;
+    resize: vertical;
+    min-height: 72px;
+    transition: border-color 0.2s;
+    outline: none;
+    line-height: 1.5;
+}
+
+.form-group__textarea:focus {
+    border-color: #1e9fff;
+}
+
+.form-group__help {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: #999;
+    line-height: 1.4;
+}
+
+.form-group__error {
+    color: #ff4d4f;
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+    line-height: 1.4;
+}
+
+.form-group__error.is-visible {
+    display: block;
+}
+
+.form-group__check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+}
+
+.form-group__check input[type="checkbox"],
+.form-group__check input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* ============================================================
+   提示区块
+   ============================================================ */
+
+.form-tips {
+    background: #f0f7ff;
+    border: 1px solid #d9eaff;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #333;
+    line-height: 1.6;
+    margin-bottom: 14px;
+}
+
+/* ============================================================
+   底部按钮区 —— 固定在弹窗底部，不随页面滚动
+   ============================================================ */
+
+.popup-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    box-sizing: border-box;
+}
+
+.popup-footer--single {
+    justify-content: center;
+}
+
+.popup-btn {
+    height: 34px;
+    padding: 0 15px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+    line-height: 34px;
+}
+
+.popup-btn--primary {
+    background: #1e9fff;
+    color: #fff;
+}
+.popup-btn--primary .fa{
+    width: 14px;
+}
+
+.popup-btn--primary:hover {
+    background: #1d87e2;
+}
+
+.popup-btn--primary:disabled {
+    background: #a0cfff;
+    cursor: not-allowed;
+}
+
+.popup-btn--default {
+    background: #fff;
+    color: #333;
+    border: 1px solid #e0e0e0;
+}
+
+.popup-btn--default:hover {
+    background: #f5f5f5;
+}
+
+.popup-btn--danger {
+    background: #ff4d4f;
+    color: #fff;
+}
+
+.popup-btn--danger:hover {
+    background: #e63c3e;
+}
+
+.popup-btn--text {
+    background: none;
+    color: #999;
+    border: none;
+    padding: 0 8px;
+    height: 34px;
+    line-height: 34px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.popup-btn--text:hover {
+    color: #666;
+}
+
+/* ============================================================
+   layui 表单在弹窗中的适配
+   ============================================================ */
+
+/* 弹窗内输入框通用样式 */
+.popup-inner .layui-input,
+.popup-inner .layui-form-select .layui-input {
+    height: 36px;
+    line-height: 36px;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    transition: border-color .2s, box-shadow .2s;
+}
+.popup-inner .layui-input:focus,
+.popup-inner .layui-textarea:focus {
+    border-color: #1e9fff;
+    box-shadow: 0 0 0 2px rgba(30, 159, 255, 0.12);
+}
+.popup-inner .layui-input::placeholder,
+.popup-inner .layui-textarea::placeholder {
+    color: #c0c4cc;
+}
+
+/* 弹窗内 layui-textarea */
+.popup-inner .layui-textarea {
+    resize: vertical;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+/* 弹窗内 select 下拉框 */
+.popup-inner .layui-form-select .layui-input {
+    cursor: pointer;
+}
+.popup-inner .layui-form-selected .layui-input {
+    border-color: #1e9fff !important;
+}
+
+/* 弹窗内 layui-form-item 间距 */
+.popup-inner .layui-form-item {
+    margin-bottom: 14px;
+}
+
+/* 弹窗内 layui-form-mid */
+.popup-inner .layui-form-mid {
+    margin-top: 2px;
+    margin-bottom: 0;
+    padding: 0 !important;
+    float: none;
+}
+
+/* layui-switch 在弹窗内的适配 */
+.popup-inner .layui-form-switch {
+    margin-top: 4px;
+}
+
+/* ============================================================
+   管理员图片上传区域（缩略图 + 输入框 + 按钮）
+   ============================================================ */
+.cat-img-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.cat-img-field > img {
+    position: absolute;
+    left: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 4px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.cat-img-inner {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 4px;
+}
+
+.cat-img-url {
+    flex: 1;
+    min-width: 0;
+    padding-left: 44px !important;
+}
+
+.cat-img-btns {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.cat-img-btns .layui-btn {
+    margin: 0;
+    padding: 0 6px;
+    height: 36px;
+    width: 36px;
+}
+
+
+.layui-form-label{
+    font-weight: 500;
+    text-align: left;
+    float: none;
+    padding: 5px 0;
+    width: 100%;
+}
+
+.layui-input-block{
+    margin-left: 0;
+}
+/* ============================================================
+   管理员图片上传区域
+   ============================================================ */
+
+.admin-img-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.admin-img-field > img {
+    width: 36px;
+    height: 36px;
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    object-fit: cover;
+    border-radius: 4px;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.admin-img-field[data-size="wide"] > img {
+    width: 72px;
+}
+
+.admin-img-url {
+    flex: 1;
+    min-width: 0;
+    padding-left: 45px;
+    padding-right: 165px;
+    height: 48px!important;
+    line-height: 48px!important;
+}
+
+
+.admin-img-btns {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.admin-img-btns .layui-btn {
+    margin: 0;
+    padding: 0 6px;
+    height: 36px;
+    width: 36px;
+}
+
+
+/* ============================================================
+   裁剪弹窗通用样式
+   ============================================================ */
+.cropper-wrap {
+    padding: 16px;
+}
+
+.cropper-container {
+    height: 350px;
+    overflow: hidden;
+    line-height: 0;
+}
+
+.cropper-container img {
+    max-width: 100%;
+    display: block;
+}
+
+.cropper-tip {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.cropper-tip p {
+    margin-bottom: 10px;
+    color: #999;
+    font-size: 12px;
+}
+
+/* ============================================================
+   动画
+   ============================================================ */
+@keyframes admin-spin {
+    to { transform: rotate(360deg); }
+}
+
+.admin-spin {
+    animation: admin-spin 1s linear infinite;
+}
+
+/* ============================================================
+   表单通用工具类
+   ============================================================ */
+.admin-form-width-sm { width: 120px !important; }
+.admin-form-width-lg { width: 300px !important; }
+
+/* ============================================================
+   规格行内部样式（goods_edit 弹窗的规格管理区块）
+   ============================================================ */
+.spec-row {
+    background: #f8f9fa;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.spec-row label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.spec-row .layui-input {
+    height: 32px;
+    line-height: 32px;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    transition: border-color .2s, box-shadow .2s;
+}
+.spec-row .layui-input:focus {
+    border-color: #1e9fff;
+    box-shadow: 0 0 0 2px rgba(30, 159, 255, 0.12);
+}
+
+.spec-row .layui-form-switch {
+    margin-top: 0;
+}
+
+/* ============================================================
+   商品图片预览列表（支持多图上传）
+   ============================================================ */
+.image-preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    min-height: 40px;
+}
+
+.image-preview-item {
+    display: inline-block;
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: move;
+    background: #f8f9fa;
+}
+
+.image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview-item .remove-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 18px;
+    font-size: 12px;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+}
+
+.image-preview-item .remove-btn:hover {
+    background: #ff4444;
+}
+
+/* ============================================================
+   富文本编辑器样式
+   ============================================================ */
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 6px 8px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+.editor-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    font-size: 14px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.editor-btn:hover {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.editor-btn:active {
+    background: #d0d0d0;
+}
+
+.editor-sep {
+    width: 1px;
+    height: 20px;
+    background: #ddd;
+    margin: 0 4px;
+}
+
+.editor-content {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 0 0 4px 4px;
+    padding: 12px;
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #333;
+    outline: none;
+}
+
+.editor-content:focus {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12);
+}
+
+/* placeholder */
+.editor-content:empty:before {
+    content: attr(placeholder);
+    color: #c0c4cc;
+    pointer-events: none;
+}
+
+/* 编辑器内图片 */
+.editor-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 8px 0;
+}
+
+/* 编辑器内链接 */
+.editor-content a {
+    color: #409eff;
+    text-decoration: none;
+}
+
+.editor-content a:hover {
+    text-decoration: underline;
+}
