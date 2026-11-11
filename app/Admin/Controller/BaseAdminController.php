@@ -44,8 +44,45 @@ abstract class BaseAdminController extends AbstractAdminController
         // 后台固定主站作用域：TemplateStorage / Storage / PluginModel 都读这个全局
         $GLOBALS['__em_current_scope'] = 'main';
 
-        // 注意：旧后台的演示模式写操作守卫（adminDemoGuard）尚未迁移。
-        // 新后台落地第一个写接口前，必须先在这里补上等价拦截，否则演示模式下可写入。
+        // 演示模式：登录放行，写操作一律拦掉（与旧后台 adminDemoGuard 同口径）
+        $this->enforceDemoGuard();
+    }
+
+    /**
+     * 演示模式写操作守卫。
+     *
+     * 判据是"请求是否带 csrf_token"（GET 或 POST）：后台所有写入口都必须过 CSRF 校验，
+     * 只读接口（layui list、summary、stats、trend、search_users 等）不带 token。
+     * 少数只读接口会带 token（详情/弹窗类），列入白名单放行。
+     */
+    private function enforceDemoGuard(): void
+    {
+        if (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) {
+            return;
+        }
+
+        $token = trim((string) \Input::get('csrf_token', ''));
+        if ($token === '') {
+            $token = trim((string) \Input::post('csrf_token', ''));
+        }
+        if ($token === '') {
+            return;
+        }
+
+        $readOnlyActions = [
+            'view',            // 系统日志详情
+            'list',            // 弹窗里的列表接口
+            'get_plugin_form', // 商品类型插件的配置表单
+        ];
+        $action = (string) \Input::get('_action', '');
+        if ($action === '') {
+            $action = (string) \Input::post('_action', '');
+        }
+        if (in_array(trim($action), $readOnlyActions, true)) {
+            return;
+        }
+
+        \Response::error('铁铁，演示模式下无权限执行该操作哦~');
     }
 
     /**

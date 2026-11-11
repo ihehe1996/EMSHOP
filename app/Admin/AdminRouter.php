@@ -13,6 +13,7 @@ use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogEditController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
+use App\Admin\Controller\CacheController;
 use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\CouponController;
 use App\Admin\Controller\CurrencyController;
@@ -28,6 +29,7 @@ use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
 use App\Admin\Controller\LicenseController;
+use App\Admin\Controller\LogoutController;
 use App\Admin\Controller\LogsController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
@@ -39,6 +41,7 @@ use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\OrderController;
 use App\Admin\Controller\PageController;
 use App\Admin\Controller\PageEditController;
+use App\Admin\Controller\PluginActionController;
 use App\Admin\Controller\PluginController;
 use App\Admin\Controller\SettingsController;
 use App\Admin\Controller\PasswordController;
@@ -125,6 +128,9 @@ final class AdminRouter
         'upload' => [UploadController::class, 'index'],
         'update' => [UpdateController::class, 'index'],
         'license' => [LicenseController::class, 'index'],
+        'logout' => [LogoutController::class, 'index'],
+        'plugin_action' => [PluginActionController::class, 'index'],
+        'cache' => [CacheController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

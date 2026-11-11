@@ -100,6 +100,12 @@ smoke_check('新类可加载：App\\Admin\\Controller\\UploadController', class_
 smoke_check('新类可加载：App\\Admin\\Controller\\UpdateController', class_exists('App\\Admin\\Controller\\UpdateController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogEditController', class_exists('App\\Admin\\Controller\\BlogEditController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\PageEditController', class_exists('App\\Admin\\Controller\\PageEditController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\AppstoreController', class_exists('App\\Admin\\Controller\\AppstoreController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\GoodsEditController', class_exists('App\\Admin\\Controller\\GoodsEditController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\LogoutController', class_exists('App\\Admin\\Controller\\LogoutController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\PluginActionController', class_exists('App\\Admin\\Controller\\PluginActionController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\CacheController', class_exists('App\\Admin\\Controller\\CacheController'));
+smoke_check('新类可加载：App\\Admin\\AdminShell', class_exists('App\\Admin\\AdminShell'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -481,6 +487,30 @@ smoke_check(
     '后台路由 /admin/appstore → AppstoreController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\AppstoreController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/logout');
+smoke_check(
+    '后台路由 /admin/logout → LogoutController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\LogoutController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/plugin_action');
+smoke_check(
+    '后台路由 /admin/plugin_action → PluginActionController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\PluginActionController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/cache');
+smoke_check(
+    '后台路由 /admin/cache → CacheController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\CacheController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -2029,6 +2059,24 @@ if (in_array('--http', $argv, true)) {
             'HTTP /admin/goods_edit 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
+
+        foreach (['/admin/cache', '/admin/plugin_action?_action=list'] as $adminPath) {
+            @file_get_contents('http://127.0.0.1:' . $port . $adminPath, false, $context);
+            $status = 0;
+            $location = '';
+            foreach (($http_response_header ?? []) as $h) {
+                if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                    $status = (int) $m[1];
+                }
+                if (stripos($h, 'Location:') === 0) {
+                    $location = trim(substr($h, 9));
+                }
+            }
+            smoke_check(
+                'HTTP ' . $adminPath . ' 未登录跳转登录页',
+                $status === 302 && rtrim($location, '/') === '/admin/sign'
+            );
+        }
 
         @file_get_contents('http://127.0.0.1:' . $port . '/admin/currency', false, $context);
         $status = 0;

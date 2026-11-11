@@ -199,10 +199,10 @@
         $(document).off('click.admin-clear-cache').on('click.admin-clear-cache', '#adminClearCache, #adminDropdownClearCache, #mobileDropdownClearCache', function () {
             var csrfToken = window.adminCsrfToken || '';
             $.ajax({
-                url: '/admin/index.php',
+                url: '/admin/cache',
                 type: 'POST',
                 dataType: 'json',
-                data: {csrf_token: csrfToken, _action: 'clear_cache'},
+                data: {csrf_token: csrfToken},
                 success: function (res) {
                     if (res.code === 200) {
                         EmToast.ok(res.msg || '缓存已清空');
@@ -433,7 +433,7 @@
         };
         var w = host.innerWidth || 800;
         var h = host.innerHeight || 600;
-        var mediaUrl = (host.TEMPLATE_MEDIA_URL || window.TEMPLATE_MEDIA_URL || '/admin/media.php');
+        var mediaUrl = (host.TEMPLATE_MEDIA_URL || window.TEMPLATE_MEDIA_URL || '/admin/media');
         if (typeof mediaUrl === 'string' && mediaUrl.indexOf('?') !== -1) {
             mediaUrl = mediaUrl.split('?')[0];
         }
@@ -500,7 +500,7 @@
         }
 
         setActiveMenu(window.location.href);
-        // 若无匹配（落在 /admin/index.php 首页），手动高亮控制台
+        // 若无匹配（落在 /admin/home 首页），手动高亮控制台
         if (!$('.admin-menu-item.is-active').length) {
             var $dashboard = $('.admin-sidebar__body > .admin-menu-item[href*="home"]');
             if ($dashboard.length) {
