@@ -214,7 +214,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                     <div class="admin-menu-group__body">
                         <a href="/admin/template.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('模板管理'); ?></a>
                         <a href="/admin/navi" data-pjax="#adminContent" class="admin-menu-item"><?= t('导航管理'); ?></a>
-                        <a href="/admin/page.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('页面管理'); ?></a>
+                        <a href="/admin/page" data-pjax="#adminContent" class="admin-menu-item"><?= t('页面管理'); ?></a>
                         <a href="/admin/friend_link" data-pjax="#adminContent" class="admin-menu-item"><?= t('友情链接'); ?></a>
                     </div>
                 </div>

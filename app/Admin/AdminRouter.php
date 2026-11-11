@@ -12,6 +12,7 @@ use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
+use App\Admin\Controller\PageController;
 use App\Admin\Controller\SignController;
 
 /**
@@ -47,6 +48,7 @@ final class AdminRouter
         'blog_tag' => [BlogTagController::class, 'index'],
         'blog_category' => [BlogCategoryController::class, 'index'],
         'goods_category' => [GoodsCategoryController::class, 'index'],
+        'page' => [PageController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
