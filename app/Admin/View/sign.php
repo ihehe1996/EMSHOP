@@ -1,10 +1,10 @@
 <?php
 
 /**
- * 新后台登录页（/admin/sign）。
+ * 后台登录页（{入口}/sign，入口默认 /admin，可由 EM_APP_ADMIN_ENTRY 配置）。
  *
- * 不引用旧后台的 layui / admin.css，过渡期自成一体；表单 POST 回本页，
- * 成功后由控制器 302 到 /admin/home。
+ * 表单由 content/static/admin/js/sign.js 以 AJAX 提交，成功跳后台首页；
+ * 控制器对非 AJAX 的 POST 仍按普通表单处理（失败回显错误、成功 302）。
  *
  * @var string $siteName
  * @var string $csrfToken
@@ -13,62 +13,70 @@
  * @var bool   $remember
  */
 
+if (!defined('EM_ROOT')) {
+    exit('Access Denied');
+}
+
 $siteTitle = $siteName !== '' ? $siteName : 'EMSHOP';
-$safeAccount = htmlspecialchars($account, ENT_QUOTES, 'UTF-8');
 ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>管理员登录 · <?= htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') ?></title>
-<style>
-*{box-sizing:border-box;}
-body{margin:0;min-height:100vh;background:linear-gradient(160deg,#eef2ff 0%,#f8fafc 55%,#f3f4f6 100%);color:#111827;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 16px;}
-.card{width:100%;max-width:400px;background:#fff;border-radius:16px;padding:36px 30px;box-shadow:0 18px 48px rgba(15,23,42,.10);}
-.brand{margin:0 0 6px;font-size:20px;font-weight:600;text-align:center;}
-.sub{margin:0 0 26px;font-size:13px;color:#6b7280;text-align:center;}
-.err{margin:0 0 16px;padding:10px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px;line-height:1.6;}
-.field{margin-bottom:16px;}
-.label{display:block;margin-bottom:6px;font-size:13px;color:#374151;}
-.input{width:100%;height:42px;padding:0 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#111827;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;}
-.input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
-.row{display:flex;align-items:center;gap:8px;margin:2px 0 22px;font-size:13px;color:#4b5563;}
-.row input{width:15px;height:15px;}
-.btn{width:100%;height:44px;border:0;border-radius:8px;background:#4f46e5;color:#fff;font-size:15px;font-weight:500;cursor:pointer;transition:background-color .15s;}
-.btn:hover{background:#4338ca;}
-@media (max-width:420px){.card{padding:30px 22px;}.brand{font-size:18px;}}
-</style>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台登录 - <?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></title>
+    <link rel="icon" href="<?php echo htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
+    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css">
+    <link rel="stylesheet" href="/content/static/admin/css/sign.css">
+    <?php doAction('admin_sign_head'); ?>
 </head>
 <body>
-<div class="card">
-    <h1 class="brand"><?= htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8') ?></h1>
-    <p class="sub">管理员登录</p>
-
-    <?php if ($error !== ''): ?>
-        <div class="err"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
-    <?php endif; ?>
-
-    <form method="post" action="<?= EM_ADMIN_PATH ?>/sign" autocomplete="on">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-
-        <div class="field">
-            <label class="label" for="account">账号</label>
-            <input class="input" type="text" name="account" id="account" value="<?= $safeAccount ?>" placeholder="账号、邮箱或手机号" autocomplete="username" required>
+<div class="sign-page">
+    <div class="sign-cover">
+        <div class="sign-cover__inner">
+            <p class="sign-cover__tag"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?> 后台管理面板</p>
+            <h1>欢迎回到管理后台</h1>
+            <p>专注管理与运营，让每一次登录都更轻松。</p>
         </div>
-
-        <div class="field">
-            <label class="label" for="password">密码</label>
-            <input class="input" type="password" name="password" id="password" placeholder="登录密码" autocomplete="current-password" required>
+    </div>
+    <div class="sign-panel">
+        <div class="sign-card layui-anim layui-anim-upbit">
+            <div class="sign-brand"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></div>
+            <h2>管理员登录</h2>
+            <p class="sign-subtitle">请输入管理员账号继续操作</p>
+            <?php if ($error !== ''): ?>
+                <p class="sign-error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></p>
+            <?php endif; ?>
+            <form class="layui-form" id="loginForm" method="post" action="<?= EM_ADMIN_PATH ?>/sign">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="layui-form-item">
+                    <label class="sign-label" for="account">账号</label>
+                    <input type="text" name="account" id="account" lay-verify="required" autocomplete="username" placeholder="请输入管理员账号、邮箱或手机号" class="layui-input" value="<?= htmlspecialchars($account, ENT_QUOTES, 'UTF-8') ?>">
+                </div>
+                <div class="layui-form-item">
+                    <label class="sign-label" for="password">密码</label>
+                    <input type="password" name="password" id="password" lay-verify="required" autocomplete="current-password" placeholder="请输入登录密码" class="layui-input">
+                </div>
+                <div class="sign-options">
+                    <input type="checkbox" name="remember" value="1" title="记住登录" lay-skin="primary"<?= $remember ? ' checked' : '' ?>>
+                </div>
+                <button type="submit" class="layui-btn layui-btn-fluid sign-submit">立即登录</button>
+            </form>
         </div>
-
-        <label class="row">
-            <input type="checkbox" name="remember" value="1"<?= $remember ? ' checked' : '' ?>>
-            <span>记住登录</span>
-        </label>
-
-        <button class="btn" type="submit">登录</button>
-    </form>
+    </div>
 </div>
+<script>window.EM_ADMIN_PATH = <?= json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES) ?>;</script>
+<script src="/content/static/lib/jquery.min.3.5.1.js"></script>
+<script>
+if (typeof jQuery !== 'undefined' && typeof jQuery.trim !== 'function') {
+    jQuery.trim = function (value) {
+        return value == null ? '' : String(value).trim();
+    };
+}
+</script>
+<script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
+<script src="/content/static/admin/js/sign.js"></script>
+<?php doAction('admin_sign_footer'); ?>
 </body>
 </html>

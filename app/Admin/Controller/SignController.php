@@ -25,6 +25,9 @@ final class SignController extends AbstractAdminController
 
         $error = '';
         if (\Request::isPost()) {
+            // 登录页的 sign.js 用 AJAX 提交，返回 JSON；禁用 JS 时走普通表单（回显错误 / 302）
+            $isAjax = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+
             try {
                 if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
                     throw new \RuntimeException('请求已失效，请刷新页面后重试');
@@ -37,6 +40,12 @@ final class SignController extends AbstractAdminController
                 );
 
                 \Csrf::refresh();
+
+                if ($isAjax) {
+                    \Response::success('登录成功', ['redirect' => EM_ADMIN_PATH . '/home']);
+                    exit;
+                }
+
                 \Response::redirect(EM_ADMIN_PATH . '/home');
             } catch (\InvalidArgumentException $e) {
                 $error = $e->getMessage();
@@ -44,6 +53,11 @@ final class SignController extends AbstractAdminController
                 $error = $e->getMessage();
             } catch (\Throwable $e) {
                 $error = '系统繁忙，请稍后再试';
+            }
+
+            if ($isAjax) {
+                \Response::error($error);
+                exit;
             }
         }
 

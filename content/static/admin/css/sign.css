@@ -122,6 +122,17 @@ body {
     color: #fff;
 }
 
+.sign-error {
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 @media (max-width: 960px) {
     .sign-page {
         grid-template-columns: 1fr;
