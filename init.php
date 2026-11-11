@@ -262,6 +262,9 @@ Cache::init();
 // 游客身份服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\GuestToken::class, GuestToken::instance());
 
+// CSRF 服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\Csrf::class, Csrf::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

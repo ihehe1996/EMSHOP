@@ -17,6 +17,11 @@ if (PHP_SAPI !== 'cli') {
 $root = dirname(__DIR__);
 require $root . '/init.php';
 
+// CLI 下 init.php 不启动会话；Csrf 测试需要 session，必须在任何输出之前启动
+if (PHP_SAPI === 'cli' && session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $failed = 0;
 
 function smoke_check(string $label, bool $ok): void
@@ -233,6 +238,64 @@ Config::reload();
 smoke_check('Config 删除后回落默认值', Config::get($configKey, 'def') === 'def');
 
 smoke_check('Config 容器实例与门面一致', $container->make(\App\Support\Config::class) === Config::instance());
+
+// Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
+$oldSession = $_SESSION;
+$oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
+unset($_COOKIE['em_csrf_token']);
+$_SESSION = [];
+
+$csrfToken = Csrf::token();
+smoke_check('Csrf token 为 64 位十六进制', preg_match('/^[0-9a-f]{64}$/', $csrfToken) === 1);
+smoke_check('Csrf 重复获取稳定', Csrf::token() === $csrfToken);
+smoke_check('Csrf 合法 token 通过', Csrf::validate($csrfToken) === true);
+smoke_check('Csrf 空 token 拒绝', Csrf::validate('') === false);
+smoke_check('Csrf 伪造 token 拒绝', Csrf::validate(str_repeat('0', 64)) === false);
+
+$newCsrfToken = Csrf::refresh();
+smoke_check('Csrf refresh 生成新 token', $newCsrfToken !== $csrfToken);
+smoke_check('Csrf 新 token 通过', Csrf::validate($newCsrfToken) === true);
+smoke_check('Csrf 宽限期内旧 token 通过', Csrf::validate($csrfToken) === true);
+
+Csrf::clearGrace();
+smoke_check('Csrf 清除宽限期后旧 token 拒绝', Csrf::validate($csrfToken) === false);
+
+// Cookie 双重提交兜底：session 中没有对应 token 时仍可通过
+$csrfSessionKey = defined('EM_AUTH_CSRF_KEY') ? EM_AUTH_CSRF_KEY : 'csrf_token';
+$csrfSecret = CsrfSecret::get();
+if ($csrfSecret !== '') {
+    $csrfBase = defined('EM_AUTH_CSRF_KEY') ? EM_AUTH_CSRF_KEY : 'default_csrf_key';
+    $csrfDerived = hash('sha256', $csrfBase . $csrfSecret, true);
+
+    $_COOKIE['em_csrf_token'] = $newCsrfToken . '.' . hash_hmac('sha256', $newCsrfToken, $csrfDerived);
+    unset($_SESSION[$csrfSessionKey]);
+    smoke_check('Csrf Cookie 兜底通过', Csrf::validate($newCsrfToken) === true);
+
+    $_COOKIE['em_csrf_token'] = $newCsrfToken . '.' . str_repeat('0', 64);
+    smoke_check('Csrf Cookie 签名篡改拒绝', Csrf::validate($newCsrfToken) === false);
+} else {
+    smoke_check('Csrf Cookie 兜底通过（无密钥，跳过）', true);
+    smoke_check('Csrf Cookie 签名篡改拒绝（无密钥，跳过）', true);
+}
+
+// 同源兜底
+$_SERVER['HTTP_SEC_FETCH_SITE'] = 'same-origin';
+smoke_check('Csrf 同源请求无 token 放行', Csrf::validateOrSameOrigin('') === true);
+
+$_SERVER['HTTP_SEC_FETCH_SITE'] = 'cross-site';
+smoke_check('Csrf 跨站请求无 token 拒绝', Csrf::validateOrSameOrigin('') === false);
+
+unset($_SERVER['HTTP_SEC_FETCH_SITE']);
+smoke_check('Csrf 无来源头无 token 拒绝', Csrf::validateOrSameOrigin('') === false);
+
+$_SESSION = $oldSession;
+if ($oldCsrfCookie === null) {
+    unset($_COOKIE['em_csrf_token']);
+} else {
+    $_COOKIE['em_csrf_token'] = $oldCsrfCookie;
+}
+
+smoke_check('Csrf 容器实例与门面一致', $container->make(\App\Support\Csrf::class) === Csrf::instance());
 
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
