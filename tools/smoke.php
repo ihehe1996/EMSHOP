@@ -56,6 +56,12 @@ smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', cla
 smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\SignController', class_exists('App\\Admin\\Controller\\SignController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\NaviController', class_exists('App\\Admin\\Controller\\NaviController'));
+
+// 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
+require_once $root . '/include/lib/AdminLang.php';
+$langKey = 'smoke_lang_' . getmypid();
+smoke_check('后台翻译函数可用', function_exists('t') && t($langKey) === $langKey);
 
 $adminRouter = \App\Admin\AdminRouter::instance();
 smoke_check('后台路由容器实例与单例一致', $container->make(\App\Admin\AdminRouter::class) === $adminRouter);
@@ -88,6 +94,14 @@ smoke_check(
     '后台路由 /admin/sign → SignController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\SignController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/navi');
+smoke_check(
+    '后台路由 /admin/navi → NaviController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\NaviController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1201,6 +1215,23 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/home 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        // 新后台业务页同样要求登录
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/navi', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/navi 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

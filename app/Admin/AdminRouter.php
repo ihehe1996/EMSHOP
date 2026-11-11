@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Admin;
 
 use App\Admin\Controller\HomeController;
+use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\SignController;
 
@@ -35,6 +36,7 @@ final class AdminRouter
         ''     => [HomeController::class, 'index'],
         'home' => [HomeController::class, 'index'],
         'sign' => [SignController::class, 'index'],
+        'navi' => [NaviController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
