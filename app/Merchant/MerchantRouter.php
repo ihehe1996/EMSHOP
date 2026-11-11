@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Merchant;
 
+use App\Merchant\Controller\AppstoreController;
 use App\Merchant\Controller\BlogCategoryController;
 use App\Merchant\Controller\BlogController;
 use App\Merchant\Controller\CategoryController;
@@ -11,10 +12,12 @@ use App\Merchant\Controller\FinanceController;
 use App\Merchant\Controller\HomeController;
 use App\Merchant\Controller\MediaController;
 use App\Merchant\Controller\NaviController;
-use App\Merchant\Controller\OrderController;
 use App\Merchant\Controller\NotFoundController;
+use App\Merchant\Controller\OrderController;
 use App\Merchant\Controller\PageController;
+use App\Merchant\Controller\PluginController;
 use App\Merchant\Controller\SettingsController;
+use App\Merchant\Controller\TemplateController;
 use App\Merchant\Controller\UploadController;
 use App\Merchant\Controller\WithdrawController;
 
@@ -42,6 +45,9 @@ final class MerchantRouter
         'settings'      => [SettingsController::class, 'index'],
         'media'         => [MediaController::class, 'index'],
         'upload'        => [UploadController::class, 'index'],
+        'template'      => [TemplateController::class, 'index'],
+        'plugin'        => [PluginController::class, 'index'],
+        'appstore'      => [AppstoreController::class, 'index'],
     ];
 
     /** @var MerchantRouter|null */
