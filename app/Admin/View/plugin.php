@@ -665,7 +665,7 @@ layui.use(function(){
         }
         var loadingIdx = layui.layer.load(2, { shade: [0.3, '#000'] });
         $.ajax({
-            url: '/admin/appstore.php',
+            url: '/admin/appstore',
             type: 'POST',
             dataType: 'json',
             data: { csrf_token: csrfToken, _action: 'update', name: name, type: 'plugin', file_path: path, version: ver },
@@ -706,7 +706,7 @@ layui.use(function(){
 
     // 应用商店（工具条按钮 + 空状态主按钮走同一入口）
     function goAppstore(){
-        var url = currentFilter === 'merchant' ? '/admin/appstore.php?tab=merchant' : '/admin/appstore.php';
+        var url = currentFilter === 'merchant' ? '/admin/appstore?tab=merchant' : '/admin/appstore';
         $.pjax({ url: url, container: '#adminContent' });
     }
     $('#pluginAppstoreBtn, #pluginEmptyAppstoreBtn').on('click', goAppstore);

@@ -260,7 +260,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                 </div>
 
                 <!-- 10. 应用商店 -->
-                <a href="/admin/appstore.php" data-pjax="#adminContent" class="admin-menu-item">
+                <a href="/admin/appstore" data-pjax="#adminContent" class="admin-menu-item">
                     <i class="fa fa-shopping-basket"></i>
                     <span><?= t('应用商店'); ?></span>
                 </a>

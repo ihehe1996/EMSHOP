@@ -90,7 +90,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
             <option value="0">已下架</option>
         </select>
         <div class="mm-toolbar__hint">
-            上架新应用 → <a href="/admin/appstore.php?tab=merchant" class="layui-text-blue">应用商店 · 分站货架</a>
+            上架新应用 → <a href="/admin/appstore?tab=merchant" class="layui-text-blue">应用商店 · 分站货架</a>
         </div>
     </form>
 

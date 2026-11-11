@@ -468,6 +468,14 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
+$adminRoute = $adminRouter->resolve('/admin/appstore');
+smoke_check(
+    '后台路由 /admin/appstore → AppstoreController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\AppstoreController::class
+        && $adminRoute['action'] === 'index'
+);
+
 $adminRoute = $adminRouter->resolve('/admin/blog_edit');
 smoke_check(
     '后台路由 /admin/blog_edit → BlogEditController::index',
@@ -2251,6 +2259,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/license 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/appstore', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/appstore 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

@@ -6,6 +6,7 @@ namespace App\Admin;
 
 use App\Admin\Controller\AppOrderController;
 use App\Admin\Controller\AppstoreBuyController;
+use App\Admin\Controller\AppstoreController;
 use App\Admin\Controller\AttachmentController;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
@@ -112,6 +113,7 @@ final class AdminRouter
         'settings' => [SettingsController::class, 'index'],
         'app_order' => [AppOrderController::class, 'index'],
         'merchant_market' => [MerchantMarketController::class, 'index'],
+        'appstore' => [AppstoreController::class, 'index'],
         'appstore_buy' => [AppstoreBuyController::class, 'index'],
         'coupon' => [CouponController::class, 'index'],
         'order' => [OrderController::class, 'index'],

@@ -276,7 +276,7 @@ $(function () {
 
     // 一次拉齐：/api/app_detail.php 同时返回 app 详情 + 支付方式
     $.ajax({
-        url: '/admin/appstore.php',
+        url: '/admin/appstore',
         method: 'GET',
         dataType: 'json',
         timeout: 12000,
@@ -389,7 +389,7 @@ $(function () {
             var loadingIdx = layui.layer.load(2, { shade: [0.3, '#000'] });
 
             $.ajax({
-                url: '/admin/appstore.php',
+                url: '/admin/appstore',
                 method: 'POST',
                 dataType: 'json',
                 timeout: 15000,

@@ -4,7 +4,7 @@
  * 应用商店 —— 购买弹窗（iframe 页面）。
  *
  * 仅负责渲染独立弹窗框架 HTML；页面初始化后由 JS 调一次接口：
- *   /admin/appstore.php?_action=app_detail&id={id}
+ *   /admin/appstore?_action=app_detail&id={id}
  *
  * @var int    $appId
  * @var string $tab

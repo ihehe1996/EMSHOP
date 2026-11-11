@@ -188,7 +188,7 @@ if (!defined('EM_ROOT')) {
             <div class="template-empty__icon"><i class="fa fa-paint-brush"></i></div>
             <div>暂无可用模板</div>
             <div style="margin-top:8px;line-height:1.7;">
-                请在 <a href="/admin/appstore.php" data-pjax="#adminContent" style="color:#4f46e5;">应用商店</a> 购买后安装，<br>
+                请在 <a href="/admin/appstore" data-pjax="#adminContent" style="color:#4f46e5;">应用商店</a> 购买后安装，<br>
                 或把本地开发的模板放入 <code>content/template/</code>，并在 <code>header.php</code> 顶部加 <code>Custom: true</code>
             </div>
         </div>
@@ -376,7 +376,7 @@ function doRequest(action, name, extraData, done) {
 }
 
 /**
- * 模板更新：复用应用商店的 update action（/admin/appstore.php）
+ * 模板更新：复用应用商店的 update action（/admin/appstore）
  * 该 action 会下载最新 zip → 解压覆盖 content/template/{name} → 更新 em_template.version
  * 注意：appstore.php 的 update 接口成功时返回新的 csrf_token,需同步到本地 csrfToken 避免后续 template.php 的 POST 失效
  */
@@ -385,7 +385,7 @@ function doUpdateTemplate(name, filePath, version) {
     actionLock = true;
     var loadingIdx = layui.layer.load(2, { shade: [0.3, '#000'] });
     $.ajax({
-        url: '/admin/appstore.php',
+        url: '/admin/appstore',
         type: 'POST',
         dataType: 'json',
         data: {
@@ -523,7 +523,7 @@ $(function () {
 
         // 应用商店按钮点击
         $(document).off('click.appstoreBtn').on('click.appstoreBtn', '#appstoreBtn', function () {
-            $.pjax({ url: '/admin/appstore.php', container: '#adminContent' });
+            $.pjax({ url: '/admin/appstore', container: '#adminContent' });
         });
 
         // 三点菜单
