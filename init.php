@@ -280,6 +280,9 @@ Cache::init();
 // 路由调度服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Http\Dispatcher::class, Dispatcher::service());
 
+// 商品类型服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\GoodsTypeManager::class, GoodsTypeManager::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

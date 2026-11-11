@@ -513,6 +513,53 @@ smoke_check('Dispatcher 初始主题为空', $dispatcher->getTheme() === '');
 smoke_check('Dispatcher getView 与 View 单例一致', $dispatcher->getView() === View::getInstance());
 smoke_check('Dispatcher 容器实例与门面一致', $container->make(\App\Http\Dispatcher::class) === Dispatcher::service());
 
+// GoodsTypeManager：注册、钩子分发、切换警告与容器一致性
+$gtType = 'smoketest' . getmypid();
+smoke_check('GoodsTypeManager 注册类型', GoodsTypeManager::registerType($gtType, ['name' => '冒烟类型']) === true);
+$gtConfig = GoodsTypeManager::getTypeConfig($gtType);
+smoke_check('GoodsTypeManager 默认配置合并', $gtConfig !== null
+    && $gtConfig['name'] === '冒烟类型'
+    && $gtConfig['description'] === ''
+    && $gtConfig['default'] === false);
+smoke_check('GoodsTypeManager 非法类型名拒绝', GoodsTypeManager::registerType('Bad-Type', []) === false
+    && GoodsTypeManager::getTypeConfig('Bad-Type') === null);
+smoke_check('GoodsTypeManager 类型列表包含注册项', isset(GoodsTypeManager::getTypes()[$gtType]));
+
+$gtHook = '__smoke_gt_' . getmypid();
+$gtSeen = [];
+GoodsTypeManager::addHook($gtHook, static function (...$args) use (&$gtSeen) {
+    $gtSeen[] = $args;
+});
+GoodsTypeManager::doAction($gtHook, [1, 2]);
+smoke_check('GoodsTypeManager 钩子执行', $gtSeen === [[1, 2]]);
+
+addFilter($gtHook . '_f', static function ($v) {
+    return $v . 'x';
+});
+smoke_check('GoodsTypeManager 过滤器', GoodsTypeManager::applyFilter($gtHook . '_f', 'a') === 'ax');
+
+$gtTypeSeen = [];
+GoodsTypeManager::addHook('goods_type_' . $gtType . '_render', static function (...$args) use (&$gtTypeSeen) {
+    $gtTypeSeen[] = $args;
+});
+GoodsTypeManager::doTypeAction($gtType, 'render', ['p']);
+smoke_check('GoodsTypeManager 类型钩子', $gtTypeSeen === [['p']]);
+
+addFilter('goods_type_' . $gtType . '_xf', static function ($v) {
+    return $v . 'y';
+});
+smoke_check('GoodsTypeManager 类型过滤器', GoodsTypeManager::applyTypeFilter($gtType, 'xf', 'b') === 'by');
+
+Hooks::add('goods_type_' . $gtType . '_switch_warning', static function (&$warnings, $goodsId, $oldType, $newType) {
+    $warnings[] = 'w';
+});
+smoke_check('GoodsTypeManager 切换警告收集', GoodsTypeManager::getSwitchWarnings(1, $gtType, 'other') === ['w']);
+
+smoke_check('GoodsTypeManager 同类型切换', GoodsTypeManager::switchType(1, $gtType, $gtType) === ['success' => true, 'message' => '类型未变化']);
+smoke_check('GoodsTypeManager 目标类型不存在', GoodsTypeManager::switchType(1, $gtType, 'notexisttype') === ['success' => false, 'message' => '目标类型不存在']);
+
+smoke_check('GoodsTypeManager 容器实例与门面一致', $container->make(\App\Support\GoodsTypeManager::class) === GoodsTypeManager::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
