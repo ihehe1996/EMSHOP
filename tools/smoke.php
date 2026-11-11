@@ -732,6 +732,61 @@ smoke_check('Mailer 下次调用重置错误', Mailer::sendWith([], 'user@exampl
 
 smoke_check('Mailer 容器实例与门面一致', $container->make(\App\Support\Mailer::class) === Mailer::instance());
 
+// CsrfSecret：读取、源码解析/注入与容器一致性（不修改仓库 config.php）
+$csrfSecret = CsrfSecret::get();
+smoke_check('CsrfSecret 读取现有密钥', $csrfSecret !== '');
+
+$configPath = $root . '/config.php';
+clearstatcache(true, $configPath);
+$configMtime = @filemtime($configPath);
+$ensureSecret = CsrfSecret::ensure();
+clearstatcache(true, $configPath);
+smoke_check('CsrfSecret ensure 已存在时不写文件', $ensureSecret === $csrfSecret
+    && @filemtime($configPath) === $configMtime);
+
+$csrfRef = new ReflectionClass(\App\Support\CsrfSecret::class);
+$csrfService = CsrfSecret::instance();
+$extractSecret = $csrfRef->getMethod('extractSecret');
+$extractSecret->setAccessible(true);
+$injectSecret = $csrfRef->getMethod('injectSecret');
+$injectSecret->setAccessible(true);
+$replaceFile = $csrfRef->getMethod('replaceFile');
+$replaceFile->setAccessible(true);
+
+$newFormatSource = "<?php\n\ndefine('EM_APP_NAME', 'x');\ndefine('EM_AUTH_SECRET', 'abc123');\n";
+smoke_check('CsrfSecret 解析新格式密钥', $extractSecret->invoke($csrfService, $newFormatSource) === 'abc123');
+
+$oldFormatSource = "<?php\nreturn [\n    'app' => ['name' => 'x'],\n    'auth' => [\n        'session_key' => 'k',\n        'secret' => 'oldsecret',\n    ],\n];\n";
+smoke_check('CsrfSecret 解析老数组密钥', $extractSecret->invoke($csrfService, $oldFormatSource) === 'oldsecret');
+
+$injectedNew = $injectSecret->invoke($csrfService, "<?php\n\ndefine('EM_APP_NAME', 'x');\n", 'newsecret');
+smoke_check('CsrfSecret 注入新格式', is_string($injectedNew)
+    && $extractSecret->invoke($csrfService, $injectedNew) === 'newsecret'
+    && strpos($injectedNew, "define('EM_AUTH_SECRET'") !== false);
+
+try {
+    token_get_all($injectedNew, TOKEN_PARSE);
+    $csrfSyntaxOk = true;
+} catch (Throwable $e) {
+    $csrfSyntaxOk = false;
+}
+smoke_check('CsrfSecret 注入结果语法合法', $csrfSyntaxOk);
+
+$oldArrayNoSecret = "<?php\nreturn [\n    'auth' => [\n        'session_key' => 'k',\n        'csrf_key' => 'c',\n    ],\n];\n";
+$injectedOld = $injectSecret->invoke($csrfService, $oldArrayNoSecret, 'oldnew');
+smoke_check('CsrfSecret 注入老数组格式', is_string($injectedOld)
+    && $extractSecret->invoke($csrfService, $injectedOld) === 'oldnew');
+
+// 原子替换只在系统临时目录验证
+$tmpConfig = sys_get_temp_dir() . '/emshop_csrf_smoke_' . getmypid() . '.php';
+file_put_contents($tmpConfig, "<?php\n// old\n");
+$csrfReplaced = $replaceFile->invoke($csrfService, $tmpConfig, "<?php\n// new\n");
+$tmpConfigContent = (string) @file_get_contents($tmpConfig);
+@unlink($tmpConfig);
+smoke_check('CsrfSecret 原子替换临时文件', $csrfReplaced === true && $tmpConfigContent === "<?php\n// new\n");
+
+smoke_check('CsrfSecret 容器实例与门面一致', $container->make(\App\Support\CsrfSecret::class) === CsrfSecret::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
