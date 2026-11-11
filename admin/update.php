@@ -8,7 +8,7 @@ require __DIR__ . '/global.php';
  * 在线升级控制器。
  *
  * 所有动作均为 POST AJAX，由前端升级向导按 preflight → download → extract
- *   → apply → migrate → finalize 的顺序调度。
+ *   → apply → migrate → run_script → finalize 的顺序调度。
  *
  * 每步独立返回 JSON，后端不记状态——让前端持有 zip_path / extract_path。
  * 不备份旧文件、不长期保留升级包（解压后删除 zip，finalize 清空 cache）。
@@ -19,6 +19,7 @@ require __DIR__ . '/global.php';
  *   extract     —— 解压（返回 extract_path）
  *   apply       —— 覆盖文件（失败时仅删除本次新增文件）
  *   migrate     —— 跑 install/migrations 新增 SQL
+ *   run_script  —— 执行升级包根目录自带的 update.php（执行后删除）
  *   finalize    —— 成功收尾，清临时文件
  *   rollback    —— 删除本次升级新增的文件（无法还原已覆盖文件）
  */
@@ -90,6 +91,19 @@ try {
                 Response::error($res['error'] ?? '数据库迁移失败', $res);
             }
             Response::success('数据库迁移完成', $res);
+        }
+
+        // ------------------------------------------------------------
+        case 'run_script': {
+            $extractPath = (string) Input::post('extract_path', '');
+            if ($extractPath === '') {
+                Response::error('缺少 extract_path 参数');
+            }
+            $res = UpdateService::runPackageScript($extractPath);
+            if (!$res['ok']) {
+                Response::error($res['error'] ?? '更新脚本执行失败', $res);
+            }
+            Response::success($res['ran'] ? '更新脚本执行完成' : '本次升级包无更新脚本', $res);
         }
 
         // ------------------------------------------------------------

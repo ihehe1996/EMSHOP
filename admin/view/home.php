@@ -2056,6 +2056,7 @@ $(function () {
             { id: 'extract',   name: '解压升级包' },
             { id: 'apply',     name: '应用新文件' },
             { id: 'migrate',   name: '数据库迁移' },
+            { id: 'run_script', name: '执行更新脚本' },
             { id: 'finalize',  name: '完成收尾' }
         ];
 
@@ -2210,6 +2211,33 @@ $(function () {
                         res.data.applied.forEach(function (f) { log('  ✓ ' + f, 'ok'); });
                     } else {
                         setStep('migrate', 'done', '无新增迁移');
+                    }
+                });
+            },
+            run_script: function () {
+                setStep('run_script', 'running', '执行升级包自带脚本…');
+                return callStep('run_script', { extract_path: state.extract_path }).then(function (res) {
+                    var d = res.data || {};
+                    // 失败时也先把脚本输出打进日志，便于排查
+                    if (res.code !== 200) {
+                        if (d.output) {
+                            d.output.split(/\r?\n/).forEach(function (line) {
+                                if (line !== '') log('  ' + line, 'info');
+                            });
+                        }
+                        throw new Error(res.msg || '更新脚本执行失败');
+                    }
+                    if (!d.ran) {
+                        setStep('run_script', 'done', '无需执行');
+                        log('升级包未附带 update.php，跳过', 'info');
+                        return;
+                    }
+                    setStep('run_script', 'done', '执行完成并已删除');
+                    log('更新脚本 update.php 已执行并删除', 'ok');
+                    if (d.output) {
+                        d.output.split(/\r?\n/).forEach(function (line) {
+                            if (line !== '') log('  ' + line, 'info');
+                        });
                     }
                 });
             },

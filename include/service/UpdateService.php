@@ -11,7 +11,8 @@ declare(strict_types=1);
  *   3. extract         —— 解压到 tmp/update/extract/，成功后删除 zip
  *   4. apply           —— 用解压出来的文件替换项目内容（不备份旧文件）
  *   5. migrate         —— 扫 install/migrations/ 与 em_migrations 表求差集，跑新增 SQL
- *   6. finalize        —— 清理临时文件
+ *   6. run_script      —— 升级包根目录若带 update.php，执行一次后删除
+ *   7. finalize        —— 清理临时文件
  *
  * 回滚策略（无文件备份）：
  *   - apply 失败 → 仅删除本次新增的文件；已覆盖的文件需手动恢复
@@ -395,7 +396,7 @@ final class UpdateService
     }
 
     // ================================================================
-    // Step 6: migrate — 数据库迁移
+    // Step 5: migrate — 数据库迁移
     // ================================================================
 
     /**
@@ -500,6 +501,97 @@ final class UpdateService
                 'checksum' => hash('sha256', $raw),
             ]);
         }
+    }
+
+    // ================================================================
+    // Step 6: run_script — 执行升级包自带的 update.php
+    // ================================================================
+
+    /**
+     * 升级包根目录若带 update.php，在文件覆盖与数据库迁移完成后执行一次，随即删除。
+     *
+     * 该步骤在新文件已经落盘后的独立请求里执行，脚本拿到的是升级后的代码与表结构，
+     * 可以直接使用核心类 / Database；但它在本方法的局部作用域里被 include：
+     *   - 不能再写 `$this`，也不需要自己 require init.php（核心已初始化）
+     *   - echo 输出会被捕获并回传给前端日志，不会破坏 JSON 响应
+     *   - 脚本内 exit / 致命错误不会阻止删除（register_shutdown_function 兜底），
+     *     避免在网站根目录留下一个可被公网直接执行的入口
+     *
+     * @return array{ok:bool, ran:bool, deleted:bool, output:string, error?:string}
+     */
+    public static function runPackageScript(string $extractPath): array
+    {
+        // extract_path 来自客户端，和 apply 一样只允许固定的解压目录
+        $realExtract = str_replace('\\', '/', (string) realpath($extractPath));
+        $extractRoot = str_replace('\\', '/', (string) realpath(EM_ROOT . self::EXTRACT_DIR));
+        $extractPrefix = rtrim($extractRoot, '/') . '/';
+        if ($realExtract === '' || $extractRoot === ''
+            || ($realExtract !== $extractRoot && strpos($realExtract, $extractPrefix) !== 0)
+        ) {
+            return ['ok' => false, 'ran' => false, 'deleted' => false, 'output' => '', 'error' => '解压目录非法'];
+        }
+
+        // 是否带脚本看的是「升级包里有没有」，不是站点根目录有没有遗留文件
+        $srcRoot = self::detectPackageRoot($extractPath);
+        if (!is_file($srcRoot . '/update.php')) {
+            return ['ok' => true, 'ran' => false, 'deleted' => true, 'output' => ''];
+        }
+
+        $script = EM_ROOT . '/update.php';
+        if (!is_file($script)) {
+            return [
+                'ok' => false, 'ran' => false, 'deleted' => false, 'output' => '',
+                'error' => '升级包带有 update.php，但文件未被应用到网站根目录',
+            ];
+        }
+
+        $delete = static function () use ($script): void {
+            if (is_file($script)) {
+                @unlink($script);
+            }
+        };
+        // 脚本里 exit / 触发致命错误时 finally 不执行，这里兜底
+        register_shutdown_function($delete);
+
+        $level  = ob_get_level();
+        $output = '';
+        $error  = '';
+        ob_start();
+        try {
+            include $script;
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        } finally {
+            if (ob_get_level() > $level) {
+                $output = (string) ob_get_clean();
+            }
+            // 脚本自己开的输出缓冲一并清掉，避免把 JSON 响应挤坏
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+            $delete();
+        }
+
+        if (strlen($output) > 4000) {
+            $output = (function_exists('mb_substr') ? mb_substr($output, 0, 4000) : substr($output, 0, 4000))
+                . "\n…（输出过长已截断）";
+        }
+
+        $deleted = !is_file($script);
+
+        self::audit($error === '' ? 'update_script' : 'update_script_fail', array_filter([
+            'error'         => $error,
+            'output_length' => strlen($output),
+        ], static function ($v) { return $v !== '' && $v !== 0; }));
+
+        if ($error !== '') {
+            return [
+                'ok' => false, 'ran' => true, 'deleted' => $deleted, 'output' => $output,
+                'error' => '更新脚本执行失败：' . $error,
+            ];
+        }
+
+        return ['ok' => true, 'ran' => true, 'deleted' => $deleted, 'output' => $output];
     }
 
     // ================================================================
