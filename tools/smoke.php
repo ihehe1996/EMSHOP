@@ -683,6 +683,32 @@ smoke_check('WorkerHeartbeat 批量状态', WorkerHeartbeat::status([$hbMissing]
 
 smoke_check('WorkerHeartbeat 容器实例与门面一致', $container->make(\App\Support\WorkerHeartbeat::class) === WorkerHeartbeat::instance());
 
+// MerchantDomainGuard：归一化、主站域名与冲突检查
+smoke_check('MerchantDomainGuard 归一化', MerchantDomainGuard::normalizeHost('https://Example.COM:8443/a/b?x=1') === 'example.com'
+    && MerchantDomainGuard::normalizeHost('*.Foo.Example.') === 'foo.example'
+    && MerchantDomainGuard::normalizeHost('   ') === '');
+
+$mdMain = MerchantDomainGuard::normalizeHost((string) Config::get('main_domain', ''));
+if ($mdMain !== '') {
+    $mdHosts = MerchantDomainGuard::mainHosts();
+    smoke_check('MerchantDomainGuard 主站域名列表', in_array($mdMain, $mdHosts, true)
+        && in_array('www.' . $mdMain, $mdHosts, true));
+    smoke_check('MerchantDomainGuard 主站域名判断', MerchantDomainGuard::isMainHost($mdMain) === true
+        && MerchantDomainGuard::isMainHost('www.' . $mdMain) === true
+        && MerchantDomainGuard::isMainHost('sub.' . $mdMain) === false);
+    smoke_check('MerchantDomainGuard 二级域名冲突主站', MerchantDomainGuard::subdomainError('www') === '该二级域名与主站域名冲突');
+}
+
+smoke_check('MerchantDomainGuard 自定义域名空值', MerchantDomainGuard::customDomainError('') === '自定义域名格式不合法');
+if ($mdMain !== '') {
+    smoke_check('MerchantDomainGuard 自定义域名占用主站', MerchantDomainGuard::customDomainError($mdMain) === '不能使用主站域名作为自定义域名');
+}
+smoke_check('MerchantDomainGuard 自定义域名可用', MerchantDomainGuard::customDomainError('smoke' . getmypid() . '.example.com') === '');
+smoke_check('MerchantDomainGuard 二级域名空值', MerchantDomainGuard::subdomainError('') === '');
+smoke_check('MerchantDomainGuard 二级域名可用', MerchantDomainGuard::subdomainError('smoke' . getmypid()) === '');
+
+smoke_check('MerchantDomainGuard 容器实例与门面一致', $container->make(\App\Support\MerchantDomainGuard::class) === MerchantDomainGuard::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
