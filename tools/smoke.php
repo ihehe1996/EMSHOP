@@ -948,6 +948,41 @@ smoke_check('HtmlSanitizer 未知标签保留内容', trim($hsUnknown) === 'text
 
 smoke_check('HtmlSanitizer 容器实例与门面一致', $container->make(\App\Support\HtmlSanitizer::class) === HtmlSanitizer::instance());
 
+// Option：缓存、延迟落库与容器一致性
+$optKey = '__smoke_option_' . getmypid();
+Option::delete($optKey);
+Option::flush();
+smoke_check('Option 初始缺失回落默认值', Option::get($optKey, 'def') === 'def');
+
+smoke_check('Option set/get', Option::set($optKey, 'v1') === true && Option::get($optKey) === 'v1');
+Option::flush();
+$optRow = Database::fetchOne(
+    'SELECT `config_value` FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?',
+    [$optKey]
+);
+smoke_check('Option flush 写入数据库', $optRow !== null && $optRow['config_value'] === 'v1');
+
+Option::set($optKey, ['a' => 1]);
+smoke_check('Option 数组 JSON 解码', Option::get($optKey) === ['a' => 1]);
+Option::flush();
+
+smoke_check('Option gets 批量', Option::gets([$optKey, $optKey . '_missing'], 'x') === [
+    $optKey => ['a' => 1],
+    $optKey . '_missing' => 'x',
+]);
+
+Option::delete($optKey);
+smoke_check('Option delete 后读取默认值', Option::get($optKey, 'gone') === 'gone');
+Option::flush();
+$optRow = Database::fetchOne(
+    'SELECT `config_value` FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?',
+    [$optKey]
+);
+smoke_check('Option flush 删除数据库行', $optRow === null);
+
+Database::execute('DELETE FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?', [$optKey]);
+smoke_check('Option 容器实例与门面一致', $container->make(\App\Support\Option::class) === Option::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
