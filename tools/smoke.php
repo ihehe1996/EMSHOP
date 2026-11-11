@@ -63,6 +63,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\BlogTagController', class
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogCategoryController', class_exists('App\\Admin\\Controller\\BlogCategoryController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\GoodsCategoryController', class_exists('App\\Admin\\Controller\\GoodsCategoryController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\PageController', class_exists('App\\Admin\\Controller\\PageController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\BlogController', class_exists('App\\Admin\\Controller\\BlogController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -156,6 +157,14 @@ smoke_check(
     '后台路由 /admin/page → PageController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\PageController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/blog');
+smoke_check(
+    '后台路由 /admin/blog → BlogController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\BlogController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1382,6 +1391,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/page 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/blog 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 
