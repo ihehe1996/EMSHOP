@@ -17,6 +17,7 @@ use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
 use App\Admin\Controller\SignController;
+use App\Admin\Controller\WithdrawController;
 
 /**
  * 后台路由分发器（新 OOP 后台）。
@@ -55,6 +56,7 @@ final class AdminRouter
         'blog' => [BlogController::class, 'index'],
         'blog_comment' => [BlogCommentController::class, 'index'],
         'commission' => [CommissionController::class, 'index'],
+        'withdraw' => [WithdrawController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
