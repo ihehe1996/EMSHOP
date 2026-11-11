@@ -22,6 +22,7 @@ use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
+use App\Admin\Controller\ProfileController;
 use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
 use App\Admin\Controller\UserLevelController;
@@ -73,6 +74,7 @@ final class AdminRouter
         'merchant_order' => [MerchantOrderController::class, 'index'],
         'language' => [LanguageController::class, 'index'],
         'lang' => [LangController::class, 'index'],
+        'profile' => [ProfileController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

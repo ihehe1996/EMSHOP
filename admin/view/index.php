@@ -355,7 +355,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         </button>
                         <div class="admin-user-menu__dropdown">
                             <a href="/" target="_blank" class="admin-dropdown-link"><i class="fa fa-home"></i> 网站首页</a>
-                            <a href="/admin/profile.php" data-pjax="#adminContent" class="admin-dropdown-link"><i class="fa fa-user"></i> 个人信息</a>
+                            <a href="/admin/profile" data-pjax="#adminContent" class="admin-dropdown-link"><i class="fa fa-user"></i> 个人信息</a>
 
                             <!-- 移动端：语言切换 -->
                             <div class="admin-user-menu__lang" id="mobileLangSwitch">
