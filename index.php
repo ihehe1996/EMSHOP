@@ -41,6 +41,15 @@ if (\App\Admin\AdminRouter::instance()->handleCurrentRequest()) {
     exit;
 }
 
+// 用户中心与商户后台的新路由：/user/xxx 与 /user/merchant/xxx（均不带扩展名）。
+// 物理文件（旧 user/*.php、静态资源）仍由 Web 服务器直接命中，过渡期两套并存。
+if (\App\Merchant\MerchantRouter::instance()->handleCurrentRequest()) {
+    exit;
+}
+if (\App\User\UserRouter::instance()->handleCurrentRequest()) {
+    exit;
+}
+
 // 设置首页入口模式：优先读后台配置 homepage_mode，无配置时默认 mall
 define('HOMEPAGE_MODE', Config::get('homepage_mode', 'mall'));
 

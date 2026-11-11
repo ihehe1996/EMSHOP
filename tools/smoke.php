@@ -111,6 +111,10 @@ smoke_check(
     '旧后台删除标记不应残留',
     !is_file($root . '/content/tmp/admin_legacy_removal.pending')
 );
+smoke_check('新类可加载：App\\User\\UserRouter', class_exists('App\\User\\UserRouter'));
+smoke_check('新类可加载：App\\User\\UserShell', class_exists('App\\User\\UserShell'));
+smoke_check('新类可加载：App\\Merchant\\MerchantRouter', class_exists('App\\Merchant\\MerchantRouter'));
+smoke_check('新类可加载：App\\Merchant\\MerchantShell', class_exists('App\\Merchant\\MerchantShell'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -485,6 +489,36 @@ smoke_check(
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\LicenseController::class
         && $adminRoute['action'] === 'index'
+);
+
+$userRouter = \App\User\UserRouter::instance();
+$merchantRouter = \App\Merchant\MerchantRouter::instance();
+
+smoke_check(
+    '用户中心路径识别 /user/home',
+    \App\User\UserRouter::isUserPath('/user/home')
+        && !\App\User\UserRouter::isUserPath('/user/home.php')
+        && !\App\User\UserRouter::isUserPath('/user/static/css/user.css')
+        && !\App\User\UserRouter::isUserPath('/user/merchant/home')
+);
+smoke_check(
+    '商户后台路径识别 /user/merchant/home',
+    \App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home')
+        && !\App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home.php')
+);
+$userRoute = $userRouter->resolve('/user/home');
+smoke_check(
+    '用户中心路由 /user/home → HomeController::index',
+    is_array($userRoute)
+        && $userRoute['class'] === \App\User\Controller\HomeController::class
+        && $userRoute['action'] === 'index'
+);
+$merchantRoute = $merchantRouter->resolve('/user/merchant/home');
+smoke_check(
+    '商户后台路由 /user/merchant/home → HomeController::index',
+    is_array($merchantRoute)
+        && $merchantRoute['class'] === \App\Merchant\Controller\HomeController::class
+        && $merchantRoute['action'] === 'index'
 );
 
 $adminRoute = $adminRouter->resolve('/admin/appstore');
