@@ -420,6 +420,43 @@ smoke_check('MerchantContext CLI 无最近店铺', MerchantContext::lastMerchant
 MerchantContext::setCurrent(null);
 smoke_check('MerchantContext 容器实例与门面一致', $container->make(\App\Support\MerchantContext::class) === MerchantContext::instance());
 
+// Currency：实例/静态 API、访客币种与容器一致性
+$currency = Currency::getInstance();
+$curPrimary = $currency->getPrimary();
+smoke_check('Currency 主货币存在', $curPrimary !== null);
+smoke_check('Currency 列表非空', count($currency->all()) > 0);
+smoke_check('Currency 容器实例与门面一致', $container->make(\App\Support\Currency::class) === Currency::service());
+
+if ($curPrimary !== null) {
+    $curCode = (string) $curPrimary['code'];
+    $curSymbol = (string) ($curPrimary['symbol'] ?? '');
+    $curEnabled = (int) ($curPrimary['enabled'] ?? 1) === 1;
+
+    smoke_check('Currency 按代码查找（忽略大小写）', $currency->getByCode(strtolower($curCode)) !== null);
+    smoke_check('Currency 按 ID 查找', $currency->getById((int) $curPrimary['id']) !== null);
+
+    smoke_check('Currency displayAmount 主货币', Currency::displayAmount(12340000, '') === $curSymbol . '12.34');
+    smoke_check('Currency displayMain 主货币', Currency::displayMain(12.34, '') === $curSymbol . '12.34');
+    smoke_check('Currency displaySnapshot 空快照', Currency::displaySnapshot(12340000, '', 0) === $curSymbol . '12.34');
+    smoke_check('Currency displaySnapshot 冻结汇率', Currency::displaySnapshot(10000000, $curCode, 1000000) === $curSymbol . '10.00');
+
+    if ($curEnabled) {
+        $oldCurrencyCookie = $_COOKIE['em_currency'] ?? null;
+        $_COOKIE['em_currency'] = strtolower($curCode);
+        smoke_check('Currency 访客币种 Cookie 优先', Currency::visitorCode() === $curCode);
+        smoke_check('Currency 访客符号', Currency::visitorSymbol() === $curSymbol);
+        smoke_check('Currency 主货币换算因子为 1', Currency::visitorFactor() === 1.0);
+        smoke_check('Currency 主货币无快照', Currency::visitorSnapshot() === ['', 0]);
+        if ($oldCurrencyCookie === null) {
+            unset($_COOKIE['em_currency']);
+        } else {
+            $_COOKIE['em_currency'] = $oldCurrencyCookie;
+        }
+
+        smoke_check('Currency 切换器含主货币', strpos(Currency::switcherHtml(), 'value="' . $curCode . '"') !== false);
+    }
+}
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
