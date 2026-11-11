@@ -286,6 +286,9 @@ Cache::init();
 // 限流服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\RateLimit::class, RateLimit::instance());
 
+// 推广归因服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\InviteToken::class, InviteToken::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

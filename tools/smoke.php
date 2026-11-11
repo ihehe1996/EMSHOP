@@ -615,6 +615,55 @@ try {
 
 smoke_check('RateLimit 容器实例与门面一致', $container->make(\App\Support\RateLimit::class) === RateLimit::instance());
 
+// InviteToken：常量、邀请码生成、Cookie 读写与容器一致性
+smoke_check('InviteToken 常量', InviteToken::COOKIE_NAME === 'em_inviter'
+    && InviteToken::QUERY_PARAM === 'r'
+    && InviteToken::COOKIE_LIFETIME === 86400 * 365 * 10);
+
+$inviteCode = InviteToken::generateUniqueCode();
+smoke_check('InviteToken 生成邀请码格式', preg_match('/^[A-HJ-KM-NP-Z2-9]{8}$/', $inviteCode) === 1);
+smoke_check('InviteToken 生成的邀请码未被占用', Database::fetchOne(
+    'SELECT `id` FROM `' . Database::prefix() . 'user` WHERE `invite_code` = ?',
+    [$inviteCode]
+) === null);
+
+$oldCookieForInvite = $_COOKIE;
+$_COOKIE = [];
+smoke_check('InviteToken 无 Cookie 返回空串', InviteToken::getCode() === '');
+InviteToken::setCookie('SMOOKE42');
+smoke_check('InviteToken 写 Cookie', InviteToken::getCode() === 'SMOOKE42'
+    && ($_COOKIE[InviteToken::COOKIE_NAME] ?? '') === 'SMOOKE42');
+$_COOKIE = $oldCookieForInvite;
+
+smoke_check('InviteToken 空邀请码解析', InviteToken::resolveInviterId('') === 0);
+smoke_check('InviteToken 不存在邀请码解析', InviteToken::resolveInviterId('NO_SUCH_CODE_XYZ') === 0);
+
+$invRow = Database::fetchOne(
+    'SELECT `id`, `invite_code` FROM `' . Database::prefix() . 'user` WHERE `status` = 1 AND `invite_code` <> ? LIMIT 1',
+    ['']
+);
+if ($invRow !== null) {
+    $validInviteCode = (string) $invRow['invite_code'];
+    smoke_check('InviteToken 解析有效邀请人', InviteToken::resolveInviterId($validInviteCode) === (int) $invRow['id']);
+
+    $oldCookieForInvite = $_COOKIE;
+    $_COOKIE = [InviteToken::COOKIE_NAME => $validInviteCode];
+    smoke_check('InviteToken 当前邀请人', InviteToken::currentInviterId() === (int) $invRow['id']);
+    $_COOKIE = $oldCookieForInvite;
+}
+
+// CLI 下 captureFromQuery 不写 Cookie
+$oldGetForInvite = $_GET;
+$oldCookieForInvite = $_COOKIE;
+$_GET = ['r' => 'whatever'];
+$_COOKIE = [];
+InviteToken::captureFromQuery();
+smoke_check('InviteToken CLI 不写 Cookie', InviteToken::getCode() === '');
+$_GET = $oldGetForInvite;
+$_COOKIE = $oldCookieForInvite;
+
+smoke_check('InviteToken 容器实例与门面一致', $container->make(\App\Support\InviteToken::class) === InviteToken::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
