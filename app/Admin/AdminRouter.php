@@ -33,6 +33,7 @@ use App\Admin\Controller\ProfileController;
 use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
 use App\Admin\Controller\SystemLogController;
+use App\Admin\Controller\TemplateController;
 use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\UserListController;
 use App\Admin\Controller\WithdrawController;
@@ -93,6 +94,7 @@ final class AdminRouter
         'currency_popup' => [CurrencyPopupController::class, 'index'],
         'disclaimer' => [DisclaimerController::class, 'index'],
         'editor_demo' => [EditorDemoController::class, 'index'],
+        'template' => [TemplateController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

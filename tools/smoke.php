@@ -85,6 +85,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\CurrencyController', clas
 smoke_check('新类可加载：App\\Admin\\Controller\\CurrencyPopupController', class_exists('App\\Admin\\Controller\\CurrencyPopupController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\DisclaimerController', class_exists('App\\Admin\\Controller\\DisclaimerController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\EditorDemoController', class_exists('App\\Admin\\Controller\\EditorDemoController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\TemplateController', class_exists('App\\Admin\\Controller\\TemplateController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -354,6 +355,14 @@ smoke_check(
     '后台路由 /admin/editor_demo → EditorDemoController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\EditorDemoController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/template');
+smoke_check(
+    '后台路由 /admin/template → TemplateController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\TemplateController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1932,6 +1941,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/editor_demo 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/template', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/template 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 
