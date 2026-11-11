@@ -14,7 +14,7 @@ namespace App\Admin\Controller;
  * 弹窗：?_popup=1 编辑用户、balance 余额、user_level 等级、merchant_open 开通分站、
  *       merchant 商户详情
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class UserListController extends BaseAdminController
 {
@@ -630,14 +630,6 @@ final class UserListController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $admin;
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/user_list.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/user_list.php', $admin, get_defined_vars());
     }
 }

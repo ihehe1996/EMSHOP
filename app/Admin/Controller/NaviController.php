@@ -12,7 +12,7 @@ namespace App\Admin\Controller;
  *   - ?_popup=1 渲染编辑弹窗
  *   - 普通请求渲染列表页
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php），
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php），
  * 等后台公共布局迁移到 app/Admin 后再替换。
  */
 final class NaviController extends BaseAdminController
@@ -350,16 +350,6 @@ final class NaviController extends BaseAdminController
             return;
         }
 
-        // 旧后台框架壳依赖 t() / loadAdminTranslations()（原内联在 admin/global.php）
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        // 旧后台框架壳依赖的变量（过渡期复用 admin/view/index.php）
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/navi.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/navi.php', $this->user(), get_defined_vars());
     }
 }

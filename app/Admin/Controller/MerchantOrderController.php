@@ -15,7 +15,7 @@ namespace App\Admin\Controller;
  *   _action=summary   今日/本月/累计 已支付订单的笔数和金额
  *   _action=merchants 拉所有有订单的商户给筛选下拉
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class MerchantOrderController extends BaseAdminController
 {
@@ -238,14 +238,6 @@ final class MerchantOrderController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/merchant_order.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/merchant_order.php', $this->user(), get_defined_vars());
     }
 }

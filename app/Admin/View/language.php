@@ -196,7 +196,7 @@ $(function(){
             }
         });
 
-        // 图标点击放大：Viewer.js（admin/view/index.php 已全局加载）
+        // 图标点击放大：Viewer.js（后台框架壳已全局加载）
         $(document).on('click.admLanguage', '.lang-icon-img', function () {
             var src = $(this).attr('src');
             if (!src) return;

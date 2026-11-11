@@ -235,7 +235,7 @@ $(function(){
             var data = obj.data;
             switch (obj.event) {
                 case 'previewImg':
-                    // 用 Viewer.js（admin/view/index.php 已全局加载）代替 layer.photos
+                    // 用 Viewer.js（后台框架壳已全局加载）代替 layer.photos
                     var src = $(this).find('img').attr('src');
                     if (src) {
                         var $tmp = $('<div style="display:none;"><img src="' + src + '"></div>').appendTo('body');

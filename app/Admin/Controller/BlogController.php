@@ -13,7 +13,7 @@ namespace App\Admin\Controller;
  *   - 无 action 时渲染列表页
  *
  * 编辑弹窗仍指向旧 admin/blog_edit.php，等编辑器迁移时再切换。
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class BlogController extends BaseAdminController
 {
@@ -203,14 +203,6 @@ final class BlogController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/blog.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/blog.php', $this->user(), get_defined_vars());
     }
 }

@@ -23,7 +23,7 @@ $currencySymbol = $__primary ? ($__primary['symbol'] ?? '¥') : '¥';
 
 /* ============================================================
  * 统计数据采集：view 自查，不依赖外层 controller 预填
- * ——  /admin/home（PJAX）和 /admin/index.php（默认）两处入口都用同一段
+ * ——  /admin/home 整页与 Pjax 两种入口都用同一段
  * ============================================================ */
 $__prefix  = Database::prefix();
 $__today   = date('Y-m-d');

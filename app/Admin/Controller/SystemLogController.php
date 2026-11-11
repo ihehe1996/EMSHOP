@@ -11,7 +11,7 @@ namespace App\Admin\Controller;
  *   - _action=list 分页列表、stats 统计、view 详情（只读）
  *   - delete / batchDelete / cleanup 清理
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class SystemLogController extends BaseAdminController
 {
@@ -163,14 +163,6 @@ final class SystemLogController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/system_log.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/system_log.php', $this->user(), get_defined_vars());
     }
 }

@@ -14,7 +14,7 @@ namespace App\Admin\Controller;
  *   - 无 action 时渲染列表页
  *
  * 动作参数同时兼容 GET 与 POST（旧页面用 ?_action=list）。
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class GoodsTagController extends BaseAdminController
 {
@@ -137,14 +137,6 @@ final class GoodsTagController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/goods_tag.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/goods_tag.php', $this->user(), get_defined_vars());
     }
 }

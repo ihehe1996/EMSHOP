@@ -10,7 +10,7 @@ namespace App\Admin\Controller;
  * 记录分站站长在商户端应用商店的购买订单（当前支付方式为余额扣款）。
  * GET _action=list 返回列表 JSON（只读）。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class AppOrderController extends BaseAdminController
 {
@@ -27,15 +27,7 @@ final class AppOrderController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/app_order.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/app_order.php', $this->user(), get_defined_vars());
     }
 
     /**

@@ -10,7 +10,7 @@ namespace App\Admin\Controller;
  * 支持修改账号/昵称/邮箱/手机号、上传头像、选择头像、恢复默认头像。
  * 与旧 admin/profile.php 行为一致（动作参数是 POST 的 action，不是 _action）。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class ProfileController extends BaseAdminController
 {
@@ -197,15 +197,6 @@ final class ProfileController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $csrfToken = \Csrf::token();
-        $adminContentView = dirname(__DIR__) . '/View/profile.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/profile.php', $this->user(), get_defined_vars());
     }
 }

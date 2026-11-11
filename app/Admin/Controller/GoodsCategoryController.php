@@ -14,7 +14,7 @@ namespace App\Admin\Controller;
  * 动作参数以 GET 的 action 为主（旧视图用 ?action=add/edit/...）；
  * 状态切换的旧视图把 _action 放在 POST body 里，这里一并兼容。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class GoodsCategoryController extends BaseAdminController
 {
@@ -346,14 +346,6 @@ final class GoodsCategoryController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/goods_category.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/goods_category.php', $this->user(), get_defined_vars());
     }
 }

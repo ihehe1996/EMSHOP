@@ -12,7 +12,7 @@ namespace App\Admin\Controller;
  *   - 其他货币仅用于前台展示换算（rate 约定：1 目标 = rate 主货币）
  *
  * 动作：list / add / edit / delete / toggle / set_frontend_default / init_primary
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class CurrencyController extends BaseAdminController
 {
@@ -228,14 +228,6 @@ final class CurrencyController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/currency.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/currency.php', $this->user(), get_defined_vars());
     }
 }

@@ -15,7 +15,7 @@ namespace App\Admin\Controller;
  * 动作：enable / disable / uninstall / save_config / set_merchant_price / set_merchant_listed
  * GET _action=list 返回插件列表 JSON；?_popup=1&name=xxx 渲染插件设置页。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class PluginController extends BaseAdminController
 {
@@ -444,15 +444,7 @@ final class PluginController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/plugin.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/plugin.php', $this->user(), get_defined_vars());
     }
 
     /**

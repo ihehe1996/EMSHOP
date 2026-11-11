@@ -8,7 +8,7 @@ namespace App\Admin\Controller;
  * 富文本编辑器演示页（/admin/editor_demo）。
  *
  * 演示 WangEditor v5 功能；POST 仅返回内容长度（演示模式）。
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class EditorDemoController extends BaseAdminController
 {
@@ -43,14 +43,6 @@ final class EditorDemoController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/editor_demo.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/editor_demo.php', $this->user(), get_defined_vars());
     }
 }

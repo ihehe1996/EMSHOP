@@ -177,7 +177,7 @@ $(function(){
             var data = obj.data;
             switch (obj.event) {
                 case 'previewImg':
-                    // Viewer.js 预览（admin/view/index.php 已全局加载）
+                    // Viewer.js 预览（后台框架壳已全局加载）
                     var src = data.image;
                     if (!src) return;
                     var $tmp = $('<div style="display:none;"><img src="' + src + '"></div>').appendTo('body');

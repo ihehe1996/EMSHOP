@@ -14,7 +14,7 @@ namespace App\Admin\Controller;
  * AJAX：_action=admin_index_data / trend
  * 弹窗：popup=rewrite / server_guide、_popup=server_restart
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class DashboardController extends BaseAdminController
 {
@@ -295,14 +295,6 @@ final class DashboardController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/home.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/home.php', $this->user(), get_defined_vars());
     }
 }

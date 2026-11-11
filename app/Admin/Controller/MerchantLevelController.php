@@ -17,7 +17,7 @@ namespace App\Admin\Controller;
  *   - price 前端以"元"录入（例 "99.00"），库里存 ×1000000
  *   - 布尔开关（allow_*）前端 checkbox 勾选为 "1"，未勾选不提交 —— 后端统一兜底为 0
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class MerchantLevelController extends BaseAdminController
 {
@@ -245,14 +245,6 @@ final class MerchantLevelController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/merchant_level.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/merchant_level.php', $this->user(), get_defined_vars());
     }
 }

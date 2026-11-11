@@ -12,7 +12,7 @@ namespace App\Admin\Controller;
  *
  * 邮箱测试：?_popup=smtp_test 渲染弹窗；POST _action=smtp_test 发送测试邮件。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class SettingsController extends BaseAdminController
 {
@@ -388,15 +388,6 @@ final class SettingsController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $csrfToken = \Csrf::token();
-        $adminContentView = dirname(__DIR__) . '/View/settings.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/settings.php', $this->user(), get_defined_vars());
     }
 }

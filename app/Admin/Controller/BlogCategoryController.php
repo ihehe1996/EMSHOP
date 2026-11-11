@@ -11,7 +11,7 @@ namespace App\Admin\Controller;
  * 与旧 admin/blog_category.php 行为一致：列表 / 创建 / 更新 / 删除 /
  * 批量删除 / 状态切换 / 图片上传，以及 ?_popup=1 编辑弹窗。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class BlogCategoryController extends BaseAdminController
 {
@@ -342,14 +342,6 @@ final class BlogCategoryController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/blog_category.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/blog_category.php', $this->user(), get_defined_vars());
     }
 }

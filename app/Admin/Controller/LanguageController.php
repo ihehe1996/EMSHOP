@@ -12,7 +12,7 @@ namespace App\Admin\Controller;
  *   - ?_popup=1 添加/编辑弹窗
  *   - 至少保留一种语言；至少保留一种启用语言
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class LanguageController extends BaseAdminController
 {
@@ -245,14 +245,6 @@ final class LanguageController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/language.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/language.php', $this->user(), get_defined_vars());
     }
 }

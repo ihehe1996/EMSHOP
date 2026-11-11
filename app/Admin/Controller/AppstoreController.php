@@ -13,7 +13,7 @@ namespace App\Admin\Controller;
  *   POST _action=app_buy / app_pay_qrcode / app_order_status  购买与站内扫码支付
  *   POST _action=install / update                            下载安装与更新
  *
- * 过渡期页面仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class AppstoreController extends BaseAdminController
 {
@@ -612,14 +612,7 @@ final class AppstoreController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = $appstoreView;
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render($appstoreView, $this->user(), get_defined_vars());
     }
 
     /**

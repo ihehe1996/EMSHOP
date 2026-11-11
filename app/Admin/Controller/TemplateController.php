@@ -15,7 +15,7 @@ namespace App\Admin\Controller;
  * 动作：activate_pc / activate_mobile / save_config / uninstall
  * GET _action=list 返回模板列表 JSON；?_popup=1&name=xxx 渲染模板设置页。
  *
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class TemplateController extends BaseAdminController
 {
@@ -242,15 +242,7 @@ final class TemplateController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/template.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/template.php', $this->user(), get_defined_vars());
     }
 
     /**

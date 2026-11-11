@@ -121,7 +121,7 @@ include __DIR__ . '/header.php';
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="layui-form-mid layui-word-aux">没有可选页面？先去 <a href="/admin/page.php" target="_blank" style="color:#4f46e5;">页面管理</a> 创建并发布</div>
+                        <div class="layui-form-mid layui-word-aux">没有可选页面？先去 <a href="/admin/page" target="_blank" style="color:#4f46e5;">页面管理</a> 创建并发布</div>
                     </div>
 
                     <div class="layui-form-item">

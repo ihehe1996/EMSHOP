@@ -1245,7 +1245,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <div class="layui-form-item">
                             <div class="layui-input-block" style="color:#6b7280;font-size:13px;line-height:1.7;padding:4px 0 10px;">
                                 开通费用、允许功能（自定义域名 / 模板 / 独立收款 等）、手续费率 等规则均已迁移到
-                                <a href="/admin/merchant_level.php" data-pjax="#adminContent" style="color:#1890ff;">商户等级</a> 中按等级独立配置。
+                                <a href="/admin/merchant_level" data-pjax="#adminContent" style="color:#1890ff;">商户等级</a> 中按等级独立配置。
                             </div>
                         </div>
                     </div>
@@ -1374,7 +1374,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                 maxmin: false,
                 area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '600px' : '88%'],
                 shadeClose: true,
-                content: '/admin/home.php?popup=rewrite'
+                content: '/admin/home?popup=rewrite'
             });
         });
 

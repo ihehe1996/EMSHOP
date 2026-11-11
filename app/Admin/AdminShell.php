@@ -18,8 +18,9 @@ final class AdminShell
      *
      * @param string               $contentView 内容区视图的绝对路径
      * @param array<string, mixed> $user        当前管理员；为空时从会话读取
+     * @param array<string, mixed> $vars        控制器传给内容视图的局部变量
      */
-    public static function render(string $contentView, array $user = []): void
+    public static function render(string $contentView, array $user = [], array $vars = []): void
     {
         if (!is_file($contentView)) {
             throw new \RuntimeException('后台内容视图不存在：' . $contentView);
@@ -32,12 +33,15 @@ final class AdminShell
             $user = (new \AuthService())->user() ?? [];
         }
 
+        // 控制器局部变量原样带进内容视图（旧框架壳是同一作用域 require，视图一直依赖这些变量）
+        extract($vars, EXTR_SKIP);
+
         $siteName = (string) \Config::get('sitename', 'EMSHOP');
         $languages = (new \LanguageModel())->getEnabled();
         $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
 
         $adminContentView = $contentView;
 
-        require dirname(__DIR__) . '/View/shell.php';
+        require __DIR__ . '/View/shell.php';
     }
 }

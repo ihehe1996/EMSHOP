@@ -8,7 +8,7 @@ namespace App\Admin\Controller;
  * 后台系统日志页（占位，/admin/logs）。
  *
  * 当前只渲染占位卡片，真实日志见 /admin/system_log。
- * 过渡期列表页仍套用旧后台框架壳（admin/view/index.php）。
+ * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class LogsController extends BaseAdminController
 {
@@ -21,14 +21,6 @@ final class LogsController extends BaseAdminController
             return;
         }
 
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
-
-        $user = $this->user();
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
-        $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
-        $adminContentView = dirname(__DIR__) . '/View/logs.php';
-
-        require EM_ROOT . '/admin/view/index.php';
+        \App\Admin\AdminShell::render(dirname(__DIR__) . '/View/logs.php', $this->user(), get_defined_vars());
     }
 }
