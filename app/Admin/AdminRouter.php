@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Admin;
 
+use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
@@ -37,6 +38,7 @@ final class AdminRouter
         'home' => [HomeController::class, 'index'],
         'sign' => [SignController::class, 'index'],
         'navi' => [NaviController::class, 'index'],
+        'friend_link' => [FriendLinkController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

@@ -57,6 +57,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_ex
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\SignController', class_exists('App\\Admin\\Controller\\SignController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NaviController', class_exists('App\\Admin\\Controller\\NaviController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\FriendLinkController', class_exists('App\\Admin\\Controller\\FriendLinkController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -102,6 +103,14 @@ smoke_check(
     '后台路由 /admin/navi → NaviController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\NaviController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/friend_link');
+smoke_check(
+    '后台路由 /admin/friend_link → FriendLinkController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\FriendLinkController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1232,6 +1241,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/navi 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/friend_link', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/friend_link 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 
