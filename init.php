@@ -319,6 +319,9 @@ Cache::init();
 // 下载地址校验服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\DownloadUrlGuard::class, DownloadUrlGuard::instance());
 
+// HTML 清洗服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\HtmlSanitizer::class, HtmlSanitizer::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

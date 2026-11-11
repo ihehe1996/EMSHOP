@@ -920,6 +920,34 @@ smoke_check('DownloadUrlGuard 公网 IP 放行',
 
 smoke_check('DownloadUrlGuard 容器实例与门面一致', $container->make(\App\Support\DownloadUrlGuard::class) === DownloadUrlGuard::instance());
 
+// HtmlSanitizer：标签/属性/URL 清洗与容器一致性
+smoke_check('HtmlSanitizer 空输入', HtmlSanitizer::clean('') === '' && HtmlSanitizer::clean("   \n") === '');
+smoke_check('HtmlSanitizer 纯文本转义', HtmlSanitizer::clean('a & b') === 'a &amp; b');
+
+$hsScript = HtmlSanitizer::clean('<p>hi</p><script>alert(1)</script>');
+smoke_check('HtmlSanitizer 删除脚本', strpos($hsScript, '<p>hi</p>') !== false
+    && stripos($hsScript, '<script') === false
+    && strpos($hsScript, 'alert(1)') === false);
+
+$hsEvent = HtmlSanitizer::clean('<p onclick="alert(1)">hi</p>');
+smoke_check('HtmlSanitizer 删除事件属性', strpos($hsEvent, 'onclick') === false
+    && strpos($hsEvent, '<p>hi</p>') !== false);
+
+$hsJsUrl = HtmlSanitizer::clean('<a href="javascript:alert(1)">x</a>');
+smoke_check('HtmlSanitizer 删除伪协议', strpos($hsJsUrl, 'javascript') === false);
+
+$hsLink = HtmlSanitizer::clean('<a href="https://example.com" target="_blank">x</a>');
+smoke_check('HtmlSanitizer 安全链接加 rel', strpos($hsLink, 'href="https://example.com"') !== false
+    && strpos($hsLink, 'rel="noopener noreferrer"') !== false);
+
+$hsImg = HtmlSanitizer::clean('<img src="data:image/png;base64,AAAA">');
+smoke_check('HtmlSanitizer 删除 data 图片', strpos($hsImg, 'data:') === false);
+
+$hsUnknown = HtmlSanitizer::clean('<custom>text</custom>');
+smoke_check('HtmlSanitizer 未知标签保留内容', trim($hsUnknown) === 'text');
+
+smoke_check('HtmlSanitizer 容器实例与门面一致', $container->make(\App\Support\HtmlSanitizer::class) === HtmlSanitizer::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
