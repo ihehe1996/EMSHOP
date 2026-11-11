@@ -460,7 +460,7 @@ layui.use(function(){
         $('#pluginGrid, #pluginEmpty').hide();
 
         $.ajax({
-            url: '/admin/plugin?_action=list&scope=' + listScope,
+            url: '<?= EM_ADMIN_PATH ?>/plugin?_action=list&scope=' + listScope,
             type: 'GET',
             dataType: 'json',
             success: function(res) {
@@ -575,7 +575,7 @@ layui.use(function(){
                     layui.layer.msg('价格非法');
                     return;
                 }
-                $.post('/admin/plugin', {
+                $.post('<?= EM_ADMIN_PATH ?>/plugin', {
                     _action: 'set_merchant_price',
                     csrf_token: csrfToken,
                     market_id: marketId,
@@ -623,7 +623,7 @@ layui.use(function(){
         var postData = {csrf_token: csrfToken, _action: action, name: name};
         if (extraData) { for (var k in extraData) postData[k] = extraData[k]; }
         $.ajax({
-            url: '/admin/plugin',
+            url: '<?= EM_ADMIN_PATH ?>/plugin',
             type: 'POST',
             dataType: 'json',
             data: postData,
@@ -665,7 +665,7 @@ layui.use(function(){
         }
         var loadingIdx = layui.layer.load(2, { shade: [0.3, '#000'] });
         $.ajax({
-            url: '/admin/appstore',
+            url: '<?= EM_ADMIN_PATH ?>/appstore',
             type: 'POST',
             dataType: 'json',
             data: { csrf_token: csrfToken, _action: 'update', name: name, type: 'plugin', file_path: path, version: ver },
@@ -694,7 +694,7 @@ layui.use(function(){
             maxmin: true,
             area: [window.innerWidth >= 800 ? '600px' : '95%', window.innerHeight >= 600 ? '75%' : '90%'],
             shadeClose: true,
-            content: '/admin/plugin?_popup=1&name=' + encodeURIComponent(name),
+            content: '<?= EM_ADMIN_PATH ?>/plugin?_popup=1&name=' + encodeURIComponent(name),
             id: 'plugin_settings_' + name
         });
     }
@@ -706,7 +706,7 @@ layui.use(function(){
 
     // 应用商店（工具条按钮 + 空状态主按钮走同一入口）
     function goAppstore(){
-        var url = currentFilter === 'merchant' ? '/admin/appstore?tab=merchant' : '/admin/appstore';
+        var url = currentFilter === 'merchant' ? '<?= EM_ADMIN_PATH ?>/appstore?tab=merchant' : '<?= EM_ADMIN_PATH ?>/appstore';
         $.pjax({ url: url, container: '#adminContent' });
     }
     $('#pluginAppstoreBtn, #pluginEmptyAppstoreBtn').on('click', goAppstore);

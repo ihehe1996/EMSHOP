@@ -1762,7 +1762,7 @@ $(function () {
                     maxmin: false,
                     area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '580px' : '88%'],
                     shadeClose: true,
-                    content: '/admin/home?popup=rewrite'
+                    content: '<?= EM_ADMIN_PATH ?>/home?popup=rewrite'
                 });
             }
         });
@@ -1834,7 +1834,7 @@ $(function () {
             maxmin: false,
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '520px' : '82%'],
             shadeClose: true,
-            content: '/admin/home?popup=server_guide'
+            content: '<?= EM_ADMIN_PATH ?>/home?popup=server_guide'
         });
     }
 
@@ -1983,7 +1983,7 @@ $(function () {
         if (__dashIndexLoading) return __dashIndexXhr;
         __dashIndexLoading = true;
         __dashIndexXhr = $.ajax({
-            url: '/admin/home',
+            url: '<?= EM_ADMIN_PATH ?>/home',
             method: 'GET',
             data: { _action: 'admin_index_data', _t: Date.now() },
             dataType: 'json',
@@ -2142,7 +2142,7 @@ $(function () {
         }
         function callStep(action, data) {
             return $.ajax({
-                url: '/admin/update', method: 'POST', dataType: 'json',
+                url: '<?= EM_ADMIN_PATH ?>/update', method: 'POST', dataType: 'json',
                 timeout: 600000,  // 下载可能比较久
                 data: $.extend({ _action: action, csrf_token: window.adminCsrfToken || '' }, data || {})
             });
@@ -2360,7 +2360,7 @@ $(function () {
             var origHtml = $btn.html();
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
             $.ajax({
-                url: '/admin/license',
+                url: '<?= EM_ADMIN_PATH ?>/license',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -2534,7 +2534,7 @@ $(function () {
             skin: 'admin-modal',
             area: [width + 'px', height + 'px'],
             shadeClose: true,
-            content: '/admin/license?_popup=official_login' +
+            content: '<?= EM_ADMIN_PATH ?>/license?_popup=official_login' +
                      (initialTab === 'register' ? '&tab=register' : ''),
             end: function () {
                 try { delete window.__officialLoginResize; } catch (e) {}
@@ -2575,7 +2575,7 @@ $(function () {
                 window.innerHeight >= 760 ? '660px' : '88%'
             ],
             shadeClose: true,
-            content: '/admin/license?_popup=account'
+            content: '<?= EM_ADMIN_PATH ?>/license?_popup=account'
         });
     });
 
@@ -2637,7 +2637,7 @@ $(function () {
         function loadTrend(range) {
             chartTrend.showLoading({ text: '加载中...', color: '#6366f1', textColor: '#9ca3af', maskColor: 'rgba(255,255,255,0.7)' });
             $.ajax({
-                url: '/admin/home',
+                url: '<?= EM_ADMIN_PATH ?>/home',
                 method: 'GET',
                 data: { _action: 'trend', range: range, _t: Date.now() },
                 dataType: 'json',

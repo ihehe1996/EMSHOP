@@ -101,7 +101,7 @@ $(function(){
         inst = treeTable.render({
             elem: '#catTable',
             id: 'catTableId',
-            url: '/admin/blog_category',
+            url: '<?= EM_ADMIN_PATH ?>/blog_category',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -211,7 +211,7 @@ $(function(){
 
             layer.confirm('确认删除 ' + rows.length + ' 个分类？<br><span style="color:#9ca3af;font-size:12px;">' + emEsc(names) + '</span>', function (idx) {
                 $.ajax({
-                    url: '/admin/blog_category',
+                    url: '<?= EM_ADMIN_PATH ?>/blog_category',
                     type: 'POST',
                     dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'batch_delete', ids: ids },
@@ -252,7 +252,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除分类「' + emEsc(data.name) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/blog_category',
+                            url: '<?= EM_ADMIN_PATH ?>/blog_category',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -284,7 +284,7 @@ $(function(){
             $switch.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/blog_category',
+                url: '<?= EM_ADMIN_PATH ?>/blog_category',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle_status', id: id},
@@ -313,7 +313,7 @@ $(function(){
 
         // 打开弹窗
         function openPopup(title, editId) {
-            var url = '/admin/blog_category?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/blog_category?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

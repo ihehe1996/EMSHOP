@@ -15,7 +15,7 @@
 
     window.emEditorUploadImageConf = function (opts) {
         opts = opts || {};
-        var server = opts.server || '/admin/upload';
+        var server = opts.server || ((window.EM_ADMIN_PATH || '/admin') + '/upload');
         var baseData = opts.data || {};
         var maxFileSize = opts.maxFileSize != null ? opts.maxFileSize : window.EM_EDITOR_IMAGE_MAX_BYTES;
         var onCsrf = typeof opts.onCsrf === 'function' ? opts.onCsrf : function (token) {

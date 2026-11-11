@@ -61,7 +61,7 @@ function plugin_setting_view(): void
                 $btn.prop('disabled', true).html('<i class="layui-icon layui-icon-loading"></i> 保存中...');
                 $.ajax({
                     type: 'POST',
-                    url: window.PLUGIN_SAVE_URL || '/admin/plugin',
+                    url: window.PLUGIN_SAVE_URL || '<?= EM_ADMIN_PATH ?>/plugin',
                     data: $('#virtualCardSettingForm').serialize() + '&_action=save_config&name=virtual_card',
                     dataType: 'json',
                     success: function(res){

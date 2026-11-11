@@ -199,7 +199,7 @@
         $(document).off('click.admin-clear-cache').on('click.admin-clear-cache', '#adminClearCache, #adminDropdownClearCache, #mobileDropdownClearCache', function () {
             var csrfToken = window.adminCsrfToken || '';
             $.ajax({
-                url: '/admin/cache',
+                url: (window.EM_ADMIN_PATH || '/admin') + '/cache',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken},
@@ -433,7 +433,7 @@
         };
         var w = host.innerWidth || 800;
         var h = host.innerHeight || 600;
-        var mediaUrl = (host.TEMPLATE_MEDIA_URL || window.TEMPLATE_MEDIA_URL || '/admin/media');
+        var mediaUrl = (host.TEMPLATE_MEDIA_URL || window.TEMPLATE_MEDIA_URL || ((window.EM_ADMIN_PATH || '/admin') + '/media'));
         if (typeof mediaUrl === 'string' && mediaUrl.indexOf('?') !== -1) {
             mediaUrl = mediaUrl.split('?')[0];
         }

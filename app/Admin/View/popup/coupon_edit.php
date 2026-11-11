@@ -265,7 +265,7 @@ $(function () {
             });
 
             $.ajax({
-                url: '/admin/coupon', type: 'POST', dataType: 'json', data: data,
+                url: '<?= EM_ADMIN_PATH ?>/coupon', type: 'POST', dataType: 'json', data: data,
                 success: function (res) {
                     if (res.code === 200) {
                         try { parent.window._couponPopupSaved = true; } catch (e) {}

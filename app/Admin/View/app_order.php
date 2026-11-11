@@ -95,7 +95,7 @@ $(function () {
     table.render({
         elem: '#aoTable',
         id: 'aoTableId',
-        url: '/admin/app_order?_action=list',
+        url: '<?= EM_ADMIN_PATH ?>/app_order?_action=list',
         method: 'get',
         where: buildWhere(),
         page: true,

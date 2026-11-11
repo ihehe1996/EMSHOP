@@ -108,7 +108,7 @@ $(function () {
 
         function searchUser(kw) {
             $.ajax({
-                url: '/admin/merchant',
+                url: '<?= EM_ADMIN_PATH ?>/merchant',
                 type: 'POST',
                 dataType: 'json',
                 data: {_action: 'search_user', keyword: kw},
@@ -157,7 +157,7 @@ $(function () {
 
         function searchParent(kw) {
             $.ajax({
-                url: '/admin/merchant',
+                url: '<?= EM_ADMIN_PATH ?>/merchant',
                 type: 'POST',
                 dataType: 'json',
                 data: {_action: 'list', keyword: kw, page: 1, limit: 10, csrf_token: $('input[name="csrf_token"]').val()},
@@ -211,7 +211,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/merchant',
+                url: '<?= EM_ADMIN_PATH ?>/merchant',
                 type: 'POST',
                 data: $('#mchOpenForm').serialize(),
                 dataType: 'json',

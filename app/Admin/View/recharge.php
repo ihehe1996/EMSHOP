@@ -307,7 +307,7 @@ $(function () {
         table.render({
             elem: '#rechargeTable',
             id: 'rechargeTableId',
-            url: '/admin/recharge',
+            url: '<?= EM_ADMIN_PATH ?>/recharge',
             method: 'POST',
             where: buildWhere(),
             page: true,
@@ -361,7 +361,7 @@ $(function () {
             if (obj.event === 'cancel') {
                 layer.confirm('确认取消该笔待支付充值单？', function (idx) {
                     layer.close(idx);
-                    $.post('/admin/recharge', { _action: 'cancel', id: obj.data.id, csrf_token: csrfToken }, function (res) {
+                    $.post('<?= EM_ADMIN_PATH ?>/recharge', { _action: 'cancel', id: obj.data.id, csrf_token: csrfToken }, function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                             layer.msg(res.msg || '已取消');
@@ -381,7 +381,7 @@ $(function () {
                 }
                 layer.confirm(tip, function (idx) {
                     layer.close(idx);
-                    $.post('/admin/recharge', { _action: 'delete', id: obj.data.id, csrf_token: csrfToken }, function (res) {
+                    $.post('<?= EM_ADMIN_PATH ?>/recharge', { _action: 'delete', id: obj.data.id, csrf_token: csrfToken }, function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                             layer.msg(res.msg || '删除成功');
@@ -411,7 +411,7 @@ $(function () {
             }
             layer.confirm(tip, function (idx) {
                 layer.close(idx);
-                $.post('/admin/recharge', {
+                $.post('<?= EM_ADMIN_PATH ?>/recharge', {
                     _action: 'batch_delete',
                     ids: ids.join(','),
                     csrf_token: csrfToken
@@ -459,7 +459,7 @@ $(function () {
 
         // 顶部数据卡：单独 summary 接口
         function loadSummary() {
-            $.post('/admin/recharge', { _action: 'summary' }, function (res) {
+            $.post('<?= EM_ADMIN_PATH ?>/recharge', { _action: 'summary' }, function (res) {
                 if (res.code !== 200 || !res.data || !res.data.data) return;
                 var d = res.data.data;
                 $('#rchTodayCount').text(d.today_count || 0);

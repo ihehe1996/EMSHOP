@@ -99,6 +99,7 @@ if (!defined('EM_DB_HOST')) {
 
 // ---- 新格式：常量已由 config.php 定义；个别手改漏项时补默认值 ----
 if (!defined('EM_APP_NAME'))        define('EM_APP_NAME', 'EMSHOP');
+if (!defined('EM_APP_ADMIN_ENTRY')) define('EM_APP_ADMIN_ENTRY', (string) Env::get('EM_APP_ADMIN_ENTRY', 'admin'));
 
 if (!defined('EM_DB_HOST'))     define('EM_DB_HOST', '127.0.0.1');
 if (!defined('EM_DB_PORT'))     define('EM_DB_PORT', 3306);
@@ -216,6 +217,10 @@ Autoloader::register([
     EM_ROOT . '/include/service',
     EM_ROOT . '/include/controller',
 ]);
+
+// 后台入口路径：默认 /admin，可在 .env 里用 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。
+// 后台路由与后台所有链接（视图 / 控制器 / JS 全局）都读这个常量。
+define('EM_ADMIN_PATH', '/' . \App\Admin\AdminRouter::normalizeEntry((string) EM_APP_ADMIN_ENTRY));
 
 // 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
 \App\Core\Application::instance();

@@ -16,7 +16,7 @@ abstract class BaseAdminController extends AbstractAdminController
     /**
      * 登录页地址。
      */
-    protected const SIGN_URL = '/admin/sign';
+    protected const SIGN_URL = EM_ADMIN_PATH . '/sign';
 
     /** @var \AuthService */
     private $auth;

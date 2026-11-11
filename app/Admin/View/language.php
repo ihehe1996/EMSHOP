@@ -96,7 +96,7 @@ $(function(){
         tableIns = table.render({
             elem: '#langTable',
             id: 'langTableId',
-            url: '/admin/language',
+            url: '<?= EM_ADMIN_PATH ?>/language',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -147,7 +147,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除语言「' + emEsc(data.name) + '」吗？该操作将同时删除所有相关翻译词条，不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/language',
+                            url: '<?= EM_ADMIN_PATH ?>/language',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -170,7 +170,7 @@ $(function(){
                     if ($tag.hasClass('is-loading')) return;
                     $tag.addClass('is-loading');
                     $.ajax({
-                        url: '/admin/language',
+                        url: '<?= EM_ADMIN_PATH ?>/language',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'toggle', id: data.id},
@@ -210,7 +210,7 @@ $(function(){
 
         // 打开弹窗
         function openPopup(title, editId) {
-            var url = '/admin/language?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/language?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

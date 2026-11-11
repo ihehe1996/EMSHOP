@@ -109,7 +109,7 @@ $(function(){
         tableIns = table.render({
             elem: '#linkTable',
             id: 'linkTableId',
-            url: '/admin/friend_link',
+            url: '<?= EM_ADMIN_PATH ?>/friend_link',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -193,7 +193,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除友链「' + emEsc(data.name) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/friend_link',
+                            url: '<?= EM_ADMIN_PATH ?>/friend_link',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -217,7 +217,7 @@ $(function(){
                     if ($tag.hasClass('is-loading')) return;
                     $tag.addClass('is-loading');
                     $.ajax({
-                        url: '/admin/friend_link',
+                        url: '<?= EM_ADMIN_PATH ?>/friend_link',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'toggle', id: data.id},
@@ -272,7 +272,7 @@ $(function(){
             layer.confirm('确定要删除以下 ' + data.length + ' 条友链吗？<br><span style="color:#9ca3af;font-size:12px;">' + emEsc(names) + '</span>', function (idx) {
                 var loadIndex = layer.load(1);
                 $.ajax({
-                    url: '/admin/friend_link',
+                    url: '<?= EM_ADMIN_PATH ?>/friend_link',
                     type: 'POST',
                     dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'batchDelete', ids: ids.join(',') },
@@ -293,7 +293,7 @@ $(function(){
 
         // 打开弹窗
         function openPopup(title, editId) {
-            var url = '/admin/friend_link?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/friend_link?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

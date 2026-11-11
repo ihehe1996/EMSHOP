@@ -372,7 +372,7 @@ if ($action === 'card_import_page') {
     $pageTitle = '导入卡密';
     // 若入口未预设（主站），保持 header 默认 /admin/plugin_action
     if (!isset($popupCardActionBase)) {
-        $popupCardActionBase = '/admin/plugin_action';
+        $popupCardActionBase = EM_ADMIN_PATH . '/plugin_action';
     }
 
     include EM_ROOT . '/app/Admin/View/popup/header.php';
@@ -864,7 +864,7 @@ if ($action === 'card_manager') {
     $csrfToken = Csrf::token();
     $pageTitle = '卡密管理';
     if (!isset($popupCardActionBase)) {
-        $popupCardActionBase = '/admin/plugin_action';
+        $popupCardActionBase = EM_ADMIN_PATH . '/plugin_action';
     }
 
     // 构建 spec_id => name 映射

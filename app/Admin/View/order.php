@@ -262,7 +262,7 @@ $(function () {
         table.render({
             elem: '#orderTable',
             id: 'orderTableId',
-            url: '/admin/order',
+            url: '<?= EM_ADMIN_PATH ?>/order',
             method: 'POST',
             where: buildWhere(),
             page: true,
@@ -363,7 +363,7 @@ $(function () {
         function clearOrdersByStatus(status, label) {
             layer.confirm('确定要清空全部「' + label + '」订单吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
                 $.ajax({
-                    url: '/admin/order',
+                    url: '<?= EM_ADMIN_PATH ?>/order',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, _action: 'clear_by_status', status: status},
@@ -389,7 +389,7 @@ $(function () {
                 var ids = checked.map(function (r) { return r.id; });
                 layer.confirm('确定要删除选中的 ' + ids.length + ' 条订单吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
                     $.ajax({
-                        url: '/admin/order',
+                        url: '<?= EM_ADMIN_PATH ?>/order',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'batch_delete', ids: ids},
@@ -426,7 +426,7 @@ $(function () {
                 var data = obj.data;
                 layer.confirm('确定要删除订单「' + emEsc(data.order_no) + '」吗？将同时清理关联的发货队列和订单商品，此操作不可恢复。', function (idx) {
                     $.ajax({
-                        url: '/admin/order',
+                        url: '<?= EM_ADMIN_PATH ?>/order',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -455,7 +455,7 @@ $(function () {
                 maxmin: true,
                 shadeClose: true,
                 area: [window.innerWidth >= 900 ? '780px' : '95%', window.innerHeight >= 700 ? '640px' : '90%'],
-                content: '/admin/order?_popup=detail&id=' + encodeURIComponent(data.id)
+                content: '<?= EM_ADMIN_PATH ?>/order?_popup=detail&id=' + encodeURIComponent(data.id)
             });
         }
     });

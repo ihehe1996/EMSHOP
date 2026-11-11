@@ -120,7 +120,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/currency_popup',
+                url: '<?= EM_ADMIN_PATH ?>/currency_popup',
                 type: 'POST',
                 data: $('#currencyForm').serialize(),
                 dataType: 'json',

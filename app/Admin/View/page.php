@@ -119,7 +119,7 @@ $(function(){
         table.render({
             elem: '#pageTable',
             id: 'pageTableId',
-            url: '/admin/page?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/page?_action=list',
             method: 'POST',
             toolbar: '#pageToolbarTpl',
             defaultToolbar: [],
@@ -238,7 +238,7 @@ $(function(){
             } else if (obj.event === 'delete') {
                 layer.confirm('确定要删除页面「' + emEsc(d.title) + '」吗？', function (idx) {
                     $.ajax({
-                        url: '/admin/page?_action=delete',
+                        url: '<?= EM_ADMIN_PATH ?>/page?_action=delete',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, id: d.id},
@@ -260,7 +260,7 @@ $(function(){
             } else if (obj.event === 'setHomepage') {
                 layer.confirm('把「' + emEsc(d.title) + '」设为主站首页？同时会替换当前已设的页面首页。', function (idx) {
                     $.ajax({
-                        url: '/admin/page?_action=set_homepage',
+                        url: '<?= EM_ADMIN_PATH ?>/page?_action=set_homepage',
                         type: 'POST', dataType: 'json',
                         data: {csrf_token: csrfToken, id: d.id},
                         success: function (res) {
@@ -276,7 +276,7 @@ $(function(){
                 });
             } else if (obj.event === 'clearHomepage') {
                 $.ajax({
-                    url: '/admin/page?_action=clear_homepage',
+                    url: '<?= EM_ADMIN_PATH ?>/page?_action=clear_homepage',
                     type: 'POST', dataType: 'json',
                     data: {csrf_token: csrfToken, id: d.id},
                     success: function (res) {
@@ -296,7 +296,7 @@ $(function(){
             if ($tag.hasClass('is-loading')) return;
             $tag.addClass('is-loading');
             $.ajax({
-                url: '/admin/page?_action=toggle_status',
+                url: '<?= EM_ADMIN_PATH ?>/page?_action=toggle_status',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, id: id},
@@ -326,7 +326,7 @@ $(function(){
         function batchAction(action, data, closeIdx) {
             var ids = data.map(function(item) { return item.id; });
             $.ajax({
-                url: '/admin/page?_action=batch',
+                url: '<?= EM_ADMIN_PATH ?>/page?_action=batch',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, batch_action: action, ids: ids},
@@ -346,7 +346,7 @@ $(function(){
 
         // 打开编辑弹窗
         function openEditPopup(title, editId) {
-            var url = '/admin/page_edit?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/page_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             window._pagePopupSaved = false;
             layer.open({

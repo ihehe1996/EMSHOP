@@ -19,7 +19,7 @@ namespace App\Admin\Controller;
 final class DashboardController extends BaseAdminController
 {
     /** 首页路由 */
-    private const HOME_PATH = '/admin/home';
+    private const HOME_PATH = EM_ADMIN_PATH . '/home';
 
     public function index(): void
     {
@@ -29,7 +29,7 @@ final class DashboardController extends BaseAdminController
             if ((string) \Input::get('_action', '') !== '') {
                 \Response::error('请先在基础设置中配置站点地址（site_url）');
             }
-            \Response::redirect('/admin/settings?action=base&_need_site_url=1');
+            \Response::redirect(EM_ADMIN_PATH . '/settings?action=base&_need_site_url=1');
         }
 
         $action = (string) \Input::get('_action', '');

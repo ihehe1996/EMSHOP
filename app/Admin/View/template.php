@@ -188,7 +188,7 @@ if (!defined('EM_ROOT')) {
             <div class="template-empty__icon"><i class="fa fa-paint-brush"></i></div>
             <div>暂无可用模板</div>
             <div style="margin-top:8px;line-height:1.7;">
-                请在 <a href="/admin/appstore" data-pjax="#adminContent" style="color:#4f46e5;">应用商店</a> 购买后安装，<br>
+                请在 <a href="<?= EM_ADMIN_PATH ?>/appstore" data-pjax="#adminContent" style="color:#4f46e5;">应用商店</a> 购买后安装，<br>
                 或把本地开发的模板放入 <code>content/template/</code>，并在 <code>header.php</code> 顶部加 <code>Custom: true</code>
             </div>
         </div>
@@ -320,7 +320,7 @@ function loadTemplates() {
     showLoading();
 
     $.ajax({
-        url: '/admin/template?_action=list',
+        url: '<?= EM_ADMIN_PATH ?>/template?_action=list',
         type: 'GET',
         dataType: 'json',
         success: function (res) {
@@ -351,7 +351,7 @@ function doRequest(action, name, extraData, done) {
         for (var k in extraData) postData[k] = extraData[k];
     }
     $.ajax({
-        url: '/admin/template',
+        url: '<?= EM_ADMIN_PATH ?>/template',
         type: 'POST',
         dataType: 'json',
         data: postData,
@@ -385,7 +385,7 @@ function doUpdateTemplate(name, filePath, version) {
     actionLock = true;
     var loadingIdx = layui.layer.load(2, { shade: [0.3, '#000'] });
     $.ajax({
-        url: '/admin/appstore',
+        url: '<?= EM_ADMIN_PATH ?>/appstore',
         type: 'POST',
         dataType: 'json',
         data: {
@@ -448,7 +448,7 @@ function doActivateRequest(action, name) {
     }
 
     $.ajax({
-        url: '/admin/template',
+        url: '<?= EM_ADMIN_PATH ?>/template',
         type: 'POST',
         dataType: 'json',
         data: {csrf_token: csrfToken, _action: action, name: name},
@@ -504,7 +504,7 @@ function openSettings(name) {
         maxmin: true,
         area: [window.innerWidth >= 800 ? '600px' : '95%', window.innerHeight >= 600 ? '75%' : '90%'],
         shadeClose: true,
-        content: '/admin/template?_popup=1&name=' + encodeURIComponent(name),
+        content: '<?= EM_ADMIN_PATH ?>/template?_popup=1&name=' + encodeURIComponent(name),
         id: layerId,
         success: function (layero, index) {
             openLayers[layerId] = index;
@@ -523,7 +523,7 @@ $(function () {
 
         // 应用商店按钮点击
         $(document).off('click.appstoreBtn').on('click.appstoreBtn', '#appstoreBtn', function () {
-            $.pjax({ url: '/admin/appstore', container: '#adminContent' });
+            $.pjax({ url: '<?= EM_ADMIN_PATH ?>/appstore', container: '#adminContent' });
         });
 
         // 三点菜单

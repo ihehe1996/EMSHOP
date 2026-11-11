@@ -125,7 +125,7 @@ $(function(){
         tableIns = table.render({
             elem: '#langTransTable',
             id: 'langTransTableId',
-            url: '/admin/lang',
+            url: '<?= EM_ADMIN_PATH ?>/lang',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -212,7 +212,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除翻译「' + emEsc(data.translate) + '」吗？', function (idx) {
                         $.ajax({
-                            url: '/admin/lang',
+                            url: '<?= EM_ADMIN_PATH ?>/lang',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -277,7 +277,7 @@ $(function(){
 
             var loadIndex = layer.load(1);
             $.ajax({
-                url: '/admin/lang',
+                url: '<?= EM_ADMIN_PATH ?>/lang',
                 type: 'POST',
                 dataType: 'json',
                 data: { csrf_token: csrfToken, _action: 'batchSave', pairs: pairs },
@@ -310,7 +310,7 @@ $(function(){
             layer.confirm('确定要删除以下 ' + data.length + ' 条翻译吗？<br><span style="color:#9ca3af;font-size:12px;">' + emEsc(translates) + '</span>', function (idx) {
                 var loadIndex = layer.load(1);
                 $.ajax({
-                    url: '/admin/lang',
+                    url: '<?= EM_ADMIN_PATH ?>/lang',
                     type: 'POST',
                     dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'batchDelete', ids: ids },
@@ -333,7 +333,7 @@ $(function(){
 
         // 打开弹窗
         function openPopup(title, editId) {
-            var url = '/admin/lang?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/lang?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             var isEdit = !!editId;
             var popupHeight = isEdit ? '420px' : '700px';

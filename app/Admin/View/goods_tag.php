@@ -94,7 +94,7 @@ $(function(){
         table.render({
             elem: '#goodsTagTable',
             id: 'goodsTagTableId',
-            url: '/admin/goods_tag?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/goods_tag?_action=list',
             method: 'POST',
             toolbar: '#goodsTagToolbarTpl',
             defaultToolbar: [],
@@ -172,7 +172,7 @@ $(function(){
         form.on('submit(goodsTagFormSubmit)', function (obj) {
             obj.field.csrf_token = csrfToken;
             $.ajax({
-                url: '/admin/goods_tag?_action=save',
+                url: '<?= EM_ADMIN_PATH ?>/goods_tag?_action=save',
                 type: 'POST',
                 dataType: 'json',
                 data: obj.field,
@@ -200,7 +200,7 @@ $(function(){
             layer.confirm('确定要删除选中的 ' + data.length + ' 个标签吗？', function (idx) {
                 var ids = data.map(function(item) { return item.id; });
                 $.ajax({
-                    url: '/admin/goods_tag?_action=batch_delete',
+                    url: '<?= EM_ADMIN_PATH ?>/goods_tag?_action=batch_delete',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, ids: ids},
@@ -226,7 +226,7 @@ $(function(){
             } else if (obj.event === 'delete') {
                 layer.confirm('确定要删除标签"' + emEsc(obj.data.name) + '"吗？删除后将解除所有商品关联。', function (idx) {
                     $.ajax({
-                        url: '/admin/goods_tag?_action=delete',
+                        url: '<?= EM_ADMIN_PATH ?>/goods_tag?_action=delete',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, id: obj.data.id},

@@ -547,7 +547,7 @@ $(function () {
         table.render({
             elem: '#appstoreTable',
             id: 'appstoreTableId',
-            url: '/admin/appstore?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/appstore?_action=list',
             method: 'GET',
             where: buildWhere(),
             page: true,
@@ -678,7 +678,7 @@ $(function () {
             var typeLabel = d.type === 'template' ? '模板' : '插件';
             var actionLabel = '安装';
             var loadingIdx = EmToast.loading({ shade: 0.3, color: '#000', type: 2 });
-            $.post('/admin/appstore', {
+            $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                 _action:    'install',
                 csrf_token: APPSTORE_CSRF,
                 name:       d.name_en,
@@ -878,7 +878,7 @@ $(function () {
 
             function startPolling() {
                 pollTimer = setInterval(function () {
-                    $.post('/admin/appstore', {
+                    $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                         _action: 'app_order_status',
                         csrf_token: APPSTORE_CSRF,
                         order_no: orderNo
@@ -912,7 +912,7 @@ $(function () {
                 );
 
                 var seq = ++qrSeq;
-                $.post('/admin/appstore', {
+                $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                     _action: 'app_pay_qrcode',
                     csrf_token: APPSTORE_CSRF,
                     order_no: orderNo,
@@ -976,7 +976,7 @@ $(function () {
             var id = parseInt(app.id, 10) || 0;
             if (!id) { EmToast.err('应用标识缺失，无法发起购买'); return; }
             var loadingIdx = EmToast.loading({ shade: 0.3, color: '#000', type: 2 });
-            $.post('/admin/appstore', {
+            $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                 _action: 'app_buy',
                 csrf_token: APPSTORE_CSRF,
                 app_id: id,
@@ -1008,7 +1008,7 @@ $(function () {
             if (__agentLinksCache) { renderAgentPopup(__agentLinksCache); return; }
 
             var loadIdx = layer.load(2);
-            $.post('/admin/license', {
+            $.post('<?= EM_ADMIN_PATH ?>/license', {
                 _action: 'agent_links',
                 csrf_token: APPSTORE_CSRF
             }).done(function (res) {
@@ -1113,7 +1113,7 @@ $(function () {
                 var origHtml = $btn.html();
                 $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
                 $.ajax({
-                    url: '/admin/license',
+                    url: '<?= EM_ADMIN_PATH ?>/license',
                     type: 'POST',
                     dataType: 'json',
                     data: {

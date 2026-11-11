@@ -269,7 +269,7 @@ $(function () {
         function post(data) {
             data.csrf_token = csrfToken;
             return $.ajax({
-                url: '/admin/license',
+                url: '<?= EM_ADMIN_PATH ?>/license',
                 type: 'POST',
                 dataType: 'json',
                 data: data

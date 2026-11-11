@@ -12,10 +12,10 @@ $tab = (string) ($tab ?? 'log');
 
     <!-- 切换 tab：用 admin 标准 em-tabs 风格 -->
     <div class="em-tabs" style="margin-bottom: 16px;">
-        <a href="/admin/commission?tab=log" data-pjax="#adminContent" class="em-tabs__item <?= $tab === 'log' ? 'is-active' : '' ?>">
+        <a href="<?= EM_ADMIN_PATH ?>/commission?tab=log" data-pjax="#adminContent" class="em-tabs__item <?= $tab === 'log' ? 'is-active' : '' ?>">
             <i class="fa fa-list-alt"></i><span>佣金流水</span>
         </a>
-        <a href="/admin/commission?tab=withdraw" data-pjax="#adminContent" class="em-tabs__item <?= $tab === 'withdraw' ? 'is-active' : '' ?>">
+        <a href="<?= EM_ADMIN_PATH ?>/commission?tab=withdraw" data-pjax="#adminContent" class="em-tabs__item <?= $tab === 'withdraw' ? 'is-active' : '' ?>">
             <i class="fa fa-credit-card"></i><span>提现记录</span>
         </a>
     </div>
@@ -274,7 +274,7 @@ $(function () {
         table.render({
             elem: '#commissionTable',
             id: 'commissionTableId',
-            url: '/admin/commission',
+            url: '<?= EM_ADMIN_PATH ?>/commission',
             method: 'POST',
             where: { _action: 'list', tab: tab },
             page: true,

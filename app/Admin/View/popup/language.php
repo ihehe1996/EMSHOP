@@ -180,7 +180,7 @@ $(function () {
                             formData.append('context', cfg.context);
 
                             $.ajax({
-                                url: '/admin/upload',
+                                url: '<?= EM_ADMIN_PATH ?>/upload',
                                 type: 'POST',
                                 data: formData,
                                 processData: false,
@@ -217,7 +217,7 @@ $(function () {
                                 formData.append('csrf_token', $('input[name="csrf_token"]').val());
                                 formData.append('context', cfg.context);
                                 $.ajax({
-                                    url: '/admin/upload',
+                                    url: '<?= EM_ADMIN_PATH ?>/upload',
                                     type: 'POST',
                                     data: formData,
                                     processData: false,
@@ -316,7 +316,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/language',
+                url: '<?= EM_ADMIN_PATH ?>/language',
                 type: 'POST',
                 data: $('#langForm').serialize(),
                 dataType: 'json',

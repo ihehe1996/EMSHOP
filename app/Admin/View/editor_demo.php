@@ -26,7 +26,7 @@ $csrfToken = Csrf::token();
         <p>封装自 <code>/content/static/admin/js/em-tinymce.js</code>，与商品/博客/页面编辑同款配置。</p>
     </div>
     <div class="editor-demo-info">
-        上传接口：<code>/admin/upload</code> · context：<code>default</code>
+        上传接口：<code><?= EM_ADMIN_PATH ?>/upload</code> · context：<code>default</code>
     </div>
     <textarea id="editor-demo-content" class="layui-textarea"><p>EMSHOP 富文本演示</p></textarea>
     <div class="editor-footer">

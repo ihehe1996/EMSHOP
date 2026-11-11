@@ -66,7 +66,7 @@ include __DIR__ . '/header.php';
                         <?php if ($mainDomain !== ''): ?>
                         前缀仅小写字母、数字、连字符；主域名 <code><?= $esc($mainDomain) ?></code> 需配置泛解析
                         <?php else: ?>
-                        主站根域名未配置，请先在 <a href="/admin/settings?action=substation" target="_top" style="color:#2563eb;">分站配置</a> 中填写主域名
+                        主站根域名未配置，请先在 <a href="<?= EM_ADMIN_PATH ?>/settings?action=substation" target="_top" style="color:#2563eb;">分站配置</a> 中填写主域名
                         <?php endif; ?>
                     </div>
                 </div>
@@ -109,7 +109,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/user_list',
+                url: '<?= EM_ADMIN_PATH ?>/user_list',
                 type: 'POST',
                 data: $('#userMchOpenForm').serialize(),
                 dataType: 'json',

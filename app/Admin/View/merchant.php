@@ -164,7 +164,7 @@ $(function(){
         table.render({
             elem: '#mchTable',
             id: 'mchTableId',
-            url: '/admin/merchant',
+            url: '<?= EM_ADMIN_PATH ?>/merchant',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: buildWhere(),
@@ -215,7 +215,7 @@ $(function(){
         form.on('switch(mchStatusFilter)', function (obj) {
             var id = this.value;
             $.ajax({
-                url: '/admin/merchant',
+                url: '<?= EM_ADMIN_PATH ?>/merchant',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle', id: id},
@@ -245,7 +245,7 @@ $(function(){
             } else if (obj.event === 'del') {
                 layer.confirm('确定要删除商户「' + emEsc(data.name) + '」吗？商户主将解除绑定。', function (idx) {
                     $.ajax({
-                        url: '/admin/merchant',
+                        url: '<?= EM_ADMIN_PATH ?>/merchant',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -270,7 +270,7 @@ $(function(){
         });
 
         function openPopup(mode, title, id) {
-            var url = '/admin/merchant?_popup=' + mode;
+            var url = '<?= EM_ADMIN_PATH ?>/merchant?_popup=' + mode;
             if (id) url += '&id=' + encodeURIComponent(id);
             layer.open({
                 type: 2,

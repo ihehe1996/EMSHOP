@@ -123,7 +123,7 @@ $(function () {
         function post(data) {
             data.csrf_token = csrfToken;
             return $.ajax({
-                url: '/admin/license',
+                url: '<?= EM_ADMIN_PATH ?>/license',
                 type: 'POST',
                 dataType: 'json',
                 data: data
@@ -249,7 +249,7 @@ $(function () {
 
             var id = String($btn.data('id') || '');
             var version = String($btn.data('version') || '');
-            var url = '/admin/license?_download=version&id=' + encodeURIComponent(id) +
+            var url = '<?= EM_ADMIN_PATH ?>/license?_download=version&id=' + encodeURIComponent(id) +
                       '&csrf_token=' + encodeURIComponent(csrfToken);
 
             $btn.prop('disabled', true).text('下载中…');

@@ -84,7 +84,7 @@ function template_setting_view() {
             formData += '&_action=save_config&name=' + encodeURIComponent(templateDirName);
 
             // URL 由 popup header 注入到 iframe 自身 window（主站默认 /admin/template.php，商户覆盖为 /user/merchant/template）
-            var __saveUrl = window.TEMPLATE_SAVE_URL || '/admin/template';
+            var __saveUrl = window.TEMPLATE_SAVE_URL || '<?= EM_ADMIN_PATH ?>/template';
             $.ajax({
                 type: 'POST',
                 url: __saveUrl,

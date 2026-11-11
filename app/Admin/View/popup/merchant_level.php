@@ -197,7 +197,7 @@ $(function () {
             });
 
             $.ajax({
-                url: '/admin/merchant_level',
+                url: '<?= EM_ADMIN_PATH ?>/merchant_level',
                 type: 'POST',
                 data: $.param(data),
                 dataType: 'json',

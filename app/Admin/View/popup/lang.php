@@ -102,7 +102,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/lang',
+                url: '<?= EM_ADMIN_PATH ?>/lang',
                 type: 'POST',
                 data: $('#langTransForm').serialize(),
                 dataType: 'json',

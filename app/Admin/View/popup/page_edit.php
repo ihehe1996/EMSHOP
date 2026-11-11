@@ -190,7 +190,7 @@ $(function () {
             window.emTinymceSave();
 
             $.ajax({
-                url: '/admin/page_edit',
+                url: '<?= EM_ADMIN_PATH ?>/page_edit',
                 type: 'POST',
                 data: $('#pageForm').serialize(),
                 dataType: 'json',

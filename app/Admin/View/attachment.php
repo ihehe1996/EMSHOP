@@ -337,7 +337,7 @@ $(function () {
             currentPage = page || 1;
 
             $.ajax({
-                url: '/admin/attachment',
+                url: '<?= EM_ADMIN_PATH ?>/attachment',
                 type: 'POST',
                 dataType: 'json',
                 data: { _action: 'list', page: currentPage, limit: perPage },
@@ -449,7 +449,7 @@ $(function () {
             var name = $item.data('name');
             layer.confirm('确定要删除附件「' + escHtml(name) + '」吗？删除后不可恢复。', function (idx) {
                 $.ajax({
-                    url: '/admin/attachment',
+                    url: '<?= EM_ADMIN_PATH ?>/attachment',
                     type: 'POST',
                     dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'delete', id: id },
@@ -502,7 +502,7 @@ $(function () {
             layer.confirm('确定要删除选中的 <strong>' + ids.length + '</strong> 个附件吗？删除后不可恢复。', function (idx) {
                 var loadIdx = layer.load(1);
                 $.ajax({
-                    url: '/admin/attachment',
+                    url: '<?= EM_ADMIN_PATH ?>/attachment',
                     type: 'POST',
                     dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'batchDelete', ids: ids.join(',') },

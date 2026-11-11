@@ -88,7 +88,7 @@ $(function(){
             $btn.prop('disabled', true).text('保存中...');
 
             $.ajax({
-                url: '/admin/profile',
+                url: '<?= EM_ADMIN_PATH ?>/profile',
                 type: 'POST',
                 data: $(this).serialize(),
                 dataType: 'json',
@@ -130,7 +130,7 @@ $(function(){
                 area: [window.innerWidth >= 800 ? '500px' : '95%', window.innerHeight >= 500 ? '500px' : '80%'],
                 offset: 'auto',
                 shadeClose: true,
-                content: '/admin/password'
+                content: '<?= EM_ADMIN_PATH ?>/password'
             });
         });
 
@@ -217,7 +217,7 @@ $(function(){
                             $avatarImg.after('<div id="avatarUploadLoading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);border-radius:inherit;z-index:1;"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:avatarSpin .8s linear infinite;"></div></div>');
 
                             $.ajax({
-                                url: '/admin/profile',
+                                url: '<?= EM_ADMIN_PATH ?>/profile',
                                 type: 'POST',
                                 data: formData,
                                 processData: false,
@@ -262,7 +262,7 @@ $(function(){
                                 $avatarImg.after('<div id="avatarUploadLoading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);border-radius:inherit;z-index:1;"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:avatarSpin .8s linear infinite;"></div></div>');
 
                                 $.ajax({
-                                    url: '/admin/profile',
+                                    url: '<?= EM_ADMIN_PATH ?>/profile',
                                     type: 'POST',
                                     data: formData,
                                     processData: false,
@@ -398,7 +398,7 @@ $(function(){
                             $avatarImg.after('<div id="avatarUploadLoading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);border-radius:inherit;z-index:1;"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:avatarSpin .8s linear infinite;"></div></div>');
 
                             $.ajax({
-                                url: '/admin/profile',
+                                url: '<?= EM_ADMIN_PATH ?>/profile',
                                 type: 'POST',
                                 data: formData,
                                 processData: false,
@@ -444,7 +444,7 @@ $(function(){
                                 $avatarImg.after('<div id="avatarUploadLoading" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);border-radius:inherit;z-index:1;"><div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:avatarSpin .8s linear infinite;"></div></div>');
 
                                 $.ajax({
-                                    url: '/admin/profile',
+                                    url: '<?= EM_ADMIN_PATH ?>/profile',
                                     type: 'POST',
                                     data: formData,
                                     processData: false,
@@ -517,7 +517,7 @@ $(function(){
             var $btn = $(this);
             $btn.prop('disabled', true);
             $.ajax({
-                url: '/admin/profile',
+                url: '<?= EM_ADMIN_PATH ?>/profile',
                 type: 'POST',
                 data: {
                     action: 'reset_avatar',

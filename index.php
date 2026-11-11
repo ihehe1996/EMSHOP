@@ -35,8 +35,8 @@ if ($requestPath === '/test') {
     exit;
 }
 
-// 后台路由：/admin 与无扩展名的 /admin/xxx 由框架接管。
-// 带扩展名/带点的路径不接管，交给前台 Dispatcher 或 Web 服务器静态文件。
+// 后台路由：入口路径（默认 /admin，可用 .env 的 EM_APP_ADMIN_ENTRY 改成 /xadmin 等）
+// 与无扩展名的子路径由框架接管。带扩展名/带点的路径不接管，交给前台 Dispatcher 或 Web 服务器静态文件。
 if (\App\Admin\AdminRouter::instance()->handleCurrentRequest()) {
     exit;
 }

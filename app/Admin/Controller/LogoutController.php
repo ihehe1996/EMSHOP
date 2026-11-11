@@ -15,6 +15,6 @@ final class LogoutController extends AbstractAdminController
     {
         (new \AuthService())->logout();
 
-        \Response::redirect('/admin/sign');
+        \Response::redirect(EM_ADMIN_PATH . '/sign');
     }
 }

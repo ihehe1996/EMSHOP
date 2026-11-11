@@ -1044,7 +1044,7 @@ $(function() {
                 formData.append('context', 'goods_image');
                 var loadingIdx = layer.load(2);
                 $.ajax({
-                    url: '/admin/upload',
+                    url: '<?= EM_ADMIN_PATH ?>/upload',
                     type: 'POST',
                     data: formData,
                     processData: false,
@@ -1147,7 +1147,7 @@ $(function() {
                 layer.close(index);
                 if (specId) {
                     $.ajax({
-                        url: '/admin/goods_edit?_action=remove_spec',
+                        url: '<?= EM_ADMIN_PATH ?>/goods_edit?_action=remove_spec',
                         type: 'POST',
                         dataType: 'json',
                         data: { spec_id: specId, csrf_token: csrfToken },
@@ -1322,7 +1322,7 @@ $(function() {
             if (q === '') { $dd.removeClass('is-open').empty(); return; }
             userSearchTimer = setTimeout(function () {
                 $.ajax({
-                    url: '/admin/goods_edit',
+                    url: '<?= EM_ADMIN_PATH ?>/goods_edit',
                     method: 'GET',
                     data: { _action: 'search_users', q: q, _t: Date.now() },
                     dataType: 'json',
@@ -1464,7 +1464,7 @@ $(function() {
                     var fd = new FormData();
                     fd.append('file', file); fd.append('csrf_token', csrfToken); fd.append('context', 'spec_image');
                     $.ajax({
-                        url: '/admin/upload', type: 'POST', data: fd, processData: false, contentType: false, dataType: 'json',
+                        url: '<?= EM_ADMIN_PATH ?>/upload', type: 'POST', data: fd, processData: false, contentType: false, dataType: 'json',
                         success: function (res) {
                             if (res.code === 200 && res.data && res.data.url) {
                                 $('#specImagesPreviewList').append(
@@ -1498,7 +1498,7 @@ $(function() {
         // 刷新规格列表
         window.refreshSpecList = function(goodsId) {
             $.ajax({
-                url: '/admin/goods_edit',
+                url: '<?= EM_ADMIN_PATH ?>/goods_edit',
                 type: 'GET',
                 dataType: 'json',
                 data: { id: goodsId, _action: 'get_specs_json' },
@@ -1610,7 +1610,7 @@ $(function() {
             }
             var loadingIdx = layer.load(2);
             $.ajax({
-                url: '/admin/goods_edit?_action=get_plugin_form',
+                url: '<?= EM_ADMIN_PATH ?>/goods_edit?_action=get_plugin_form',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -1740,7 +1740,7 @@ $(function() {
             var formData = $('#goodsForm').serialize();
 
             $.ajax({
-                url: '/admin/goods_edit?_action=save',
+                url: '<?= EM_ADMIN_PATH ?>/goods_edit?_action=save',
                 type: 'POST',
                 data: formData,
                 dataType: 'json',

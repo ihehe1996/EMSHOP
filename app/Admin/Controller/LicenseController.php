@@ -509,7 +509,7 @@ if ($popupMode === 'install_records') {
 // ============================================================
 // 激活、获取激活码、官方账号管理都改成了后台首页 / 应用商店里的弹窗，
 // 这个入口只保留 POST 动作和 ?_popup= 弹窗（上面），直接访问就回首页。
-\Response::redirect('/admin/home');
+\Response::redirect(EM_ADMIN_PATH . '/home');
 
     }
 }

@@ -235,7 +235,7 @@ $(function () {
         tableIns = table.render({
             elem: '#logTable',
             id: 'logTableId',
-            url: '/admin/system_log',
+            url: '<?= EM_ADMIN_PATH ?>/system_log',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -320,7 +320,7 @@ $(function () {
                 layer.confirm('确定要清理 <strong>' + days + '</strong> 天之前的所有日志吗？此操作不可恢复。', function (idx2) {
                     var loadIdx = layer.load(1);
                     $.ajax({
-                        url: '/admin/system_log',
+                        url: '<?= EM_ADMIN_PATH ?>/system_log',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'cleanup', days: days},
@@ -344,7 +344,7 @@ $(function () {
         // 加载统计数据
         function loadStats() {
             $.ajax({
-                url: '/admin/system_log',
+                url: '<?= EM_ADMIN_PATH ?>/system_log',
                 type: 'POST',
                 dataType: 'json',
                 data: {_action: 'stats'},
@@ -371,7 +371,7 @@ $(function () {
                 case 'del':
                     layer.confirm('确定要删除这条日志吗？', function (idx) {
                         $.ajax({
-                            url: '/admin/system_log',
+                            url: '<?= EM_ADMIN_PATH ?>/system_log',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -416,7 +416,7 @@ $(function () {
         function viewDetail(id) {
             var loadIdx = layer.load(1);
             $.ajax({
-                url: '/admin/system_log',
+                url: '<?= EM_ADMIN_PATH ?>/system_log',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'view', id: id},
@@ -510,7 +510,7 @@ $(function () {
             layer.confirm('确定要删除选中的 <strong>' + ids.length + '</strong> 条日志吗？', function (idx) {
                 var loadIdx = layer.load(1);
                 $.ajax({
-                    url: '/admin/system_log',
+                    url: '<?= EM_ADMIN_PATH ?>/system_log',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, _action: 'batchDelete', ids: ids.join(',')},

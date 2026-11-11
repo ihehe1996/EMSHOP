@@ -122,7 +122,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/user_level',
+                url: '<?= EM_ADMIN_PATH ?>/user_level',
                 type: 'POST',
                 data: $('#levelForm').serialize(),
                 dataType: 'json',

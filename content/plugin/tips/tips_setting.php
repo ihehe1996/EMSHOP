@@ -52,7 +52,7 @@ function plugin_setting_view() {
 
             $.ajax({
                 type: 'POST',
-                url: window.PLUGIN_SAVE_URL || '/admin/plugin',
+                url: window.PLUGIN_SAVE_URL || '<?= EM_ADMIN_PATH ?>/plugin',
                 data: $('#tipsForm').serialize() + '&_action=save_config&name=tips',
                 dataType: 'json',
                 success: function(res){

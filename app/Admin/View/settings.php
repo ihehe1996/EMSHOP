@@ -287,7 +287,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
         <!-- 左侧选项卡导航（复用 em-tabs 样式） -->
         <div class="em-tabs em-tabs--scroll" id="settingsTabs">
             <?php foreach ($tabs as $key => $tab): ?>
-            <a href="/admin/settings?action=<?php echo $key; ?>"
+            <a href="<?= EM_ADMIN_PATH ?>/settings?action=<?php echo $key; ?>"
                class="em-tabs__item <?php echo $currentTab === $key ? 'is-active' : ''; ?>"
                data-tab="<?php echo $key; ?>" data-pjax="#adminContent">
                 <i class="<?php echo $tab['icon']; ?>"></i>
@@ -1120,8 +1120,8 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                     layer.confirm('确定重置为已保存的配置吗？当前未保存的修改会丢失。', function (idx) {
                         layer.close(idx);
                         // 用 pjax 重新加载当前 tab，等价于丢弃 form 里所有未提交改动
-                        if ($.pjax) $.pjax({ url: '/admin/settings?action=mail', container: '#adminContent' });
-                        else location.href = '/admin/settings?action=mail';
+                        if ($.pjax) $.pjax({ url: '<?= EM_ADMIN_PATH ?>/settings?action=mail', container: '#adminContent' });
+                        else location.href = '<?= EM_ADMIN_PATH ?>/settings?action=mail';
                     });
                 });
 
@@ -1142,7 +1142,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         skin: 'admin-modal',
                         shadeClose: false,
                         area: [window.innerWidth >= 640 ? '500px' : '94%', '320px'],
-                        content: '/admin/settings?_popup=smtp_test&' + qs
+                        content: '<?= EM_ADMIN_PATH ?>/settings?_popup=smtp_test&' + qs
                     });
                 });
             });
@@ -1217,7 +1217,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <div class="layui-form-item">
                             <div class="layui-input-block" style="color:#6b7280;font-size:13px;line-height:1.7;padding:4px 0 10px;">
                                 开通费用、允许功能（自定义域名 / 模板 / 独立收款 等）、手续费率 等规则均已迁移到
-                                <a href="/admin/merchant_level" data-pjax="#adminContent" style="color:#1890ff;">商户等级</a> 中按等级独立配置。
+                                <a href="<?= EM_ADMIN_PATH ?>/merchant_level" data-pjax="#adminContent" style="color:#1890ff;">商户等级</a> 中按等级独立配置。
                             </div>
                         </div>
                     </div>
@@ -1289,7 +1289,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
         window.emTinymceSave();
 
         $.ajax({
-            url: '/admin/settings',
+            url: '<?= EM_ADMIN_PATH ?>/settings',
             type: 'POST',
             data: $form.serialize(),
             dataType: 'json',
@@ -1346,7 +1346,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                 maxmin: false,
                 area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '600px' : '88%'],
                 shadeClose: true,
-                content: '/admin/home?popup=rewrite'
+                content: '<?= EM_ADMIN_PATH ?>/home?popup=rewrite'
             });
         });
 
@@ -1449,7 +1449,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         formData.append('context', cfg.context);
 
                         $.ajax({
-                            url: '/admin/upload',
+                            url: '<?= EM_ADMIN_PATH ?>/upload',
                             type: 'POST',
                             data: formData,
                             processData: false,
@@ -1479,7 +1479,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         formData.append('csrf_token', $('input[name="csrf_token"]').val());
                         formData.append('context', cfg.context);
                         $.ajax({
-                            url: '/admin/upload',
+                            url: '<?= EM_ADMIN_PATH ?>/upload',
                             type: 'POST',
                             data: formData,
                             processData: false,
@@ -1658,7 +1658,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
             fd.append('csrf_token', $('input[name="csrf_token"]').val());
             fd.append('context', 'site_favicon');
             $.ajax({
-                url: '/admin/upload',
+                url: '<?= EM_ADMIN_PATH ?>/upload',
                 type: 'POST',
                 data: fd,
                 processData: false,

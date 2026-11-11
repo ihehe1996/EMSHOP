@@ -360,7 +360,7 @@ $(function () {
         table.render({
             elem: '#moTable',
             id: 'moTableId',
-            url: '/admin/merchant_order',
+            url: '<?= EM_ADMIN_PATH ?>/merchant_order',
             method: 'POST',
             where: buildWhere(),
             page: true,
@@ -429,7 +429,7 @@ $(function () {
 
         // 顶部数据卡
         function loadSummary() {
-            $.post('/admin/merchant_order', { _action: 'summary' }, function (res) {
+            $.post('<?= EM_ADMIN_PATH ?>/merchant_order', { _action: 'summary' }, function (res) {
                 if (res.code !== 200 || !res.data || !res.data.data) return;
                 var d = res.data.data;
                 $('#moTodayCount').text(d.today_count || 0);
@@ -442,7 +442,7 @@ $(function () {
 
         // 商户下拉数据
         function loadMerchants() {
-            $.post('/admin/merchant_order', { _action: 'merchants' }, function (res) {
+            $.post('<?= EM_ADMIN_PATH ?>/merchant_order', { _action: 'merchants' }, function (res) {
                 if (res.code !== 200 || !res.data || !res.data.data) return;
                 var $sel = $('#moMerchantFilter');
                 var html = '<option value="0">所有商户</option>';

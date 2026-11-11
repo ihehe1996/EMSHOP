@@ -144,7 +144,7 @@
     }
 
     function createUploadHandler(opts) {
-        var uploadUrl = opts.uploadUrl || window.TEMPLATE_UPLOAD_URL || '/admin/upload';
+        var uploadUrl = opts.uploadUrl || window.TEMPLATE_UPLOAD_URL || ((window.EM_ADMIN_PATH || '/admin') + '/upload');
         var context = opts.context || 'default';
         var onCsrf = opts.onCsrf;
         var maxSize = opts.maxFileSize != null

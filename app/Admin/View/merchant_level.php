@@ -88,7 +88,7 @@ $(function(){
         tableIns = table.render({
             elem: '#mlTable',
             id: 'mlTableId',
-            url: '/admin/merchant_level',
+            url: '<?= EM_ADMIN_PATH ?>/merchant_level',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: {_action: 'list'},
@@ -133,7 +133,7 @@ $(function(){
             $switch.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/merchant_level',
+                url: '<?= EM_ADMIN_PATH ?>/merchant_level',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle', id: id},
@@ -170,7 +170,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除等级「' + emEsc(data.name) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/merchant_level',
+                            url: '<?= EM_ADMIN_PATH ?>/merchant_level',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -207,7 +207,7 @@ $(function(){
             $tag.addClass('is-loading');
 
             $.ajax({
-                url: '/admin/merchant_level',
+                url: '<?= EM_ADMIN_PATH ?>/merchant_level',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle_perm', id: id, field: field},
@@ -237,7 +237,7 @@ $(function(){
 
         // 弹窗（新增 / 编辑）
         function openPopup(title, editId) {
-            var url = '/admin/merchant_level?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/merchant_level?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

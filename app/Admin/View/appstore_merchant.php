@@ -402,7 +402,7 @@ $(function () {
         table.render({
             elem: '#appstoreTable',
             id: 'appstoreTableId',
-            url: '/admin/appstore?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/appstore?_action=list',
             method: 'GET',
             where: buildWhere(),
             page: true,
@@ -517,7 +517,7 @@ $(function () {
             var typeLabel = d.type === 'template' ? '模板' : '插件';
             var actionLabel = '安装';
             var loadingIdx = layer.load(2, { shade: [0.3, '#000'] });
-            $.post('/admin/appstore', {
+            $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                 _action:    'install',
                 csrf_token: APPSTORE_CSRF,
                 name:       d.name_en,
@@ -717,7 +717,7 @@ $(function () {
 
             function startPolling() {
                 pollTimer = setInterval(function () {
-                    $.post('/admin/appstore', {
+                    $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                         _action: 'app_order_status',
                         csrf_token: APPSTORE_CSRF,
                         order_no: orderNo
@@ -751,7 +751,7 @@ $(function () {
                 );
 
                 var seq = ++qrSeq;
-                $.post('/admin/appstore', {
+                $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                     _action: 'app_pay_qrcode',
                     csrf_token: APPSTORE_CSRF,
                     order_no: orderNo,
@@ -815,7 +815,7 @@ $(function () {
             var id = parseInt(app.id, 10) || 0;
             if (!id) { layer.msg('应用标识缺失，无法发起购买', { icon: 2 }); return; }
             var loadingIdx = layer.load(2, { shade: [0.3, '#000'] });
-            $.post('/admin/appstore', {
+            $.post('<?= EM_ADMIN_PATH ?>/appstore', {
                 _action: 'app_buy',
                 csrf_token: APPSTORE_CSRF,
                 app_id: id,
@@ -848,8 +848,8 @@ $(function () {
                 layer.confirm('付费应用需先激活正版授权。是否前往激活？', { icon: 3, title: '提示' }, function (idx) {
                     layer.close(idx);
                     // 授权页已下线，回后台首页用「立即激活」入口
-                    if ($.pjax) $.pjax({ url: '/admin/home', container: '#adminContent' });
-                    else location.href = '/admin/home';
+                    if ($.pjax) $.pjax({ url: '<?= EM_ADMIN_PATH ?>/home', container: '#adminContent' });
+                    else location.href = '<?= EM_ADMIN_PATH ?>/home';
                 });
             }
         });

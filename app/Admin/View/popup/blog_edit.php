@@ -258,7 +258,7 @@ $(function() {
                 formData.append('csrf_token', csrfToken);
                 formData.append('context', 'blog_cover');
                 $.ajax({
-                    url: '/admin/upload',
+                    url: '<?= EM_ADMIN_PATH ?>/upload',
                     type: 'POST',
                     data: formData,
                     processData: false,
@@ -396,7 +396,7 @@ $(function() {
             var formData = $('#blogForm').serialize();
 
             $.ajax({
-                url: '/admin/blog_edit?_action=save',
+                url: '<?= EM_ADMIN_PATH ?>/blog_edit?_action=save',
                 type: 'POST',
                 data: formData,
                 dataType: 'json',

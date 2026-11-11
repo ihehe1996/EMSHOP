@@ -158,7 +158,7 @@ $(function(){
         tableIns = table.render({
             elem: '#currencyTable',
             id: 'currencyTableId',
-            url: '/admin/currency',
+            url: '<?= EM_ADMIN_PATH ?>/currency',
             method: 'POST',
             where: {_action: 'list'},
             page: false,
@@ -211,7 +211,7 @@ $(function(){
                 case 'del':
                     layer.confirm('确定要删除货币「' + emEsc(data.code) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/currency',
+                            url: '<?= EM_ADMIN_PATH ?>/currency',
                             type: 'POST',
                             dataType: 'json',
                             data: {_action: 'delete', id: data.id, csrf_token: csrfToken},
@@ -235,7 +235,7 @@ $(function(){
                     if ($tag.hasClass('is-loading')) return;
                     $tag.addClass('is-loading');
                     $.ajax({
-                        url: '/admin/currency',
+                        url: '<?= EM_ADMIN_PATH ?>/currency',
                         type: 'POST',
                         dataType: 'json',
                         data: {_action: 'toggle', id: data.id, csrf_token: csrfToken},
@@ -262,7 +262,7 @@ $(function(){
                 case 'setFrontendDefault':
                     // 整表 reload 是因为"默认"是全局互斥关系 —— 改了一条，其他行的显示也要同步刷
                     $.ajax({
-                        url: '/admin/currency',
+                        url: '<?= EM_ADMIN_PATH ?>/currency',
                         type: 'POST',
                         dataType: 'json',
                         data: {_action: 'set_frontend_default', id: data.id, csrf_token: csrfToken},
@@ -284,7 +284,7 @@ $(function(){
 
         // 打开新增 / 编辑弹窗
         function openPopup(title, editId) {
-            var url = '/admin/currency_popup?mode=' + (editId ? 'edit' : 'add');
+            var url = '<?= EM_ADMIN_PATH ?>/currency_popup?mode=' + (editId ? 'edit' : 'add');
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

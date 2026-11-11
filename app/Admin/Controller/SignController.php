@@ -20,7 +20,7 @@ final class SignController extends AbstractAdminController
         $auth = new \AuthService();
 
         if ($auth->check()) {
-            \Response::redirect('/admin/home');
+            \Response::redirect(EM_ADMIN_PATH . '/home');
         }
 
         $error = '';
@@ -37,7 +37,7 @@ final class SignController extends AbstractAdminController
                 );
 
                 \Csrf::refresh();
-                \Response::redirect('/admin/home');
+                \Response::redirect(EM_ADMIN_PATH . '/home');
             } catch (\InvalidArgumentException $e) {
                 $error = $e->getMessage();
             } catch (\RuntimeException $e) {

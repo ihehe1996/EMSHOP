@@ -274,7 +274,7 @@ $(function(){
         table.render({
             elem: '#goodsTable',
             id: 'goodsTableId',
-            url: '/admin/goods?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/goods?_action=list',
             headers: {csrf: csrfToken},
             method: 'POST',
             toolbar: '#goodsToolbarTpl',
@@ -527,7 +527,7 @@ $(function(){
                     if ($tag.hasClass('is-loading')) return;
                     $tag.addClass('is-loading');
                     $.ajax({
-                        url: '/admin/goods?_action=toggle_sale',
+                        url: '<?= EM_ADMIN_PATH ?>/goods?_action=toggle_sale',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, id: data.id},
@@ -561,7 +561,7 @@ $(function(){
                         maxmin: true,
                         area: [window.innerWidth >= 960 ? '960px' : '95%', window.innerHeight >= 800 ? '85%' : '95%'],
                         shadeClose: true,
-                        content: '/admin/goods_edit?_action=stock_manager&goods_id=' + data.id + '&_popup=1',
+                        content: '<?= EM_ADMIN_PATH ?>/goods_edit?_action=stock_manager&goods_id=' + data.id + '&_popup=1',
                         end: function () {
                             if (window._stockPopupSaved) {
                                 table.reloadData('goodsTable');
@@ -605,7 +605,7 @@ $(function(){
         // ============================================================
         form.on('switch(goodsRecommendFilter)', function (obj) {
             var id = this.value;
-            toggleSwitch(obj, '/admin/goods?_action=toggle_recommend', {csrf_token: csrfToken, id: id});
+            toggleSwitch(obj, '<?= EM_ADMIN_PATH ?>/goods?_action=toggle_recommend', {csrf_token: csrfToken, id: id});
         });
 
         // 通用开关切换 AJAX
@@ -652,7 +652,7 @@ $(function(){
             if (extraData) $.extend(postData, extraData);
 
             $.ajax({
-                url: '/admin/goods?_action=batch',
+                url: '<?= EM_ADMIN_PATH ?>/goods?_action=batch',
                 type: 'POST',
                 dataType: 'json',
                 data: postData,
@@ -676,7 +676,7 @@ $(function(){
         function deleteGoods(id) {
             layer.confirm('确定要删除该商品吗？', function (idx) {
                 $.ajax({
-                    url: '/admin/goods?_action=delete',
+                    url: '<?= EM_ADMIN_PATH ?>/goods?_action=delete',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, id: id},
@@ -701,7 +701,7 @@ $(function(){
         function cloneGoods(id) {
             layer.confirm('确定要克隆该商品吗？', function (idx) {
                 $.ajax({
-                    url: '/admin/goods?_action=clone',
+                    url: '<?= EM_ADMIN_PATH ?>/goods?_action=clone',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, id: id},
@@ -724,7 +724,7 @@ $(function(){
         // 打开编辑弹窗
         // ============================================================
         function openEditPopup(title, editId) {
-            var url = '/admin/goods_edit?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/goods_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

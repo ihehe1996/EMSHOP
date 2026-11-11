@@ -142,7 +142,7 @@ $(function(){
         tableIns = table.render({
             elem: '#couponTable',
             id: 'couponTableId',
-            url: '/admin/coupon',
+            url: '<?= EM_ADMIN_PATH ?>/coupon',
             method: 'POST',
             where: { _action: 'list' },
             page: true,
@@ -204,7 +204,7 @@ $(function(){
         form.on('switch(couponStatusFilter)', function (obj) {
             var id = this.value;
             $.ajax({
-                url: '/admin/coupon', type: 'POST', dataType: 'json',
+                url: '<?= EM_ADMIN_PATH ?>/coupon', type: 'POST', dataType: 'json',
                 data: { csrf_token: csrfToken, _action: 'toggle', id: id },
                 success: function (res) {
                     if (res.code === 200) {
@@ -228,7 +228,7 @@ $(function(){
         form.on('switch(couponShowFrontFilter)', function (obj) {
             var id = this.value;
             $.ajax({
-                url: '/admin/coupon', type: 'POST', dataType: 'json',
+                url: '<?= EM_ADMIN_PATH ?>/coupon', type: 'POST', dataType: 'json',
                 data: { csrf_token: csrfToken, _action: 'toggle_show_front', id: id },
                 success: function (res) {
                     if (res.code === 200) {
@@ -258,7 +258,7 @@ $(function(){
                 var ids = checked.map(function (r) { return r.id; });
                 layer.confirm('确定要删除选中的 ' + ids.length + ' 张优惠券吗？此操作不可恢复。', function (idx) {
                     $.ajax({
-                        url: '/admin/coupon', type: 'POST', dataType: 'json',
+                        url: '<?= EM_ADMIN_PATH ?>/coupon', type: 'POST', dataType: 'json',
                         data: { csrf_token: csrfToken, _action: 'batch_delete', ids: ids },
                         success: function (res) {
                             if (res.code === 200) {
@@ -290,7 +290,7 @@ $(function(){
             } else if (obj.event === 'del') {
                 layer.confirm('确定删除优惠券「' + emEsc(data.name) + '」吗？此操作不可恢复', function (idx) {
                     $.ajax({
-                        url: '/admin/coupon', type: 'POST', dataType: 'json',
+                        url: '<?= EM_ADMIN_PATH ?>/coupon', type: 'POST', dataType: 'json',
                         data: { csrf_token: csrfToken, _action: 'delete', id: data.id },
                         success: function (res) {
                             if (res.code === 200) {
@@ -308,7 +308,7 @@ $(function(){
         });
 
         function openPopup(title, editId) {
-            var url = '/admin/coupon?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/coupon?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

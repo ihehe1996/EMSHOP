@@ -25,6 +25,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
     <link rel="stylesheet" href="/content/static/admin/css/style.css">
     <link rel="stylesheet" href="/content/static/admin/css/disclaimer.css">
     <link rel="stylesheet" href="/content/static/css/em-toast.css">
+    <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>;</script>
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/content/static/js/em-toast.js"></script>
@@ -124,7 +125,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
         <!-- 左侧菜单 -->
         <aside class="admin-sidebar<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' is-collapsed'; } ?>" id="adminSidebar">
             <div class="admin-sidebar__header">
-                <a href="/admin/home" data-pjax="#adminContent" class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></a>
+                <a href="<?= EM_ADMIN_PATH ?>/home" data-pjax="#adminContent" class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></a>
             </div>
 
             <div class="admin-sidebar__body">
@@ -132,7 +133,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                 <div class="admin-menu-title"><?= t('Dashboard'); ?></div>
 
                 <!-- 1. 控制台 -->
-                <a href="/admin/home" data-pjax="#adminContent" class="admin-menu-item is-active">
+                <a href="<?= EM_ADMIN_PATH ?>/home" data-pjax="#adminContent" class="admin-menu-item is-active">
                     <i class="fa fa-dashboard"></i>
                     <span><?= t('控制台'); ?></span>
                 </a>
@@ -148,10 +149,10 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/goods" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品列表'); ?></a>
-                        <a href="/admin/goods_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品分类'); ?></a>
-                        <a href="/admin/goods_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品标签'); ?></a>
-                        <a href="/admin/coupon" data-pjax="#adminContent" class="admin-menu-item"><?= t('优惠券'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/goods" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品列表'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/goods_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品分类'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/goods_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品标签'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/coupon" data-pjax="#adminContent" class="admin-menu-item"><?= t('优惠券'); ?></a>
                     </div>
                 </div>
 
@@ -163,11 +164,11 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/order" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品订单'); ?></a>
-                        <a href="/admin/recharge" data-pjax="#adminContent" class="admin-menu-item"><?= t('充值订单'); ?></a>
-                        <a href="/admin/app_order" data-pjax="#adminContent" class="admin-menu-item"><?= t('应用订单'); ?></a>
-                        <a href="/admin/withdraw" data-pjax="#adminContent" class="admin-menu-item"><?= t('提现申请'); ?></a>
-                        <a href="/admin/merchant_order" data-pjax="#adminContent" class="admin-menu-item"><?= t('分站订单'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/order" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品订单'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/recharge" data-pjax="#adminContent" class="admin-menu-item"><?= t('充值订单'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/app_order" data-pjax="#adminContent" class="admin-menu-item"><?= t('应用订单'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/withdraw" data-pjax="#adminContent" class="admin-menu-item"><?= t('提现申请'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/merchant_order" data-pjax="#adminContent" class="admin-menu-item"><?= t('分站订单'); ?></a>
                     </div>
                 </div>
 
@@ -179,10 +180,10 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/user_list" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户列表'); ?></a>
-                        <a href="/admin/user_level" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户等级'); ?></a>
-                        <a href="/admin/merchant_level" data-pjax="#adminContent" class="admin-menu-item"><?= t('商户等级'); ?></a>
-                        <a href="/admin/commission" data-pjax="#adminContent" class="admin-menu-item"><?= t('推广返佣'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/user_list" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户列表'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/user_level" data-pjax="#adminContent" class="admin-menu-item"><?= t('用户等级'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/merchant_level" data-pjax="#adminContent" class="admin-menu-item"><?= t('商户等级'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/commission" data-pjax="#adminContent" class="admin-menu-item"><?= t('推广返佣'); ?></a>
                     </div>
                 </div>
 
@@ -194,10 +195,10 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/blog" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章列表'); ?></a>
-                        <a href="/admin/blog_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章分类'); ?></a>
-                        <a href="/admin/blog_comment" data-pjax="#adminContent" class="admin-menu-item"><?= t('评论管理'); ?></a>
-                        <a href="/admin/blog_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('标签管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/blog" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章列表'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/blog_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章分类'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/blog_comment" data-pjax="#adminContent" class="admin-menu-item"><?= t('评论管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/blog_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('标签管理'); ?></a>
                     </div>
                 </div>
 
@@ -212,10 +213,10 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/template" data-pjax="#adminContent" class="admin-menu-item"><?= t('模板管理'); ?></a>
-                        <a href="/admin/navi" data-pjax="#adminContent" class="admin-menu-item"><?= t('导航管理'); ?></a>
-                        <a href="/admin/page" data-pjax="#adminContent" class="admin-menu-item"><?= t('页面管理'); ?></a>
-                        <a href="/admin/friend_link" data-pjax="#adminContent" class="admin-menu-item"><?= t('友情链接'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/template" data-pjax="#adminContent" class="admin-menu-item"><?= t('模板管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/navi" data-pjax="#adminContent" class="admin-menu-item"><?= t('导航管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/page" data-pjax="#adminContent" class="admin-menu-item"><?= t('页面管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/friend_link" data-pjax="#adminContent" class="admin-menu-item"><?= t('友情链接'); ?></a>
                     </div>
                 </div>
 
@@ -227,13 +228,13 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/language" data-pjax="#adminContent" class="admin-menu-item"><?= t('语言列表'); ?></a>
-                        <a href="/admin/lang" data-pjax="#adminContent" class="admin-menu-item"><?= t('翻译管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/language" data-pjax="#adminContent" class="admin-menu-item"><?= t('语言列表'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/lang" data-pjax="#adminContent" class="admin-menu-item"><?= t('翻译管理'); ?></a>
                     </div>
                 </div>
 
                 <!-- 8. 插件管理 -->
-                <a href="/admin/plugin" data-pjax="#adminContent" class="admin-menu-item">
+                <a href="<?= EM_ADMIN_PATH ?>/plugin" data-pjax="#adminContent" class="admin-menu-item">
                     <i class="fa fa-puzzle-piece"></i>
                     <span><?= t('插件管理'); ?></span>
                 </a>
@@ -251,16 +252,16 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/settings?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
-                        <a href="/admin/currency" data-pjax="#adminContent" class="admin-menu-item"><?= t('货币配置'); ?></a>
-                        <a href="/admin/attachment" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
-                        <a href="/admin/system_log" data-pjax="#adminContent" class="admin-menu-item"><?= t('系统日志'); ?></a>
-                        <a href="/admin/disclaimer" data-pjax="#adminContent" class="admin-menu-item"><?= t('免责协议'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/settings?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/currency" data-pjax="#adminContent" class="admin-menu-item"><?= t('货币配置'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/attachment" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/system_log" data-pjax="#adminContent" class="admin-menu-item"><?= t('系统日志'); ?></a>
+                        <a href="<?= EM_ADMIN_PATH ?>/disclaimer" data-pjax="#adminContent" class="admin-menu-item"><?= t('免责协议'); ?></a>
                     </div>
                 </div>
 
                 <!-- 10. 应用商店 -->
-                <a href="/admin/appstore" data-pjax="#adminContent" class="admin-menu-item">
+                <a href="<?= EM_ADMIN_PATH ?>/appstore" data-pjax="#adminContent" class="admin-menu-item">
                     <i class="fa fa-shopping-basket"></i>
                     <span><?= t('应用商店'); ?></span>
                 </a>
@@ -355,7 +356,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         </button>
                         <div class="admin-user-menu__dropdown">
                             <a href="/" target="_blank" class="admin-dropdown-link"><i class="fa fa-home"></i> 网站首页</a>
-                            <a href="/admin/profile" data-pjax="#adminContent" class="admin-dropdown-link"><i class="fa fa-user"></i> 个人信息</a>
+                            <a href="<?= EM_ADMIN_PATH ?>/profile" data-pjax="#adminContent" class="admin-dropdown-link"><i class="fa fa-user"></i> 个人信息</a>
 
                             <!-- 移动端：语言切换 -->
                             <div class="admin-user-menu__lang" id="mobileLangSwitch">
@@ -367,7 +368,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                             </div>
                             <!-- 移动端：清除缓存 -->
                             <button type="button" class="admin-dropdown-link" id="mobileDropdownClearCache"><i class="fa fa-refresh"></i> 清除缓存</button>
-                            <a href="/admin/logout" class="admin-dropdown-link admin-dropdown-link--danger"><i class="fa fa-power-off"></i> 退出登录</a>
+                            <a href="<?= EM_ADMIN_PATH ?>/logout" class="admin-dropdown-link admin-dropdown-link--danger"><i class="fa fa-power-off"></i> 退出登录</a>
                         </div>
                     </div>
                 </div>
@@ -403,7 +404,7 @@ $(function () {
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '550px' : '80%'],
             shade: 0.45,
             shadeClose: true,
-            content: '/admin/home?_popup=server_restart'
+            content: '<?= EM_ADMIN_PATH ?>/home?_popup=server_restart'
         });
         <?php endif; ?>
         // ========== 授权服务器线路切换（toolbar 全局）==========
@@ -451,7 +452,7 @@ $(function () {
                 __linePinging = true;
                 $('#adminLineDropdown .admin-line-switch__ms').removeClass('is-ok is-warn is-bad').text('…');
                 $.ajax({
-                    url: '/admin/license',
+                    url: '<?= EM_ADMIN_PATH ?>/license',
                     type: 'POST',
                     dataType: 'json',
                     data: { _action: 'line_ping', csrf_token: window.adminCsrfToken },
@@ -484,7 +485,7 @@ $(function () {
                 var idx = parseInt($(this).data('idx'), 10);
                 var $item = $(this);
                 $.ajax({
-                    url: '/admin/license',
+                    url: '<?= EM_ADMIN_PATH ?>/license',
                     type: 'POST',
                     dataType: 'json',
                     data: {
@@ -581,7 +582,7 @@ $(function () {
         errorEl.textContent = '';
 
         $.ajax({
-            url: '/admin/disclaimer',
+            url: '<?= EM_ADMIN_PATH ?>/disclaimer',
             type: 'POST',
             dataType: 'json',
             data: {

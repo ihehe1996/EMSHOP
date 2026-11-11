@@ -102,7 +102,7 @@ $(function () {
 
             $.ajax({
                 type: 'POST',
-                url: '/admin/user_list',
+                url: '<?= EM_ADMIN_PATH ?>/user_list',
                 data: formData + '&_action=balance_adjust',
                 dataType: 'json',
                 success: function (res) {

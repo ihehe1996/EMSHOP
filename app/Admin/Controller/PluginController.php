@@ -421,7 +421,7 @@ final class PluginController extends BaseAdminController
 
         $this->render('popup/header', [
             'pageTitle'            => $pageTitle,
-            'popupPluginSaveUrl'   => '/admin/plugin',
+            'popupPluginSaveUrl'   => EM_ADMIN_PATH . '/plugin',
         ]);
 
         include_once $settingFile;

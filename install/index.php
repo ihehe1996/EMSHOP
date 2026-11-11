@@ -24,6 +24,9 @@ Autoloader::register([
     EM_ROOT . '/include/controller',
 ]);
 
+// 读 .env 里的后台入口（EM_APP_ADMIN_ENTRY）；没有就让 Env 用默认值 admin
+Env::load(EM_ROOT);
+
 /**
  * 读取系统版本（不加载 init.php，避免依赖 config.php/数据库）。
  */
@@ -66,7 +69,8 @@ function installer_admin_url(): string
         || ((int) ($_SERVER['SERVER_PORT'] ?? 80) === 443);
     $scheme = $isHttps ? 'https' : 'http';
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    return $scheme . '://' . $host . '/admin/';
+    $entry = \App\Admin\AdminRouter::normalizeEntry((string) Env::get('EM_APP_ADMIN_ENTRY', 'admin'));
+    return $scheme . '://' . $host . '/' . $entry . '/';
 }
 
 function installer_detect_site_url(): string

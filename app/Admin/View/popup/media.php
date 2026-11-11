@@ -105,7 +105,7 @@ include __DIR__ . '/header.php';
     layui.use(['layer'], function () {
         var topLayer = (window.parent && window.parent.layer) ? window.parent.layer : layui.layer;
         var selectedUrl = null;
-        var listUrl = (window.TEMPLATE_MEDIA_URL || '/admin/media').split('?')[0];
+        var listUrl = (window.TEMPLATE_MEDIA_URL || '<?= EM_ADMIN_PATH ?>/media').split('?')[0];
 
         function loadMedia(page) {
             var context = $('#mediaContextSelect').val();

@@ -59,9 +59,10 @@ use App\Admin\Controller\WithdrawController;
 /**
  * 后台路由分发器（新 OOP 后台）。
  *
- * 只接管「/admin」与「/admin/」后**不带扩展名**的路径：
- *   /admin          → DashboardController::index()
- *   /admin/home     → DashboardController::index()
+ * 只接管后台入口路径下**不带扩展名**的路径。入口默认 /admin，
+ * 可用 .env 的 EM_APP_ADMIN_ENTRY 改成 /xadmin 等（见 pathPrefix()）：
+ *   {入口}          → DashboardController::index()
+ *   {入口}/home     → DashboardController::index()
  *
  * 带点/带扩展名的路径不会进入本路由，交给前台 Dispatcher 或 Web 服务器静态文件。
  *
@@ -70,8 +71,40 @@ use App\Admin\Controller\WithdrawController;
  */
 final class AdminRouter
 {
-    /** 后台路径前缀 */
-    public const PREFIX = '/admin';
+    /** 默认后台路径前缀 */
+    public const DEFAULT_PREFIX = '/admin';
+
+    /** 不能用作后台入口的路径段（与固定路由 / 目录冲突） */
+    private const RESERVED_ENTRIES = [
+        'user', 'content', 'install', 'include', 'app', 'tools', 'server',
+        'index', 'index.php', 'notify', 'return', 'test',
+    ];
+
+    /**
+     * 后台路径前缀，如 /admin；可用 .env 的 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。
+     */
+    public static function pathPrefix(): string
+    {
+        return defined('EM_ADMIN_PATH') ? (string) EM_ADMIN_PATH : self::DEFAULT_PREFIX;
+    }
+
+    /**
+     * 把配置值规范成合法的路径段；非法值或保留值回退 admin。
+     */
+    public static function normalizeEntry(string $entry): string
+    {
+        $entry = strtolower(trim($entry, " \t/"));
+
+        if ($entry === '' || !preg_match('/^[a-z0-9][a-z0-9_-]*$/', $entry)) {
+            return 'admin';
+        }
+
+        if (in_array($entry, self::RESERVED_ENTRIES, true)) {
+            return 'admin';
+        }
+
+        return $entry;
+    }
 
     /**
      * 路由表：第一段路径 => [控制器类, 动作方法]。
@@ -171,12 +204,13 @@ final class AdminRouter
      */
     public static function isAdminPath(string $path): bool
     {
+        $prefix = self::pathPrefix();
         $path = '/' . trim($path, '/');
-        if ($path !== self::PREFIX && strpos($path, self::PREFIX . '/') !== 0) {
+        if ($path !== $prefix && strpos($path, $prefix . '/') !== 0) {
             return false;
         }
 
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
+        $rest = trim(substr($path, strlen($prefix)), '/');
         if ($rest === '') {
             return true;
         }
@@ -202,7 +236,7 @@ final class AdminRouter
             return null;
         }
 
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
+        $rest = trim(substr($path, strlen(self::pathPrefix())), '/');
         $segments = $rest === '' ? [] : explode('/', $rest);
         $key = $segments[0] ?? '';
         if (!isset(self::ROUTES[$key])) {

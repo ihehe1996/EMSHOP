@@ -130,7 +130,7 @@ $(function () {
             $btn.prop('disabled', true);
             $.ajax({
                 // URL 由 popup header 注入到 iframe 自身 window（主站默认 /admin/goods_edit，商户覆盖 /user/merchant/goods）
-                url: window.STOCK_SAVE_URL || '/admin/goods_edit?_action=save_stock',
+                url: window.STOCK_SAVE_URL || '<?= EM_ADMIN_PATH ?>/goods_edit?_action=save_stock',
                 type: 'POST',
                 dataType: 'json',
                 data: $('#stockForm').serialize(),

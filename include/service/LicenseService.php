@@ -447,7 +447,7 @@ final class LicenseService
     {
         if ($returnUrl === '') {
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $returnUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . '/admin/license?from=buy';
+            $returnUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . EM_ADMIN_PATH . '/license?from=buy';
         }
         return LicenseClient::getBuyUrl($level, self::currentDomain(), $adminEmail, $returnUrl);
     }

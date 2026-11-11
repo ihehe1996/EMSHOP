@@ -175,7 +175,7 @@ $(function () {
             $btn.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/merchant',
+                url: '<?= EM_ADMIN_PATH ?>/merchant',
                 type: 'POST',
                 data: $('#mchEditForm').serialize(),
                 dataType: 'json',

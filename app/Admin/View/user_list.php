@@ -283,7 +283,7 @@ $(function(){
         tableIns = table.render({
             elem: '#userTable',
             id: 'userTableId',
-            url: '/admin/user_list',
+            url: '<?= EM_ADMIN_PATH ?>/user_list',
             headers: {csrf: csrfToken},
             method: 'POST',
             where: buildWhere(),
@@ -367,7 +367,7 @@ $(function(){
             $switch.prop('disabled', true);
 
             $.ajax({
-                url: '/admin/user_list',
+                url: '<?= EM_ADMIN_PATH ?>/user_list',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle', id: id},
@@ -434,7 +434,7 @@ $(function(){
                         maxmin: true,
                         area: [window.innerWidth >= 800 ? '640px' : '95%', window.innerHeight >= 800 ? '700px' : '90%'],
                         shadeClose: true,
-                        content: '/admin/user_list?_popup=merchant&user_id=' + data.id
+                        content: '<?= EM_ADMIN_PATH ?>/user_list?_popup=merchant&user_id=' + data.id
                     });
                     break;
                 case 'edit':
@@ -450,7 +450,7 @@ $(function(){
                     var delTip = data.role === 'admin' ? '（管理员账号）' : '';
                     layer.confirm('确定要删除用户' + delTip + '「' + emEsc(data.nickname || data.username) + '」吗？此操作不可恢复。', function (idx) {
                         $.ajax({
-                            url: '/admin/user_list',
+                            url: '<?= EM_ADMIN_PATH ?>/user_list',
                             type: 'POST',
                             dataType: 'json',
                             data: {csrf_token: csrfToken, _action: 'delete', id: data.id},
@@ -499,7 +499,7 @@ $(function(){
             }
             layer.confirm('确定要删除选中的 ' + ids.length + ' 个用户吗？此操作不可恢复。' + delTip, function (idx) {
                 $.ajax({
-                    url: '/admin/user_list',
+                    url: '<?= EM_ADMIN_PATH ?>/user_list',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, _action: 'batch_delete', ids: ids.join(',')},
@@ -538,7 +538,7 @@ $(function(){
                 maxmin: true,
                 area: [window.innerWidth >= 800 ? '560px' : '95%', window.innerHeight >= 800 ? '580px' : '90%'],
                 shadeClose: false,
-                content: '/admin/user_list?_popup=merchant_open&user_id=' + data.id,
+                content: '<?= EM_ADMIN_PATH ?>/user_list?_popup=merchant_open&user_id=' + data.id,
                 end: function () {
                     if (window._userMchOpenSaved) {
                         window._userMchOpenSaved = false;
@@ -556,7 +556,7 @@ $(function(){
                 skin: 'admin-modal',
                 area: [window.innerWidth >= 800 ? '480px' : '95%', window.innerHeight >= 800 ? '380px' : '70%'],
                 shadeClose: true,
-                content: '/admin/user_list?_popup=user_level&id=' + data.id,
+                content: '<?= EM_ADMIN_PATH ?>/user_list?_popup=user_level&id=' + data.id,
                 end: function () {
                     if (window._userPopupSaved) {
                         window._userPopupSaved = false;
@@ -568,7 +568,7 @@ $(function(){
 
         // 余额调整弹窗
         function openBalancePopup(data) {
-            var url = '/admin/user_list?_popup=balance&id=' + data.id;
+            var url = '<?= EM_ADMIN_PATH ?>/user_list?_popup=balance&id=' + data.id;
             layer.open({
                 type: 2,
                 title: '余额调整',
@@ -587,7 +587,7 @@ $(function(){
 
         // 打开弹窗
         function openPopup(title, editId) {
-            var url = '/admin/user_list?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/user_list?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             var isAdd = !editId;
             layer.open({

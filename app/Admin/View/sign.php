@@ -49,7 +49,7 @@ body{margin:0;min-height:100vh;background:linear-gradient(160deg,#eef2ff 0%,#f8f
         <div class="err"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
-    <form method="post" action="/admin/sign" autocomplete="on">
+    <form method="post" action="<?= EM_ADMIN_PATH ?>/sign" autocomplete="on">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
         <div class="field">

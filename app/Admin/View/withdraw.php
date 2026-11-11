@@ -151,7 +151,7 @@ $(function () {
         table.render({
             elem: '#withdrawTable',
             id: 'withdrawTableId',
-            url: '/admin/withdraw',
+            url: '<?= EM_ADMIN_PATH ?>/withdraw',
             method: 'POST',
             where: buildWhere(),
             page: true,
@@ -219,7 +219,7 @@ $(function () {
         // 行内操作：审核通过 / 驳回 / 标记已打款
         // ============================================================
         function submit(ev, id, remark) {
-            $.post('/admin/withdraw',
+            $.post('<?= EM_ADMIN_PATH ?>/withdraw',
                 { _action: ev, id: id, remark: remark, csrf_token: csrfToken },
                 function (res) {
                     if (res.code === 200) {

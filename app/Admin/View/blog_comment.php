@@ -171,7 +171,7 @@ $(function(){
         table.render({
             elem: '#commentTable',
             id: 'commentTableId',
-            url: '/admin/blog_comment?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/blog_comment?_action=list',
             method: 'POST',
             toolbar: '#commentToolbarTpl',
             defaultToolbar: [],
@@ -303,7 +303,7 @@ $(function(){
         table.on('tool(commentTable)', function (obj) {
             if (obj.event === 'approve') {
                 $.ajax({
-                    url: '/admin/blog_comment?_action=approve',
+                    url: '<?= EM_ADMIN_PATH ?>/blog_comment?_action=approve',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, id: obj.data.id},
@@ -320,7 +320,7 @@ $(function(){
                 });
             } else if (obj.event === 'reject') {
                 $.ajax({
-                    url: '/admin/blog_comment?_action=reject',
+                    url: '<?= EM_ADMIN_PATH ?>/blog_comment?_action=reject',
                     type: 'POST',
                     dataType: 'json',
                     data: {csrf_token: csrfToken, id: obj.data.id},
@@ -338,7 +338,7 @@ $(function(){
             } else if (obj.event === 'delete') {
                 layer.confirm('确定要删除该评论吗？', function (idx) {
                     $.ajax({
-                        url: '/admin/blog_comment?_action=delete',
+                        url: '<?= EM_ADMIN_PATH ?>/blog_comment?_action=delete',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, id: obj.data.id},
@@ -364,7 +364,7 @@ $(function(){
         function batchAction(action, data, closeIdx) {
             var ids = data.map(function(item) { return item.id; });
             $.ajax({
-                url: '/admin/blog_comment?_action=batch',
+                url: '<?= EM_ADMIN_PATH ?>/blog_comment?_action=batch',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, batch_action: action, ids: ids},

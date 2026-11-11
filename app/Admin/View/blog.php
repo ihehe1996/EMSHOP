@@ -166,7 +166,7 @@ $(function(){
         table.render({
             elem: '#blogTable',
             id: 'blogTableId',
-            url: '/admin/blog?_action=list',
+            url: '<?= EM_ADMIN_PATH ?>/blog?_action=list',
             method: 'POST',
             toolbar: '#blogToolbarTpl',
             defaultToolbar: [],
@@ -309,7 +309,7 @@ $(function(){
             } else if (obj.event === 'delete') {
                 layer.confirm('确定要删除该文章吗？', function (idx) {
                     $.ajax({
-                        url: '/admin/blog?_action=delete',
+                        url: '<?= EM_ADMIN_PATH ?>/blog?_action=delete',
                         type: 'POST',
                         dataType: 'json',
                         data: {csrf_token: csrfToken, id: obj.data.id},
@@ -328,14 +328,14 @@ $(function(){
                 });
             } else if (obj.event === 'toggleStatus') {
                 // 点击发布/草稿标签 → 调 toggle_status；成功后原地切换 class + 文案，不 reload
-                toggleTag($(this), '/admin/blog?_action=toggle_status', obj.data.id, {
+                toggleTag($(this), '<?= EM_ADMIN_PATH ?>/blog?_action=toggle_status', obj.data.id, {
                     onClass: 'em-tag--on', offClass: 'em-tag--muted',
                     onHtml: '<span class="em-tag__dot"></span>已发布', offHtml: '<span class="em-tag__dot"></span>草稿',
                     onTitle: '点击转草稿', offTitle: '点击发布'
                 });
             } else if (obj.event === 'toggleTop') {
                 // 点击置顶/未置顶标签
-                toggleTag($(this), '/admin/blog?_action=toggle_top', obj.data.id, {
+                toggleTag($(this), '<?= EM_ADMIN_PATH ?>/blog?_action=toggle_top', obj.data.id, {
                     onClass: 'em-tag--amber', offClass: 'em-tag--muted',
                     onHtml: '<span class="em-tag__dot"></span>置顶中', offHtml: '<span class="em-tag__dot"></span>未置顶',
                     onTitle: '点击取消置顶', offTitle: '点击置顶'
@@ -378,7 +378,7 @@ $(function(){
         function batchAction(action, data, closeIdx) {
             var ids = data.map(function(item) { return item.id; });
             $.ajax({
-                url: '/admin/blog?_action=batch',
+                url: '<?= EM_ADMIN_PATH ?>/blog?_action=batch',
                 type: 'POST',
                 dataType: 'json',
                 data: {csrf_token: csrfToken, batch_action: action, ids: ids},
@@ -400,7 +400,7 @@ $(function(){
         // 打开编辑弹窗
         // ============================================================
         function openEditPopup(title, editId) {
-            var url = '/admin/blog_edit?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/blog_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             window._blogPopupSaved = false;
             layer.open({

@@ -75,7 +75,7 @@ $(function () {
 
             $.ajax({
                 type: 'POST',
-                url: '/admin/user_list',
+                url: '<?= EM_ADMIN_PATH ?>/user_list',
                 data: $('#userLevelForm').serialize(),
                 dataType: 'json',
                 success: function (res) {

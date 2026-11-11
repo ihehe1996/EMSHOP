@@ -66,7 +66,7 @@ layui.use(['layer', 'form'], function () {
         $icon.attr('class', 'fa fa-refresh admin-spin');
 
         $.ajax({
-            url: '/admin/settings',
+            url: '<?= EM_ADMIN_PATH ?>/settings',
             type: 'POST',
             dataType: 'json',
             data: $('#smtpTestForm').serialize(),

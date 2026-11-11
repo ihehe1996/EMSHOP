@@ -486,7 +486,7 @@ $(function () {
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 处理中...');
 
             $.ajax({
-                url: '/admin/order',
+                url: '<?= EM_ADMIN_PATH ?>/order',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -529,7 +529,7 @@ $(function () {
             skin: 'admin-modal',
             shadeClose: false,
             area: [window.parent.innerWidth >= 720 ? '680px' : '95%', window.parent.innerHeight >= 600 ? '560px' : '90%'],
-            content: '/admin/order?_popup=ship&id=' + encodeURIComponent(orderId),
+            content: '<?= EM_ADMIN_PATH ?>/order?_popup=ship&id=' + encodeURIComponent(orderId),
             end: function () {
                 // 尝试从发货 iframe 读 _orderShipSuccess 标记；拿不到就放过
                 // 成功时刷新外层订单详情 popup（即当前 iframe）

@@ -29,7 +29,7 @@ a:hover{background:#4338ca;}
         <div class="code">404</div>
         <h1>后台页面不存在</h1>
         <p>请检查链接是否正确，或返回后台首页。</p>
-        <a href="/admin/home">返回后台首页</a>
+        <a href="<?= EM_ADMIN_PATH ?>/home">返回后台首页</a>
     </div>
 </div>
 </body>

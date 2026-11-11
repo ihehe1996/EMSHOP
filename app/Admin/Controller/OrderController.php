@@ -562,7 +562,7 @@ final class OrderController extends BaseAdminController
             return;
         }
 
-        $shipSubmitUrl = '/admin/order';
+        $shipSubmitUrl = EM_ADMIN_PATH . '/order';
         $data = [
             'order'         => $order,
             'shipSubmitUrl' => $shipSubmitUrl,

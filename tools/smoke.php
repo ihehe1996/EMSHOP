@@ -124,22 +124,27 @@ smoke_check('后台翻译函数可用', function_exists('t') && t($langKey) === 
 $adminRouter = \App\Admin\AdminRouter::instance();
 smoke_check('后台路由容器实例与单例一致', $container->make(\App\Admin\AdminRouter::class) === $adminRouter);
 
-smoke_check('后台路径识别 /admin', \App\Admin\AdminRouter::isAdminPath('/admin'));
-smoke_check('后台路径识别 /admin/', \App\Admin\AdminRouter::isAdminPath('/admin/'));
-smoke_check('后台路径识别 /admin/home', \App\Admin\AdminRouter::isAdminPath('/admin/home'));
-smoke_check('后台路径忽略 .php', !\App\Admin\AdminRouter::isAdminPath('/admin/goods.php'));
-smoke_check('后台路径忽略静态资源', !\App\Admin\AdminRouter::isAdminPath('/admin/static/css/admin.css'));
+smoke_check('后台路径识别 ' . EM_ADMIN_PATH, \App\Admin\AdminRouter::isAdminPath(EM_ADMIN_PATH));
+smoke_check('后台路径识别 /admin/', \App\Admin\AdminRouter::isAdminPath(EM_ADMIN_PATH . '/'));
+smoke_check('后台路径识别 /admin/home', \App\Admin\AdminRouter::isAdminPath(EM_ADMIN_PATH . '/home'));
+smoke_check('后台路径忽略 .php', !\App\Admin\AdminRouter::isAdminPath(EM_ADMIN_PATH . '/goods.php'));
+smoke_check('后台路径忽略静态资源', !\App\Admin\AdminRouter::isAdminPath(EM_ADMIN_PATH . '/static/css/admin.css'));
 smoke_check('后台路径忽略 /administrator', !\App\Admin\AdminRouter::isAdminPath('/administrator'));
 
-$adminRoute = $adminRouter->resolve('/admin');
+if (EM_ADMIN_PATH !== \App\Admin\AdminRouter::DEFAULT_PREFIX) {
+    smoke_check('自定义入口时旧 /admin 不再接管', !\App\Admin\AdminRouter::isAdminPath(\App\Admin\AdminRouter::DEFAULT_PREFIX)
+        && $adminRouter->resolve(\App\Admin\AdminRouter::DEFAULT_PREFIX) === null);
+}
+
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH);
 smoke_check(
-    '后台路由 /admin → DashboardController::index',
+    '后台路由 ' . EM_ADMIN_PATH . ' → DashboardController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\DashboardController::class
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/home/');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/home/');
 smoke_check(
     '后台路由 /admin/home/ → DashboardController::index',
     is_array($adminRoute)
@@ -147,7 +152,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/sign');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/sign');
 smoke_check(
     '后台路由 /admin/sign → SignController::index',
     is_array($adminRoute)
@@ -155,7 +160,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/navi');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/navi');
 smoke_check(
     '后台路由 /admin/navi → NaviController::index',
     is_array($adminRoute)
@@ -163,7 +168,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/friend_link');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/friend_link');
 smoke_check(
     '后台路由 /admin/friend_link → FriendLinkController::index',
     is_array($adminRoute)
@@ -171,7 +176,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/goods_tag');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/goods_tag');
 smoke_check(
     '后台路由 /admin/goods_tag → GoodsTagController::index',
     is_array($adminRoute)
@@ -179,7 +184,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/blog_tag');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/blog_tag');
 smoke_check(
     '后台路由 /admin/blog_tag → BlogTagController::index',
     is_array($adminRoute)
@@ -187,7 +192,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/blog_category');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/blog_category');
 smoke_check(
     '后台路由 /admin/blog_category → BlogCategoryController::index',
     is_array($adminRoute)
@@ -195,7 +200,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/goods_category');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/goods_category');
 smoke_check(
     '后台路由 /admin/goods_category → GoodsCategoryController::index',
     is_array($adminRoute)
@@ -203,7 +208,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/page');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/page');
 smoke_check(
     '后台路由 /admin/page → PageController::index',
     is_array($adminRoute)
@@ -211,7 +216,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/blog');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/blog');
 smoke_check(
     '后台路由 /admin/blog → BlogController::index',
     is_array($adminRoute)
@@ -219,7 +224,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/blog_comment');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/blog_comment');
 smoke_check(
     '后台路由 /admin/blog_comment → BlogCommentController::index',
     is_array($adminRoute)
@@ -227,7 +232,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/commission');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/commission');
 smoke_check(
     '后台路由 /admin/commission → CommissionController::index',
     is_array($adminRoute)
@@ -235,7 +240,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/withdraw');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/withdraw');
 smoke_check(
     '后台路由 /admin/withdraw → WithdrawController::index',
     is_array($adminRoute)
@@ -243,7 +248,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/recharge');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/recharge');
 smoke_check(
     '后台路由 /admin/recharge → RechargeController::index',
     is_array($adminRoute)
@@ -251,7 +256,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/user_level');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/user_level');
 smoke_check(
     '后台路由 /admin/user_level → UserLevelController::index',
     is_array($adminRoute)
@@ -259,7 +264,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/merchant_level');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/merchant_level');
 smoke_check(
     '后台路由 /admin/merchant_level → MerchantLevelController::index',
     is_array($adminRoute)
@@ -267,7 +272,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/attachment');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/attachment');
 smoke_check(
     '后台路由 /admin/attachment → AttachmentController::index',
     is_array($adminRoute)
@@ -275,7 +280,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/merchant');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/merchant');
 smoke_check(
     '后台路由 /admin/merchant → MerchantController::index',
     is_array($adminRoute)
@@ -283,7 +288,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/merchant_order');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/merchant_order');
 smoke_check(
     '后台路由 /admin/merchant_order → MerchantOrderController::index',
     is_array($adminRoute)
@@ -291,7 +296,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/language');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/language');
 smoke_check(
     '后台路由 /admin/language → LanguageController::index',
     is_array($adminRoute)
@@ -299,7 +304,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/lang');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/lang');
 smoke_check(
     '后台路由 /admin/lang → LangController::index',
     is_array($adminRoute)
@@ -307,7 +312,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/profile');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/profile');
 smoke_check(
     '后台路由 /admin/profile → ProfileController::index',
     is_array($adminRoute)
@@ -315,7 +320,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/password');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/password');
 smoke_check(
     '后台路由 /admin/password → PasswordController::index',
     is_array($adminRoute)
@@ -323,7 +328,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/system_log');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/system_log');
 smoke_check(
     '后台路由 /admin/system_log → SystemLogController::index',
     is_array($adminRoute)
@@ -331,7 +336,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/logs');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/logs');
 smoke_check(
     '后台路由 /admin/logs → LogsController::index',
     is_array($adminRoute)
@@ -339,7 +344,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/user_list');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/user_list');
 smoke_check(
     '后台路由 /admin/user_list → UserListController::index',
     is_array($adminRoute)
@@ -347,7 +352,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/goods');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/goods');
 smoke_check(
     '后台路由 /admin/goods → GoodsController::index',
     is_array($adminRoute)
@@ -355,7 +360,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/goods_edit');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/goods_edit');
 smoke_check(
     '后台路由 /admin/goods_edit → GoodsEditController::index',
     is_array($adminRoute)
@@ -363,7 +368,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/currency');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/currency');
 smoke_check(
     '后台路由 /admin/currency → CurrencyController::index',
     is_array($adminRoute)
@@ -371,7 +376,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/currency_popup');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/currency_popup');
 smoke_check(
     '后台路由 /admin/currency_popup → CurrencyPopupController::index',
     is_array($adminRoute)
@@ -379,7 +384,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/disclaimer');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/disclaimer');
 smoke_check(
     '后台路由 /admin/disclaimer → DisclaimerController::index',
     is_array($adminRoute)
@@ -387,7 +392,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/editor_demo');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/editor_demo');
 smoke_check(
     '后台路由 /admin/editor_demo → EditorDemoController::index',
     is_array($adminRoute)
@@ -395,7 +400,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/template');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/template');
 smoke_check(
     '后台路由 /admin/template → TemplateController::index',
     is_array($adminRoute)
@@ -403,7 +408,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/plugin');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/plugin');
 smoke_check(
     '后台路由 /admin/plugin → PluginController::index',
     is_array($adminRoute)
@@ -411,7 +416,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/settings');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/settings');
 smoke_check(
     '后台路由 /admin/settings → SettingsController::index',
     is_array($adminRoute)
@@ -419,7 +424,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/app_order');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/app_order');
 smoke_check(
     '后台路由 /admin/app_order → AppOrderController::index',
     is_array($adminRoute)
@@ -427,7 +432,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/merchant_market');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/merchant_market');
 smoke_check(
     '后台路由 /admin/merchant_market → MerchantMarketController::index',
     is_array($adminRoute)
@@ -435,7 +440,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/appstore_buy');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/appstore_buy');
 smoke_check(
     '后台路由 /admin/appstore_buy → AppstoreBuyController::index',
     is_array($adminRoute)
@@ -443,7 +448,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/coupon');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/coupon');
 smoke_check(
     '后台路由 /admin/coupon → CouponController::index',
     is_array($adminRoute)
@@ -451,7 +456,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/order');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/order');
 smoke_check(
     '后台路由 /admin/order → OrderController::index',
     is_array($adminRoute)
@@ -459,7 +464,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/media');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/media');
 smoke_check(
     '后台路由 /admin/media → MediaController::index',
     is_array($adminRoute)
@@ -467,7 +472,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/upload');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/upload');
 smoke_check(
     '后台路由 /admin/upload → UploadController::index',
     is_array($adminRoute)
@@ -475,7 +480,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/update');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/update');
 smoke_check(
     '后台路由 /admin/update → UpdateController::index',
     is_array($adminRoute)
@@ -483,7 +488,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/license');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/license');
 smoke_check(
     '后台路由 /admin/license → LicenseController::index',
     is_array($adminRoute)
@@ -585,7 +590,7 @@ smoke_check(
         && !\App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home.php')
 );
 
-$adminRoute = $adminRouter->resolve('/admin/appstore');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/appstore');
 smoke_check(
     '后台路由 /admin/appstore → AppstoreController::index',
     is_array($adminRoute)
@@ -593,7 +598,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/logout');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/logout');
 smoke_check(
     '后台路由 /admin/logout → LogoutController::index',
     is_array($adminRoute)
@@ -601,7 +606,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/plugin_action');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/plugin_action');
 smoke_check(
     '后台路由 /admin/plugin_action → PluginActionController::index',
     is_array($adminRoute)
@@ -609,7 +614,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/cache');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/cache');
 smoke_check(
     '后台路由 /admin/cache → CacheController::index',
     is_array($adminRoute)
@@ -617,7 +622,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/blog_edit');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/blog_edit');
 smoke_check(
     '后台路由 /admin/blog_edit → BlogEditController::index',
     is_array($adminRoute)
@@ -625,7 +630,7 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-$adminRoute = $adminRouter->resolve('/admin/page_edit');
+$adminRoute = $adminRouter->resolve(EM_ADMIN_PATH . '/page_edit');
 smoke_check(
     '后台路由 /admin/page_edit → PageEditController::index',
     is_array($adminRoute)
@@ -633,13 +638,13 @@ smoke_check(
         && $adminRoute['action'] === 'index'
 );
 
-smoke_check('后台未登记路由返回 null', $adminRouter->resolve('/admin/nope') === null);
+smoke_check('后台未登记路由返回 null', $adminRouter->resolve(EM_ADMIN_PATH . '/nope') === null);
 
 // 子目录安装：/shop/admin/home 还原成 /admin/home（与前台 Dispatcher 同一套规则）
 $adminOldServer = $_SERVER;
-$_SERVER['REQUEST_URI'] = '/shop/admin/home?x=1';
+$_SERVER['REQUEST_URI'] = '/shop' . EM_ADMIN_PATH . '/home?x=1';
 $_SERVER['SCRIPT_NAME'] = '/shop/index.php';
-smoke_check('后台路由剥离子目录前缀', \App\Admin\AdminRouter::currentPath() === '/admin/home');
+smoke_check('后台路由剥离子目录前缀', \App\Admin\AdminRouter::currentPath() === EM_ADMIN_PATH . '/home');
 $_SERVER = $adminOldServer;
 
 // 容器行为
@@ -1728,7 +1733,7 @@ if (in_array('--http', $argv, true)) {
             'timeout'         => 10,
             'follow_location' => 0,
         ]]);
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/home', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/home', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1741,11 +1746,11 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/home 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
         // 新后台业务页同样要求登录
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/navi', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/navi', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1758,10 +1763,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/navi 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/friend_link', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/friend_link', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1774,10 +1779,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/friend_link 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/goods_tag', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/goods_tag', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1790,10 +1795,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/goods_tag 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog_tag', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/blog_tag', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1806,10 +1811,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog_tag 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog_category', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/blog_category', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1822,10 +1827,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog_category 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/goods_category', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/goods_category', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1838,10 +1843,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/goods_category 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/page', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/page', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1854,10 +1859,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/page 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/blog', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1870,10 +1875,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog_comment', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/blog_comment', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1886,10 +1891,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog_comment 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/commission', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/commission', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1902,10 +1907,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/commission 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/withdraw', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/withdraw', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1918,10 +1923,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/withdraw 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/recharge', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/recharge', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1934,10 +1939,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/recharge 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/user_level', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/user_level', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1950,10 +1955,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/user_level 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/merchant_level', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/merchant_level', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1966,10 +1971,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/merchant_level 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/attachment', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/attachment', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1982,10 +1987,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/attachment 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/merchant', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/merchant', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -1998,10 +2003,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/merchant 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/merchant_order', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/merchant_order', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2014,10 +2019,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/merchant_order 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/language', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/language', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2030,10 +2035,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/language 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/lang', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/lang', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2046,10 +2051,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/lang 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/profile', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/profile', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2062,10 +2067,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/profile 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/password', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/password', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2078,10 +2083,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/password 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/system_log', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/system_log', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2094,10 +2099,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/system_log 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/logs', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/logs', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2110,10 +2115,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/logs 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/user_list', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/user_list', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2126,10 +2131,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/user_list 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/goods', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/goods', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2142,10 +2147,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/goods 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/goods_edit?_popup=1', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/goods_edit?_popup=1', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2158,10 +2163,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/goods_edit 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        foreach (['/admin/cache', '/admin/plugin_action?_action=list'] as $adminPath) {
+        foreach ([EM_ADMIN_PATH . '/cache', EM_ADMIN_PATH . '/plugin_action?_action=list'] as $adminPath) {
             @file_get_contents('http://127.0.0.1:' . $port . $adminPath, false, $context);
             $status = 0;
             $location = '';
@@ -2175,11 +2180,11 @@ if (in_array('--http', $argv, true)) {
             }
             smoke_check(
                 'HTTP ' . $adminPath . ' 未登录跳转登录页',
-                $status === 302 && rtrim($location, '/') === '/admin/sign'
+                $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
             );
         }
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/currency', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/currency', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2192,10 +2197,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/currency 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/currency_popup', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/currency_popup', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2208,10 +2213,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/currency_popup 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/disclaimer', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/disclaimer', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2224,10 +2229,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/disclaimer 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/editor_demo', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/editor_demo', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2240,10 +2245,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/editor_demo 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/template', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/template', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2256,10 +2261,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/template 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/plugin', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/plugin', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2272,10 +2277,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/plugin 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/settings', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/settings', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2288,10 +2293,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/settings 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/app_order', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/app_order', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2304,10 +2309,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/app_order 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/merchant_market', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/merchant_market', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2320,10 +2325,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/merchant_market 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/appstore_buy', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/appstore_buy', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2336,10 +2341,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/appstore_buy 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/coupon', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/coupon', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2352,10 +2357,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/coupon 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/order', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/order', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2368,10 +2373,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/order 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/media', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/media', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2384,10 +2389,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/media 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/upload', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/upload', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2400,10 +2405,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/upload 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/update', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/update', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2416,10 +2421,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/update 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/license', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/license', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2432,10 +2437,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/license 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/appstore', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/appstore', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2448,10 +2453,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/appstore 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/blog_edit?_popup=1', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/blog_edit?_popup=1', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2464,10 +2469,10 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog_edit 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/page_edit?_popup=1', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/page_edit?_popup=1', false, $context);
         $status = 0;
         $location = '';
         foreach (($http_response_header ?? []) as $h) {
@@ -2480,12 +2485,12 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/page_edit 未登录跳转登录页',
-            $status === 302 && rtrim($location, '/') === '/admin/sign'
+            $status === 302 && rtrim($location, '/') === EM_ADMIN_PATH . '/sign'
         );
 
         // 带 .php 的路径不归后台路由，仍走前台 Dispatcher（404）
         $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
-        @file_get_contents('http://127.0.0.1:' . $port . '/admin/not-exist.php', false, $context);
+        @file_get_contents('http://127.0.0.1:' . $port . EM_ADMIN_PATH . '/not-exist.php', false, $context);
         $status = 0;
         if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
             $status = (int) $m[1];
@@ -2517,7 +2522,7 @@ if (in_array('--http', $argv, true)) {
         }
 
         // 新登录页：不依赖旧 admin_entry_key 安全入口
-        $signPath = '/admin/sign';
+        $signPath = EM_ADMIN_PATH . '/sign';
         $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
         $body = @file_get_contents('http://127.0.0.1:' . $port . $signPath, false, $context);
         $status = 0;

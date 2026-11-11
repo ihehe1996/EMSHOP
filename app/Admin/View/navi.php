@@ -100,7 +100,7 @@ $(function(){
         var inst = treeTable.render({
             elem: '#naviTable',
             id: 'naviTableId',
-            url: '/admin/navi',
+            url: '<?= EM_ADMIN_PATH ?>/navi',
             method: 'POST',
             where: {_action: 'list'},
             toolbar: '#naviToolbarTpl',
@@ -151,7 +151,7 @@ $(function(){
         treeTable.on('edit(naviTable)', function (obj) {
             if (obj.field === 'sort') {
                 var sortData = JSON.stringify([{id: obj.data.id, sort: parseInt(obj.value) || 100}]);
-                $.post('/admin/navi', {
+                $.post('<?= EM_ADMIN_PATH ?>/navi', {
                     _action: 'sort', csrf_token: csrfToken, sort_data: sortData
                 }, function (res) {
                     if (res.code === 200) {
@@ -171,7 +171,7 @@ $(function(){
                 openPopup('编辑导航', data.id);
             } else if (obj.event === 'del') {
                 layer.confirm('确定要删除导航「' + emEsc(data.name) + '」吗？', function (idx) {
-                    $.post('/admin/navi', {
+                    $.post('<?= EM_ADMIN_PATH ?>/navi', {
                         _action: 'delete', csrf_token: csrfToken, id: data.id
                     }, function (res) {
                         if (res.code === 200) {
@@ -185,7 +185,7 @@ $(function(){
                     }, 'json');
                 });
             } else if (obj.event === 'toggleStatus') {
-                toggleTag($(this), '/admin/navi', {_action: 'toggle_status', id: data.id}, {
+                toggleTag($(this), '<?= EM_ADMIN_PATH ?>/navi', {_action: 'toggle_status', id: data.id}, {
                     onClass: 'em-tag--on', offClass: 'em-tag--muted',
                     onHtml: '<span class="em-tag__dot"></span>启用', offHtml: '<span class="em-tag__dot"></span>禁用',
                     onTitle: '点击禁用', offTitle: '点击启用'
@@ -194,7 +194,7 @@ $(function(){
                 // 注意 target 不是 0/1 切换，而是字符串：_blank ↔ _self，需要读当前 class 决定下一个值
                 var $tag = $(this);
                 var goingToBlank = $tag.hasClass('em-tag--muted');  // 当前是"当前窗口"（灰）→ 切到新窗口
-                toggleTag($tag, '/admin/navi',
+                toggleTag($tag, '<?= EM_ADMIN_PATH ?>/navi',
                     {_action: 'update_target', id: data.id, target: goingToBlank ? '_blank' : '_self'},
                     {
                         onClass: 'em-tag--blue', offClass: 'em-tag--muted',
@@ -233,7 +233,7 @@ $(function(){
 
         // 弹窗
         function openPopup(title, editId) {
-            var url = '/admin/navi?_popup=1';
+            var url = '<?= EM_ADMIN_PATH ?>/navi?_popup=1';
             if (editId) url += '&id=' + editId;
             layer.open({
                 type: 2,

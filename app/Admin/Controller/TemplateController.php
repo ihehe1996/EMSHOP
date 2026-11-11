@@ -211,7 +211,7 @@ final class TemplateController extends BaseAdminController
         $pageTitle = '模板设置：' . htmlspecialchars($titleStr, ENT_QUOTES, 'UTF-8');
 
         // 弹窗里的保存地址改为新路由（媒体/上传仍指向旧地址，等对应页面迁移）
-        $popupTemplateSaveUrl = '/admin/template';
+        $popupTemplateSaveUrl = EM_ADMIN_PATH . '/template';
 
         $this->render('popup/header', [
             'pageTitle'              => $pageTitle,

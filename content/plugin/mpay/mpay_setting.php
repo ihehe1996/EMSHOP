@@ -717,7 +717,7 @@ function plugin_setting_view(): void
                 $btn.prop('disabled', true).text('保存中...');
                 $.ajax({
                     type: 'POST',
-                    url: window.PLUGIN_SAVE_URL || '/admin/plugin',
+                    url: window.PLUGIN_SAVE_URL || '<?= EM_ADMIN_PATH ?>/plugin',
                     data: $('#mpayForm').serialize() + '&_action=save_config&name=mpay',
                     dataType: 'json',
                     success: function (res) {

@@ -90,7 +90,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
             <option value="0">已下架</option>
         </select>
         <div class="mm-toolbar__hint">
-            上架新应用 → <a href="/admin/appstore?tab=merchant" class="layui-text-blue">应用商店 · 分站货架</a>
+            上架新应用 → <a href="<?= EM_ADMIN_PATH ?>/appstore?tab=merchant" class="layui-text-blue">应用商店 · 分站货架</a>
         </div>
     </form>
 
@@ -168,7 +168,7 @@ layui.use(['table', 'layer', 'form'], function () {
 
     table.render({
         elem: '#mmTableId',
-        url:  '/admin/merchant_market?_action=list',
+        url:  '<?= EM_ADMIN_PATH ?>/merchant_market?_action=list',
         method: 'get',
         where: buildWhere(),
         page: true,
@@ -248,7 +248,7 @@ layui.use(['table', 'layer', 'form'], function () {
                 var v = parseFloat($('#mmPriceInput').val());
                 if (isNaN(v) || v < 0) { layer.msg('价格非法'); return; }
                 var micro = Math.round(v * 1000000);
-                $.post('/admin/merchant_market', {
+                $.post('<?= EM_ADMIN_PATH ?>/merchant_market', {
                     _action:           'set_retail_price',
                     csrf_token:        window.MM_CSRF,
                     market_id:         d.id,
@@ -275,7 +275,7 @@ layui.use(['table', 'layer', 'form'], function () {
             (listing ? '' : '<br><small style="color:#94a3b8;">下架不影响已购分站,但分站市场不可见、不再售出。</small>'),
             { title: '确认' },
             function (idx) {
-                $.post('/admin/merchant_market', {
+                $.post('<?= EM_ADMIN_PATH ?>/merchant_market', {
                     _action:    'toggle_list',
                     csrf_token: window.MM_CSRF,
                     market_id:  d.id,
@@ -296,7 +296,7 @@ layui.use(['table', 'layer', 'form'], function () {
 
     // ---------- 采购流水 ----------
     function openLogsModal(d) {
-        $.get('/admin/merchant_market', { _action: 'logs', market_id: d.id }, function (res) {
+        $.get('<?= EM_ADMIN_PATH ?>/merchant_market', { _action: 'logs', market_id: d.id }, function (res) {
             if (res.code !== 200) { layer.msg(res.msg || '加载失败'); return; }
             var logs = (res.data && res.data.list) || [];
             var rows = logs.map(function (l) {
