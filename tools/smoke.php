@@ -76,6 +76,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\MerchantOrderController',
 smoke_check('新类可加载：App\\Admin\\Controller\\LanguageController', class_exists('App\\Admin\\Controller\\LanguageController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\LangController', class_exists('App\\Admin\\Controller\\LangController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\ProfileController', class_exists('App\\Admin\\Controller\\ProfileController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\PasswordController', class_exists('App\\Admin\\Controller\\PasswordController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -273,6 +274,14 @@ smoke_check(
     '后台路由 /admin/profile → ProfileController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\ProfileController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/password');
+smoke_check(
+    '后台路由 /admin/password → PasswordController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\PasswordController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1707,6 +1716,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/profile 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/password', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/password 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

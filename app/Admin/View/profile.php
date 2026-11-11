@@ -130,7 +130,7 @@ $(function(){
                 area: [window.innerWidth >= 800 ? '500px' : '95%', window.innerHeight >= 500 ? '500px' : '80%'],
                 offset: 'auto',
                 shadeClose: true,
-                content: '/admin/password.php'
+                content: '/admin/password'
             });
         });
 
