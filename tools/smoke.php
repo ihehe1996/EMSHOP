@@ -560,6 +560,61 @@ smoke_check('GoodsTypeManager 目标类型不存在', GoodsTypeManager::switchTy
 
 smoke_check('GoodsTypeManager 容器实例与门面一致', $container->make(\App\Support\GoodsTypeManager::class) === GoodsTypeManager::instance());
 
+// RateLimit：计数、窗口、IP 识别与容器一致性
+$rlKey = '__smoke_rl_' . getmypid();
+RateLimit::clear($rlKey);
+smoke_check('RateLimit 初始未限流', RateLimit::attempts($rlKey) === 0
+    && RateLimit::tooManyAttempts($rlKey, 3) === false
+    && RateLimit::availableIn($rlKey) === 0);
+smoke_check('RateLimit hit 累加', RateLimit::hit($rlKey, 60) === 1
+    && RateLimit::hit($rlKey, 60) === 2
+    && RateLimit::hit($rlKey, 60) === 3);
+smoke_check('RateLimit attempts', RateLimit::attempts($rlKey) === 3);
+smoke_check('RateLimit 超限判断', RateLimit::tooManyAttempts($rlKey, 3) === true);
+smoke_check('RateLimit 窗口剩余时间', RateLimit::availableIn($rlKey) > 0);
+RateLimit::clear($rlKey);
+smoke_check('RateLimit clear', RateLimit::attempts($rlKey) === 0 && RateLimit::availableIn($rlKey) === 0);
+
+// clientIp：默认只认 REMOTE_ADDR，忽略伪造的转发头；可信代理才采信
+$oldServerForRl = $_SERVER;
+$oldTrustedExists = Database::fetchOne(
+    'SELECT 1 AS ok FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?',
+    ['trusted_proxies']
+) !== null;
+$oldTrusted = Config::get('trusted_proxies', '');
+try {
+    $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '1.2.3.4';
+    smoke_check('RateLimit 忽略不可信代理头', RateLimit::clientIp() === '203.0.113.9');
+
+    Config::set('trusted_proxies', '203.0.113.9');
+    smoke_check('RateLimit 可信代理采信转发头', RateLimit::clientIp() === '1.2.3.4');
+
+    Config::set('trusted_proxies', '203.0.113.0/24');
+    smoke_check('RateLimit 可信 CIDR 采信转发头', RateLimit::clientIp() === '1.2.3.4');
+
+    Config::set('trusted_proxies', '2001:db8::/32');
+    $_SERVER['REMOTE_ADDR'] = '2001:db8::1';
+    $_SERVER['HTTP_X_FORWARDED_FOR'] = '2001:db8::99';
+    smoke_check('RateLimit 可信 CIDR（IPv6）', RateLimit::clientIp() === '2001:db8::99');
+
+    $_SERVER['REMOTE_ADDR'] = 'not-an-ip';
+    smoke_check('RateLimit 非法 REMOTE_ADDR 兜底', RateLimit::clientIp() === '0.0.0.0');
+} finally {
+    if ($oldTrustedExists) {
+        Config::set('trusted_proxies', $oldTrusted);
+    } else {
+        Database::execute(
+            'DELETE FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?',
+            ['trusted_proxies']
+        );
+        Config::reload();
+    }
+    $_SERVER = $oldServerForRl;
+}
+
+smoke_check('RateLimit 容器实例与门面一致', $container->make(\App\Support\RateLimit::class) === RateLimit::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;

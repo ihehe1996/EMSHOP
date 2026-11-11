@@ -283,6 +283,9 @@ Cache::init();
 // 商品类型服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\GoodsTypeManager::class, GoodsTypeManager::instance());
 
+// 限流服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\RateLimit::class, RateLimit::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 
