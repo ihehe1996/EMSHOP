@@ -304,6 +304,9 @@ Cache::init();
 // 统一消息页服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Emmsg::class, Emmsg::instance());
 
+// 展示名称校验服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\DisplayName::class, DisplayName::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

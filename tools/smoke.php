@@ -813,6 +813,17 @@ smoke_check('Emmsg 自定义按钮输出', $exit === 0
 
 smoke_check('Emmsg 容器实例与门面一致', $container->make(\App\Support\Emmsg::class) === Emmsg::instance());
 
+// DisplayName：展示名称校验与容器一致性
+smoke_check('DisplayName 空值拒绝', DisplayName::validate('') === '名称不能为空'
+    && DisplayName::validate("  \t") === '名称不能为空');
+smoke_check('DisplayName 自定义标签', DisplayName::validate('', '昵称') === '昵称不能为空');
+smoke_check('DisplayName UTF-8 校验', DisplayName::validate("\xC3\x28") === '名称包含非法字符');
+smoke_check('DisplayName 长度上限', DisplayName::validate('abcd', '名称', 3) === '名称最多 3 个字符');
+smoke_check('DisplayName 尖括号拒绝', DisplayName::validate('<b>') === '名称不能包含 < 或 >');
+smoke_check('DisplayName 控制字符拒绝', DisplayName::validate("a\x01b") === '名称包含非法控制字符');
+smoke_check('DisplayName 合法名称', DisplayName::validate('正常名称 123') === null);
+smoke_check('DisplayName 容器实例与门面一致', $container->make(\App\Support\DisplayName::class) === DisplayName::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
