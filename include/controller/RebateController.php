@@ -26,7 +26,7 @@ class RebateController extends BaseController
 
     public function _index(): void
     {
-        // 主页面移到个人中心内（user/rebate.php），这里直接重定向
+        // 主页面移到个人中心内（/user/rebate），这里直接重定向
         Response::redirect('/user/rebate');
     }
 

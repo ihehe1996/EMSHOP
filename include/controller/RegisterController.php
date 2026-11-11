@@ -9,7 +9,7 @@ declare(strict_types=1);
  * POST ?c=register   处理注册请求（AJAX JSON）
  *
  * 页面动作名是 `display()`（不是 `_index`），入口登记在 Dispatcher::DEFAULT_ACTIONS。
- * 注册视图是**公共视图**，放在 user/view/ 全站共用，不跟着主题走，所以它自己不依赖
+ * 注册视图是**公共视图**，放在 app/User/View/public/ 全站共用，不跟着主题走，所以它自己不依赖
  * 主题 module.php 取数（令牌、必填项都在视图里从核心读）。
  *
  * display() 只留「发 POST 就转交处理器」和两个必须在输出前完成的判断（已登录跳转、

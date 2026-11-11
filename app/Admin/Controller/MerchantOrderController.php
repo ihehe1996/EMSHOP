@@ -8,7 +8,7 @@ namespace App\Admin\Controller;
  * 分站订单（/admin/merchant_order）。
  *
  * 后台只读监控：em_order.merchant_id > 0 的订单都属于这里，
- * 主站后台只能看不能改 —— 商户订单的发货 / 退款由商户自己在 user/merchant/order.php 操作。
+ * 主站后台只能看不能改 —— 商户订单的发货 / 退款由商户自己在 /user/merchant/order 操作。
  *
  * POST 端点：
  *   _action=list      列表（merchant_id 过滤 / 状态 / 关键字）

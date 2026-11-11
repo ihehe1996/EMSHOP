@@ -15,7 +15,7 @@ declare(strict_types=1);
  *
  * 页面动作名是 `display()`（不是 `_index`），入口登记在 Dispatcher::DEFAULT_ACTIONS。
  * 三个页面视图（login / forgot_password / reset_password）都是**公共视图**，放在
- * user/view/ 全站共用，不跟着主题走，所以它们自己不依赖主题 module.php 取数。
+ * app/User/View/public/ 全站共用，不跟着主题走，所以它们自己不依赖主题 module.php 取数。
  *
  * display() 只留「发 POST 就转交处理器」和几个必须在输出前完成的判断（已登录跳转、
  * 功能未开启），数据由视图自己取。

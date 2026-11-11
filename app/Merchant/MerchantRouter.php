@@ -29,7 +29,7 @@ use App\Merchant\Controller\WithdrawController;
  * 商户后台路由分发器。
  *
  * 接管 /user/merchant 下**不带扩展名**的路径（/user/merchant/xxx）。
- * 物理文件（user/merchant/*.php、静态资源）仍由 Web 服务器直接命中，过渡期两套并存。
+ * 带点/带扩展名的路径（旧 user/merchant/*.php、静态资源）不接管，交给 Web 服务器或前台路由。
  */
 final class MerchantRouter
 {

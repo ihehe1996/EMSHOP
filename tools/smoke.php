@@ -506,30 +506,83 @@ smoke_check(
     \App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home')
         && !\App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home.php')
 );
-$userRoute = $userRouter->resolve('/user/home');
+$userPages = [
+    'home'            => \App\User\Controller\HomeController::class,
+    'profile'         => \App\User\Controller\ProfileController::class,
+    'address'         => \App\User\Controller\AddressController::class,
+    'wallet'          => \App\User\Controller\WalletController::class,
+    'balance_log'     => \App\User\Controller\BalanceLogController::class,
+    'coupon'          => \App\User\Controller\CouponController::class,
+    'rebate'          => \App\User\Controller\RebateController::class,
+    'api'             => \App\User\Controller\ApiController::class,
+    'order'           => \App\User\Controller\OrderController::class,
+    'order_detail'    => \App\User\Controller\OrderDetailController::class,
+    'order_poll'      => \App\User\Controller\OrderPollController::class,
+    'find_order'      => \App\User\Controller\FindOrderController::class,
+    'currency_switch' => \App\User\Controller\CurrencySwitchController::class,
+];
+$userControllersOk = true;
+foreach ($userPages as $class) {
+    $userControllersOk = $userControllersOk && class_exists($class);
+}
+smoke_check('用户中心控制器全部可加载', $userControllersOk);
+$userRouteOk = true;
+foreach (array_keys($userPages) as $segment) {
+    $route = $userRouter->resolve('/user/' . $segment);
+    $userRouteOk = $userRouteOk
+        && is_array($route)
+        && $route['class'] === $userPages[$segment]
+        && $route['action'] === 'index';
+}
+smoke_check('用户中心路由全部可解析', $userRouteOk);
 smoke_check(
-    '用户中心路由 /user/home → HomeController::index',
-    is_array($userRoute)
-        && $userRoute['class'] === \App\User\Controller\HomeController::class
-        && $userRoute['action'] === 'index'
-);
-$userRoute = $userRouter->resolve('/user/find_order');
-smoke_check(
-    '用户中心路由 /user/find_order → FindOrderController::index',
-    is_array($userRoute) && $userRoute['class'] === \App\User\Controller\FindOrderController::class
-);
-$userRoute = $userRouter->resolve('/user/order_detail');
-smoke_check(
-    '用户中心路由 /user/order_detail → OrderDetailController::index',
-    is_array($userRoute) && $userRoute['class'] === \App\User\Controller\OrderDetailController::class
+    '用户中心目录路径 → 首页',
+    ($userRouter->resolve('/user')['class'] ?? '') === \App\User\Controller\HomeController::class
 );
 
-$merchantRoute = $merchantRouter->resolve('/user/merchant/home');
+$merchantPages = [
+    'home'          => \App\Merchant\Controller\HomeController::class,
+    'category'      => \App\Merchant\Controller\CategoryController::class,
+    'navi'          => \App\Merchant\Controller\NaviController::class,
+    'page'          => \App\Merchant\Controller\PageController::class,
+    'blog'          => \App\Merchant\Controller\BlogController::class,
+    'blog_category' => \App\Merchant\Controller\BlogCategoryController::class,
+    'finance'       => \App\Merchant\Controller\FinanceController::class,
+    'withdraw'      => \App\Merchant\Controller\WithdrawController::class,
+    'order'         => \App\Merchant\Controller\OrderController::class,
+    'settings'      => \App\Merchant\Controller\SettingsController::class,
+    'media'         => \App\Merchant\Controller\MediaController::class,
+    'upload'        => \App\Merchant\Controller\UploadController::class,
+    'template'      => \App\Merchant\Controller\TemplateController::class,
+    'plugin'        => \App\Merchant\Controller\PluginController::class,
+    'appstore'      => \App\Merchant\Controller\AppstoreController::class,
+    'goods'         => \App\Merchant\Controller\GoodsController::class,
+    'apply'         => \App\Merchant\Controller\ApplyController::class,
+    'blog_edit'     => \App\Merchant\Controller\BlogEditController::class,
+    'page_edit'     => \App\Merchant\Controller\PageEditController::class,
+];
+$merchantControllersOk = true;
+foreach ($merchantPages as $class) {
+    $merchantControllersOk = $merchantControllersOk && class_exists($class);
+}
+smoke_check('商户后台控制器全部可加载', $merchantControllersOk);
+$merchantRouteOk = true;
+foreach (array_keys($merchantPages) as $segment) {
+    $route = $merchantRouter->resolve('/user/merchant/' . $segment);
+    $merchantRouteOk = $merchantRouteOk
+        && is_array($route)
+        && $route['class'] === $merchantPages[$segment]
+        && $route['action'] === 'index';
+}
+smoke_check('商户后台路由全部可解析', $merchantRouteOk);
 smoke_check(
-    '商户后台路由 /user/merchant/home → HomeController::index',
-    is_array($merchantRoute)
-        && $merchantRoute['class'] === \App\Merchant\Controller\HomeController::class
-        && $merchantRoute['action'] === 'index'
+    '商户后台目录路径 → 首页',
+    ($merchantRouter->resolve('/user/merchant')['class'] ?? '') === \App\Merchant\Controller\HomeController::class
+);
+smoke_check(
+    '旧 user 页面路径不再由新路由接管',
+    !\App\User\UserRouter::isUserPath('/user/home.php')
+        && !\App\Merchant\MerchantRouter::isMerchantPath('/user/merchant/home.php')
 );
 
 $adminRoute = $adminRouter->resolve('/admin/appstore');
@@ -2438,6 +2491,30 @@ if (in_array('--http', $argv, true)) {
             $status = (int) $m[1];
         }
         smoke_check('HTTP /admin/not-exist.php 不被后台路由接管', $status === 404);
+
+        // 用户中心 / 商户后台：未登录统一跳前台登录页
+        $context = stream_context_create(['http' => [
+            'ignore_errors'   => true,
+            'timeout'         => 10,
+            'follow_location' => 0,
+        ]]);
+        foreach (['/user', '/user/home', '/user/merchant', '/user/merchant/home'] as $frontPath) {
+            @file_get_contents('http://127.0.0.1:' . $port . $frontPath, false, $context);
+            $status = 0;
+            $location = '';
+            foreach (($http_response_header ?? []) as $h) {
+                if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                    $status = (int) $m[1];
+                }
+                if (stripos($h, 'Location:') === 0) {
+                    $location = trim(substr($h, 9));
+                }
+            }
+            smoke_check(
+                'HTTP ' . $frontPath . ' 未登录跳前台登录',
+                $status === 302 && $location === '/?c=login'
+            );
+        }
 
         // 新登录页：不依赖旧 admin_entry_key 安全入口
         $signPath = '/admin/sign';

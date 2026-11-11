@@ -1104,7 +1104,7 @@ $(function() {
                             try { parent.updateCsrf(res.data.csrf_token); } catch(e) {}
                         }
                         try { parent.window._goodsPopupSaved = true; } catch(e) {}
-                        // 商户后台父页 (user/merchant/view/goods.php) 用 _mcSelfSaved 标志在 layer end 回调里 reload 表格
+                        // 商户后台父页（/user/merchant/goods）用 _mcSelfSaved 标志在 layer end 回调里 reload 表格
                         try { parent.window._mcSelfSaved = true; } catch(e) {}
                         var index = parent.layer.getFrameIndex(window.name);
                         parent.layer.msg(res.msg || '保存成功');

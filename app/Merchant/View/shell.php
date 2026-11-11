@@ -30,7 +30,7 @@ $showSelfGoods = (int) ($lv['allow_self_goods'] ?? 0) === 1;
 </head>
 <body>
 
-<!-- 顶部栏（对齐 /user/view/index.php 的 v2 样式：紫色 logo mark + 右侧用户下拉） -->
+<!-- 顶部栏（沿用个人中心 v2 样式：紫色 logo mark + 右侧用户下拉） -->
 <header class="uc-header uc-header--v2">
     <div class="uc-header-inner">
         <?php

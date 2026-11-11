@@ -23,7 +23,7 @@ use App\User\Controller\WalletController;
  * 用户中心路由分发器。
  *
  * 接管 /user 下**不带扩展名**的路径（/user/xxx），/user/merchant/... 由 MerchantRouter 负责。
- * 物理文件（user/*.php、/content/static/user/ 静态资源）仍由 Web 服务器直接命中，过渡期两套并存。
+ * 带点/带扩展名的路径（升级站点残留的旧 user/*.php、静态资源）不接管，交给 Web 服务器或前台路由。
  */
 final class UserRouter
 {
