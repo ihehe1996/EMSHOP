@@ -12,6 +12,7 @@ use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\CommissionController;
+use App\Admin\Controller\CouponController;
 use App\Admin\Controller\CurrencyController;
 use App\Admin\Controller\CurrencyPopupController;
 use App\Admin\Controller\DisclaimerController;
@@ -105,6 +106,7 @@ final class AdminRouter
         'app_order' => [AppOrderController::class, 'index'],
         'merchant_market' => [MerchantMarketController::class, 'index'],
         'appstore_buy' => [AppstoreBuyController::class, 'index'],
+        'coupon' => [CouponController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

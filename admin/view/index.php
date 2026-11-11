@@ -151,7 +151,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <a href="/admin/goods" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品列表'); ?></a>
                         <a href="/admin/goods_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品分类'); ?></a>
                         <a href="/admin/goods_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品标签'); ?></a>
-                        <a href="/admin/coupon.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('优惠券'); ?></a>
+                        <a href="/admin/coupon" data-pjax="#adminContent" class="admin-menu-item"><?= t('优惠券'); ?></a>
                     </div>
                 </div>
 
