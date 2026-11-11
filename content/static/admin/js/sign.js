@@ -15,14 +15,14 @@ $(function () {
 
         // 保留当前 URL 的查询串（含安全入口 ?s=xxx），否则 POST 会落到不带参数的 URL 被拦截
         $.ajax({
-            url: '/admin/sign.php' + window.location.search,
+            url: '/admin/sign' + window.location.search,
             type: 'POST',
             dataType: 'json',
             data: $.param(formData),
         }).done(function (res) {
             if (res.code === 200) {
                 layui.layer.msg(res.msg || '登录成功');
-                window.location.href = res.data.redirect || '/admin/index.php';
+                window.location.href = res.data.redirect || '/admin/home';
                 return;
             }
 

@@ -123,7 +123,7 @@ if (Input::get('_popup', '') === '1') {
     $popupTemplateSaveUrl = '/user/merchant/template.php';
     $popupTemplateMediaUrl = '/user/merchant/media.php';
     $popupTemplateUploadUrl = '/user/merchant/upload.php';
-    include __DIR__ . '/../../admin/view/popup/header.php';
+    include __DIR__ . '/../../app/Admin/View/popup/header.php';
 
     include_once $settingFile;
     if (function_exists('template_setting_view')) {
@@ -133,7 +133,7 @@ if (Input::get('_popup', '') === '1') {
     } else {
         echo '<div style="padding:16px;color:#6b7280;">该模板未提供可渲染的设置视图。</div>';
     }
-    include __DIR__ . '/../../admin/view/popup/footer.php';
+    include __DIR__ . '/../../app/Admin/View/popup/footer.php';
     return;
 }
 

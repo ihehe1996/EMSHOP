@@ -1006,7 +1006,7 @@ final class Dispatcher
            . '<h1>未启用任何模板</h1>'
            . '<p class="desc">当前站点未在后台启用可用于渲染前台的模板，因此无法显示页面。</p>'
            . '<div class="meta">当前范围：<code>' . htmlspecialchars($scope, ENT_QUOTES, 'UTF-8') . '</code><br>设备类型：<code>' . htmlspecialchars($device, ENT_QUOTES, 'UTF-8') . '</code></div>'
-           . '<div><a class="btn" href="/admin/template.php">前往后台「模板管理」启用模板</a></div>'
+           . '<div><a class="btn" href="/admin/template">前往后台「模板管理」启用模板</a></div>'
            . '</div></body></html>';
     }
 

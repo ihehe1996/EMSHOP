@@ -370,14 +370,14 @@ if ($action === 'card_import_page') {
     $specs = GoodsModel::getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '导入卡密';
-    // 若入口未预设（主站），保持 header 默认 /admin/index.php
+    // 若入口未预设（主站），保持 header 默认 /admin/plugin_action
     if (!isset($popupCardActionBase)) {
-        $popupCardActionBase = '/admin/index.php';
+        $popupCardActionBase = '/admin/plugin_action';
     }
 
-    include EM_ROOT . '/admin/view/popup/header.php';
+    include EM_ROOT . '/app/Admin/View/popup/header.php';
     include __DIR__ . '/card_import_page.php';
-    include EM_ROOT . '/admin/view/popup/footer.php';
+    include EM_ROOT . '/app/Admin/View/popup/footer.php';
     exit;
 }
 
@@ -864,7 +864,7 @@ if ($action === 'card_manager') {
     $csrfToken = Csrf::token();
     $pageTitle = '卡密管理';
     if (!isset($popupCardActionBase)) {
-        $popupCardActionBase = '/admin/index.php';
+        $popupCardActionBase = '/admin/plugin_action';
     }
 
     // 构建 spec_id => name 映射
@@ -894,15 +894,15 @@ if ($action === 'card_manager') {
         $specStockMap[(int)$r['spec_id']] = (int)$r['cnt'];
     }
 
-    include EM_ROOT . '/admin/view/popup/header.php';
+    include EM_ROOT . '/app/Admin/View/popup/header.php';
     include __DIR__ . '/inventory.php';
-    include EM_ROOT . '/admin/view/popup/footer.php';
+    include EM_ROOT . '/app/Admin/View/popup/footer.php';
     exit;
 }
 
 // ================================================================
 // 按订单 ID 导出该订单里所有 virtual_card 商品的发货内容为 txt
-// URL：/admin/index.php?_action=order_export_cards&order_id=X
+// URL：/admin/plugin_action?_action=order_export_cards&order_id=X
 // 订单详情 popup 的"导出全部 (TXT)"按钮调用
 // ================================================================
 if ($action === 'order_export_cards') {

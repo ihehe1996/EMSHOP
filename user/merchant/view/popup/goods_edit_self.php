@@ -20,7 +20,7 @@ if ($isEdit && !empty($goods['configs'])) {
 $extraFields = $goodsConfigs['extra_fields'] ?? [];
 $rebateConfig = $goodsConfigs['rebate'] ?? ['l1' => 0, 'l2' => 0];
 
-include EM_ROOT . '/admin/view/popup/header.php';
+include EM_ROOT . '/app/Admin/View/popup/header.php';
 ?>
 
 <div class="popup-inner">
@@ -1195,4 +1195,4 @@ $(function() {
 })();
 </script>
 
-<?php include EM_ROOT . '/admin/view/popup/footer.php'; ?>
+<?php include EM_ROOT . '/app/Admin/View/popup/footer.php'; ?>

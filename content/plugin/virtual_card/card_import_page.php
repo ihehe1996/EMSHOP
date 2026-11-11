@@ -73,7 +73,7 @@ $(function() {
     var csrfToken = <?php echo json_encode($csrfToken); ?>;
     var goodsId = <?php echo $goodsId; ?>;
     // 与 inventory.php 一致：商户端由 popup header 注入 CARD_ACTION_BASE
-    var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/index.php';
+    var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/plugin_action';
     function cardUrl(action) {
         var sep = cardActionBase.indexOf('?') >= 0 ? '&' : '?';
         return cardActionBase + sep + '_action=' + encodeURIComponent(action);

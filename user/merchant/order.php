@@ -200,7 +200,7 @@ if (Request::isPost()) {
                 break;
             }
 
-            // 商户手动发货（与 admin/order.php 同款流程，但严格按 merchant_id 校验归属）
+            // 商户手动发货（与主站订单同款流程，但严格按 merchant_id 校验归属）
             //   - 调 goods_type_{type}_manual_delivery_submit filter 让插件准备 delivery_content / plugin_data
             //   - 插件返回字符串 = 校验失败消息；返回数组 = 成功 payload
             //   - 状态流转由 OrderModel::manualShipOrderGoods 统一处理
@@ -315,7 +315,7 @@ if ((string) Input::get('_popup', '') === 'detail') {
 }
 
 // ============================================================
-// 弹窗：发货（iframe，复用 admin/view/popup/order_ship.php，参数化提交 URL 即可）
+// 弹窗：发货（iframe，复用 app/Admin/View/popup/order_ship.php，参数化提交 URL 即可）
 // ============================================================
 if ((string) Input::get('_popup', '') === 'ship') {
     $orderId = (int) Input::get('id', 0);
@@ -337,7 +337,7 @@ if ((string) Input::get('_popup', '') === 'ship') {
         $shipError = '当前订单状态（' . OrderModel::statusName($order['status']) . '）不允许手动发货';
         $csrfToken = Csrf::token();
         $shipSubmitUrl = '/user/merchant/order.php';
-        include EM_ROOT . '/admin/view/popup/order_ship.php';
+        include EM_ROOT . '/app/Admin/View/popup/order_ship.php';
         return;
     }
 
@@ -349,7 +349,7 @@ if ((string) Input::get('_popup', '') === 'ship') {
     $csrfToken = Csrf::token();
     $shipSubmitUrl = '/user/merchant/order.php';   // ← 关键：让发货 form 提交到商户路径，不走 admin
     $pageTitle = '发货 - ' . $order['order_no'];
-    include EM_ROOT . '/admin/view/popup/order_ship.php';
+    include EM_ROOT . '/app/Admin/View/popup/order_ship.php';
     return;
 }
 

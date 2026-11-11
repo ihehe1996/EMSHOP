@@ -16,7 +16,7 @@ $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
 
-include EM_ROOT . '/admin/view/popup/header.php'; 
+include EM_ROOT . '/app/Admin/View/popup/header.php'; 
 ?>
 
 <div class="popup-inner">
@@ -379,4 +379,4 @@ $(function () {
 });
 </script>
 
-<?php include EM_ROOT . '/admin/view/popup/footer.php'; ?>
+<?php include EM_ROOT . '/app/Admin/View/popup/footer.php'; ?>

@@ -14,7 +14,7 @@ $buyerFields = OrderModel::parseBuyerContactFields($order);
 $guestContact = $buyerFields['guest_contact'];
 $contactPairs = $buyerFields['extra_pairs'];
 
-include EM_ROOT . '/admin/view/popup/header.php';
+include EM_ROOT . '/app/Admin/View/popup/header.php';
 ?>
 
 <style>
@@ -271,4 +271,4 @@ include EM_ROOT . '/admin/view/popup/header.php';
     </div>
 </div>
 
-<?php include EM_ROOT . '/admin/view/popup/footer.php'; ?>
+<?php include EM_ROOT . '/app/Admin/View/popup/footer.php'; ?>

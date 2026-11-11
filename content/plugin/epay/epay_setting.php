@@ -149,7 +149,7 @@ function plugin_setting_view(): void
                 $btn.prop('disabled', true).html('<i class="layui-icon layui-icon-loading"></i> 保存中...');
                 $.ajax({
                     type:'POST',
-                    url: window.PLUGIN_SAVE_URL || '/admin/plugin.php',
+                    url: window.PLUGIN_SAVE_URL || '/admin/plugin',
                     data: $('#epayForm').serialize() + '&_action=save_config&name=epay',
                     dataType:'json',
                     success: function(res){

@@ -244,8 +244,8 @@ $(function(){
 
         form.render('select');
 
-        // 卡密 action 入口：主站默认 /admin/index.php，商户端由 popup header 覆盖为 /user/merchant/goods.php
-        var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/index.php';
+        // 卡密 action 入口：主站默认 /admin/plugin_action，商户端由 popup header 覆盖为 /user/merchant/goods.php
+        var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '/admin/plugin_action';
         function cardUrl(action) {
             var sep = cardActionBase.indexOf('?') >= 0 ? '&' : '?';
             return cardActionBase + sep + '_action=' + encodeURIComponent(action);

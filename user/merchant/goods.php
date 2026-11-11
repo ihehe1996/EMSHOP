@@ -446,7 +446,7 @@ if (Request::isPost()) {
             }
 
             // ==================== 自建商品 - 全量保存 ====================
-            // 与主站 admin/goods_edit.php 的 save action 逻辑对齐（规格/多维/configs/标签/类型钩子），
+            // 与主站商品编辑的 save action 逻辑对齐（规格/多维/configs/标签/类型钩子），
             // 差异点：
             //   - 身份：owner_id = 商户主 user_id；created_by = 商户主 user_id；source_type = 'self'
             //   - 分类：支持 category_source（main/merchant）两种来源
@@ -581,7 +581,7 @@ if (Request::isPost()) {
 
                     doAction('goods_save_before_process_specs', $goodsId, $goods_type);
 
-                    // 处理规格（逻辑与主站 admin/goods_edit.php 一致）
+                    // 处理规格（逻辑与主站商品编辑一致）
                     $specsInput = $_POST['specs'] ?? [];
                     $prefix = Database::prefix();
                     $specDimNameRaw = trim((string) Input::post('spec_dim_name', ''));
@@ -956,18 +956,18 @@ if ((string) Input::get('_popup', '') === 'stock_manager') {
 
     $csrfToken = Csrf::token();
     $pageTitle = '库存管理';
-    // 让 stock_form 插件里的 AJAX 把 save_stock 打回商户控制器，而不是 /admin/goods_edit.php
+    // 让 stock_form 插件里的 AJAX 把 save_stock 打回商户控制器，而不是 /admin/goods_edit
     $popupStockSaveUrl = '/user/merchant/goods.php?_action=save_stock';
-    // 卡密库存 / 导入弹窗走商户入口，避免打开 /admin/index.php
+    // 卡密库存 / 导入弹窗走商户入口，避免打开主站后台
     $popupCardActionBase = '/user/merchant/goods.php';
-    include EM_ROOT . '/admin/view/popup/header.php';
-    include EM_ROOT . '/admin/view/popup/stock_manager.php';
-    include EM_ROOT . '/admin/view/popup/footer.php';
+    include EM_ROOT . '/app/Admin/View/popup/header.php';
+    include EM_ROOT . '/app/Admin/View/popup/stock_manager.php';
+    include EM_ROOT . '/app/Admin/View/popup/footer.php';
     return;
 }
 
 // ============================================================
-// 弹窗：新建 / 编辑 自建商品（全量版，视图复用 admin/view/popup/goods_edit.php 的完整结构）
+// 弹窗：新建 / 编辑 自建商品（全量版，结构参考主站商品编辑弹窗）
 // ============================================================
 if ((string) Input::get('_popup', '') === 'self_edit') {
     if ((int) ($merchantLevel['allow_self_goods'] ?? 0) !== 1) {

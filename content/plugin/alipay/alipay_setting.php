@@ -80,7 +80,7 @@ function plugin_setting_view(): void
             $('#alipaySaveBtn').on('click', function(){
                 var $btn = $(this);
                 $btn.prop('disabled', true).html('<i class="layui-icon layui-icon-loading"></i> 保存中...');
-                $.ajax({ type:'POST', url: window.PLUGIN_SAVE_URL || '/admin/plugin.php', data: $('#alipayForm').serialize()+'&_action=save_config&name=alipay', dataType:'json',
+                $.ajax({ type:'POST', url: window.PLUGIN_SAVE_URL || '/admin/plugin', data: $('#alipayForm').serialize()+'&_action=save_config&name=alipay', dataType:'json',
                     success: function(res){
                         if(res.code===0||res.code===200){ if(res.data&&res.data.csrf_token) $('#alipayForm input[name=csrf_token]').val(res.data.csrf_token); parent.layer.msg('配置已保存'); parent.layer.close(parent.layer.getFrameIndex(window.name)); }
                         else{ layui.layer.msg(res.msg||'保存失败'); $btn.prop('disabled',false).html('<i class="layui-icon layui-icon-ok"></i> 保存配置'); }
