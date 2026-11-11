@@ -29,6 +29,7 @@ use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
 use App\Admin\Controller\PluginController;
+use App\Admin\Controller\SettingsController;
 use App\Admin\Controller\PasswordController;
 use App\Admin\Controller\ProfileController;
 use App\Admin\Controller\RechargeController;
@@ -97,6 +98,7 @@ final class AdminRouter
         'editor_demo' => [EditorDemoController::class, 'index'],
         'template' => [TemplateController::class, 'index'],
         'plugin' => [PluginController::class, 'index'],
+        'settings' => [SettingsController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

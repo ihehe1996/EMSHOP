@@ -251,7 +251,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/settings.php?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
+                        <a href="/admin/settings?action=base" data-pjax="#adminContent" class="admin-menu-item"><?= t('基础设置'); ?></a>
                         <a href="/admin/currency" data-pjax="#adminContent" class="admin-menu-item"><?= t('货币配置'); ?></a>
                         <a href="/admin/attachment" data-pjax="#adminContent" class="admin-menu-item"><?= t('资源管理'); ?></a>
                         <a href="/admin/system_log" data-pjax="#adminContent" class="admin-menu-item"><?= t('系统日志'); ?></a>
