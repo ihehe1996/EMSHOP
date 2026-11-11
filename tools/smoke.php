@@ -82,6 +82,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\LogsController', class_ex
 smoke_check('新类可加载：App\\Admin\\Controller\\UserListController', class_exists('App\\Admin\\Controller\\UserListController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\GoodsController', class_exists('App\\Admin\\Controller\\GoodsController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\CurrencyController', class_exists('App\\Admin\\Controller\\CurrencyController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\CurrencyPopupController', class_exists('App\\Admin\\Controller\\CurrencyPopupController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -327,6 +328,14 @@ smoke_check(
     '后台路由 /admin/currency → CurrencyController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\CurrencyController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/currency_popup');
+smoke_check(
+    '后台路由 /admin/currency_popup → CurrencyPopupController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\CurrencyPopupController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1857,6 +1866,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/currency 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/currency_popup', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/currency_popup 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

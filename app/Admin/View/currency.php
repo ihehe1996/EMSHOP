@@ -284,7 +284,7 @@ $(function(){
 
         // 打开新增 / 编辑弹窗
         function openPopup(title, editId) {
-            var url = '/admin/currency_popup.php?mode=' + (editId ? 'edit' : 'add');
+            var url = '/admin/currency_popup?mode=' + (editId ? 'edit' : 'add');
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,
