@@ -48,6 +48,14 @@ final class MerchantShell
 
         extract($vars, EXTR_SKIP);
 
+        // Pjax：只输出内容区片段
+        if (\Request::isPjax()) {
+            echo '<div id="merchantContent" class="mc-content">';
+            require $contentView;
+            echo '</div>';
+            return;
+        }
+
         $merchantContentView = $contentView;
 
         require __DIR__ . '/View/shell.php';

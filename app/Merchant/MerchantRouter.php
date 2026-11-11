@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace App\Merchant;
 
+use App\Merchant\Controller\BlogCategoryController;
+use App\Merchant\Controller\BlogController;
+use App\Merchant\Controller\CategoryController;
+use App\Merchant\Controller\FinanceController;
 use App\Merchant\Controller\HomeController;
+use App\Merchant\Controller\NaviController;
 use App\Merchant\Controller\NotFoundController;
+use App\Merchant\Controller\PageController;
+use App\Merchant\Controller\WithdrawController;
 
 /**
  * 商户后台路由分发器。
@@ -18,8 +25,15 @@ final class MerchantRouter
     public const PREFIX = '/user/merchant';
 
     private const ROUTES = [
-        ''     => [HomeController::class, 'index'],
-        'home' => [HomeController::class, 'index'],
+        ''              => [HomeController::class, 'index'],
+        'home'          => [HomeController::class, 'index'],
+        'category'      => [CategoryController::class, 'index'],
+        'navi'          => [NaviController::class, 'index'],
+        'page'          => [PageController::class, 'index'],
+        'blog'          => [BlogController::class, 'index'],
+        'blog_category' => [BlogCategoryController::class, 'index'],
+        'finance'       => [FinanceController::class, 'index'],
+        'withdraw'      => [WithdrawController::class, 'index'],
     ];
 
     /** @var MerchantRouter|null */
