@@ -16,6 +16,7 @@ use App\Admin\Controller\HomeController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
+use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
 use App\Admin\Controller\WithdrawController;
 
@@ -57,6 +58,7 @@ final class AdminRouter
         'blog_comment' => [BlogCommentController::class, 'index'],
         'commission' => [CommissionController::class, 'index'],
         'withdraw' => [WithdrawController::class, 'index'],
+        'recharge' => [RechargeController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
