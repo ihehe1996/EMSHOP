@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Admin;
 
 use App\Admin\Controller\BlogCategoryController;
+use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\FriendLinkController;
@@ -51,6 +52,7 @@ final class AdminRouter
         'goods_category' => [GoodsCategoryController::class, 'index'],
         'page' => [PageController::class, 'index'],
         'blog' => [BlogController::class, 'index'],
+        'blog_comment' => [BlogCommentController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
