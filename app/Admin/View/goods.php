@@ -561,7 +561,7 @@ $(function(){
                         maxmin: true,
                         area: [window.innerWidth >= 960 ? '960px' : '95%', window.innerHeight >= 800 ? '85%' : '95%'],
                         shadeClose: true,
-                        content: '/admin/goods_edit.php?_action=stock_manager&goods_id=' + data.id + '&_popup=1',
+                        content: '/admin/goods_edit?_action=stock_manager&goods_id=' + data.id + '&_popup=1',
                         end: function () {
                             if (window._stockPopupSaved) {
                                 table.reloadData('goodsTable');
@@ -724,7 +724,7 @@ $(function(){
         // 打开编辑弹窗
         // ============================================================
         function openEditPopup(title, editId) {
-            var url = '/admin/goods_edit.php?_popup=1';
+            var url = '/admin/goods_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             layer.open({
                 type: 2,

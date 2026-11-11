@@ -23,6 +23,7 @@ use App\Admin\Controller\EditorDemoController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsController;
+use App\Admin\Controller\GoodsEditController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
@@ -104,6 +105,7 @@ final class AdminRouter
         'logs' => [LogsController::class, 'index'],
         'user_list' => [UserListController::class, 'index'],
         'goods' => [GoodsController::class, 'index'],
+        'goods_edit' => [GoodsEditController::class, 'index'],
         'currency' => [CurrencyController::class, 'index'],
         'currency_popup' => [CurrencyPopupController::class, 'index'],
         'disclaimer' => [DisclaimerController::class, 'index'],
