@@ -14,6 +14,7 @@ use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
+use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
@@ -65,6 +66,7 @@ final class AdminRouter
         'user_level' => [UserLevelController::class, 'index'],
         'merchant_level' => [MerchantLevelController::class, 'index'],
         'attachment' => [AttachmentController::class, 'index'],
+        'merchant' => [MerchantController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
