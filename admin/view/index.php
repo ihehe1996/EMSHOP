@@ -233,7 +233,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                 </div>
 
                 <!-- 8. 插件管理 -->
-                <a href="/admin/plugin.php" data-pjax="#adminContent" class="admin-menu-item">
+                <a href="/admin/plugin" data-pjax="#adminContent" class="admin-menu-item">
                     <i class="fa fa-puzzle-piece"></i>
                     <span><?= t('插件管理'); ?></span>
                 </a>
