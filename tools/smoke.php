@@ -130,6 +130,24 @@ smoke_check('Request Host 注入被拦截', Request::baseUrl() === 'https://loca
 
 $_SERVER = $oldServer;
 
+// Money：门面与容器一致，严格解析与格式化行为不变
+smoke_check('Money 解析整数', Money::parse('12.34') === 12340000);
+smoke_check('Money 解析零值', Money::parse('0', true) === 0);
+smoke_check('Money 常量', Money::SCALE === 1000000 && Money::MAX_DECIMALS === 6);
+smoke_check('Money 拒绝科学计数法', Money::tryParse('1e5') === null);
+smoke_check('Money 拒绝负数', Money::tryParse('-1') === null);
+smoke_check('Money isValid', Money::isValid('0.000001') === true && Money::isValid('abc') === false);
+smoke_check('Money format', Money::format(12340000) === '12.34' && Money::format(-5) === '-0.00');
+smoke_check('Money 容器实例与门面一致', $container->make(\App\Support\Money::class) === Money::instance());
+
+$zeroRejected = false;
+try {
+    Money::parse('0');
+} catch (InvalidArgumentException $e) {
+    $zeroRejected = true;
+}
+smoke_check('Money 默认拒绝 0', $zeroRejected);
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);
