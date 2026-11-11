@@ -3,18 +3,38 @@
 declare(strict_types=1);
 
 /**
- * 请求方法封装。
+ * 请求方法（兼容门面）。
  *
- * 后续判断 GET、POST、AJAX 等请求时统一从这里取，避免入口文件直接操作 $_SERVER。
+ * 实际实现已迁到 App\Http\Request 实例服务；这里保留原有静态 API，
+ * 现有调用点、插件和模板都不用改。
  */
 final class Request
 {
+    /** @var \App\Http\Request|null */
+    private static $service;
+
+    /**
+     * 获取内部请求服务实例。
+     */
+    public static function instance(): \App\Http\Request
+    {
+        if (self::$service === null) {
+            if (!class_exists(\App\Http\Request::class)) {
+                $root = defined('EM_ROOT') ? EM_ROOT : dirname(__DIR__, 2);
+                require_once $root . '/app/Http/Request.php';
+            }
+            self::$service = new \App\Http\Request();
+        }
+
+        return self::$service;
+    }
+
     /**
      * 返回当前请求方法。
      */
     public static function method(): string
     {
-        return strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        return self::instance()->method();
     }
 
     /**
@@ -22,7 +42,7 @@ final class Request
      */
     public static function isPost(): bool
     {
-        return self::method() === 'POST';
+        return self::instance()->isPost();
     }
 
     /**
@@ -30,7 +50,7 @@ final class Request
      */
     public static function isGet(): bool
     {
-        return self::method() === 'GET';
+        return self::instance()->isGet();
     }
 
     /**
@@ -38,42 +58,14 @@ final class Request
      */
     public static function isPjax(): bool
     {
-        return !empty($_SERVER['HTTP_X_PJAX']);
+        return self::instance()->isPjax();
     }
 
     /**
-     * 当前请求的站点根地址（协议 + 域名 + 子目录），用于生成邮件链接等。
-     * 例：http://example.com 或 https://example.com/shop
+     * 当前请求的站点根地址（协议 + 域名 + 子目录）。
      */
     public static function baseUrl(): string
     {
-        $protocol = 'http';
-        if (
-            (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
-        ) {
-            $protocol = 'https';
-        }
-
-        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-
-        // 只接受「主机名[:端口]」形式，挡住 CRLF 注入以及把路径/查询串塞进 Host 的尝试。
-        //
-        // 注意：这**不能**阻止「换成另一个合法域名」的 Host 欺骗（evil.com 语法完全合法）。
-        // 因此凡是安全敏感的链接（找回密码等）必须改用后台配置的 site_url 作基址，
-        // 而不是依赖这里 —— 参见 PasswordResetService::buildResetUrl。
-        if (preg_match('/^[A-Za-z0-9.\-]+(?::\d{1,5})?$/', $host) !== 1) {
-            $host = 'localhost';
-        }
-
-        $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php');
-        $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
-
-        $url = $protocol . '://' . $host;
-        if ($basePath !== '' && $basePath !== '/') {
-            $url .= $basePath;
-        }
-
-        return $url;
+        return self::instance()->baseUrl();
     }
 }

@@ -110,6 +110,26 @@ smoke_check('Input 容器实例与门面一致', $container->make(\App\Support\I
 $_GET = $oldGet;
 $_POST = $oldPost;
 
+// Request：门面与容器一致，方法判断与 baseUrl 行为不变
+$oldServer = $_SERVER;
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_SERVER['HTTP_X_PJAX'] = 'true';
+$_SERVER['HTTPS'] = 'on';
+$_SERVER['HTTP_HOST'] = 'example.com';
+$_SERVER['SCRIPT_NAME'] = '/shop/index.php';
+
+smoke_check('Request method', Request::method() === 'POST');
+smoke_check('Request isPost', Request::isPost() === true);
+smoke_check('Request isGet', Request::isGet() === false);
+smoke_check('Request isPjax', Request::isPjax() === true);
+smoke_check('Request baseUrl', Request::baseUrl() === 'https://example.com/shop');
+smoke_check('Request 容器实例与门面一致', $container->make(\App\Http\Request::class) === Request::instance());
+
+$_SERVER['HTTP_HOST'] = "evil.com\r\nX-Test: 1";
+smoke_check('Request Host 注入被拦截', Request::baseUrl() === 'https://localhost/shop');
+
+$_SERVER = $oldServer;
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);

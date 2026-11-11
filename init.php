@@ -250,6 +250,9 @@ Cache::init();
 // 输入服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Input::class, Input::instance());
 
+// 请求服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Http\Request::class, Request::instance());
+
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
 require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
 
