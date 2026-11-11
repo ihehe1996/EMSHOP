@@ -35,6 +35,12 @@ if ($requestPath === '/test') {
     exit;
 }
 
+// 后台新路由：/admin 与无扩展名的 /admin/xxx 由框架接管。
+// 物理文件（旧 admin/*.php、静态资源）仍由 Web 服务器直接命中，过渡期新旧后台并存。
+if (\App\Admin\AdminRouter::instance()->handleCurrentRequest()) {
+    exit;
+}
+
 // 设置首页入口模式：优先读后台配置 homepage_mode，无配置时默认 mall
 define('HOMEPAGE_MODE', Config::get('homepage_mode', 'mall'));
 

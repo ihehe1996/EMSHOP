@@ -49,6 +49,47 @@ $container = $app->container();
 smoke_check('容器可解析 Application', $container->make(\App\Core\Application::class) === $app);
 smoke_check('容器可解析 Container', $container->make(\App\Core\Container::class) === $container);
 
+// 后台路由（app/Admin）：/admin 与无扩展名路径由框架接管
+smoke_check('新类可加载：App\\Admin\\AdminRouter', class_exists('App\\Admin\\AdminRouter'));
+smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', class_exists('App\\Admin\\Controller\\BaseAdminController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
+
+$adminRouter = \App\Admin\AdminRouter::instance();
+smoke_check('后台路由容器实例与单例一致', $container->make(\App\Admin\AdminRouter::class) === $adminRouter);
+
+smoke_check('后台路径识别 /admin', \App\Admin\AdminRouter::isAdminPath('/admin'));
+smoke_check('后台路径识别 /admin/', \App\Admin\AdminRouter::isAdminPath('/admin/'));
+smoke_check('后台路径识别 /admin/home', \App\Admin\AdminRouter::isAdminPath('/admin/home'));
+smoke_check('后台路径忽略 .php', !\App\Admin\AdminRouter::isAdminPath('/admin/goods.php'));
+smoke_check('后台路径忽略静态资源', !\App\Admin\AdminRouter::isAdminPath('/admin/static/css/admin.css'));
+smoke_check('后台路径忽略 /administrator', !\App\Admin\AdminRouter::isAdminPath('/administrator'));
+
+$adminRoute = $adminRouter->resolve('/admin');
+smoke_check(
+    '后台路由 /admin → HomeController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\HomeController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/home/');
+smoke_check(
+    '后台路由 /admin/home/ → HomeController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\HomeController::class
+        && $adminRoute['action'] === 'index'
+);
+
+smoke_check('后台未登记路由返回 null', $adminRouter->resolve('/admin/nope') === null);
+
+// 子目录安装：/shop/admin/home 还原成 /admin/home（与前台 Dispatcher 同一套规则）
+$adminOldServer = $_SERVER;
+$_SERVER['REQUEST_URI'] = '/shop/admin/home?x=1';
+$_SERVER['SCRIPT_NAME'] = '/shop/index.php';
+smoke_check('后台路由剥离子目录前缀', \App\Admin\AdminRouter::currentPath() === '/admin/home');
+$_SERVER = $adminOldServer;
+
 // 容器行为
 $container->singleton('smoke.singleton', static function () {
     return new stdClass();
@@ -1084,8 +1125,27 @@ smoke_check('Csrf 容器实例与门面一致', $container->make(\App\Support\Cs
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);
     $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+
+    // 模拟 Nginx try_files：真实文件交给静态服务器，其余进 index.php。
+    // 内置服务器会把 /admin/xxx 解析成 admin/index.php，这里强制回退到根入口，
+    // 与线上 SCRIPT_NAME=/index.php 的行为保持一致。
+    $routerCode = <<<'PHP'
+    <?php
+    $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+    $file = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\') . $path;
+    if ($path !== '/' && is_file($file)) {
+        return false;
+    }
+    $_SERVER['SCRIPT_NAME'] = '/index.php';
+    $_SERVER['PHP_SELF'] = '/index.php';
+    $_SERVER['SCRIPT_FILENAME'] = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/\\') . '/index.php';
+    require $_SERVER['SCRIPT_FILENAME'];
+    PHP;
+    $routerFile = sys_get_temp_dir() . '/emshop_smoke_router_' . getmypid() . '.php';
+    file_put_contents($routerFile, $routerCode);
+
     $proc = @proc_open(
-        [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root],
+        [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root, $routerFile],
         [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']],
         $pipes,
         $root
@@ -1112,8 +1172,40 @@ if (in_array('--http', $argv, true)) {
             smoke_check('HTTP ' . $path . ' -> ' . $status, $body !== false && $status === $expect);
         }
 
+        // 后台新路由：未登录访问 → 302 到旧登录页（过渡期）
+        $context = stream_context_create(['http' => [
+            'ignore_errors'   => true,
+            'timeout'         => 10,
+            'follow_location' => 0,
+        ]]);
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/home', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/home 未登录跳转登录页',
+            $status === 302 && strpos($location, '/admin/sign.php') !== false
+        );
+
+        // 带 .php 的路径不归后台路由，仍走前台 Dispatcher（404）
+        $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/not-exist.php', false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+            $status = (int) $m[1];
+        }
+        smoke_check('HTTP /admin/not-exist.php 不被后台路由接管', $status === 404);
+
         proc_terminate($proc);
         proc_close($proc);
+        @unlink($routerFile);
     }
 }
 
