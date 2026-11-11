@@ -391,6 +391,35 @@ smoke_check('Hooks applyFilter 全局函数', applyFilter($filterName, 'y') === 
 
 smoke_check('Hooks 容器实例与门面一致', $container->make(\App\Support\Hooks::class) === Hooks::instance());
 
+// MerchantContext：主站/商户上下文、商品可见性、店铺地址与容器一致性
+MerchantContext::setCurrent(null);
+smoke_check('MerchantContext 主站上下文', MerchantContext::currentId() === 0
+    && MerchantContext::currentOwnerId() === 0
+    && MerchantContext::current() === null
+    && MerchantContext::isMaster() === true
+    && MerchantContext::blockedReason() === '');
+smoke_check('MerchantContext 主站商品可见性', MerchantContext::isGoodsVisibleToCurrentScope(['owner_id' => 0]) === true
+    && MerchantContext::isGoodsVisibleToCurrentScope(['owner_id' => 9]) === false);
+
+MerchantContext::setCurrent(['id' => 7, 'user_id' => 9, 'name' => '测试店铺']);
+smoke_check('MerchantContext 商户上下文', MerchantContext::currentId() === 7
+    && MerchantContext::currentOwnerId() === 9
+    && MerchantContext::isMaster() === false
+    && (MerchantContext::current()['name'] ?? '') === '测试店铺');
+smoke_check('MerchantContext 商户商品可见性', MerchantContext::isGoodsVisibleToCurrentScope(['owner_id' => 0]) === true
+    && MerchantContext::isGoodsVisibleToCurrentScope(['owner_id' => 9]) === true
+    && MerchantContext::isGoodsVisibleToCurrentScope(['owner_id' => 5]) === false);
+
+smoke_check('MerchantContext 自定义域名店铺地址', MerchantContext::storefrontUrl(['custom_domain' => 'shop.example.com']) === 'http://shop.example.com/');
+$mainDomain = MerchantDomainGuard::normalizeHost((string) Config::get('main_domain', ''));
+$expectedStore = $mainDomain === '' ? '' : 'http://sub.' . $mainDomain . '/';
+smoke_check('MerchantContext 二级域名店铺地址', MerchantContext::storefrontUrl(['subdomain' => 'sub']) === $expectedStore);
+smoke_check('MerchantContext 无域名店铺地址为空', MerchantContext::storefrontUrl([]) === '');
+smoke_check('MerchantContext CLI 无最近店铺', MerchantContext::lastMerchant() === null);
+
+MerchantContext::setCurrent(null);
+smoke_check('MerchantContext 容器实例与门面一致', $container->make(\App\Support\MerchantContext::class) === MerchantContext::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;

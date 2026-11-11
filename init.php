@@ -277,6 +277,9 @@ Cache::init();
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
 require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
 
+// 商户上下文服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\MerchantContext::class, MerchantContext::instance());
+
 // 商户（分站）上下文识别：提前到插件/模板加载之前，让后面能按商户 scope 隔离
 //   - 命中 /s/{slug}/ 模式会同步改写 $_SERVER['REQUEST_URI']/PATH_INFO，让 Dispatcher 按正常路径解析
 //   - 识别失败时按主站处理，不阻断请求
