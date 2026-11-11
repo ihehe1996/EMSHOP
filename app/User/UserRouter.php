@@ -4,8 +4,16 @@ declare(strict_types=1);
 
 namespace App\User;
 
+use App\User\Controller\AddressController;
+use App\User\Controller\ApiController;
+use App\User\Controller\BalanceLogController;
+use App\User\Controller\CouponController;
 use App\User\Controller\HomeController;
 use App\User\Controller\NotFoundController;
+use App\User\Controller\OrderController;
+use App\User\Controller\ProfileController;
+use App\User\Controller\RebateController;
+use App\User\Controller\WalletController;
 
 /**
  * 用户中心路由分发器。
@@ -26,8 +34,16 @@ final class UserRouter
      * 空字符串代表 /user 本身。
      */
     private const ROUTES = [
-        ''     => [HomeController::class, 'index'],
-        'home' => [HomeController::class, 'index'],
+        ''            => [HomeController::class, 'index'],
+        'home'        => [HomeController::class, 'index'],
+        'profile'     => [ProfileController::class, 'index'],
+        'address'     => [AddressController::class, 'index'],
+        'wallet'      => [WalletController::class, 'index'],
+        'balance_log' => [BalanceLogController::class, 'index'],
+        'coupon'      => [CouponController::class, 'index'],
+        'rebate'      => [RebateController::class, 'index'],
+        'api'         => [ApiController::class, 'index'],
+        'order'       => [OrderController::class, 'index'],
     ];
 
     /** @var UserRouter|null */

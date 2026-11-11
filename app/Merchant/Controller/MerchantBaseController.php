@@ -83,11 +83,11 @@ abstract class MerchantBaseController extends UserBaseController
      *
      * @param array<string, mixed> $data
      */
-    protected function render(string $view, array $data = []): void
+    protected function render(string $viewName, array $data = []): void
     {
-        $relative = str_replace('\\', '/', trim($view, '/'));
+        $relative = str_replace('\\', '/', trim($viewName, '/'));
         if ($relative === '' || preg_match('#[^a-zA-Z0-9_/-]#', $relative)) {
-            throw new \InvalidArgumentException('非法视图名：' . $view);
+            throw new \InvalidArgumentException('非法视图名：' . $viewName);
         }
 
         $file = dirname(__DIR__) . '/View/' . $relative . '.php';
