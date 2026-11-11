@@ -222,6 +222,9 @@ Autoloader::register([
 // 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
 \App\Core\Application::instance();
 
+// 配置服务注册进容器（必须在 Config::load() 之前）
+\App\Core\Application::instance()->container()->instance(\App\Support\Config::class, Config::instance());
+
 Hooks::boot();
 
 Config::load();

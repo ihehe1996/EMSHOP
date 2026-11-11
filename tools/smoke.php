@@ -216,6 +216,24 @@ $_COOKIE = $oldCookie;
 
 smoke_check('GuestToken 容器实例与门面一致', $container->make(\App\Support\GuestToken::class) === GuestToken::instance());
 
+// Config：读写、reload 与容器一致性（用临时键，测试后清理）
+$configKey = '__smoke_config_' . getmypid();
+$configOk = Config::set($configKey, 'v1');
+smoke_check('Config set 后当前请求可读', $configOk && Config::get($configKey) === 'v1');
+smoke_check('Config 缺失键回落默认值', Config::get($configKey . '_missing', 'def') === 'def');
+
+Config::set($configKey, 'v2');
+smoke_check('Config 更新后缓存同步', Config::get($configKey) === 'v2');
+
+Config::reload();
+smoke_check('Config reload 后仍可读', Config::get($configKey) === 'v2');
+
+Database::execute('DELETE FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?', [$configKey]);
+Config::reload();
+smoke_check('Config 删除后回落默认值', Config::get($configKey, 'def') === 'def');
+
+smoke_check('Config 容器实例与门面一致', $container->make(\App\Support\Config::class) === Config::instance());
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);

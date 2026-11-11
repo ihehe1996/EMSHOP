@@ -3,16 +3,31 @@
 declare(strict_types=1);
 
 /**
- * 系统配置类。
+ * 系统配置（兼容门面）。
  *
- * 负责把 config 表中的配置一次性读出并缓存，后续统一通过 Config::get() 读取。
+ * 实际实现已迁到 App\Support\Config 实例服务；这里保留原有静态 API，
+ * 现有调用点、插件和模板都不用改。
  */
 final class Config
 {
+    /** @var \App\Support\Config|null */
+    private static $service;
+
     /**
-     * @var array<string, string>|null
+     * 获取内部配置服务实例。
      */
-    private static $items = null;
+    public static function instance(): \App\Support\Config
+    {
+        if (self::$service === null) {
+            if (!class_exists(\App\Support\Config::class)) {
+                $root = defined('EM_ROOT') ? EM_ROOT : dirname(__DIR__, 2);
+                require_once $root . '/app/Support/Config.php';
+            }
+            self::$service = new \App\Support\Config();
+        }
+
+        return self::$service;
+    }
 
     /**
      * 读取全部系统配置。
@@ -21,34 +36,7 @@ final class Config
      */
     public static function load(): array
     {
-        if (self::$items !== null) {
-            return self::$items;
-        }
-
-        self::$items = [];
-
-        try {
-            $table = Database::prefix() . 'config';
-            $sql = sprintf('SELECT `config_name`, `config_value` FROM `%s`', $table);
-            $rows = Database::query($sql);
-
-            foreach ($rows as $row) {
-                $name = isset($row['config_name']) ? (string) $row['config_name'] : '';
-                if ($name === '') {
-                    continue;
-                }
-
-                self::$items[$name] = isset($row['config_value']) ? (string) $row['config_value'] : '';
-            }
-        } catch (Throwable $e) {
-            // CLI 启动阶段需要感知数据库故障，不能静默吞掉。
-            if (PHP_SAPI === 'cli') {
-                throw $e; 
-            }
-            self::$items = [];
-        }
-
-        return self::$items;
+        return self::instance()->load();
     }
 
     /**
@@ -56,35 +44,15 @@ final class Config
      */
     public static function get(string $name, string $default = ''): string
     {
-        $items = self::load();
-        return array_key_exists($name, $items) ? $items[$name] : $default;
+        return self::instance()->get($name, $default);
     }
-
 
     /**
      * 保存或更新一条系统配置（不存在则添加，存在则更新）。
      */
     public static function set(string $name, string $value): bool
     {
-        $table = Database::prefix() . 'config';
-        $sqlCheck = sprintf('SELECT COUNT(*) AS cnt FROM `%s` WHERE `config_name` = ?', $table);
-        $row = Database::fetchOne($sqlCheck, [$name]);
-        $exists = $row !== null && (int) $row['cnt'] > 0;
-
-        if ($exists) {
-            $sql = sprintf('UPDATE `%s` SET `config_value` = ? WHERE `config_name` = ?', $table);
-            $affected = Database::execute($sql, [$value, $name]);
-        } else {
-            $sql = sprintf('INSERT INTO `%s` (`config_name`, `config_value`) VALUES (?, ?)', $table);
-            $affected = Database::execute($sql, [$name, $value]);
-        }
-
-        // 同步更新内存缓存
-        if (self::$items !== null) {
-            self::$items[$name] = $value;
-        }
-
-        return $affected > 0;
+        return self::instance()->set($name, $value);
     }
 
     /**
@@ -94,7 +62,6 @@ final class Config
      */
     public static function reload(): array
     {
-        self::$items = null;
-        return self::load();
+        return self::instance()->reload();
     }
 }
