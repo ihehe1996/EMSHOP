@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Admin;
 
+use App\Admin\Controller\AppOrderController;
 use App\Admin\Controller\AttachmentController;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
@@ -99,6 +100,7 @@ final class AdminRouter
         'template' => [TemplateController::class, 'index'],
         'plugin' => [PluginController::class, 'index'],
         'settings' => [SettingsController::class, 'index'],
+        'app_order' => [AppOrderController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
