@@ -677,6 +677,11 @@ final class UpdateService
             }
         }
 
+        // 升级已完成：写入旧后台目录待删除标记，由之后任意一次 Web 请求执行清理
+        if (class_exists('\\App\\Support\\LegacyAdminRemoval')) {
+            \App\Support\LegacyAdminRemoval::schedule();
+        }
+
         return ['ok' => true, 'update_reported' => $reported];
     }
 

@@ -106,6 +106,11 @@ smoke_check('新类可加载：App\\Admin\\Controller\\LogoutController', class_
 smoke_check('新类可加载：App\\Admin\\Controller\\PluginActionController', class_exists('App\\Admin\\Controller\\PluginActionController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\CacheController', class_exists('App\\Admin\\Controller\\CacheController'));
 smoke_check('新类可加载：App\\Admin\\AdminShell', class_exists('App\\Admin\\AdminShell'));
+smoke_check('新类可加载：App\\Support\\LegacyAdminRemoval', class_exists('App\\Support\\LegacyAdminRemoval'));
+smoke_check(
+    '旧后台删除标记不应残留',
+    !is_file($root . '/content/tmp/admin_legacy_removal.pending') && is_dir($root . '/admin')
+);
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';

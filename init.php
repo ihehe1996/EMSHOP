@@ -445,6 +445,12 @@ if (php_sapi_name() !== 'cli' && MerchantContext::currentId() === 0) {
     }
 }
 
+// 旧后台目录（admin/）下线：升级完成后由任意一次 Web 请求触发清理。
+// 正常请求只有一次 is_file 检查；标记不存在时立即返回。
+if (class_exists('App\\Support\\LegacyAdminRemoval')) {
+    \App\Support\LegacyAdminRemoval::maybeRun();
+}
+
 // 注册关闭函数，确保 dirty 数据落库
 register_shutdown_function(function () {
     try {
