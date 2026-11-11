@@ -857,6 +857,38 @@ smoke_check('LogSanitizer 敏感赋值脱敏', LogSanitizer::sanitize('password=
 smoke_check('LogSanitizer 普通内容保留', LogSanitizer::sanitize('order_id=12345 status=paid') === 'order_id=12345 status=paid');
 smoke_check('LogSanitizer 容器实例与门面一致', $container->make(\App\Support\LogSanitizer::class) === LogSanitizer::instance());
 
+// Captcha：签发、校验、一次一用、scope 隔离与容器一致性
+$oldSessionForCaptcha = $_SESSION;
+$_SESSION = [];
+
+$captchaExpr = Captcha::issue('smoke_a');
+smoke_check('Captcha 题目格式', preg_match('/^\d [+\-] \d$/', $captchaExpr) === 1
+    && Captcha::exists('smoke_a') === true);
+
+preg_match('/^(\d) ([+\-]) (\d)$/', $captchaExpr, $captchaMatch);
+$captchaAnswer = $captchaMatch[2] === '+'
+    ? (int) $captchaMatch[1] + (int) $captchaMatch[3]
+    : (int) $captchaMatch[1] - (int) $captchaMatch[3];
+
+smoke_check('Captcha 正确答案通过', Captcha::verify((string) $captchaAnswer, 'smoke_a') === true);
+smoke_check('Captcha 一次一用', Captcha::exists('smoke_a') === false);
+smoke_check('Captcha 无题目时拒绝', Captcha::verify('1', 'smoke_a') === false);
+
+Captcha::issue('smoke_b');
+smoke_check('Captcha 错误答案拒绝', Captcha::verify('999', 'smoke_b') === false
+    && Captcha::exists('smoke_b') === false);
+
+Captcha::issue('smoke_c1');
+Captcha::issue('smoke_c2');
+smoke_check('Captcha scope 隔离', Captcha::exists('smoke_c1') === true
+    && Captcha::exists('smoke_c2') === true);
+
+$_SESSION['em_captcha_smoke_exp'] = ['answer' => 3, 'issued_at' => time() - 301];
+smoke_check('Captcha 过期拒绝', Captcha::verify('3', 'smoke_exp') === false);
+
+$_SESSION = $oldSessionForCaptcha;
+smoke_check('Captcha 容器实例与门面一致', $container->make(\App\Support\Captcha::class) === Captcha::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;

@@ -313,6 +313,9 @@ Cache::init();
 // 日志脱敏服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\LogSanitizer::class, LogSanitizer::instance());
 
+// 算术验证码服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\Captcha::class, Captcha::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 
