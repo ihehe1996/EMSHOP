@@ -219,6 +219,9 @@ Autoloader::register([
     EM_ROOT . '/include/controller',
 ]);
 
+// 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
+\App\Core\Application::instance();
+
 Hooks::boot();
 
 Config::load();
@@ -240,6 +243,9 @@ if ($emTimezone !== '' && @date_default_timezone_set($emTimezone) === false) {
 }
 
 Cache::init();
+
+// 缓存实例注册进容器：静态门面和容器拿到同一个对象
+\App\Core\Application::instance()->container()->instance(\App\Support\Cache::class, Cache::instance());
 
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
 require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
@@ -357,9 +363,5 @@ register_shutdown_function(function () {
         // ignore
     }
 });
-
-// 新内核骨架：只创建容器/应用对象，不参与现有请求流程
-\App\Core\Application::instance();
-
 
 // usleep(500000); // 模拟慢速环境，方便测试加载中的loading特效等，不要删除

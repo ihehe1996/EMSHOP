@@ -55,6 +55,36 @@ $container->bind('smoke.bind', static function () {
 });
 smoke_check('bind 每次新建', $container->make('smoke.bind') !== $container->make('smoke.bind'));
 
+// Cache：静态门面和容器必须拿到同一个实例
+$cache = Cache::instance();
+$cacheKey = 'smoke_cache_' . getmypid();
+
+Cache::set($cacheKey, ['v' => 1], 60);
+smoke_check('Cache 门面 set/get', Cache::get($cacheKey) === ['v' => 1]);
+smoke_check('Cache 容器实例与门面一致', $container->make(\App\Support\Cache::class) === $cache);
+
+$container->make(\App\Support\Cache::class)->set($cacheKey . '_svc', 'x', 60);
+smoke_check('Cache 服务实例可写', Cache::get($cacheKey . '_svc') === 'x');
+
+Cache::delete($cacheKey);
+Cache::delete($cacheKey . '_svc');
+smoke_check('Cache delete 生效', Cache::get($cacheKey) === null);
+
+$hits = 0;
+$rememberKey = $cacheKey . '_remember';
+$first = Cache::remember($rememberKey, 'smoke', static function () use (&$hits) {
+    $hits++;
+    return 'first';
+}, 60);
+$second = Cache::remember($rememberKey, 'smoke', static function () use (&$hits) {
+    $hits++;
+    return 'second';
+}, 60);
+smoke_check('Cache remember 只执行一次', $hits === 1 && $first === 'first' && $second === 'first');
+
+Cache::deleteGroup('smoke');
+smoke_check('Cache deleteGroup 生效', Cache::get($rememberKey) === null);
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);
