@@ -42,7 +42,7 @@ if (\App\Admin\AdminRouter::instance()->handleCurrentRequest()) {
 }
 
 // 用户中心与商户后台的新路由：/user/xxx 与 /user/merchant/xxx（均不带扩展名）。
-// 物理文件（旧 user/*.php、静态资源）仍由 Web 服务器直接命中，过渡期两套并存。
+// 带点/带扩展名的路径不接管：升级站点上残留的旧 user/*.php 仍由 Web 服务器直接命中。
 if (\App\Merchant\MerchantRouter::instance()->handleCurrentRequest()) {
     exit;
 }
