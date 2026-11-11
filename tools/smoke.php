@@ -92,6 +92,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\AppOrderController', clas
 smoke_check('新类可加载：App\\Admin\\Controller\\MerchantMarketController', class_exists('App\\Admin\\Controller\\MerchantMarketController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\AppstoreBuyController', class_exists('App\\Admin\\Controller\\AppstoreBuyController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\CouponController', class_exists('App\\Admin\\Controller\\CouponController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\OrderController', class_exists('App\\Admin\\Controller\\OrderController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogEditController', class_exists('App\\Admin\\Controller\\BlogEditController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\PageEditController', class_exists('App\\Admin\\Controller\\PageEditController'));
 
@@ -419,6 +420,14 @@ smoke_check(
     '后台路由 /admin/coupon → CouponController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\CouponController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/order');
+smoke_check(
+    '后台路由 /admin/order → OrderController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\OrderController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -2125,6 +2134,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/coupon 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/order', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/order 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

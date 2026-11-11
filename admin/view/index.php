@@ -163,7 +163,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                         <i class="fa fa-angle-right"></i>
                     </div>
                     <div class="admin-menu-group__body">
-                        <a href="/admin/order.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品订单'); ?></a>
+                        <a href="/admin/order" data-pjax="#adminContent" class="admin-menu-item"><?= t('商品订单'); ?></a>
                         <a href="/admin/recharge" data-pjax="#adminContent" class="admin-menu-item"><?= t('充值订单'); ?></a>
                         <a href="/admin/app_order" data-pjax="#adminContent" class="admin-menu-item"><?= t('应用订单'); ?></a>
                         <a href="/admin/withdraw" data-pjax="#adminContent" class="admin-menu-item"><?= t('提现申请'); ?></a>

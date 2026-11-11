@@ -32,6 +32,7 @@ use App\Admin\Controller\MerchantMarketController;
 use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
+use App\Admin\Controller\OrderController;
 use App\Admin\Controller\PageController;
 use App\Admin\Controller\PageEditController;
 use App\Admin\Controller\PluginController;
@@ -109,6 +110,7 @@ final class AdminRouter
         'merchant_market' => [MerchantMarketController::class, 'index'],
         'appstore_buy' => [AppstoreBuyController::class, 'index'],
         'coupon' => [CouponController::class, 'index'],
+        'order' => [OrderController::class, 'index'],
         'blog_edit' => [BlogEditController::class, 'index'],
         'page_edit' => [PageEditController::class, 'index'],
     ];
