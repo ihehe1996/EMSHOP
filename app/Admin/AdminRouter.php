@@ -16,6 +16,7 @@ use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
+use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
@@ -67,6 +68,7 @@ final class AdminRouter
         'merchant_level' => [MerchantLevelController::class, 'index'],
         'attachment' => [AttachmentController::class, 'index'],
         'merchant' => [MerchantController::class, 'index'],
+        'merchant_order' => [MerchantOrderController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
