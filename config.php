@@ -5,6 +5,13 @@ if (!defined('EM_ROOT')) {
     exit;
 }
 
+// CLI 启动探测会先 include 一次 config.php，init.php 随后还会再 require 一次；
+// 新格式重复 include 会触发 "Constant already defined"，这里直接返回。
+if (defined('EM_CONFIG_FILE_LOADED')) {
+    return;
+}
+define('EM_CONFIG_FILE_LOADED', true);
+
 // 配置值优先取环境变量；开发时可在项目根目录 .env 覆盖（见 .env.example）。
 // Env 类由 init.php / server 在加载本文件之前引入。
 
