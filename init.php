@@ -307,6 +307,9 @@ Cache::init();
 // 展示名称校验服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\DisplayName::class, DisplayName::instance());
 
+// 输出响应别名服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Http\Output::class, Output::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

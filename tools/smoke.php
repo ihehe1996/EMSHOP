@@ -824,6 +824,18 @@ smoke_check('DisplayName 控制字符拒绝', DisplayName::validate("a\x01b") ==
 smoke_check('DisplayName 合法名称', DisplayName::validate('正常名称 123') === null);
 smoke_check('DisplayName 容器实例与门面一致', $container->make(\App\Support\DisplayName::class) === DisplayName::instance());
 
+// Output：Response 兼容别名（会 exit，放子进程验证）
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Output::ok("ok", ["a" => 1]);', $root);
+smoke_check('Output ok 输出', $out === '{"code":200,"msg":"ok","data":{"a":1}}' && $exit === 0);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Output::fail("bad");', $root);
+smoke_check('Output fail 输出', $out === '{"code":400,"msg":"bad","data":[]}' && $exit === 0);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Output::json(201, "created", ["id" => 5]);', $root);
+smoke_check('Output json 输出', $out === '{"code":201,"msg":"created","data":{"id":5}}' && $exit === 0);
+
+smoke_check('Output 容器实例与门面一致', $container->make(\App\Http\Output::class) === Output::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
