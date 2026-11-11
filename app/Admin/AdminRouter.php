@@ -18,6 +18,7 @@ use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
 use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
+use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\WithdrawController;
 
 /**
@@ -59,6 +60,7 @@ final class AdminRouter
         'commission' => [CommissionController::class, 'index'],
         'withdraw' => [WithdrawController::class, 'index'],
         'recharge' => [RechargeController::class, 'index'],
+        'user_level' => [UserLevelController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
