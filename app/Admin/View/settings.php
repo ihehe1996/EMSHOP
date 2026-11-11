@@ -465,22 +465,6 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                     <input type="hidden" name="csrf_token" value="<?php echo $esc($csrfToken); ?>">
 
                     <div class="admin-settings__block">
-                        <div class="admin-settings__block-title"><i class="fa fa-lock"></i>后台入口</div>
-
-                        <div class="layui-form-item">
-                            <label class="layui-form-label">安全入口</label>
-                            <div class="layui-input-block">
-                                <?php echo formInput('admin_entry_key', $cfg['admin_entry_key'] ?? '', '如：emshop（留空关闭）', 32); ?>
-                            </div>
-                            <div class="layui-form-mid layui-word-aux" style="line-height:1.8;">
-                                后台面板管理入口，设置后只能通过指定安全入口登录后台面板，如：<code>/admin/sign.php?s=<b id="sec_preview">emshop</b></code><br>
-                                <span style="color:#f59e0b;">⚠ 留空表示关闭此功能，任何人访问 /admin/sign.php 都能看到登录页。</span><br>
-                                <span style="color:#9ca3af;">支持字母/数字/下划线/短横线，长度 1~32；请妥善保管并收藏带参数的 URL，忘记后需要通过 SSH 或数据库修改配置。</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="admin-settings__block">
                         <div class="admin-settings__block-title"><i class="fa fa-code"></i>开发者选项</div>
 
                         <div class="layui-form-item">
@@ -498,18 +482,6 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <button type="submit" class="em-btn em-save-btn"><i class="fa fa-check"></i>保存设置</button>
                     </div>
                 </form>
-                <script>
-                // 实时预览完整 URL 示例
-                (function(){
-                    var $ = layui.$;
-                    function refresh(){
-                        var v = ($('input[name=admin_entry_key]').val() || '').trim();
-                        $('#sec_preview').text(v || 'emshop');
-                    }
-                    $(document).on('input.admSettings', 'input[name=admin_entry_key]', refresh);
-                    refresh();
-                })();
-                </script>
             </div>
             <?php endif; ?>
 

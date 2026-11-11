@@ -120,14 +120,6 @@ final class SettingsController extends BaseAdminController
 
                 // 安全设置
                 case 'security':
-                    // 安全入口：正则限制为 [a-zA-Z0-9_-] 的短串，防路径穿越或注入
-                    $raw = trim((string) \Input::post('admin_entry_key', ''));
-                    if ($raw !== '' && !preg_match('/^[a-zA-Z0-9_\-]{1,32}$/', $raw)) {
-                        \Response::error('安全入口仅允许字母/数字/下划线/短横线，长度 1~32');
-                    }
-                    \Config::set('admin_entry_key', $raw);
-                    $saved++;
-
                     // 开发模式：未勾选时表单不传，按 0 存
                     \Config::set('license_dev_mode', \Input::post('license_dev_mode', '') === '' ? '0' : '1');
                     $saved++;
