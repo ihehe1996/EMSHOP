@@ -787,6 +787,32 @@ smoke_check('CsrfSecret 原子替换临时文件', $csrfReplaced === true && $tm
 
 smoke_check('CsrfSecret 容器实例与门面一致', $container->make(\App\Support\CsrfSecret::class) === CsrfSecret::instance());
 
+// Emmsg：error/info 输出与容器一致性（方法会 exit，放子进程验证）
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Emmsg::error("测试错误", "详情内容");', $root);
+smoke_check('Emmsg error 输出', $exit === 0
+    && strpos($out, '系统遇到了一点问题') !== false
+    && strpos($out, '测试错误') !== false
+    && strpos($out, '详情内容') !== false);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Emmsg::error("失败原因", new RuntimeException("boom"));', $root);
+smoke_check('Emmsg 异常详情输出', $exit === 0
+    && strpos($out, '失败原因') !== false
+    && strpos($out, 'boom') !== false
+    && strpos($out, '文件：') !== false);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Emmsg::info("请先登录", "操作提示", "第一步");', $root);
+smoke_check('Emmsg info 输出', $exit === 0
+    && strpos($out, '操作提示') !== false
+    && strpos($out, '请先登录') !== false
+    && strpos($out, '第一步') !== false);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Emmsg::info("去登录", "提示", null, [["label" => "立即登录", "href" => "/login", "primary" => true]]);', $root);
+smoke_check('Emmsg 自定义按钮输出', $exit === 0
+    && strpos($out, 'href="/login"') !== false
+    && strpos($out, '立即登录') !== false);
+
+smoke_check('Emmsg 容器实例与门面一致', $container->make(\App\Support\Emmsg::class) === Emmsg::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
