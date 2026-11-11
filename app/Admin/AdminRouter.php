@@ -12,6 +12,7 @@ use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
+use App\Admin\Controller\GoodsController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\LangController;
@@ -83,6 +84,7 @@ final class AdminRouter
         'system_log' => [SystemLogController::class, 'index'],
         'logs' => [LogsController::class, 'index'],
         'user_list' => [UserListController::class, 'index'],
+        'goods' => [GoodsController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
