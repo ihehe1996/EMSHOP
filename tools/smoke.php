@@ -457,6 +457,52 @@ if ($curPrimary !== null) {
     }
 }
 
+// View：数据/标题/主题状态、渲染与容器一致性
+$view = View::getInstance();
+$view->setData(['a' => 1]);
+$view->setData('b', 2);
+$view->assign(['c' => 3]);
+smoke_check('View 数据合并', $view->getData() === ['a' => 1, 'b' => 2, 'c' => 3]);
+
+$view->setTitle('测试标题');
+smoke_check('View 标题', $view->getTitle() === '测试标题');
+
+$smokeThemeName = '__smoke_theme_' . getmypid();
+$smokeThemeDir = $root . '/content/template/' . $smokeThemeName;
+$view->setTheme($smokeThemeName);
+smoke_check('View 主题', $view->getTheme() === $smokeThemeName);
+
+@mkdir($smokeThemeDir, 0777, true);
+try {
+    file_put_contents(
+        $smokeThemeDir . '/__smoke_body.php',
+        '<div>SMOKE:<?= htmlspecialchars((string) $smoke_value) ?>:<?= htmlspecialchars((string) $extra) ?></div>'
+    );
+    $view->setData(['smoke_value' => 'ok']);
+
+    ob_start();
+    $view->renderStandalone('__smoke_body', ['extra' => 'x']);
+    $smokeHtml = (string) ob_get_clean();
+    smoke_check('View 渲染模板与数据', strpos($smokeHtml, 'SMOKE:ok:x') !== false);
+
+    ob_start();
+    $view->renderStandalone('__smoke_body', ['extra' => 'y']);
+    $smokeHtml2 = (string) ob_get_clean();
+    smoke_check('View 重复渲染被忽略', $smokeHtml2 === '');
+} finally {
+    @unlink($smokeThemeDir . '/__smoke_body.php');
+    @rmdir($smokeThemeDir);
+}
+
+// View::jsonSuccess/jsonError 会 exit，放子进程验证
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; View::jsonSuccess("ok", ["a" => 1]);', $root);
+smoke_check('View jsonSuccess 输出', $out === '{"code":200,"msg":"ok","data":{"a":1}}' && $exit === 0);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; View::jsonError("bad");', $root);
+smoke_check('View jsonError 输出', $out === '{"code":400,"msg":"bad","data":[]}' && $exit === 0);
+
+smoke_check('View 容器实例与门面一致', $container->make(\App\Support\View::class) === View::service());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
