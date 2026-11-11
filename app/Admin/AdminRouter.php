@@ -16,6 +16,7 @@ use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
+use App\Admin\Controller\LogsController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
 use App\Admin\Controller\MerchantOrderController;
@@ -79,6 +80,7 @@ final class AdminRouter
         'profile' => [ProfileController::class, 'index'],
         'password' => [PasswordController::class, 'index'],
         'system_log' => [SystemLogController::class, 'index'],
+        'logs' => [LogsController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
