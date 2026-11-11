@@ -148,6 +148,45 @@ try {
 }
 smoke_check('Money 默认拒绝 0', $zeroRejected);
 
+// Response：服务方法会 exit，输出放到子进程验证
+/**
+ * 在子进程里执行一段 PHP 代码，返回 [输出, 退出码]。
+ *
+ * @return array{0: string, 1: int}
+ */
+function smoke_run_php(string $code, string $root): array
+{
+    $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+    $proc = proc_open(
+        [PHP_BINARY, '-r', $code],
+        [0 => ['file', $null, 'r'], 1 => ['pipe', 'w'], 2 => ['file', $null, 'w']],
+        $pipes,
+        $root
+    );
+
+    if (!is_resource($proc)) {
+        return ['', -1];
+    }
+
+    $out = (string) stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+
+    return [$out, proc_close($proc)];
+}
+
+$initFile = var_export($root . '/init.php', true);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Response::success("ok", ["a" => 1]);', $root);
+smoke_check('Response success 输出', $out === '{"code":200,"msg":"ok","data":{"a":1}}' && $exit === 0);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Response::error("bad");', $root);
+smoke_check('Response error 输出', $out === '{"code":400,"msg":"bad","data":[]}' && $exit === 0);
+
+[$out, $exit] = smoke_run_php('require ' . $initFile . '; Response::redirect("/x");', $root);
+smoke_check('Response redirect 退出', $out === '' && $exit === 0);
+
+smoke_check('Response 容器实例与门面一致', $container->make(\App\Http\Response::class) === Response::instance());
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);

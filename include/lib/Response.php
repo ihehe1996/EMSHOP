@@ -3,12 +3,34 @@
 declare(strict_types=1);
 
 /**
- * 统一响应类。
+ * 统一响应（兼容门面）。
  *
- * 负责 JSON 输出和页面跳转，避免入口文件中重复写 header + exit。
+ * 实际实现已迁到 App\Http\Response 实例服务；这里保留原有静态 API，
+ * 现有调用点、插件和模板都不用改。
+ *
+ * 注意：方法会以 exit 结束请求，与迁移前一致。
  */
 final class Response
 {
+    /** @var \App\Http\Response|null */
+    private static $service;
+
+    /**
+     * 获取内部响应服务实例。
+     */
+    public static function instance(): \App\Http\Response
+    {
+        if (self::$service === null) {
+            if (!class_exists(\App\Http\Response::class)) {
+                $root = defined('EM_ROOT') ? EM_ROOT : dirname(__DIR__, 2);
+                require_once $root . '/app/Http/Response.php';
+            }
+            self::$service = new \App\Http\Response();
+        }
+
+        return self::$service;
+    }
+
     /**
      * 输出标准 JSON 结构。
      *
@@ -16,16 +38,7 @@ final class Response
      */
     public static function json(int $code, string $msg, array $data = []): void
     {
-        if (!headers_sent()) {
-            header('Content-Type: application/json; charset=utf-8');
-        }
-
-        echo json_encode([
-            'code' => $code,
-            'msg' => $msg,
-            'data' => $data,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        exit;
+        self::instance()->json($code, $msg, $data);
     }
 
     /**
@@ -35,7 +48,7 @@ final class Response
      */
     public static function success(string $msg, array $data = []): void
     {
-        self::json(200, $msg, $data);
+        self::instance()->success($msg, $data);
     }
 
     /**
@@ -45,7 +58,7 @@ final class Response
      */
     public static function error(string $msg, array $data = []): void
     {
-        self::json(400, $msg, $data);
+        self::instance()->error($msg, $data);
     }
 
     /**
@@ -53,9 +66,6 @@ final class Response
      */
     public static function redirect(string $url): void
     {
-        if (!headers_sent()) {
-            header('Location: ' . $url);
-        }
-        exit;
+        self::instance()->redirect($url);
     }
 }

@@ -253,6 +253,9 @@ Cache::init();
 // 请求服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Http\Request::class, Request::instance());
 
+// 响应服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Http\Response::class, Response::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 
