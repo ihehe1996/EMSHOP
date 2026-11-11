@@ -3,12 +3,32 @@
 declare(strict_types=1);
 
 /**
- * 输入接收类。
+ * 输入接收（兼容门面）。
  *
- * 专门负责接收 GET、POST 参数，并做基础默认值和字符串去空白处理。
+ * 实际实现已迁到 App\Support\Input 实例服务；这里保留原有静态 API，
+ * 现有调用点、插件和模板都不用改。
  */
 final class Input
 {
+    /** @var \App\Support\Input|null */
+    private static $service;
+
+    /**
+     * 获取内部输入服务实例。
+     */
+    public static function instance(): \App\Support\Input
+    {
+        if (self::$service === null) {
+            if (!class_exists(\App\Support\Input::class)) {
+                $root = defined('EM_ROOT') ? EM_ROOT : dirname(__DIR__, 2);
+                require_once $root . '/app/Support/Input.php';
+            }
+            self::$service = new \App\Support\Input();
+        }
+
+        return self::$service;
+    }
+
     /**
      * 获取 POST 参数。
      *
@@ -17,7 +37,7 @@ final class Input
      */
     public static function post(string $key, $default = '')
     {
-        return self::value($_POST, $key, $default);
+        return self::instance()->post($key, $default);
     }
 
     /**
@@ -28,7 +48,7 @@ final class Input
      */
     public static function get(string $key, $default = '')
     {
-        return self::value($_GET, $key, $default);
+        return self::instance()->get($key, $default);
     }
 
     /**
@@ -38,7 +58,7 @@ final class Input
      */
     public static function allPost(): array
     {
-        return self::normalize($_POST);
+        return self::instance()->allPost();
     }
 
     /**
@@ -48,98 +68,36 @@ final class Input
      */
     public static function allGet(): array
     {
-        return self::normalize($_GET);
+        return self::instance()->allGet();
     }
 
-    /**
-     * @param array<string, mixed> $source
-     * @param mixed $default
-     * @return mixed
-     */
-    private static function value(array $source, string $key, $default)
-    {
-        if (!array_key_exists($key, $source)) {
-            return $default;
-        }
-
-        return self::clean($source[$key]);
-    }
-
-    /**
-     * @param array<string, mixed> $source
-     * @return array<string, mixed>
-     */
-    private static function normalize(array $source): array
-    {
-        $data = [];
-        foreach ($source as $key => $value) {
-            $data[$key] = self::clean($value);
-        }
-
-        return $data;
-    }
-
-    /**
-     * @param mixed $value
-     * @return mixed
-     */
-    private static function clean($value)
-    {
-        if (is_string($value)) {
-            return trim($value);
-        }
-
-        if (is_array($value)) {
-            $cleaned = [];
-            foreach ($value as $key => $item) {
-                $cleaned[$key] = self::clean($item);
-            }
-            return $cleaned;
-        }
-
-        return $value;
-    }
-
-    /**
-     * 获取 POST 字符串参数（自动去首尾空白）。
-     */
     public static function postStr(string $key, string $default = ''): string
     {
-        return (string) self::post($key, $default);
+        return self::instance()->postStr($key, $default);
     }
 
-    /**
-     * 获取 GET 字符串参数（自动去首尾空白）。
-     */
     public static function getStr(string $key, string $default = ''): string
     {
-        return (string) self::get($key, $default);
+        return self::instance()->getStr($key, $default);
     }
 
-    /**
-     * 获取 POST 整数参数。
-     */
     public static function postInt(string $key, int $default = 0): int
     {
-        return (int) self::post($key, $default);
+        return self::instance()->postInt($key, $default);
     }
 
-    /**
-     * 获取 GET 整数参数。
-     */
     public static function getInt(string $key, int $default = 0): int
     {
-        return (int) self::get($key, $default);
+        return self::instance()->getInt($key, $default);
     }
 
-    // 以下为兼容别名
     public static function postStrVar(string $key, string $default = ''): string
     {
-        return self::postStr($key, $default);
+        return self::instance()->postStrVar($key, $default);
     }
 
     public static function getStrVar(string $key, string $default = ''): string
     {
-        return self::getStr($key, $default);
+        return self::instance()->getStrVar($key, $default);
     }
 }

@@ -85,6 +85,31 @@ smoke_check('Cache remember 只执行一次', $hits === 1 && $first === 'first' 
 Cache::deleteGroup('smoke');
 smoke_check('Cache deleteGroup 生效', Cache::get($rememberKey) === null);
 
+// Input：门面与容器一致，去空白/数组/默认值行为不变
+$oldGet = $_GET;
+$oldPost = $_POST;
+$_GET = [
+    'g1' => '  hello  ',
+    'g2' => [' a ', 'b '],
+    'g3' => 5,
+];
+$_POST = [
+    'p1' => ' world ',
+    'p2' => '42',
+];
+
+smoke_check('Input GET 去空白', Input::get('g1') === 'hello');
+smoke_check('Input GET 数组递归去空白', Input::get('g2') === ['a', 'b']);
+smoke_check('Input GET 默认值', Input::get('missing', 'def') === 'def');
+smoke_check('Input POST Int', Input::postInt('p2') === 42);
+smoke_check('Input GET 字符串', Input::getStr('g1') === 'hello');
+smoke_check('Input allGet', Input::allGet()['g1'] === 'hello');
+smoke_check('Input 兼容别名', Input::getStrVar('g1') === 'hello' && Input::postStrVar('p1') === 'world');
+smoke_check('Input 容器实例与门面一致', $container->make(\App\Support\Input::class) === Input::instance());
+
+$_GET = $oldGet;
+$_POST = $oldPost;
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);

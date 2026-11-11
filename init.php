@@ -247,6 +247,9 @@ Cache::init();
 // 缓存实例注册进容器：静态门面和容器拿到同一个对象
 \App\Core\Application::instance()->container()->instance(\App\Support\Cache::class, Cache::instance());
 
+// 输入服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\Input::class, Input::instance());
+
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
 require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
 
