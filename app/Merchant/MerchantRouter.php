@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Merchant;
 
+use App\Merchant\Controller\ApplyController;
 use App\Merchant\Controller\AppstoreController;
+use App\Merchant\Controller\BlogEditController;
 use App\Merchant\Controller\BlogCategoryController;
 use App\Merchant\Controller\BlogController;
 use App\Merchant\Controller\CategoryController;
@@ -16,6 +18,7 @@ use App\Merchant\Controller\NaviController;
 use App\Merchant\Controller\NotFoundController;
 use App\Merchant\Controller\OrderController;
 use App\Merchant\Controller\PageController;
+use App\Merchant\Controller\PageEditController;
 use App\Merchant\Controller\PluginController;
 use App\Merchant\Controller\SettingsController;
 use App\Merchant\Controller\TemplateController;
@@ -50,6 +53,9 @@ final class MerchantRouter
         'plugin'        => [PluginController::class, 'index'],
         'appstore'      => [AppstoreController::class, 'index'],
         'goods'         => [GoodsController::class, 'index'],
+        'apply'         => [ApplyController::class, 'index'],
+        'blog_edit'     => [BlogEditController::class, 'index'],
+        'page_edit'     => [PageEditController::class, 'index'],
     ];
 
     /** @var MerchantRouter|null */
