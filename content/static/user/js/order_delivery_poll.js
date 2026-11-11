@@ -36,7 +36,7 @@
 
     function postPoll(payload, done) {
         if (typeof jQuery === 'undefined') return;
-        jQuery.post('/user/order_poll.php', payload, function (res) {
+        jQuery.post('/user/order_poll', payload, function (res) {
             if (!res || res.code !== 200) return;
             done(res.data || {});
         }, 'json');
