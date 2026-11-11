@@ -875,7 +875,7 @@ final class CliServer
     {
         // 兼容两种 config.php：新格式定义常量，老格式返回数组。
         // 升级过程中 apply 之后、update.php 执行之前，这里仍可能读到老格式。
-        $cfg = require EM_ROOT . '/config.php';
+        $cfg = require_once EM_ROOT . '/config.php';
         if (is_array($cfg)) {
             $db = (array) ($cfg['db'] ?? []);
         } else {
