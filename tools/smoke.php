@@ -503,6 +503,16 @@ smoke_check('View jsonError 输出', $out === '{"code":400,"msg":"bad","data":[]
 
 smoke_check('View 容器实例与门面一致', $container->make(\App\Support\View::class) === View::service());
 
+// Dispatcher：初始状态、访问器与容器一致性（路由解析由 HTTP 回归覆盖）
+$dispatcher = Dispatcher::getInstance();
+smoke_check('Dispatcher 初始动作', $dispatcher->getAction() === '_list');
+smoke_check('Dispatcher 初始控制器为空', $dispatcher->getController() === '');
+smoke_check('Dispatcher 初始路径参数为空', $dispatcher->getPathArgs() === []);
+smoke_check('Dispatcher getArg 默认值', $dispatcher->getArg('missing', 'def') === 'def');
+smoke_check('Dispatcher 初始主题为空', $dispatcher->getTheme() === '');
+smoke_check('Dispatcher getView 与 View 单例一致', $dispatcher->getView() === View::getInstance());
+smoke_check('Dispatcher 容器实例与门面一致', $container->make(\App\Http\Dispatcher::class) === Dispatcher::service());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
