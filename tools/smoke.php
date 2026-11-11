@@ -55,6 +55,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\AbstractAdminController',
 smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', class_exists('App\\Admin\\Controller\\BaseAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\DashboardController', class_exists('App\\Admin\\Controller\\DashboardController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\LicenseController', class_exists('App\\Admin\\Controller\\LicenseController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\SignController', class_exists('App\\Admin\\Controller\\SignController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NaviController', class_exists('App\\Admin\\Controller\\NaviController'));
@@ -456,6 +457,14 @@ smoke_check(
     '后台路由 /admin/update → UpdateController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\UpdateController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/license');
+smoke_check(
+    '后台路由 /admin/license → LicenseController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\LicenseController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -2226,6 +2235,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/update 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/license', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/license 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

@@ -2360,7 +2360,7 @@ $(function () {
             var origHtml = $btn.html();
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
             $.ajax({
-                url: '/admin/license.php',
+                url: '/admin/license',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -2398,7 +2398,7 @@ $(function () {
 
     // ========== 附加操作卡（激活码 / 下载）==========
     // 激活码卡：正常情况直接用首页初始化时已拉到的 buy_links 渲染，
-    // 不再打开 /admin/license.php?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
+    // 不再打开 /admin/license?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
     // 上次请求失败则点「获取」时重新请求接口，成功后再弹。
     function openBuyLinksPopup() {
         var links = __dashIndexData.buy_links || [];
@@ -2534,7 +2534,7 @@ $(function () {
             skin: 'admin-modal',
             area: [width + 'px', height + 'px'],
             shadeClose: true,
-            content: '/admin/license.php?_popup=official_login' +
+            content: '/admin/license?_popup=official_login' +
                      (initialTab === 'register' ? '&tab=register' : ''),
             end: function () {
                 try { delete window.__officialLoginResize; } catch (e) {}
@@ -2575,7 +2575,7 @@ $(function () {
                 window.innerHeight >= 760 ? '660px' : '88%'
             ],
             shadeClose: true,
-            content: '/admin/license.php?_popup=account'
+            content: '/admin/license?_popup=account'
         });
     });
 

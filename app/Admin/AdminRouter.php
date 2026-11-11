@@ -25,6 +25,7 @@ use App\Admin\Controller\GoodsController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
+use App\Admin\Controller\LicenseController;
 use App\Admin\Controller\LogsController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
@@ -119,6 +120,7 @@ final class AdminRouter
         'media' => [MediaController::class, 'index'],
         'upload' => [UploadController::class, 'index'],
         'update' => [UpdateController::class, 'index'],
+        'license' => [LicenseController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
