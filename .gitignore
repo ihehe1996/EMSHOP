@@ -10,6 +10,9 @@ AGENTS.md
 # 勿提交 Swoole 升级硬重启标记文件（根目录 .server）
 .server
 
+# 本地开发配置（含数据库密码），勿提交；模板见 .env.example
+.env
+
 /install/install.lock
 .user.ini
 .well-known/

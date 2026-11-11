@@ -399,44 +399,58 @@ function installer_drop_tables(array $db, array $tables): array
  */
 function installer_generate_config_php(array $db): string
 {
-    $lockGuard = <<<'PHP'
-// 未安装（缺少安装锁）时：自动跳转到在线安装向导
-if (!is_file(__DIR__ . '/install/install.lock')) {
-    header('Location: /install/');
+    $directAccessGuard = <<<'PHP'
+if (!defined('EM_ROOT')) {
+    http_response_code(404);
     exit;
 }
 PHP;
 
-    $config = [
-        'db' => [
-            'host' => (string) ($db['host'] ?? '127.0.0.1'),
-            'port' => (int) ($db['port'] ?? 3306),
-            'dbname' => (string) ($db['dbname'] ?? ''),
-            'username' => (string) ($db['username'] ?? ''),
-            'password' => (string) ($db['password'] ?? ''),
-            // 安装固定使用 utf8mb4，避免用户误选导致表/索引不兼容
-            'charset' => 'utf8mb4',
-            'prefix' => (string) ($db['prefix'] ?? 'em_'),
-        ],
-        'auth' => [
-            'session_key' => 'em_admin_auth',
-            'remember_cookie' => 'em_admin_remember',
-            'remember_days_default' => 7,
-            'remember_days_checked' => 365,
-            'csrf_key' => 'em_admin_csrf',
-            'secret' => bin2hex(random_bytes(32)),
-        ],
-        'avatar' => '/content/static/img/default-admin-avatar.jpg',
-        'placeholder_img' => '/content/static/img/img-1.png',
-        // 授权服务器地址不再写进 config.php：固定内置在 init.php 的 EM_LICENSE_SERVER_URL，
-        // 免得用户更新程序后 config.php 里的旧地址还在生效
+    $host   = (string) ($db['host'] ?? '127.0.0.1');
+    $port   = (int) ($db['port'] ?? 3306);
+    $name   = (string) ($db['dbname'] ?? '');
+    $user   = (string) ($db['username'] ?? '');
+    $pass   = (string) ($db['password'] ?? '');
+    $prefix = (string) ($db['prefix'] ?? 'em_');
+    $secret = bin2hex(random_bytes(32));
+
+    // 授权服务器地址不再写进 config.php：固定内置在 init.php 的 EM_LICENSE_SERVER_URL，
+    // 免得用户更新程序后 config.php 里的旧地址还在生效
+    $lines = [
+        '<?php',
+        '',
+        $directAccessGuard,
+        '',
+        '// 配置值优先取环境变量；开发时可在项目根目录 .env 覆盖（见 .env.example）',
+        '',
+        '// 应用配置（当前版本仅预留，功能后续接入）',
+        "define('EM_APP_NAME', Env::get('EM_APP_NAME', 'EMSHOP'));   // 应用名",
+        "define('EM_APP_ADMIN_ENTRY', Env::get('EM_APP_ADMIN_ENTRY', 'admin'));  // 后台安全入口 key，空 = 不限制",
+        '',
+        '// 数据库连接',
+        "define('EM_DB_HOST', Env::get('EM_DB_HOST', " . var_export($host, true) . '));',
+        "define('EM_DB_PORT', Env::get('EM_DB_PORT', " . var_export($port, true) . '));',
+        "define('EM_DB_NAME', Env::get('EM_DB_NAME', " . var_export($name, true) . '));',
+        "define('EM_DB_USER', Env::get('EM_DB_USER', " . var_export($user, true) . '));',
+        "define('EM_DB_PASSWORD', Env::get('EM_DB_PASSWORD', " . var_export($pass, true) . '));',
+        // 安装固定使用 utf8mb4，避免用户误选导致表/索引不兼容
+        "define('EM_DB_CHARSET', Env::get('EM_DB_CHARSET', 'utf8mb4'));",
+        "define('EM_DB_PREFIX', Env::get('EM_DB_PREFIX', " . var_export($prefix, true) . '));',
+        '',
+        '// 后台认证',
+        "define('EM_AUTH_SESSION_KEY', 'em_admin_auth');",
+        "define('EM_AUTH_SECRET', " . var_export($secret, true) . ');',
+        "define('EM_AUTH_REMEMBER_COOKIE', 'em_admin_remember');",
+        "define('EM_AUTH_REMEMBER_DAYS_DEFAULT', 7);",
+        "define('EM_AUTH_REMEMBER_DAYS_CHECKED', 365);",
+        "define('EM_AUTH_CSRF_KEY', 'em_admin_csrf');",
+        '',
+        '// 默认图片',
+        "define('EM_AVATAR', '/content/static/img/default-admin-avatar.jpg');",
+        "define('EM_PLACEHOLDER_IMG', '/content/static/img/img-1.png');",
     ];
 
-    $export = var_export($config, true);
-    $export = preg_replace('/^(\s*)array\s*\(/m', '$1[', (string) $export);
-    $export = preg_replace('/\)(,?)$/m', ']$1', (string) $export);
-
-    return "<?php\n\n" . $lockGuard . "\n\nreturn " . $export . ";\n";
+    return implode("\n", $lines) . "\n";
 }
 
 /**
@@ -1224,20 +1238,16 @@ if (!$snapshotBefore['ok']) {
     installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
 }
 
-// 切换到项目 Database：用内存 EM_CONFIG 启动 InstallService
+// 切换到项目 Database：用内存常量启动 InstallService
 // 安装调试开关：让 Database 在异常信息里附带 SQL/参数上下文（便于定位建表/建索引失败点）
 define('EM_INSTALLER_DEBUG', true);
-define('EM_CONFIG', [
-    'db' => [
-        'host' => $dbClean['host'],
-        'port' => $dbClean['port'],
-        'dbname' => $dbClean['dbname'],
-        'username' => $dbClean['username'],
-        'password' => $dbClean['password'],
-        'charset' => 'utf8mb4',
-        'prefix' => $dbClean['prefix'] ?: 'em_',
-    ],
-]);
+define('EM_DB_HOST', (string) $dbClean['host']);
+define('EM_DB_PORT', (int) $dbClean['port']);
+define('EM_DB_NAME', (string) $dbClean['dbname']);
+define('EM_DB_USER', (string) $dbClean['username']);
+define('EM_DB_PASSWORD', (string) $dbClean['password']);
+define('EM_DB_CHARSET', 'utf8mb4');
+define('EM_DB_PREFIX', (string) ($dbClean['prefix'] ?: 'em_'));
 
 try {
     $installer = new InstallService();

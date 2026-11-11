@@ -253,7 +253,15 @@ final class Database
             return self::$config;
         }
 
-        self::$config = EM_CONFIG['db'];
+        self::$config = [
+            'host'     => EM_DB_HOST,
+            'port'     => EM_DB_PORT,
+            'dbname'   => EM_DB_NAME,
+            'username' => EM_DB_USER,
+            'password' => EM_DB_PASSWORD,
+            'charset'  => EM_DB_CHARSET,
+            'prefix'   => EM_DB_PREFIX,
+        ];
         // 环境变量覆盖（WSL 等环境下数据库 host 可能不同）
         $envHost = getenv('EM_DB_HOST');
         if ($envHost !== false && $envHost !== '') {

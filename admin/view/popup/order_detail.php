@@ -412,7 +412,7 @@ $showMarkPaidBtn = in_array((string) $order['status'], ['pending', 'expired'], t
     <div class="od-panel" data-panel="2">
         <?php if ($buyer): ?>
             <?php
-            $avatar = !empty($buyer['avatar']) ? $buyer['avatar'] : (EM_CONFIG['placeholder_img'] ?? '');
+            $avatar = !empty($buyer['avatar']) ? $buyer['avatar'] : (defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '');
             $buyerMoney = number_format((float) bcdiv((string) ($buyer['money'] ?? 0), '1000000', 2), 2, '.', ',');
             ?>
             <div class="od-buyer">

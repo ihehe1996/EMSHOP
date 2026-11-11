@@ -27,7 +27,12 @@ final class AuthService
 
     public function __construct()
     {
-        $this->config = EM_CONFIG['auth'];
+        $this->config = [
+            'session_key'           => EM_AUTH_SESSION_KEY,
+            'remember_cookie'       => EM_AUTH_REMEMBER_COOKIE,
+            'remember_days_default' => EM_AUTH_REMEMBER_DAYS_DEFAULT,
+            'remember_days_checked' => EM_AUTH_REMEMBER_DAYS_CHECKED,
+        ];
         $this->users = new UserModel();
         $this->hasher = new PasswordHash(8, true);
     }

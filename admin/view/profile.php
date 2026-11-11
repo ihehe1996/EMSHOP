@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 $esc = function (string $str): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 };
-$avatarUrl = !empty($userFull['avatar']) ? $esc((string) $userFull['avatar']) : $esc(EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg');
+$avatarUrl = !empty($userFull['avatar']) ? $esc((string) $userFull['avatar']) : $esc(defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg');
 ?>
 <div class="admin-page">
     <h1 class="admin-page__title">个人信息</h1>
@@ -15,7 +15,7 @@ $avatarUrl = !empty($userFull['avatar']) ? $esc((string) $userFull['avatar']) : 
         <div class="admin-profile__section">
             <h3 class="admin-profile__section-title">头像</h3>
             <div class="admin-profile__avatar-field" id="profileAvatarField">
-                <img src="<?php echo $avatarUrl; ?>" alt="头像" id="profileAvatarPreview" layer-src="<?php echo $avatarUrl; ?>" onerror="this.src='<?php echo $esc(EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg'); ?>';this.onerror=null;">
+                <img src="<?php echo $avatarUrl; ?>" alt="头像" id="profileAvatarPreview" layer-src="<?php echo $avatarUrl; ?>" onerror="this.src='<?php echo $esc(defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg'); ?>';this.onerror=null;">
                 <input type="text" class="admin-profile__avatar-url" id="profileAvatarUrl" placeholder="头像图片 URL，可上传或选择" readonly disabled value="<?= empty($userFull['avatar']) ? '' : $userFull['avatar'] ?>">
                 <div class="admin-profile__avatar-btns">
                     <button type="button" class="layui-btn layui-btn-xs" id="profileAvatarBtn" title="上传"><i class="fa fa-upload"></i></button>
@@ -103,7 +103,7 @@ $(function(){
                             // 如果返回了新的头像则更新，否则保持不变
                             if (res.data.user.avatar) {
                                 var newAvatar = res.data.user.avatar;
-                                var fallbackAvatar = '<?php echo $esc(EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg'); ?>';
+                                var fallbackAvatar = '<?php echo $esc(defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg'); ?>';
                                 $('.admin-avatar').html('<img src="' + newAvatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.src=\'' + fallbackAvatar + '\';this.onerror=null;">');
                             }
                         }

@@ -10,7 +10,7 @@ $esc = function (string $str) use (&$esc): string {
 };
 
 // 占位图
-$placeholderImg = EM_CONFIG['placeholder_img'];
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '';
 
 include __DIR__ . '/header.php';
 ?>

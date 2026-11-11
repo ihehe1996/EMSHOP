@@ -27,6 +27,10 @@
 
 define('EM_ROOT', __DIR__);
 
+// 开发环境配置覆盖：.env 对 CLI（含数据库探测）同样生效
+require_once EM_ROOT . '/include/lib/Env.php';
+Env::load(EM_ROOT);
+
 // 只注册自动加载，先不 init 整站（主进程不需要连数据库）
 require_once EM_ROOT . '/include/lib/Autoloader.php';
 Autoloader::register([

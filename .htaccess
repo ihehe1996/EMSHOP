@@ -8,6 +8,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # 禁止直接访问 .env（开发配置，含数据库密码）
+    RewriteRule (^|/)\.env$ - [F,L]
+
     # 命中真实存在的文件（图片/CSS/JS 等）或目录时不重写，静态资源不受影响
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

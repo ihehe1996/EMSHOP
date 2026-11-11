@@ -4,7 +4,7 @@ if (!defined('EM_ROOT')) {
 }
 $csrfToken = Csrf::token();
 $isEdit = isset($goods) && !empty($goods);
-$placeholderImg = EM_CONFIG['placeholder_img'] ?? '/content/static/img/placeholder.png';
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '/content/static/img/placeholder.png';
 $coverImages = $isEdit && !empty($goods['cover_images']) ? json_decode($goods['cover_images'], true) : [];
 $pageTitle = $isEdit ? '编辑商品' : '添加商品';
 

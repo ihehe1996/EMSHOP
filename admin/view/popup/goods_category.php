@@ -12,7 +12,7 @@ $rebateCatL1Pct = ($rebateCat !== null && isset($rebateCat['l1'])) ? $rebateCat[
 $rebateCatL2Pct = ($rebateCat !== null && isset($rebateCat['l2'])) ? $rebateCat['l2'] / 100 : null;
 $rebateCatMode  = ($rebateCat !== null && !empty($rebateCat['mode'])) ? (string) $rebateCat['mode'] : '';
 
-$placeholderImg = EM_CONFIG['placeholder_img'];
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '';
 $esc = function (string $str) use (&$esc): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 };

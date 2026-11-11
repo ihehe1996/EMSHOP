@@ -9,7 +9,7 @@ if (!defined('EM_ROOT')) {
 
 $csrfToken = Csrf::token();
 $isEdit = isset($article) && !empty($article);
-$placeholderImg = EM_CONFIG['placeholder_img'] ?? '/content/static/img/placeholder.png';
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '/content/static/img/placeholder.png';
 $pageTitle = $isEdit ? '编辑文章' : '写文章';
 $popupTemplateUploadUrl = '/user/merchant/upload.php';
 $esc = function (?string $str): string {

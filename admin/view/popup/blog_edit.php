@@ -4,7 +4,7 @@ if (!defined('EM_ROOT')) {
 }
 $csrfToken = Csrf::token();
 $isEdit = isset($article) && !empty($article);
-$placeholderImg = EM_CONFIG['placeholder_img'] ?? '/content/static/img/placeholder.png';
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '/content/static/img/placeholder.png';
 $pageTitle = $isEdit ? '编辑文章' : '添加文章';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');

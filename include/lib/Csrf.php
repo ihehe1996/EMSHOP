@@ -191,7 +191,7 @@ final class Csrf
      */
     private static function sessionKey(): string
     {
-        return EM_CONFIG['auth']['csrf_key'] ?? 'csrf_token';
+        return defined('EM_AUTH_CSRF_KEY') ? EM_AUTH_CSRF_KEY : 'csrf_token';
     }
 
     /**
@@ -278,7 +278,7 @@ final class Csrf
         }
 
         // 使用配置的密钥派生，确保 cookie 签名不可伪造
-        $base = EM_CONFIG['auth']['csrf_key'] ?? 'default_csrf_key';
+        $base = defined('EM_AUTH_CSRF_KEY') ? EM_AUTH_CSRF_KEY : 'default_csrf_key';
 
         return hash('sha256', $base . $secret, true);
     }

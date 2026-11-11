@@ -122,7 +122,7 @@ if (Request::isPost()) {
                 }
 
                 $csrfToken = Csrf::refresh();
-                $defaultAvatar = EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg';
+                $defaultAvatar = defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg';
                 Response::success('已恢复默认头像', [
                     'csrf_token' => $csrfToken,
                     'avatar' => $defaultAvatar,

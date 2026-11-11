@@ -346,7 +346,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
 
                     <div class="admin-user-menu" id="adminUserMenu">
                         <button type="button" class="admin-user-menu__trigger">
-                            <span class="admin-avatar"><img src="<?php echo htmlspecialchars((string) ($user['avatar'] ?: (EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg')), ENT_QUOTES, 'UTF-8'); ?>" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.src='<?php echo htmlspecialchars(EM_CONFIG['avatar'] ?? '/content/static/img/avatar.jpeg', ENT_QUOTES, 'UTF-8'); ?>';this.onerror=null;"></span>
+                            <span class="admin-avatar"><img src="<?php echo htmlspecialchars((string) ($user['avatar'] ?: (defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg')), ENT_QUOTES, 'UTF-8'); ?>" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.src='<?php echo htmlspecialchars(defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg', ENT_QUOTES, 'UTF-8'); ?>';this.onerror=null;"></span>
                             <span class="admin-user-menu__meta">
                                 <strong><?php echo htmlspecialchars((string) (!empty($user['nickname']) ? $user['nickname'] : $user['username']), ENT_QUOTES, 'UTF-8'); ?></strong>
                                 <small>超级管理员</small>

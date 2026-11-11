@@ -9,7 +9,7 @@ $esc = function (string $str) use (&$esc): string {
 // 读取所有配置
 $cfg = Config::load();
 $siteUrlConfigured = trim((string) ($cfg['site_url'] ?? '')) !== '';
-$placeholderImg = defined('EM_CONFIG') && isset(EM_CONFIG['placeholder_img']) ? EM_CONFIG['placeholder_img'] : '';
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '';
 $templateModel = class_exists('TemplateModel') ? new TemplateModel() : null;
 $availableThemes = [];
 if ($templateModel !== null) {

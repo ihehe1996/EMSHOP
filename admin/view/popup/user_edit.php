@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $isEdit = isset($editUser) && $editUser !== null;
 
-$placeholderImg = EM_CONFIG['placeholder_img'];
+$placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '';
 $esc = function (string $str) use (&$esc): string {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 };

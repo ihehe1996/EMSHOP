@@ -873,8 +873,21 @@ final class CliServer
      */
     public static function probeMysql(): void
     {
+        // 兼容两种 config.php：新格式定义常量，老格式返回数组。
+        // 升级过程中 apply 之后、update.php 执行之前，这里仍可能读到老格式。
         $cfg = require EM_ROOT . '/config.php';
-        $db = (array) ($cfg['db'] ?? []);
+        if (is_array($cfg)) {
+            $db = (array) ($cfg['db'] ?? []);
+        } else {
+            $db = [
+                'host'     => defined('EM_DB_HOST') ? EM_DB_HOST : '127.0.0.1',
+                'port'     => defined('EM_DB_PORT') ? EM_DB_PORT : 3306,
+                'dbname'   => defined('EM_DB_NAME') ? EM_DB_NAME : '',
+                'username' => defined('EM_DB_USER') ? EM_DB_USER : '',
+                'password' => defined('EM_DB_PASSWORD') ? EM_DB_PASSWORD : '',
+                'charset'  => defined('EM_DB_CHARSET') ? EM_DB_CHARSET : 'utf8mb4',
+            ];
+        }
 
         $host = (string) ($db['host'] ?? '127.0.0.1');
         $port = (int) ($db['port'] ?? 3306);

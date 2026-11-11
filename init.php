@@ -41,9 +41,104 @@ define('EM_VERSION_TIMESTAMP', '1332'); // 文件版本号
 
 require EM_ROOT . '/base.php';
 
-// 加载站点配置（包含 db / auth 等）
+// 未安装（缺少安装锁）时：Web 请求自动跳转到在线安装向导。
+// 放在 init.php 而不是 config.php —— 配置文件只负责定义配置值，不掺业务判断。
+if (php_sapi_name() !== 'cli' && !is_file(EM_ROOT . '/install/install.lock')) {
+    header('Location: /install/');
+    exit;
+}
+
+// 开发环境配置覆盖：项目根目录 .env（不存在就用 config.php 默认值）。
+// 必须在 require config.php 之前加载，config.php 里的 define 会优先读环境变量。
+require_once EM_ROOT . '/include/lib/Env.php';
+Env::load(EM_ROOT);
+
+// 加载站点配置（包含 db / auth 等）。
+//
+// config.php 有两种历史格式：
+//   新格式：逐个 define('EM_DB_HOST', ...) ...
+//   老格式：return ['db' => [...], 'auth' => [...], ...]
+// 在线升级的顺序是「先替换文件、最后跑 update.php」，所以新 init.php 必须先能读
+// 老格式 config.php —— 否则 apply 之后的 migrate / run_script 请求会因
+// undefined constant 直接 500，升级流程走不到迁移配置那一步。
 $emFileConfig = require EM_ROOT . '/config.php';
-define('EM_CONFIG', $emFileConfig);
+
+if (is_array($emFileConfig)) {
+    // ---- 老格式：把数组值补成同名常量 ----
+    $emDb   = is_array($emFileConfig['db'] ?? null) ? $emFileConfig['db'] : [];
+    $emAuth = is_array($emFileConfig['auth'] ?? null) ? $emFileConfig['auth'] : [];
+    $emApp  = is_array($emFileConfig['app'] ?? null) ? $emFileConfig['app'] : [];
+
+    if (!defined('EM_APP_NAME'))        define('EM_APP_NAME', (string) (($emApp['name'] ?? '') ?: 'EMSHOP'));
+    if (!defined('EM_APP_ADMIN_ENTRY')) define('EM_APP_ADMIN_ENTRY', (string) (($emApp['admin_entry'] ?? '') ?: 'admin'));
+
+    if (!defined('EM_DB_HOST'))     define('EM_DB_HOST', (string) ($emDb['host'] ?? '127.0.0.1'));
+    if (!defined('EM_DB_PORT'))     define('EM_DB_PORT', (int) ($emDb['port'] ?? 3306));
+    if (!defined('EM_DB_NAME'))     define('EM_DB_NAME', (string) ($emDb['dbname'] ?? ''));
+    if (!defined('EM_DB_USER'))     define('EM_DB_USER', (string) ($emDb['username'] ?? ''));
+    if (!defined('EM_DB_PASSWORD')) define('EM_DB_PASSWORD', (string) ($emDb['password'] ?? ''));
+    if (!defined('EM_DB_CHARSET'))  define('EM_DB_CHARSET', (string) ($emDb['charset'] ?? 'utf8mb4'));
+    if (!defined('EM_DB_PREFIX'))   define('EM_DB_PREFIX', (string) ($emDb['prefix'] ?? 'em_'));
+
+    if (!defined('EM_AUTH_SESSION_KEY'))           define('EM_AUTH_SESSION_KEY', (string) ($emAuth['session_key'] ?? 'em_admin_auth'));
+    // secret 兼容更老的 app.secret
+    if (!defined('EM_AUTH_SECRET'))                define('EM_AUTH_SECRET', (string) ($emAuth['secret'] ?? ($emApp['secret'] ?? '')));
+    if (!defined('EM_AUTH_REMEMBER_COOKIE'))       define('EM_AUTH_REMEMBER_COOKIE', (string) ($emAuth['remember_cookie'] ?? 'em_admin_remember'));
+    if (!defined('EM_AUTH_REMEMBER_DAYS_DEFAULT')) define('EM_AUTH_REMEMBER_DAYS_DEFAULT', (int) ($emAuth['remember_days_default'] ?? 7));
+    if (!defined('EM_AUTH_REMEMBER_DAYS_CHECKED')) define('EM_AUTH_REMEMBER_DAYS_CHECKED', (int) ($emAuth['remember_days_checked'] ?? 365));
+    if (!defined('EM_AUTH_CSRF_KEY'))              define('EM_AUTH_CSRF_KEY', (string) ($emAuth['csrf_key'] ?? 'em_admin_csrf'));
+
+    if (!defined('EM_AVATAR'))          define('EM_AVATAR', (string) ($emFileConfig['avatar'] ?? '/content/static/img/default-admin-avatar.jpg'));
+    if (!defined('EM_PLACEHOLDER_IMG')) define('EM_PLACEHOLDER_IMG', (string) ($emFileConfig['placeholder_img'] ?? '/content/static/img/img-1.png'));
+} else {
+    // ---- 新格式：常量已由 config.php 定义；个别手改漏项时补默认值 ----
+    if (!defined('EM_APP_NAME'))        define('EM_APP_NAME', 'EMSHOP');
+    if (!defined('EM_APP_ADMIN_ENTRY')) define('EM_APP_ADMIN_ENTRY', 'admin');
+
+    if (!defined('EM_DB_HOST'))     define('EM_DB_HOST', '127.0.0.1');
+    if (!defined('EM_DB_PORT'))     define('EM_DB_PORT', 3306);
+    if (!defined('EM_DB_NAME'))     define('EM_DB_NAME', '');
+    if (!defined('EM_DB_USER'))     define('EM_DB_USER', '');
+    if (!defined('EM_DB_PASSWORD')) define('EM_DB_PASSWORD', '');
+    if (!defined('EM_DB_CHARSET'))  define('EM_DB_CHARSET', 'utf8mb4');
+    if (!defined('EM_DB_PREFIX'))   define('EM_DB_PREFIX', 'em_');
+
+    if (!defined('EM_AUTH_SESSION_KEY'))           define('EM_AUTH_SESSION_KEY', 'em_admin_auth');
+    if (!defined('EM_AUTH_SECRET'))                define('EM_AUTH_SECRET', '');
+    if (!defined('EM_AUTH_REMEMBER_COOKIE'))       define('EM_AUTH_REMEMBER_COOKIE', 'em_admin_remember');
+    if (!defined('EM_AUTH_REMEMBER_DAYS_DEFAULT')) define('EM_AUTH_REMEMBER_DAYS_DEFAULT', 7);
+    if (!defined('EM_AUTH_REMEMBER_DAYS_CHECKED')) define('EM_AUTH_REMEMBER_DAYS_CHECKED', 365);
+    if (!defined('EM_AUTH_CSRF_KEY'))              define('EM_AUTH_CSRF_KEY', 'em_admin_csrf');
+
+    if (!defined('EM_AVATAR'))          define('EM_AVATAR', '/content/static/img/default-admin-avatar.jpg');
+    if (!defined('EM_PLACEHOLDER_IMG')) define('EM_PLACEHOLDER_IMG', '/content/static/img/img-1.png');
+}
+
+// 兼容桥：插件 / 主题 / 旧代码可能仍在读 EM_CONFIG[...]。
+// 核心代码已改为直接读上面的常量，这个数组只保留给外部代码用。
+define('EM_CONFIG', [
+    'db' => [
+        'host'     => EM_DB_HOST,
+        'port'     => EM_DB_PORT,
+        'dbname'   => EM_DB_NAME,
+        'username' => EM_DB_USER,
+        'password' => EM_DB_PASSWORD,
+        'charset'  => EM_DB_CHARSET,
+        'prefix'   => EM_DB_PREFIX,
+    ],
+    'auth' => [
+        'session_key'           => EM_AUTH_SESSION_KEY,
+        'secret'                => EM_AUTH_SECRET,
+        'remember_cookie'       => EM_AUTH_REMEMBER_COOKIE,
+        'remember_days_default' => EM_AUTH_REMEMBER_DAYS_DEFAULT,
+        'remember_days_checked' => EM_AUTH_REMEMBER_DAYS_CHECKED,
+        'csrf_key'              => EM_AUTH_CSRF_KEY,
+    ],
+    'avatar'          => EM_AVATAR,
+    'placeholder_img' => EM_PLACEHOLDER_IMG,
+]);
+
+unset($emFileConfig, $emDb, $emAuth, $emApp);
 
 // PHP 8.0 字符串函数的 polyfill —— 项目需支持 PHP 7.4+
 // 避免在低版本环境下代码里直接用 str_starts_with / str_contains 等抛 undefined function

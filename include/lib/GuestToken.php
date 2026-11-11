@@ -130,8 +130,8 @@ final class GuestToken
         return hash(
             'sha256',
             'guest_token|'
-            . (string) (EM_CONFIG['db']['password'] ?? '')
-            . '|' . (string) (EM_CONFIG['db']['prefix'] ?? '')
+            . (string) (defined('EM_DB_PASSWORD') ? EM_DB_PASSWORD : '')
+            . '|' . (string) (defined('EM_DB_PREFIX') ? EM_DB_PREFIX : '')
         );
     }
 }
