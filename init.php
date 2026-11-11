@@ -75,7 +75,6 @@ if (!defined('EM_DB_HOST')) {
         $emApp  = is_array($emFileConfig['app'] ?? null) ? $emFileConfig['app'] : [];
 
         if (!defined('EM_APP_NAME'))        define('EM_APP_NAME', (string) (($emApp['name'] ?? '') ?: 'EMSHOP'));
-        if (!defined('EM_APP_ADMIN_ENTRY')) define('EM_APP_ADMIN_ENTRY', (string) (($emApp['admin_entry'] ?? '') ?: 'admin'));
 
         if (!defined('EM_DB_HOST'))     define('EM_DB_HOST', (string) ($emDb['host'] ?? '127.0.0.1'));
         if (!defined('EM_DB_PORT'))     define('EM_DB_PORT', (int) ($emDb['port'] ?? 3306));
@@ -100,7 +99,6 @@ if (!defined('EM_DB_HOST')) {
 
 // ---- 新格式：常量已由 config.php 定义；个别手改漏项时补默认值 ----
 if (!defined('EM_APP_NAME'))        define('EM_APP_NAME', 'EMSHOP');
-if (!defined('EM_APP_ADMIN_ENTRY')) define('EM_APP_ADMIN_ENTRY', 'admin');
 
 if (!defined('EM_DB_HOST'))     define('EM_DB_HOST', '127.0.0.1');
 if (!defined('EM_DB_PORT'))     define('EM_DB_PORT', 3306);
