@@ -9,9 +9,13 @@ use App\Merchant\Controller\BlogController;
 use App\Merchant\Controller\CategoryController;
 use App\Merchant\Controller\FinanceController;
 use App\Merchant\Controller\HomeController;
+use App\Merchant\Controller\MediaController;
 use App\Merchant\Controller\NaviController;
+use App\Merchant\Controller\OrderController;
 use App\Merchant\Controller\NotFoundController;
 use App\Merchant\Controller\PageController;
+use App\Merchant\Controller\SettingsController;
+use App\Merchant\Controller\UploadController;
 use App\Merchant\Controller\WithdrawController;
 
 /**
@@ -34,6 +38,10 @@ final class MerchantRouter
         'blog_category' => [BlogCategoryController::class, 'index'],
         'finance'       => [FinanceController::class, 'index'],
         'withdraw'      => [WithdrawController::class, 'index'],
+        'order'         => [OrderController::class, 'index'],
+        'settings'      => [SettingsController::class, 'index'],
+        'media'         => [MediaController::class, 'index'],
+        'upload'        => [UploadController::class, 'index'],
     ];
 
     /** @var MerchantRouter|null */
