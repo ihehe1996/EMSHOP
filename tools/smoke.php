@@ -239,6 +239,88 @@ smoke_check('Config 删除后回落默认值', Config::get($configKey, 'def') ==
 
 smoke_check('Config 容器实例与门面一致', $container->make(\App\Support\Config::class) === Config::instance());
 
+// Database：连接、CRUD、事务与容器一致性（临时表测试后清理）
+smoke_check('Database 驱动可用', in_array(Database::driver(), ['mysqli', 'pdo'], true));
+smoke_check('Database 前缀非空', Database::prefix() !== '');
+smoke_check('Database 配置完整', isset(Database::config()['dbname']) && Database::config()['dbname'] !== '');
+smoke_check('Database 服务端版本', Database::serverVersion() !== '');
+smoke_check('Database 版本满足建表', Database::mysqlVersionOk() === true);
+smoke_check('Database 原始连接可用', is_object(Database::rawConnection()));
+
+$dbTable = 'smoke_db_' . getmypid();
+$dbFullTable = Database::prefix() . $dbTable;
+Database::statement('DROP TABLE IF EXISTS `' . $dbFullTable . '`');
+Database::statement('CREATE TABLE `' . $dbFullTable . '` (`id` INT AUTO_INCREMENT PRIMARY KEY, `name` VARCHAR(32) NOT NULL, `uniq` VARCHAR(32) NOT NULL, UNIQUE KEY `uniq` (`uniq`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+try {
+    $dbId = Database::insert($dbTable, ['name' => 'a', 'uniq' => 'u1']);
+    smoke_check('Database insert 返回自增 ID', $dbId > 0);
+
+    $dbRow = Database::find($dbTable, $dbId);
+    smoke_check('Database find 按主键读取', $dbRow !== null && $dbRow['name'] === 'a');
+
+    $dbRow = Database::fetchOne('SELECT `name` FROM `' . $dbFullTable . '` WHERE `id` = ?', [$dbId]);
+    smoke_check('Database fetchOne', $dbRow !== null && $dbRow['name'] === 'a');
+
+    $dbRows = Database::query('SELECT `id` FROM `' . $dbFullTable . '`');
+    smoke_check('Database query 返回列表', count($dbRows) === 1);
+
+    $dbAffected = Database::update($dbTable, ['name' => 'b'], $dbId);
+    smoke_check('Database update 按 ID', $dbAffected === 1 && Database::find($dbTable, $dbId)['name'] === 'b');
+
+    $dbAffected = Database::update($dbTable, ['name' => 'c'], '`id` = ?', [$dbId]);
+    smoke_check('Database update 按条件', $dbAffected === 1 && Database::find($dbTable, $dbId)['name'] === 'c');
+
+    $dbRejected = false;
+    try {
+        Database::update($dbTable, ['name' => 'x'], '0 OR 1=1');
+    } catch (InvalidArgumentException $e) {
+        $dbRejected = true;
+    }
+    smoke_check('Database 拒绝拼接式 WHERE', $dbRejected);
+
+    $dbDuplicate = false;
+    try {
+        Database::insert($dbTable, ['name' => 'd', 'uniq' => 'u1']);
+    } catch (Throwable $e) {
+        $dbDuplicate = Database::isDuplicateKeyError($e);
+    }
+    smoke_check('Database 识别唯一键冲突', $dbDuplicate);
+
+    smoke_check('Database lastSqlContext', isset(Database::lastSqlContext()['sql']));
+
+    smoke_check('Database columnExists', Database::columnExists($dbFullTable, 'name') === true
+        && Database::columnExists($dbFullTable, 'missing') === false);
+
+    // 事务回滚
+    Database::begin();
+    smoke_check('Database 事务内标记', Database::inTransaction() === true);
+    Database::insert($dbTable, ['name' => 'rollback', 'uniq' => 'u2']);
+    Database::rollBack();
+    smoke_check('Database 回滚生效', Database::inTransaction() === false
+        && Database::fetchOne('SELECT `id` FROM `' . $dbFullTable . '` WHERE `uniq` = ?', ['u2']) === null);
+
+    // 事务提交
+    Database::begin();
+    $dbCommitId = Database::insert($dbTable, ['name' => 'commit', 'uniq' => 'u3']);
+    Database::commit();
+    smoke_check('Database 提交生效', Database::find($dbTable, $dbCommitId) !== null);
+
+    // 嵌套事务：内层回滚不影响外层提交
+    Database::begin();
+    $dbOuterId = Database::insert($dbTable, ['name' => 'outer', 'uniq' => 'u4']);
+    Database::begin();
+    Database::insert($dbTable, ['name' => 'inner', 'uniq' => 'u5']);
+    Database::rollBack();
+    Database::commit();
+    smoke_check('Database 嵌套事务内层回滚', Database::find($dbTable, $dbOuterId) !== null
+        && Database::fetchOne('SELECT `id` FROM `' . $dbFullTable . '` WHERE `uniq` = ?', ['u5']) === null);
+} finally {
+    Database::statement('DROP TABLE IF EXISTS `' . $dbFullTable . '`');
+}
+
+smoke_check('Database 容器实例与门面一致', $container->make(\App\Support\Database::class) === Database::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
