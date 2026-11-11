@@ -10,6 +10,7 @@ use App\Admin\Controller\BlogCommentController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\CommissionController;
+use App\Admin\Controller\CurrencyController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsController;
@@ -85,6 +86,7 @@ final class AdminRouter
         'logs' => [LogsController::class, 'index'],
         'user_list' => [UserListController::class, 'index'],
         'goods' => [GoodsController::class, 'index'],
+        'currency' => [CurrencyController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
