@@ -664,6 +664,25 @@ $_COOKIE = $oldCookieForInvite;
 
 smoke_check('InviteToken 容器实例与门面一致', $container->make(\App\Support\InviteToken::class) === InviteToken::instance());
 
+// WorkerHeartbeat：常量、路径、只读状态与容器一致性（不触碰真实心跳文件）
+smoke_check('WorkerHeartbeat 常量', WorkerHeartbeat::TTL === 15
+    && WorkerHeartbeat::CAPABILITY_DELIVERY === 'delivery'
+    && WorkerHeartbeat::WORKER_QUEUE === 'queue');
+
+$hbDir = WorkerHeartbeat::runtimeDir();
+smoke_check('WorkerHeartbeat 运行目录', substr($hbDir, -15) === '/content/server');
+smoke_check('WorkerHeartbeat 宿主心跳路径', WorkerHeartbeat::hostFile() === $hbDir . '/server.heartbeat');
+smoke_check('WorkerHeartbeat worker 路径', WorkerHeartbeat::workerFile('delivery') === $hbDir . '/worker.delivery.heartbeat');
+smoke_check('WorkerHeartbeat 类型名过滤', WorkerHeartbeat::workerFile('../evil') === $hbDir . '/worker.evil.heartbeat'
+    && WorkerHeartbeat::workerFile('!!!') === $hbDir . '/worker.unknown.heartbeat');
+
+$hbMissing = '__smoke_worker_' . getmypid();
+smoke_check('WorkerHeartbeat 不存在的 worker', WorkerHeartbeat::isAlive($hbMissing) === false
+    && WorkerHeartbeat::age($hbMissing) === null);
+smoke_check('WorkerHeartbeat 批量状态', WorkerHeartbeat::status([$hbMissing]) === [$hbMissing => ['alive' => false, 'age' => null]]);
+
+smoke_check('WorkerHeartbeat 容器实例与门面一致', $container->make(\App\Support\WorkerHeartbeat::class) === WorkerHeartbeat::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
