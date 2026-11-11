@@ -26,6 +26,7 @@ use App\Admin\Controller\PasswordController;
 use App\Admin\Controller\ProfileController;
 use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
+use App\Admin\Controller\SystemLogController;
 use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\WithdrawController;
 
@@ -77,6 +78,7 @@ final class AdminRouter
         'lang' => [LangController::class, 'index'],
         'profile' => [ProfileController::class, 'index'],
         'password' => [PasswordController::class, 'index'],
+        'system_log' => [SystemLogController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
