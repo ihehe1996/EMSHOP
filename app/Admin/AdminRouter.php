@@ -13,6 +13,7 @@ use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\CurrencyController;
 use App\Admin\Controller\CurrencyPopupController;
 use App\Admin\Controller\DisclaimerController;
+use App\Admin\Controller\EditorDemoController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsController;
@@ -91,6 +92,7 @@ final class AdminRouter
         'currency' => [CurrencyController::class, 'index'],
         'currency_popup' => [CurrencyPopupController::class, 'index'],
         'disclaimer' => [DisclaimerController::class, 'index'],
+        'editor_demo' => [EditorDemoController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
