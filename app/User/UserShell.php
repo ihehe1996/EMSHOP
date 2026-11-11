@@ -13,17 +13,17 @@ namespace App\User;
 final class UserShell
 {
     /**
-     * @param string               $contentView 内容区视图绝对路径
-     * @param array<string, mixed> $user        当前前台用户
-     * @param array<string, mixed> $vars        控制器传给内容视图的局部变量
+     * @param string                    $contentView 内容区视图绝对路径
+     * @param array<string, mixed>|null $user        当前前台用户；游客为 null
+     * @param array<string, mixed>      $vars        控制器传给内容视图的局部变量
      */
-    public static function render(string $contentView, array $user, array $vars = []): void
+    public static function render(string $contentView, ?array $user, array $vars = []): void
     {
         if (!is_file($contentView)) {
             throw new \RuntimeException('用户中心视图不存在：' . $contentView);
         }
 
-        $frontUser = $user;
+        $frontUser = $user ?? [];
         $siteName = (string) \Config::get('sitename', 'EMSHOP');
         $csrfToken = \Csrf::token();
 

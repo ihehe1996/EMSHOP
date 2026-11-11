@@ -513,6 +513,17 @@ smoke_check(
         && $userRoute['class'] === \App\User\Controller\HomeController::class
         && $userRoute['action'] === 'index'
 );
+$userRoute = $userRouter->resolve('/user/find_order');
+smoke_check(
+    '用户中心路由 /user/find_order → FindOrderController::index',
+    is_array($userRoute) && $userRoute['class'] === \App\User\Controller\FindOrderController::class
+);
+$userRoute = $userRouter->resolve('/user/order_detail');
+smoke_check(
+    '用户中心路由 /user/order_detail → OrderDetailController::index',
+    is_array($userRoute) && $userRoute['class'] === \App\User\Controller\OrderDetailController::class
+);
+
 $merchantRoute = $merchantRouter->resolve('/user/merchant/home');
 smoke_check(
     '商户后台路由 /user/merchant/home → HomeController::index',

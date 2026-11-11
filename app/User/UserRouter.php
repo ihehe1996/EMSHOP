@@ -8,9 +8,13 @@ use App\User\Controller\AddressController;
 use App\User\Controller\ApiController;
 use App\User\Controller\BalanceLogController;
 use App\User\Controller\CouponController;
+use App\User\Controller\CurrencySwitchController;
+use App\User\Controller\FindOrderController;
 use App\User\Controller\HomeController;
 use App\User\Controller\NotFoundController;
 use App\User\Controller\OrderController;
+use App\User\Controller\OrderDetailController;
+use App\User\Controller\OrderPollController;
 use App\User\Controller\ProfileController;
 use App\User\Controller\RebateController;
 use App\User\Controller\WalletController;
@@ -44,6 +48,10 @@ final class UserRouter
         'rebate'      => [RebateController::class, 'index'],
         'api'         => [ApiController::class, 'index'],
         'order'       => [OrderController::class, 'index'],
+        'order_detail' => [OrderDetailController::class, 'index'],
+        'order_poll'   => [OrderPollController::class, 'index'],
+        'find_order'   => [FindOrderController::class, 'index'],
+        'currency_switch' => [CurrencySwitchController::class, 'index'],
     ];
 
     /** @var UserRouter|null */
