@@ -310,6 +310,9 @@ Cache::init();
 // 输出响应别名服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Http\Output::class, Output::instance());
 
+// 日志脱敏服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\LogSanitizer::class, LogSanitizer::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

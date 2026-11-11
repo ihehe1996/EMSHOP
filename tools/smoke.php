@@ -836,6 +836,27 @@ smoke_check('Output json 输出', $out === '{"code":201,"msg":"created","data":{
 
 smoke_check('Output 容器实例与门面一致', $container->make(\App\Http\Output::class) === Output::instance());
 
+// LogSanitizer：脱敏规则与容器一致性
+smoke_check('LogSanitizer 空消息', LogSanitizer::sanitize('') === '');
+
+$lsOrder = LogSanitizer::sanitize('order 20240101123045123456 done');
+smoke_check('LogSanitizer 订单号脱敏', strpos($lsOrder, '2024**************56') !== false
+    && strpos($lsOrder, '20240101123045123456') === false);
+
+$lsRecharge = LogSanitizer::sanitize('recharge R20240101123045123456');
+smoke_check('LogSanitizer 充值单号脱敏', strpos($lsRecharge, 'R2024**************56') !== false);
+
+smoke_check('LogSanitizer 邮箱脱敏', LogSanitizer::sanitize('mail user@example.com') === 'mail u***@example.com');
+smoke_check('LogSanitizer 手机号脱敏', LogSanitizer::sanitize('tel 13812345678') === 'tel 138****5678');
+smoke_check('LogSanitizer 身份证脱敏', LogSanitizer::sanitize('id 110101199001011234') === 'id 110101********1234');
+
+$lsHash = str_repeat('a', 32);
+smoke_check('LogSanitizer 长哈希脱敏', LogSanitizer::sanitize('hash ' . $lsHash) === 'hash ***(32位哈希)');
+
+smoke_check('LogSanitizer 敏感赋值脱敏', LogSanitizer::sanitize('password=abc token: xyz api_key=123') === 'password=*** token: *** api_key=***');
+smoke_check('LogSanitizer 普通内容保留', LogSanitizer::sanitize('order_id=12345 status=paid') === 'order_id=12345 status=paid');
+smoke_check('LogSanitizer 容器实例与门面一致', $container->make(\App\Support\LogSanitizer::class) === LogSanitizer::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
