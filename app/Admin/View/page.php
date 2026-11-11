@@ -346,7 +346,7 @@ $(function(){
 
         // 打开编辑弹窗
         function openEditPopup(title, editId) {
-            var url = '/admin/page_edit.php?_popup=1';
+            var url = '/admin/page_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             window._pagePopupSaved = false;
             layer.open({

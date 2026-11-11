@@ -33,6 +33,7 @@ use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
+use App\Admin\Controller\PageEditController;
 use App\Admin\Controller\PluginController;
 use App\Admin\Controller\SettingsController;
 use App\Admin\Controller\PasswordController;
@@ -109,6 +110,7 @@ final class AdminRouter
         'appstore_buy' => [AppstoreBuyController::class, 'index'],
         'coupon' => [CouponController::class, 'index'],
         'blog_edit' => [BlogEditController::class, 'index'],
+        'page_edit' => [PageEditController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
