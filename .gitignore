@@ -34,3 +34,6 @@ AGENTS.md
 /logs/
 # /content/plugin/*
 # /content/template/*
+
+# 升级包一次性脚本（执行后自动删除），不提交仓库
+/update.php
