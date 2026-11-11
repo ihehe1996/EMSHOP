@@ -12,6 +12,7 @@ use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\CurrencyController;
 use App\Admin\Controller\CurrencyPopupController;
+use App\Admin\Controller\DisclaimerController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsController;
@@ -89,6 +90,7 @@ final class AdminRouter
         'goods' => [GoodsController::class, 'index'],
         'currency' => [CurrencyController::class, 'index'],
         'currency_popup' => [CurrencyPopupController::class, 'index'],
+        'disclaimer' => [DisclaimerController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
