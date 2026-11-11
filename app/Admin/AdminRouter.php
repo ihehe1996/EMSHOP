@@ -13,6 +13,7 @@ use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
+use App\Admin\Controller\MerchantLevelController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
 use App\Admin\Controller\PageController;
@@ -61,6 +62,7 @@ final class AdminRouter
         'withdraw' => [WithdrawController::class, 'index'],
         'recharge' => [RechargeController::class, 'index'],
         'user_level' => [UserLevelController::class, 'index'],
+        'merchant_level' => [MerchantLevelController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
