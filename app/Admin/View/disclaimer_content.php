@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 /**
  * 免责协议正文（纯内容片段）。
  *
- * 签署弹层（admin/view/index.php）与查看页（admin/view/disclaimer.php）共用本文件，
+ * 框架壳签署弹层与免责协议查看页共用本文件，
  * 修改正文后请同步递增 DisclaimerService::VERSION。
  */
 ?>

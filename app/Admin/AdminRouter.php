@@ -63,8 +63,7 @@ use App\Admin\Controller\WithdrawController;
  *   /admin          → DashboardController::index()
  *   /admin/home     → DashboardController::index()
  *
- * 物理文件（过渡期的旧 admin/*.php、静态资源）由 Web 服务器直接命中，
- * 不会进入本路由，因此新旧后台可以并存。
+ * 带点/带扩展名的路径不会进入本路由，交给前台 Dispatcher 或 Web 服务器静态文件。
  *
  * 为什么限制扩展名：标准 Nginx 配置把 .php 请求直接交给 PHP-FPM，
  * 不经过 index.php 的 try_files 兜底；带扩展名的路径即使到达这里也不该由框架接管。

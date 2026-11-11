@@ -2515,7 +2515,7 @@ $(function () {
         dashEnsureIndexData(openDownloadPopup);
     });
 
-    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（admin/license.php?_popup=official_login）
+    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（/admin/license?_popup=official_login）
     function openOfficialAuthPopup(initialTab) {
         if (typeof layui === 'undefined' || !layui.layer) return;
 

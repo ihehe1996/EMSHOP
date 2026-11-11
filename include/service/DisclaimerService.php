@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * 免责协议签署状态。
  *
- * 协议正文在后台布局 admin/view/index.php 中渲染；本类只负责版本号与签署记录，
+ * 协议正文在后台框架壳 app/Admin/View/shell.php 中渲染；本类只负责版本号与签署记录，
  * 记录写入 config 表的 disclaimer_accepted 键（JSON），全站保留最近一次签署。
  */
 final class DisclaimerService

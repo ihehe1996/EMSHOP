@@ -172,7 +172,7 @@ $csrfToken = Csrf::token();
     line-height: 1.4;
 }
 
-/* em-filter / em-quick-search 样式已提到 admin/static/css/style.css 公共组件里 */
+/* em-filter / em-quick-search 样式已提到 content/static/admin/css/style.css 公共组件里 */
 </style>
 
 <!-- 库存显示模板 -->

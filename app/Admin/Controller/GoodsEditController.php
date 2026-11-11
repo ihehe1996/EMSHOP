@@ -588,7 +588,7 @@ final class GoodsEditController extends BaseAdminController
 
         // 插件专属 action（card_list/card_import/card_delete/card_export/card_manager）
         // 已迁移至各自的商品类型插件目录，通过 admin_plugin_action 钩子分发
-        // 路由入口：/admin/index.php?_action=card_list 等
+        // 路由入口：/admin/plugin_action?_action=card_list 等
 
         // 库存管理弹窗（按商品类型加载不同的库存管理界面）
         if ($action === 'stock_manager') {

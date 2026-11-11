@@ -35,8 +35,8 @@ if ($requestPath === '/test') {
     exit;
 }
 
-// 后台新路由：/admin 与无扩展名的 /admin/xxx 由框架接管。
-// 物理文件（旧 admin/*.php、静态资源）仍由 Web 服务器直接命中，过渡期新旧后台并存。
+// 后台路由：/admin 与无扩展名的 /admin/xxx 由框架接管。
+// 带扩展名/带点的路径不接管，交给前台 Dispatcher 或 Web 服务器静态文件。
 if (\App\Admin\AdminRouter::instance()->handleCurrentRequest()) {
     exit;
 }

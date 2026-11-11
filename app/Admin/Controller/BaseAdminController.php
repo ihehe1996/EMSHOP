@@ -8,7 +8,6 @@ namespace App\Admin\Controller;
  * 新后台控制器基类（需要登录）。
  *
  * 负责所有后台页面共用的前置条件：登录校验、CSRF 密钥补齐、当前 scope 固定为 main。
- * 与旧 admin/global.php 的 adminRequireLogin() 行为保持一致，便于过渡期两个后台并存。
  *
  * 子类动作方法直接输出页面，不返回值；由 AdminRouter 负责调用。
  */
@@ -16,8 +15,6 @@ abstract class BaseAdminController extends AbstractAdminController
 {
     /**
      * 登录页地址。
-     *
-     * 已迁到新后台路由；旧 admin/sign.php 在过渡期仍然可用。
      */
     protected const SIGN_URL = '/admin/sign';
 

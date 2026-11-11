@@ -23,7 +23,7 @@ final class PluginModel
     /**
      * 主站后台应用商店的分类(id => 名称)。
      *
-     * ⚠️ 这里的 id 是**服务端**分类表的 id：admin/view/appstore.php 渲染成分类 tab，
+     * ⚠️ 这里的 id 是**服务端**分类表的 id：app/Admin/View/appstore.php 渲染成分类 tab，
      * 原样作为 category_id 传给 app-list 接口，所以必须与服务端的 categories 一致，
      * 本地不能自己编号（曾经本地 1 是"支付插件"、服务端 1 是"模板主题"，分类筛选全错）。
      *

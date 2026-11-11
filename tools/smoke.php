@@ -109,7 +109,7 @@ smoke_check('新类可加载：App\\Admin\\AdminShell', class_exists('App\\Admin
 smoke_check('新类可加载：App\\Support\\LegacyAdminRemoval', class_exists('App\\Support\\LegacyAdminRemoval'));
 smoke_check(
     '旧后台删除标记不应残留',
-    !is_file($root . '/content/tmp/admin_legacy_removal.pending') && is_dir($root . '/admin')
+    !is_file($root . '/content/tmp/admin_legacy_removal.pending')
 );
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
@@ -1581,7 +1581,7 @@ if (in_array('--http', $argv, true)) {
     $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
 
     // 模拟 Nginx try_files：真实文件交给静态服务器，其余进 index.php。
-    // 内置服务器会把 /admin/xxx 解析成 admin/index.php，这里强制回退到根入口，
+    // 内置服务器处理不存在的路径时会直接 404，这里强制回退到根入口，
     // 与线上 SCRIPT_NAME=/index.php 的行为保持一致。
     $routerCode = <<<'PHP'
     <?php
@@ -1610,10 +1610,8 @@ if (in_array('--http', $argv, true)) {
     } else {
         usleep(800000);
 
-        $adminKey = trim((string) Config::get('admin_entry_key', ''));
         $urls = [
             '/' => 200,
-            '/admin/sign.php' . ($adminKey !== '' ? '?s=' . rawurlencode($adminKey) : '') => 200,
         ];
 
         foreach ($urls as $path => $expect) {
