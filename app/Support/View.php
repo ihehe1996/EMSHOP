@@ -443,8 +443,10 @@ final class View
         $dirs = [
             EM_ROOT . '/content/template/' . $this->theme . '/',
             EM_ROOT . '/content/template/default/',
-            // 公共视图（user/view/）：登录 / 注册 / 找回密码等账号页，全站共用一份。
+            // 公共视图（app/User/View/public/）：登录 / 注册 / 找回密码等账号页，全站共用一份。
             // 放在主题目录之后：主题里自带同名文件时仍优先用主题的（老主题定制不失效）。
+            EM_ROOT . '/app/User/View/public/',
+            // 过渡期兼容：旧目录里还有一份同名文件，等 user/ 目录删除后移除
             EM_ROOT . '/user/view/',
             // 核心视图回退（include/view/），供各模板共用
             EM_ROOT . '/include/view/',
