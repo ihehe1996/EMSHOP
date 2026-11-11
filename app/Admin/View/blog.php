@@ -400,7 +400,7 @@ $(function(){
         // 打开编辑弹窗
         // ============================================================
         function openEditPopup(title, editId) {
-            var url = '/admin/blog_edit.php?_popup=1';
+            var url = '/admin/blog_edit?_popup=1';
             if (editId) url += '&id=' + encodeURIComponent(editId);
             window._blogPopupSaved = false;
             layer.open({

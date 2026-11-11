@@ -9,6 +9,7 @@ use App\Admin\Controller\AppstoreBuyController;
 use App\Admin\Controller\AttachmentController;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
+use App\Admin\Controller\BlogEditController;
 use App\Admin\Controller\BlogController;
 use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\CommissionController;
@@ -107,6 +108,7 @@ final class AdminRouter
         'merchant_market' => [MerchantMarketController::class, 'index'],
         'appstore_buy' => [AppstoreBuyController::class, 'index'],
         'coupon' => [CouponController::class, 'index'],
+        'blog_edit' => [BlogEditController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
