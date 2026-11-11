@@ -74,6 +74,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\AttachmentController', cl
 smoke_check('新类可加载：App\\Admin\\Controller\\MerchantController', class_exists('App\\Admin\\Controller\\MerchantController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\MerchantOrderController', class_exists('App\\Admin\\Controller\\MerchantOrderController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\LanguageController', class_exists('App\\Admin\\Controller\\LanguageController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\LangController', class_exists('App\\Admin\\Controller\\LangController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -255,6 +256,14 @@ smoke_check(
     '后台路由 /admin/language → LanguageController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\LanguageController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/lang');
+smoke_check(
+    '后台路由 /admin/lang → LangController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\LangController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1657,6 +1666,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/language 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/lang', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/lang 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

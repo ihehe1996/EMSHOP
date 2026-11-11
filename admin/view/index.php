@@ -228,7 +228,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                     </div>
                     <div class="admin-menu-group__body">
                         <a href="/admin/language" data-pjax="#adminContent" class="admin-menu-item"><?= t('语言列表'); ?></a>
-                        <a href="/admin/lang.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('翻译管理'); ?></a>
+                        <a href="/admin/lang" data-pjax="#adminContent" class="admin-menu-item"><?= t('翻译管理'); ?></a>
                     </div>
                 </div>
 

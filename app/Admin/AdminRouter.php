@@ -14,6 +14,7 @@ use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
+use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
@@ -71,6 +72,7 @@ final class AdminRouter
         'merchant' => [MerchantController::class, 'index'],
         'merchant_order' => [MerchantOrderController::class, 'index'],
         'language' => [LanguageController::class, 'index'],
+        'lang' => [LangController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
