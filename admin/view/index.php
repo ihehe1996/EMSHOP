@@ -124,7 +124,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
         <!-- 左侧菜单 -->
         <aside class="admin-sidebar<?php if (!empty($_COOKIE['admin_sidebar_collapsed']) && $_COOKIE['admin_sidebar_collapsed'] === '1') { echo ' is-collapsed'; } ?>" id="adminSidebar">
             <div class="admin-sidebar__header">
-                <a href="/admin/home.php" data-pjax="#adminContent" class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></a>
+                <a href="/admin/home" data-pjax="#adminContent" class="admin-sidebar__site-name"><?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></a>
             </div>
 
             <div class="admin-sidebar__body">
@@ -132,7 +132,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                 <div class="admin-menu-title"><?= t('Dashboard'); ?></div>
 
                 <!-- 1. 控制台 -->
-                <a href="/admin/home.php" data-pjax="#adminContent" class="admin-menu-item is-active">
+                <a href="/admin/home" data-pjax="#adminContent" class="admin-menu-item is-active">
                     <i class="fa fa-dashboard"></i>
                     <span><?= t('控制台'); ?></span>
                 </a>
@@ -403,7 +403,7 @@ $(function () {
             area: [window.innerWidth >= 640 ? '560px' : '94%', window.innerHeight >= 640 ? '550px' : '80%'],
             shade: 0.45,
             shadeClose: true,
-            content: '/admin/home.php?_popup=server_restart'
+            content: '/admin/home?_popup=server_restart'
         });
         <?php endif; ?>
         // ========== 授权服务器线路切换（toolbar 全局）==========

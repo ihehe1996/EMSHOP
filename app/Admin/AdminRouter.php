@@ -16,13 +16,13 @@ use App\Admin\Controller\CommissionController;
 use App\Admin\Controller\CouponController;
 use App\Admin\Controller\CurrencyController;
 use App\Admin\Controller\CurrencyPopupController;
+use App\Admin\Controller\DashboardController;
 use App\Admin\Controller\DisclaimerController;
 use App\Admin\Controller\EditorDemoController;
 use App\Admin\Controller\FriendLinkController;
 use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsController;
 use App\Admin\Controller\GoodsTagController;
-use App\Admin\Controller\HomeController;
 use App\Admin\Controller\LangController;
 use App\Admin\Controller\LanguageController;
 use App\Admin\Controller\LogsController;
@@ -54,8 +54,8 @@ use App\Admin\Controller\WithdrawController;
  * 后台路由分发器（新 OOP 后台）。
  *
  * 只接管「/admin」与「/admin/」后**不带扩展名**的路径：
- *   /admin          → HomeController::index()
- *   /admin/home     → HomeController::index()
+ *   /admin          → DashboardController::index()
+ *   /admin/home     → DashboardController::index()
  *
  * 物理文件（过渡期的旧 admin/*.php、静态资源）由 Web 服务器直接命中，
  * 不会进入本路由，因此新旧后台可以并存。
@@ -74,8 +74,8 @@ final class AdminRouter
      * 空字符串代表 /admin 本身。
      */
     private const ROUTES = [
-        ''     => [HomeController::class, 'index'],
-        'home' => [HomeController::class, 'index'],
+        ''     => [DashboardController::class, 'index'],
+        'home' => [DashboardController::class, 'index'],
         'sign' => [SignController::class, 'index'],
         'navi' => [NaviController::class, 'index'],
         'friend_link' => [FriendLinkController::class, 'index'],

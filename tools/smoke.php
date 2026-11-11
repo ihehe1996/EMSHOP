@@ -54,6 +54,7 @@ smoke_check('新类可加载：App\\Admin\\AdminRouter', class_exists('App\\Admi
 smoke_check('新类可加载：App\\Admin\\Controller\\AbstractAdminController', class_exists('App\\Admin\\Controller\\AbstractAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', class_exists('App\\Admin\\Controller\\BaseAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\DashboardController', class_exists('App\\Admin\\Controller\\DashboardController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\SignController', class_exists('App\\Admin\\Controller\\SignController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NaviController', class_exists('App\\Admin\\Controller\\NaviController'));
@@ -116,17 +117,17 @@ smoke_check('后台路径忽略 /administrator', !\App\Admin\AdminRouter::isAdmi
 
 $adminRoute = $adminRouter->resolve('/admin');
 smoke_check(
-    '后台路由 /admin → HomeController::index',
+    '后台路由 /admin → DashboardController::index',
     is_array($adminRoute)
-        && $adminRoute['class'] === \App\Admin\Controller\HomeController::class
+        && $adminRoute['class'] === \App\Admin\Controller\DashboardController::class
         && $adminRoute['action'] === 'index'
 );
 
 $adminRoute = $adminRouter->resolve('/admin/home/');
 smoke_check(
-    '后台路由 /admin/home/ → HomeController::index',
+    '后台路由 /admin/home/ → DashboardController::index',
     is_array($adminRoute)
-        && $adminRoute['class'] === \App\Admin\Controller\HomeController::class
+        && $adminRoute['class'] === \App\Admin\Controller\DashboardController::class
         && $adminRoute['action'] === 'index'
 );
 
