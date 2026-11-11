@@ -195,7 +195,7 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                     </div>
                     <div class="admin-menu-group__body">
                         <a href="/admin/blog.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章列表'); ?></a>
-                        <a href="/admin/blog_category.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章分类'); ?></a>
+                        <a href="/admin/blog_category" data-pjax="#adminContent" class="admin-menu-item"><?= t('文章分类'); ?></a>
                         <a href="/admin/blog_comment.php" data-pjax="#adminContent" class="admin-menu-item"><?= t('评论管理'); ?></a>
                         <a href="/admin/blog_tag" data-pjax="#adminContent" class="admin-menu-item"><?= t('标签管理'); ?></a>
                     </div>
