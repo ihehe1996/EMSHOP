@@ -51,9 +51,11 @@ smoke_check('容器可解析 Container', $container->make(\App\Core\Container::c
 
 // 后台路由（app/Admin）：/admin 与无扩展名路径由框架接管
 smoke_check('新类可加载：App\\Admin\\AdminRouter', class_exists('App\\Admin\\AdminRouter'));
+smoke_check('新类可加载：App\\Admin\\Controller\\AbstractAdminController', class_exists('App\\Admin\\Controller\\AbstractAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', class_exists('App\\Admin\\Controller\\BaseAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\SignController', class_exists('App\\Admin\\Controller\\SignController'));
 
 $adminRouter = \App\Admin\AdminRouter::instance();
 smoke_check('后台路由容器实例与单例一致', $container->make(\App\Admin\AdminRouter::class) === $adminRouter);
@@ -78,6 +80,14 @@ smoke_check(
     '后台路由 /admin/home/ → HomeController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\HomeController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/sign');
+smoke_check(
+    '后台路由 /admin/sign → SignController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\SignController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1191,7 +1201,7 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/home 未登录跳转登录页',
-            $status === 302 && strpos($location, '/admin/sign.php') !== false
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 
         // 带 .php 的路径不归后台路由，仍走前台 Dispatcher（404）
@@ -1202,6 +1212,42 @@ if (in_array('--http', $argv, true)) {
             $status = (int) $m[1];
         }
         smoke_check('HTTP /admin/not-exist.php 不被后台路由接管', $status === 404);
+
+        // 新登录页：不依赖旧 admin_entry_key 安全入口
+        $signPath = '/admin/sign';
+        $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
+        $body = @file_get_contents('http://127.0.0.1:' . $port . $signPath, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+            $status = (int) $m[1];
+        }
+        smoke_check(
+            'HTTP /admin/sign 登录页 200',
+            $status === 200 && is_string($body) && strpos($body, 'csrf_token') !== false
+        );
+
+        // POST 带非法 CSRF：不触发登录，回显错误
+        $context = stream_context_create(['http' => [
+            'method'          => 'POST',
+            'header'          => "Content-Type: application/x-www-form-urlencoded\r\n",
+            'content'         => http_build_query([
+                'account'    => 'smoke',
+                'password'   => 'smoke',
+                'csrf_token' => 'invalid',
+            ]),
+            'ignore_errors'   => true,
+            'timeout'         => 10,
+            'follow_location' => 0,
+        ]]);
+        $body = @file_get_contents('http://127.0.0.1:' . $port . $signPath, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+            $status = (int) $m[1];
+        }
+        smoke_check(
+            'HTTP /admin/sign 非法 CSRF 被拒绝',
+            $status === 200 && is_string($body) && strpos($body, '请求已失效') !== false
+        );
 
         proc_terminate($proc);
         proc_close($proc);

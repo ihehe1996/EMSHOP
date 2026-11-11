@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 新后台控制器基类。
+ * 新后台控制器基类（需要登录）。
  *
  * 负责所有后台页面共用的前置条件：登录校验、CSRF 密钥补齐、当前 scope 固定为 main。
  * 与旧 admin/global.php 的 adminRequireLogin() 行为保持一致，便于过渡期两个后台并存。
  *
  * 子类动作方法直接输出页面，不返回值；由 AdminRouter 负责调用。
  */
-abstract class BaseAdminController
+abstract class BaseAdminController extends AbstractAdminController
 {
     /**
      * 登录页地址。
      *
-     * 过渡期指向旧后台登录页；登录页迁到新路由后统一改这里。
+     * 已迁到新后台路由；旧 admin/sign.php 在过渡期仍然可用。
      */
-    protected const SIGN_URL = '/admin/sign.php';
+    protected const SIGN_URL = '/admin/sign';
 
     /** @var \AuthService */
     private $auth;
@@ -56,27 +56,5 @@ abstract class BaseAdminController
     protected function user(): array
     {
         return $this->adminUser;
-    }
-
-    /**
-     * 渲染 app/Admin/View 下的模板。
-     *
-     * @param array<string, mixed> $data
-     */
-    protected function render(string $view, array $data = []): void
-    {
-        $relative = str_replace('\\', '/', trim($view, '/'));
-        if ($relative === '' || preg_match('#[^a-zA-Z0-9_/-]#', $relative)) {
-            throw new \InvalidArgumentException('非法视图名：' . $view);
-        }
-
-        $file = dirname(__DIR__) . '/View/' . $relative . '.php';
-        if (!is_file($file)) {
-            throw new \RuntimeException('视图不存在：' . $relative);
-        }
-
-        header('Content-Type: text/html; charset=utf-8');
-        extract($data, EXTR_SKIP);
-        require $file;
     }
 }

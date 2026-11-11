@@ -6,6 +6,7 @@ namespace App\Admin;
 
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\NotFoundController;
+use App\Admin\Controller\SignController;
 
 /**
  * 后台路由分发器（新 OOP 后台）。
@@ -33,6 +34,7 @@ final class AdminRouter
     private const ROUTES = [
         ''     => [HomeController::class, 'index'],
         'home' => [HomeController::class, 'index'],
+        'sign' => [SignController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
