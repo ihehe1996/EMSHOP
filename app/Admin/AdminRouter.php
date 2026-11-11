@@ -28,6 +28,7 @@ use App\Admin\Controller\LanguageController;
 use App\Admin\Controller\LogsController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
+use App\Admin\Controller\MediaController;
 use App\Admin\Controller\MerchantMarketController;
 use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
@@ -43,6 +44,7 @@ use App\Admin\Controller\RechargeController;
 use App\Admin\Controller\SignController;
 use App\Admin\Controller\SystemLogController;
 use App\Admin\Controller\TemplateController;
+use App\Admin\Controller\UploadController;
 use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\UserListController;
 use App\Admin\Controller\WithdrawController;
@@ -113,6 +115,8 @@ final class AdminRouter
         'order' => [OrderController::class, 'index'],
         'blog_edit' => [BlogEditController::class, 'index'],
         'page_edit' => [PageEditController::class, 'index'],
+        'media' => [MediaController::class, 'index'],
+        'upload' => [UploadController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */

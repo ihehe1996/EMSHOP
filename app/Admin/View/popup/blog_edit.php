@@ -258,7 +258,7 @@ $(function() {
                 formData.append('csrf_token', csrfToken);
                 formData.append('context', 'blog_cover');
                 $.ajax({
-                    url: '/admin/upload.php',
+                    url: '/admin/upload',
                     type: 'POST',
                     data: formData,
                     processData: false,

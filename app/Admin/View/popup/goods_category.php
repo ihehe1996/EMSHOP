@@ -297,7 +297,7 @@ $(function () {
                         formData.append('context', cfg.context);
 
                         $.ajax({
-                            url: '/admin/upload.php',
+                            url: '/admin/upload',
                             type: 'POST',
                             data: formData,
                             processData: false,
@@ -329,7 +329,7 @@ $(function () {
                             formData.append('csrf_token', $('input[name="csrf_token"]').val());
                             formData.append('context', cfg.context);
                             $.ajax({
-                                url: '/admin/upload.php',
+                                url: '/admin/upload',
                                 type: 'POST',
                                 data: formData,
                                 processData: false,
