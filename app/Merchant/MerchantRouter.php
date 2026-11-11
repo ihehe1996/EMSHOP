@@ -9,6 +9,7 @@ use App\Merchant\Controller\BlogCategoryController;
 use App\Merchant\Controller\BlogController;
 use App\Merchant\Controller\CategoryController;
 use App\Merchant\Controller\FinanceController;
+use App\Merchant\Controller\GoodsController;
 use App\Merchant\Controller\HomeController;
 use App\Merchant\Controller\MediaController;
 use App\Merchant\Controller\NaviController;
@@ -48,6 +49,7 @@ final class MerchantRouter
         'template'      => [TemplateController::class, 'index'],
         'plugin'        => [PluginController::class, 'index'],
         'appstore'      => [AppstoreController::class, 'index'],
+        'goods'         => [GoodsController::class, 'index'],
     ];
 
     /** @var MerchantRouter|null */
