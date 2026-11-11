@@ -321,6 +321,76 @@ try {
 
 smoke_check('Database 容器实例与门面一致', $container->make(\App\Support\Database::class) === Database::instance());
 
+// Hooks：注册、执行顺序、过滤器、归属与容器一致性
+$hookName = '__smoke_hook_' . getmypid();
+$hookTrace = [];
+$hookA = static function (...$args) use (&$hookTrace) {
+    $hookTrace[] = ['a', $args];
+};
+$hookB = static function (...$args) use (&$hookTrace) {
+    $hookTrace[] = ['b', $args];
+};
+
+Hooks::setActingPlugin('smoke_plugin');
+smoke_check('Hooks add 返回 true', Hooks::add($hookName, $hookA) === true);
+Hooks::add($hookName, $hookA);
+Hooks::setActingPlugin(null);
+Hooks::add($hookName, $hookB);
+
+smoke_check('Hooks 回调去重', count(Hooks::getCallbacks($hookName)) === 2);
+smoke_check('Hooks 按插件过滤', Hooks::getCallbacksForPlugin($hookName, 'smoke_plugin') === [$hookA]
+    && Hooks::getCallbacksForPlugin($hookName, 'other') === []);
+
+Hooks::run($hookName, [1, 2]);
+smoke_check('Hooks run 按顺序执行', $hookTrace === [['a', [1, 2]], ['b', [1, 2]]]);
+
+$hookTrace = [];
+doAction($hookName, 'x');
+smoke_check('Hooks doAction 全局函数', $hookTrace === [['a', ['x']], ['b', ['x']]]);
+
+// 单次接管：只执行第一个回调，引用结果可被修改
+$onceHook = $hookName . '_once';
+$onceSeen = [];
+Hooks::add($onceHook, static function ($input, &$ret) use (&$onceSeen) {
+    $onceSeen[] = $input;
+    $ret = 'first';
+});
+Hooks::add($onceHook, static function ($input, &$ret) use (&$onceSeen) {
+    $onceSeen[] = $input;
+    $ret = 'second';
+});
+$onceRet = null;
+doOnceAction($onceHook, 'in', $onceRet);
+smoke_check('Hooks doOnceAction 只执行第一个', $onceSeen === ['in'] && $onceRet === 'first');
+
+// 多插件协作：所有回调共享同一个结果
+$multiHook = $hookName . '_multi';
+$multiSeen = [];
+Hooks::add($multiHook, static function ($input, &$ret) use (&$multiSeen) {
+    $multiSeen[] = 'a';
+    $ret .= 'a';
+});
+Hooks::add($multiHook, static function ($input, &$ret) use (&$multiSeen) {
+    $multiSeen[] = 'b';
+    $ret .= 'b';
+});
+$multiRet = '';
+doMultiAction($multiHook, 'in', $multiRet);
+smoke_check('Hooks doMultiAction 共享结果', $multiSeen === ['a', 'b'] && $multiRet === 'ab');
+
+// 过滤器链
+$filterName = $hookName . '_filter';
+Hooks::addFilterHook($filterName, static function ($v) {
+    return $v . 'a';
+});
+addFilter($filterName, static function ($v) {
+    return $v . 'b';
+});
+smoke_check('Hooks runFilter 链式处理', Hooks::runFilter($filterName, 'x') === 'xab');
+smoke_check('Hooks applyFilter 全局函数', applyFilter($filterName, 'y') === 'yab');
+
+smoke_check('Hooks 容器实例与门面一致', $container->make(\App\Support\Hooks::class) === Hooks::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;

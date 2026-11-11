@@ -228,6 +228,9 @@ Autoloader::register([
 // 配置服务注册进容器（必须在 Config::load() 之前）
 \App\Core\Application::instance()->container()->instance(\App\Support\Config::class, Config::instance());
 
+// 钩子服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\Hooks::class, Hooks::instance());
+
 Hooks::boot();
 
 Config::load();
