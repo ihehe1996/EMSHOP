@@ -61,6 +61,7 @@ smoke_check('新类可加载：App\\Admin\\Controller\\FriendLinkController', cl
 smoke_check('新类可加载：App\\Admin\\Controller\\GoodsTagController', class_exists('App\\Admin\\Controller\\GoodsTagController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogTagController', class_exists('App\\Admin\\Controller\\BlogTagController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BlogCategoryController', class_exists('App\\Admin\\Controller\\BlogCategoryController'));
+smoke_check('新类可加载：App\\Admin\\Controller\\GoodsCategoryController', class_exists('App\\Admin\\Controller\\GoodsCategoryController'));
 
 // 后台翻译函数（原内联在 admin/global.php，新后台复用旧框架壳时需要）
 require_once $root . '/include/lib/AdminLang.php';
@@ -138,6 +139,14 @@ smoke_check(
     '后台路由 /admin/blog_category → BlogCategoryController::index',
     is_array($adminRoute)
         && $adminRoute['class'] === \App\Admin\Controller\BlogCategoryController::class
+        && $adminRoute['action'] === 'index'
+);
+
+$adminRoute = $adminRouter->resolve('/admin/goods_category');
+smoke_check(
+    '后台路由 /admin/goods_category → GoodsCategoryController::index',
+    is_array($adminRoute)
+        && $adminRoute['class'] === \App\Admin\Controller\GoodsCategoryController::class
         && $adminRoute['action'] === 'index'
 );
 
@@ -1332,6 +1341,22 @@ if (in_array('--http', $argv, true)) {
         }
         smoke_check(
             'HTTP /admin/blog_category 未登录跳转登录页',
+            $status === 302 && rtrim($location, '/') === '/admin/sign'
+        );
+
+        @file_get_contents('http://127.0.0.1:' . $port . '/admin/goods_category', false, $context);
+        $status = 0;
+        $location = '';
+        foreach (($http_response_header ?? []) as $h) {
+            if (preg_match('/^HTTP\/\S+\s(\d{3})/', $h, $m)) {
+                $status = (int) $m[1];
+            }
+            if (stripos($h, 'Location:') === 0) {
+                $location = trim(substr($h, 9));
+            }
+        }
+        smoke_check(
+            'HTTP /admin/goods_category 未登录跳转登录页',
             $status === 302 && rtrim($location, '/') === '/admin/sign'
         );
 

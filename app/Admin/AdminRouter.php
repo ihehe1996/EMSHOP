@@ -7,6 +7,7 @@ namespace App\Admin;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogTagController;
 use App\Admin\Controller\FriendLinkController;
+use App\Admin\Controller\GoodsCategoryController;
 use App\Admin\Controller\GoodsTagController;
 use App\Admin\Controller\HomeController;
 use App\Admin\Controller\NaviController;
@@ -45,6 +46,7 @@ final class AdminRouter
         'goods_tag' => [GoodsTagController::class, 'index'],
         'blog_tag' => [BlogTagController::class, 'index'],
         'blog_category' => [BlogCategoryController::class, 'index'],
+        'goods_category' => [GoodsCategoryController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
