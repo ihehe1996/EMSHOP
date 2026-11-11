@@ -187,6 +187,35 @@ smoke_check('Response redirect 退出', $out === '' && $exit === 0);
 
 smoke_check('Response 容器实例与门面一致', $container->make(\App\Http\Response::class) === Response::instance());
 
+// GuestToken：签名 Cookie 行为、篡改拒绝与容器一致性
+$oldCookie = $_COOKIE;
+$_COOKIE = [];
+
+smoke_check('GuestToken 无 Cookie 时不通过验证', GuestToken::hasValidCookie() === false);
+
+$token = GuestToken::get();
+smoke_check('GuestToken 签发 32 位十六进制', preg_match('/^[0-9a-f]{32}$/', $token) === 1);
+smoke_check('GuestToken 签发后验证通过', GuestToken::hasValidCookie() === true);
+smoke_check('GuestToken 重复获取稳定', GuestToken::get() === $token);
+
+$cookieValue = (string) ($_COOKIE['em_guest_token_v2'] ?? '');
+$tampered = $cookieValue;
+if ($tampered !== '') {
+    $tampered[strlen($tampered) - 1] = $tampered[strlen($tampered) - 1] === '0' ? '1' : '0';
+    $_COOKIE['em_guest_token_v2'] = $tampered;
+}
+smoke_check('GuestToken 篡改签名被拒绝', $tampered !== $cookieValue && GuestToken::hasValidCookie() === false);
+
+$_COOKIE['em_guest_token_v2'] = $cookieValue;
+smoke_check('GuestToken 还原后验证通过', GuestToken::hasValidCookie() === true);
+
+$_COOKIE = ['em_guest_token' => str_repeat('a', 32)];
+smoke_check('GuestToken 旧版 Cookie 不再接受', GuestToken::hasValidCookie() === false);
+
+$_COOKIE = $oldCookie;
+
+smoke_check('GuestToken 容器实例与门面一致', $container->make(\App\Support\GuestToken::class) === GuestToken::instance());
+
 // 可选 HTTP 检查
 if (in_array('--http', $argv, true)) {
     $port = 18000 + random_int(0, 999);

@@ -256,6 +256,9 @@ Cache::init();
 // 响应服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Http\Response::class, Response::instance());
 
+// 游客身份服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\GuestToken::class, GuestToken::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 
