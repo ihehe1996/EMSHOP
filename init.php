@@ -325,6 +325,9 @@ Cache::init();
 // Key-Value 配置存储服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Option::class, Option::instance());
 
+// 授权服务器客户端服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\LicenseClient::class, LicenseClient::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 

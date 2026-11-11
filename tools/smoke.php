@@ -983,6 +983,45 @@ smoke_check('Option flush 删除数据库行', $optRow === null);
 Database::execute('DELETE FROM `' . Database::prefix() . 'config` WHERE `config_name` = ?', [$optKey]);
 smoke_check('Option 容器实例与门面一致', $container->make(\App\Support\Option::class) === Option::instance());
 
+// LicenseClient：线路常量、当前线路、TLS 与容器一致性（不发网络请求）
+smoke_check('LicenseClient 常量保留', LicenseClient::OFFICIAL_BASE_URL === \App\Support\LicenseClient::OFFICIAL_BASE_URL
+    && LicenseClient::DEV_BASE_URL === \App\Support\LicenseClient::DEV_BASE_URL);
+
+$lcOfficial = LicenseClient::officialLines();
+$lcDev = LicenseClient::devLines();
+smoke_check('LicenseClient 线路归一化', count($lcOfficial) > 0
+    && substr($lcOfficial[0]['url'], -1) === '/'
+    && $lcOfficial[0]['name'] !== ''
+    && count($lcDev) > 0
+    && substr($lcDev[0]['url'], -1) === '/');
+
+$lcExpected = (string) Config::get('license_dev_mode', '0') === '1' ? $lcDev : $lcOfficial;
+smoke_check('LicenseClient 当前模式线路', LicenseClient::lines() === $lcExpected);
+
+$lcLines = LicenseClient::lines();
+$lcIndex = LicenseClient::currentLineIndex();
+smoke_check('LicenseClient 当前线路', $lcIndex >= 0
+    && $lcIndex < count($lcLines)
+    && LicenseClient::defaultBaseUrl() === $lcLines[$lcIndex]['url']
+    && LicenseClient::currentBaseUrl() === LicenseClient::defaultBaseUrl());
+
+$lcTls = LicenseClient::tlsOptions();
+if ((string) Config::get('license_insecure_tls', '0') === '1') {
+    smoke_check('LicenseClient TLS 显式降级', $lcTls[CURLOPT_SSL_VERIFYPEER] === false
+        && $lcTls[CURLOPT_SSL_VERIFYHOST] === 0);
+} else {
+    smoke_check('LicenseClient TLS 默认校验', $lcTls[CURLOPT_SSL_VERIFYPEER] === true
+        && $lcTls[CURLOPT_SSL_VERIFYHOST] === 2);
+}
+
+smoke_check('LicenseClient 上报版本前置校验', LicenseClient::reportUpdateSuccess('') === false
+    && LicenseClient::reportUpdateSuccess('bad version!') === false
+    && LicenseClient::reportUpdateSuccess(str_repeat('a', 33)) === false);
+
+smoke_check('LicenseClient 空更新清单短路', LicenseClient::appUpdateCheck([], 'example.com', '') === ['license' => [], 'data' => []]);
+
+smoke_check('LicenseClient 容器实例与门面一致', $container->make(\App\Support\LicenseClient::class) === LicenseClient::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;
