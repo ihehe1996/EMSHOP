@@ -709,6 +709,29 @@ smoke_check('MerchantDomainGuard 二级域名可用', MerchantDomainGuard::subdo
 
 smoke_check('MerchantDomainGuard 容器实例与门面一致', $container->make(\App\Support\MerchantDomainGuard::class) === MerchantDomainGuard::instance());
 
+// Mailer：配置/格式校验与容器一致性（不发起真实 SMTP 连接）
+smoke_check('Mailer 配置不完整', Mailer::sendWith([], 'user@example.com', 's', '<p>x</p>') === false
+    && Mailer::lastError() === '邮箱配置不完整（需填写 SMTP 服务器 / 发送人邮箱 / 密码 / 端口）');
+
+smoke_check('Mailer 发送人格式校验', Mailer::sendWith(
+    ['from_email' => 'bad', 'host' => 'smtp.example.com', 'password' => 'x', 'port' => 465],
+    'user@example.com',
+    's',
+    '<p>x</p>'
+) === false && Mailer::lastError() === '发送人邮箱格式不正确');
+
+smoke_check('Mailer 收件人格式校验', Mailer::sendWith(
+    ['from_email' => 'sender@example.com', 'host' => 'smtp.example.com', 'password' => 'x', 'port' => 465],
+    'bad',
+    's',
+    '<p>x</p>'
+) === false && Mailer::lastError() === '收件人邮箱格式不正确');
+
+smoke_check('Mailer 下次调用重置错误', Mailer::sendWith([], 'user@example.com', 's', '<p>x</p>') === false
+    && Mailer::lastError() === '邮箱配置不完整（需填写 SMTP 服务器 / 发送人邮箱 / 密码 / 端口）');
+
+smoke_check('Mailer 容器实例与门面一致', $container->make(\App\Support\Mailer::class) === Mailer::instance());
+
 // Csrf：签发、校验、宽限期、Cookie 兜底与容器一致性
 $oldSession = $_SESSION;
 $oldCsrfCookie = $_COOKIE['em_csrf_token'] ?? null;

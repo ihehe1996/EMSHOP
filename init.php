@@ -295,6 +295,9 @@ Cache::init();
 // 商户域名校验服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\MerchantDomainGuard::class, MerchantDomainGuard::instance());
 
+// 邮件服务注册进容器
+\App\Core\Application::instance()->container()->instance(\App\Support\Mailer::class, Mailer::instance());
+
 // 金额服务注册进容器
 \App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
 
