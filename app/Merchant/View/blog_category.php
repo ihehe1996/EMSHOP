@@ -64,7 +64,7 @@ $(function () {
 
         function load() {
             $.ajax({
-                url: '/user/merchant/blog_category.php', type: 'POST', dataType: 'json',
+                url: '/user/merchant/blog_category', type: 'POST', dataType: 'json',
                 data: { _action: 'list' },
                 success: function (res) {
                     if (res.code !== 200) { layer.msg(res.msg || '加载失败'); return; }
@@ -134,7 +134,7 @@ $(function () {
         $(document).on('click.mcBlogCatPage', '.mc-cat-toggle', function () {
             var id = $(this).data('id');
             $.ajax({
-                url: '/user/merchant/blog_category.php', type: 'POST', dataType: 'json',
+                url: '/user/merchant/blog_category', type: 'POST', dataType: 'json',
                 data: { _action: 'toggle_status', csrf_token: csrfToken, id: id },
                 success: function (res) {
                     if (res.code === 200) {
@@ -150,7 +150,7 @@ $(function () {
             var name = $(this).data('name');
             layer.confirm('确定删除「' + name + '」？', function (idx) {
                 $.ajax({
-                    url: '/user/merchant/blog_category.php', type: 'POST', dataType: 'json',
+                    url: '/user/merchant/blog_category', type: 'POST', dataType: 'json',
                     data: { _action: 'delete', csrf_token: csrfToken, id: id },
                     success: function (res) {
                         if (res.code === 200) {
@@ -198,7 +198,7 @@ $(function () {
                     if (!hasStatus) data.push({ name: 'status', value: '0' });
 
                     $.ajax({
-                        url: '/user/merchant/blog_category.php', type: 'POST', dataType: 'json',
+                        url: '/user/merchant/blog_category', type: 'POST', dataType: 'json',
                         data: $.param(data),
                         success: function (res) {
                             if (res.code === 200) {

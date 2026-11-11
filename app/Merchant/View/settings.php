@@ -280,7 +280,7 @@ $(function(){
             var $b = $btn;
             $b.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 保存中...');
             $.ajax({
-                url: '/user/merchant/settings.php',
+                url: '/user/merchant/settings',
                 type: 'POST',
                 dataType: 'json',
                 data: $(formSel).serialize(),
@@ -303,7 +303,7 @@ $(function(){
         // 店铺公告富文本（TinyMCE）
         window.emTinymceInit({
             context: 'announce_image',
-            uploadUrl: '/user/merchant/upload.php',
+            uploadUrl: '/user/merchant/upload',
             onCsrf: function (token) {
                 csrfToken = token;
                 $('input[name="csrf_token"]').val(csrfToken);

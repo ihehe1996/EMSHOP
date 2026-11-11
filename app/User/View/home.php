@@ -122,7 +122,7 @@ $hasAvatar = !empty($frontUser['avatar']);
                 <a href="/" class="uc-home-hero__btn uc-home-hero__btn--solid">
                     <i class="fa fa-shopping-bag"></i> 去逛逛
                 </a>
-                <a href="/user/wallet.php" data-pjax="#userContent" class="uc-home-hero__btn">
+                <a href="/user/wallet" data-pjax="#userContent" class="uc-home-hero__btn">
                     <i class="fa fa-credit-card"></i> 充值
                 </a>
             </div>
@@ -146,7 +146,7 @@ $hasAvatar = !empty($frontUser['avatar']);
 
     <!-- 订单概览 -->
     <section class="uc-home-metrics">
-        <a href="/user/order.php" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
+        <a href="/user/order" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
             <span class="uc-home-metric__icon uc-home-metric__icon--indigo"><i class="fa fa-shopping-bag"></i></span>
             <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_total'] ?></strong>
@@ -154,7 +154,7 @@ $hasAvatar = !empty($frontUser['avatar']);
             </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
-        <a href="/user/order.php?status=pending" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
+        <a href="/user/order?status=pending" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
             <span class="uc-home-metric__icon uc-home-metric__icon--amber"><i class="fa fa-hourglass-half"></i></span>
             <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_pending'] ?></strong>
@@ -162,7 +162,7 @@ $hasAvatar = !empty($frontUser['avatar']);
             </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
-        <a href="/user/order.php?status=delivering" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
+        <a href="/user/order?status=delivering" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
             <span class="uc-home-metric__icon uc-home-metric__icon--blue"><i class="fa fa-truck"></i></span>
             <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_delivering'] ?></strong>
@@ -170,7 +170,7 @@ $hasAvatar = !empty($frontUser['avatar']);
             </span>
             <i class="fa fa-angle-right uc-home-metric__arrow"></i>
         </a>
-        <a href="/user/order.php?status=completed" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
+        <a href="/user/order?status=completed" data-pjax="#userContent" class="uc-home-metric uc-glass-card">
             <span class="uc-home-metric__icon uc-home-metric__icon--emerald"><i class="fa fa-check-circle"></i></span>
             <span class="uc-home-metric__body">
                 <strong class="uc-home-metric__value"><?= (int) $stats['order_completed'] ?></strong>
@@ -187,43 +187,43 @@ $hasAvatar = !empty($frontUser['avatar']);
                 <h2 class="uc-home-panel__title"><i class="fa fa-th-large"></i> 常用功能</h2>
             </header>
             <div class="uc-home-quick">
-                <a href="/user/profile.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/profile" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--indigo"><i class="fa fa-user"></i></span>
                     <span class="uc-home-quick__text">个人资料</span>
                 </a>
-                <a href="/user/order.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/order" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--blue"><i class="fa fa-list-alt"></i></span>
                     <span class="uc-home-quick__text">我的订单</span>
                 </a>
-                <a href="/user/wallet.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/wallet" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--emerald"><i class="fa fa-credit-card"></i></span>
                     <span class="uc-home-quick__text">我的钱包</span>
                 </a>
-                <a href="/user/balance_log.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/balance_log" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--teal"><i class="fa fa-exchange"></i></span>
                     <span class="uc-home-quick__text">余额明细</span>
                 </a>
                 <?php if (shop_coupon_enabled()): ?>
-                <a href="/user/coupon.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/coupon" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--rose"><i class="fa fa-ticket"></i></span>
                     <span class="uc-home-quick__text">优惠券</span>
                 </a>
                 <?php endif; ?>
                 <?php if (MerchantContext::currentId() === 0): ?>
-                <a href="/user/rebate.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/rebate" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--amber"><i class="fa fa-share-alt"></i></span>
                     <span class="uc-home-quick__text">我的推广</span>
                 </a>
                 <?php endif; ?>
-                <a href="/user/address.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/address" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--violet"><i class="fa fa-map-marker"></i></span>
                     <span class="uc-home-quick__text">收货地址</span>
                 </a>
-                <a href="/user/api.php" data-pjax="#userContent" class="uc-home-quick__item">
+                <a href="/user/api" data-pjax="#userContent" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--slate"><i class="fa fa-plug"></i></span>
                     <span class="uc-home-quick__text">API 对接</span>
                 </a>
-                <a href="/user/find_order.php" class="uc-home-quick__item">
+                <a href="/user/find_order" class="uc-home-quick__item">
                     <span class="uc-home-quick__icon uc-home-quick__icon--cyan"><i class="fa fa-search"></i></span>
                     <span class="uc-home-quick__text">订单查询</span>
                 </a>
@@ -233,7 +233,7 @@ $hasAvatar = !empty($frontUser['avatar']);
         <div class="uc-glass-card uc-home-panel">
             <header class="uc-home-panel__head">
                 <h2 class="uc-home-panel__title"><i class="fa fa-history"></i> 最近订单</h2>
-                <a href="/user/order.php" data-pjax="#userContent" class="uc-home-panel__more">全部 <i class="fa fa-angle-right"></i></a>
+                <a href="/user/order" data-pjax="#userContent" class="uc-home-panel__more">全部 <i class="fa fa-angle-right"></i></a>
             </header>
 
             <?php if (empty($recentOrders)): ?>
@@ -247,7 +247,7 @@ $hasAvatar = !empty($frontUser['avatar']);
                 <?php foreach ($recentOrders as $o):
                     $st = $statusLabels[$o['status']] ?? ['label' => $o['status'], 'color' => '#64748b', 'bg' => 'rgba(148,163,184,0.15)'];
                 ?>
-                <a href="/user/order_detail.php?order_no=<?= urlencode($o['order_no']) ?>" data-pjax="#userContent" class="uc-home-order">
+                <a href="/user/order_detail?order_no=<?= urlencode($o['order_no']) ?>" data-pjax="#userContent" class="uc-home-order">
                     <div class="uc-home-order__main">
                         <span class="uc-home-order__no">#<?= htmlspecialchars($o['order_no']) ?></span>
                         <span class="uc-home-order__time"><?= htmlspecialchars($o['created_at']) ?></span>

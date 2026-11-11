@@ -215,7 +215,7 @@ layui.use(['layer'], function () {
     var $ = layui.jquery, layer = layui.layer;
 
     function postAction(action, name, cb) {
-        $.post('/user/merchant/template.php', {
+        $.post('/user/merchant/template', {
             _action:    action,
             csrf_token: window.MT_CSRF,
             name:       name
@@ -251,7 +251,7 @@ layui.use(['layer'], function () {
                 title: '模板设置',
                 area: [window.innerWidth >= 760 ? '720px' : '94%', window.innerHeight >= 720 ? '600px' : '88%'],
                 shadeClose: true,
-                content: '/user/merchant/template.php?_popup=1&name=' + encodeURIComponent(name)
+                content: '/user/merchant/template?_popup=1&name=' + encodeURIComponent(name)
             });
         }
     });

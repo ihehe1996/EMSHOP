@@ -79,7 +79,7 @@ function alipay_load_trade_context(string $orderNo): array
             'is_recharge'  => true,
             'status'       => (string) ($recharge['status'] ?? ''),
             'amount_raw'   => (int) ($recharge['amount'] ?? 0),
-            'redirect_url' => '/user/wallet.php',
+            'redirect_url' => '/user/wallet',
             'title'        => '钱包充值 ' . $orderNo,
             'created_at'   => (string) ($recharge['created_at'] ?? ''),
             'order_items'  => [[
@@ -124,8 +124,8 @@ function alipay_load_trade_context(string $orderNo): array
         'status'       => (string) ($order['status'] ?? ''),
         'amount_raw'   => (int) ($order['pay_amount'] ?? 0),
         'redirect_url' => $userId > 0
-            ? '/user/order_detail.php?order_no=' . rawurlencode($orderNo)
-            : '/user/find_order.php',
+            ? '/user/order_detail?order_no=' . rawurlencode($orderNo)
+            : '/user/find_order',
         'title'        => '订单支付 ' . $orderNo,
         'created_at'   => (string) ($order['created_at'] ?? ''),
         'order_items'  => $orderItems,

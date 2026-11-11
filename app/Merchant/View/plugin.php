@@ -160,7 +160,7 @@ layui.use(['layer'], function () {
     var $ = layui.jquery, layer = layui.layer;
 
     function postAction(action, name, cb) {
-        $.post('/user/merchant/plugin.php', {
+        $.post('/user/merchant/plugin', {
             _action:    action,
             csrf_token: window.MP_CSRF,
             name:       name
@@ -196,7 +196,7 @@ layui.use(['layer'], function () {
                 title: '插件设置',
                 area: [window.innerWidth >= 760 ? '720px' : '94%', window.innerHeight >= 720 ? '600px' : '88%'],
                 shadeClose: true,
-                content: '/user/merchant/plugin.php?_popup=1&name=' + encodeURIComponent(name)
+                content: '/user/merchant/plugin?_popup=1&name=' + encodeURIComponent(name)
             });
         }
     });

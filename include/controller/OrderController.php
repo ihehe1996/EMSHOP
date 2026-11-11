@@ -8,8 +8,8 @@ declare(strict_types=1);
  * 方法说明：
  * - create()  AJAX 创建订单（商品详情页直接购买）
  *
- * 前台不再提供「订单详情」页面：订单详情统一走页面脚本 /user/order_detail.php
- * （登录用户）与 /user/find_order.php（游客查单），核心 JS、支付插件、支付回调都指向它们。
+ * 前台不再提供「订单详情」页面：订单详情统一走页面脚本 /user/order_detail
+ * （登录用户）与 /user/find_order（游客查单），核心 JS、支付插件、支付回调都指向它们。
  * 原先 ?c=order 下的订单结果页（order_result 模板）全站没有任何入口，已连同动作一起删除。
  */
 class OrderController extends BaseController

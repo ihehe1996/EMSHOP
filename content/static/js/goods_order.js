@@ -13,8 +13,8 @@
  * 依赖：jQuery
  */
 var GoodsOrder = (function () {
-    var ORDER_DETAIL_URL = '/user/order_detail.php?order_no=';
-    var GUEST_FIND_URL   = '/user/find_order.php';
+    var ORDER_DETAIL_URL = '/user/order_detail?order_no=';
+    var GUEST_FIND_URL   = '/user/find_order';
 
     /** 取当前会话的 CSRF token：优先页面注入，其次读 cookie（token.hmac 的第一段）。 */
     function readCsrfToken() {

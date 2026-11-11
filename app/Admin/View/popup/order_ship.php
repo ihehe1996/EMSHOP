@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 $esc = function (?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 };
-// 提交 URL 由调用方决定：admin 走 /admin/order；商户走 /user/merchant/order.php
+// 提交 URL 由调用方决定：admin 走 /admin/order；商户走 /user/merchant/order
 $shipSubmitUrl = isset($shipSubmitUrl) && $shipSubmitUrl !== '' ? $shipSubmitUrl : '/admin/order';
 include __DIR__ . '/header.php';
 ?>

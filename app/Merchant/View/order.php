@@ -268,7 +268,7 @@ $(function(){
         table.render({
             elem: '#mcOrderTable',
             id: 'mcOrderTableId',
-            url: '/user/merchant/order.php',
+            url: '/user/merchant/order',
             method: 'POST',
             where: buildWhere(),
             page: true,
@@ -339,7 +339,7 @@ $(function(){
                 maxmin: true,
                 shadeClose: true,
                 area: [window.innerWidth >= 1100 ? '960px' : '95%', window.innerHeight >= 760 ? '720px' : '92%'],
-                content: '/user/merchant/order.php?_popup=detail&id=' + encodeURIComponent(d.id)
+                content: '/user/merchant/order?_popup=detail&id=' + encodeURIComponent(d.id)
             });
         }
 
@@ -353,7 +353,7 @@ $(function(){
                 maxmin: true,
                 shadeClose: false,
                 area: [window.innerWidth >= 900 ? '780px' : '95%', window.innerHeight >= 700 ? '640px' : '92%'],
-                content: '/user/merchant/order.php?_popup=ship&id=' + encodeURIComponent(d.id),
+                content: '/user/merchant/order?_popup=ship&id=' + encodeURIComponent(d.id),
                 end: function () {
                     if (window._orderShipSuccess) {
                         window._orderShipSuccess = false;

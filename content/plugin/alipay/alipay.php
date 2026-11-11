@@ -814,7 +814,7 @@ addAction('payment_notify_alipay', function (array $data): void {
 addAction('payment_return_alipay', function (array $data): void {
     $orderNo = (string) ($data['out_trade_no'] ?? '');
     if ($orderNo !== '' && strncmp($orderNo, 'R', 1) === 0) {
-        Response::redirect('/user/wallet.php');
+        Response::redirect('/user/wallet');
     }
 
     Response::redirect(PaymentCallbackController::buildReturnRedirectUrl($orderNo));

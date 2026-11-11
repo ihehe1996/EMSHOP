@@ -4,9 +4,9 @@ defined('EM_ROOT') || exit('access denied!');
 // ===== 查单页 tab 路由（PJAX 模式）=====
 // 由 user/find_order.php 注入：$currentTab / $contactOn / $passwordOn / $captchaExpr / $guestToken / $currencySymbol
 // tab 改成 <a data-pjax> 链接：
-//   /user/find_order.php          → token（默认）
-//   /user/find_order.php?tab=credentials
-//   /user/find_order.php?tab=orderno
+//   /user/find_order          → token（默认）
+//   /user/find_order?tab=credentials
+//   /user/find_order?tab=orderno
 // 切 tab 走 PJAX 替换 #foContent；刷新页面停在当前 tab；浏览器前进后退也能用
 
 // tab2 名称按实际开启的凭据组合
@@ -26,18 +26,18 @@ $showOrderNoTab = ($contactOn || $passwordOn);
 
     <!-- 查询方式 tab：每个 tab 是独立 URL，点击走 PJAX 替换 #foContent -->
     <div class="find-order-tabs" id="findOrderTabs">
-        <a href="/user/find_order.php" data-pjax
+        <a href="/user/find_order" data-pjax
            class="find-order-tab<?= $currentTab === 'token' ? ' active' : '' ?>">
             <i class="fa fa-user"></i> 浏览器订单
         </a>
         <?php if ($showCredTab): ?>
-        <a href="/user/find_order.php?tab=credentials" data-pjax
+        <a href="/user/find_order?tab=credentials" data-pjax
            class="find-order-tab<?= $currentTab === 'credentials' ? ' active' : '' ?>">
             <i class="fa fa-id-card"></i> <?= htmlspecialchars($credLabel) ?>
         </a>
         <?php endif; ?>
         <?php if ($showOrderNoTab): ?>
-        <a href="/user/find_order.php?tab=orderno" data-pjax
+        <a href="/user/find_order?tab=orderno" data-pjax
            class="find-order-tab<?= $currentTab === 'orderno' ? ' active' : '' ?>">
             <i class="fa fa-file-text-o"></i> 订单编号查单
         </a>
@@ -159,7 +159,7 @@ $showOrderNoTab = ($contactOn || $passwordOn);
     $(document).off('click.foCaptchaRefresh').on('click.foCaptchaRefresh', '.fo-captcha__refresh', function () {
         var $btn = $(this);
         $btn.find('i').addClass('fa-spin');
-        $.post('/user/find_order.php', { action: 'refresh_captcha' }, function (res) {
+        $.post('/user/find_order', { action: 'refresh_captcha' }, function (res) {
             if (res && res.code === 200 && res.data && res.data.expr) {
                 setCaptchaExpr(res.data.expr);
             }
@@ -216,7 +216,7 @@ $showOrderNoTab = ($contactOn || $passwordOn);
                     );
                 }
             }
-            $.post('/user/find_order.php', { mode: 'token', guest_token: guestToken }, function (res) {
+            $.post('/user/find_order', { mode: 'token', guest_token: guestToken }, function (res) {
                 renderTokenResult(res);
             }, 'json').fail(function (jqXHR) {
                 // 未查到订单返回 422，body 仍是业务错误结构；命中就直接渲染“未找到”

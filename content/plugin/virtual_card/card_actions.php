@@ -3,7 +3,7 @@
  * 虚拟商品（自动发货）插件 — 卡密库存 AJAX 接口
  *
  * 通过 admin_plugin_action 钩子由插件自行注册路由，不放在核心代码中。
- * 商户端由 /user/merchant/goods.php 直接 require 本文件，并设置
+ * 商户端由 /user/merchant/goods 直接 require 本文件，并设置
  * $virtualCardRequireOwnerId 限制只能操作自有商品。
  *
  * 支持的 action：card_list / card_deleted_orders / card_import / card_delete / card_clear_available / card_export / card_manager

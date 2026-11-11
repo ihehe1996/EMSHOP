@@ -287,7 +287,7 @@ $(function(){
             table.render({
                 elem: '#mcRefTable',
                 id: 'mcRefTableId',
-                url: '/user/merchant/goods.php',
+                url: '/user/merchant/goods',
                 method: 'POST',
                 where: refWhere(),
                 page: true,
@@ -348,7 +348,7 @@ $(function(){
         form.on('switch(mcRefSaleFilter)', function (obj) {
             var goodsId = this.value;
             $.ajax({
-                url: '/user/merchant/goods.php',
+                url: '/user/merchant/goods',
                 type: 'POST', dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle_ref_sale', goods_id: goodsId},
                 success: function (res) {
@@ -376,7 +376,7 @@ $(function(){
             } else if (obj.event === 'reset') {
                 layer.confirm('恢复为默认的加价率和上架状态？', function (idx) {
                     $.ajax({
-                        url: '/user/merchant/goods.php',
+                        url: '/user/merchant/goods',
                         type: 'POST', dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'reset_ref', goods_id: data.goods_id},
                         success: function (res) {
@@ -401,7 +401,7 @@ $(function(){
                 maxmin: true,
                 area: [window.innerWidth >= 800 ? '520px' : '95%', window.innerHeight >= 700 ? '520px' : '88%'],
                 shadeClose: true,
-                content: '/user/merchant/goods.php?_popup=ref_edit&goods_id=' + encodeURIComponent(goodsId),
+                content: '/user/merchant/goods?_popup=ref_edit&goods_id=' + encodeURIComponent(goodsId),
                 end: function () {
                     if (window._mcRefPopupSaved) {
                         window._mcRefPopupSaved = false;
@@ -420,7 +420,7 @@ $(function(){
             table.render({
                 elem: '#mcSelfTable',
                 id: 'mcSelfTableId',
-                url: '/user/merchant/goods.php',
+                url: '/user/merchant/goods',
                 method: 'POST',
                 where: selfWhere(),
                 page: true,
@@ -470,7 +470,7 @@ $(function(){
         form.on('switch(mcSelfSaleFilter)', function (obj) {
             var id = this.value;
             $.ajax({
-                url: '/user/merchant/goods.php',
+                url: '/user/merchant/goods',
                 type: 'POST', dataType: 'json',
                 data: {csrf_token: csrfToken, _action: 'toggle_self_sale', id: id},
                 success: function (res) {
@@ -495,7 +495,7 @@ $(function(){
         // 弹窗内提交成功会写 window._mcSelfSaved = true；这里在关闭时检测并 reload 表格
         function openSelfEditPopup(id) {
             window._mcSelfSaved = false;
-            var url = '/user/merchant/goods.php?_popup=self_edit' + (id ? '&id=' + id : '');
+            var url = '/user/merchant/goods?_popup=self_edit' + (id ? '&id=' + id : '');
             layer.open({
                 type: 2,
                 title: id ? '编辑商品' : '新建商品',
@@ -532,7 +532,7 @@ $(function(){
                 area: [window.innerWidth >= 960 ? '860px' : '94%', window.innerHeight >= 720 ? '640px' : '88%'],
                 shadeClose: false,
                 maxmin: true,
-                content: '/user/merchant/goods.php?_popup=stock_manager&id=' + goodsId
+                content: '/user/merchant/goods?_popup=stock_manager&id=' + goodsId
             });
         }
 
@@ -557,7 +557,7 @@ $(function(){
             else confirmText = null;
             var run = function () {
                 $.ajax({
-                    url: '/user/merchant/goods.php',
+                    url: '/user/merchant/goods',
                     type: 'POST', dataType: 'json',
                     data: { csrf_token: csrfToken, _action: 'batch_self', batch_action: action, ids: ids }
                 }).done(function (res) {
@@ -591,7 +591,7 @@ $(function(){
                 layer.confirm('确定克隆商品「' + data.title + '」吗？将复制为一件新的自建商品。', function (idx) {
                     layer.close(idx);
                     $.ajax({
-                        url: '/user/merchant/goods.php',
+                        url: '/user/merchant/goods',
                         type: 'POST', dataType: 'json',
                         data: { csrf_token: csrfToken, _action: 'clone_self', id: data.id }
                     }).done(function (res) {
@@ -609,7 +609,7 @@ $(function(){
             if (obj.event === 'del') {
                 layer.confirm('确定要删除商品「' + data.title + '」吗？', function (idx) {
                     $.ajax({
-                        url: '/user/merchant/goods.php',
+                        url: '/user/merchant/goods',
                         type: 'POST', dataType: 'json',
                         data: {csrf_token: csrfToken, _action: 'delete_self', id: data.id},
                         success: function (res) {

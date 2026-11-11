@@ -109,9 +109,9 @@ var GuestFind = (function () {
             } else {
                 html += '<div class="find-order-actions">';
                 // 查单页是游客场景，详情走同一个 find_order.php（独立壳，无侧边栏），
-                // 不跳 /user/order_detail.php（那里走个人中心 index_public 壳，视觉上带左侧菜单区域）
+                // 不跳 /user/order_detail（那里走个人中心 index_public 壳，视觉上带左侧菜单区域）
                 // data-pjax：查单页启用了 PJAX，详情在 #foContent 内渲染，不整页刷新
-                html += '<a href="/user/find_order.php?order_no=' + encodeURIComponent(order.order_no) + '" data-pjax class="find-order-action-btn">查看详情</a>';
+                html += '<a href="/user/find_order?order_no=' + encodeURIComponent(order.order_no) + '" data-pjax class="find-order-action-btn">查看详情</a>';
                 html += '</div>';
             }
 
@@ -158,7 +158,7 @@ var GuestFind = (function () {
         var origHtml = $btn.html();
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 查询中...');
 
-        $.post('/user/find_order.php', data, function (res) {
+        $.post('/user/find_order', data, function (res) {
             $btn.prop('disabled', false).html(origHtml);
             if (res.code === 200) {
                 if (opts.onSubmitOrder) {

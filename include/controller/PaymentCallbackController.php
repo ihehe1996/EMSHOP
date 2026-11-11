@@ -95,11 +95,11 @@ final class PaymentCallbackController
 
         if ($isLogged) {
             return $orderNo !== ''
-                ? ('/user/order_detail.php?order_no=' . urlencode($orderNo))
-                : '/user/order.php';
+                ? ('/user/order_detail?order_no=' . urlencode($orderNo))
+                : '/user/order';
         }
 
-        return '/user/find_order.php';
+        return '/user/find_order';
     }
 
     /**

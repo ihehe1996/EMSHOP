@@ -16,7 +16,7 @@ final class CouponController extends UserBaseController
             if (\Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
                 \Response::error('优惠券功能未启用');
             }
-            header('Location: /user/home.php');
+            header('Location: /user/home');
             exit;
         }
 

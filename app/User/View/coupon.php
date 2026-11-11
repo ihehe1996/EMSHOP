@@ -27,7 +27,7 @@ $theme = $viewTheme[$view] ?? $viewTheme['unused'];
     <!-- 状态 tab -->
     <div class="uc-coupon-tabs">
         <?php foreach ($viewTabs as $key => $label): ?>
-        <a href="/user/coupon.php?view=<?= $key ?>" data-pjax="#userContent"
+        <a href="/user/coupon?view=<?= $key ?>" data-pjax="#userContent"
            class="uc-coupon-tab<?= $view === $key ? ' is-active' : '' ?>">
             <?= $label ?>
             <?php if (($counts[$key] ?? 0) > 0): ?>

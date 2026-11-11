@@ -76,7 +76,7 @@ $feeRateView = rtrim(rtrim(number_format($feeRate / 100, 2, '.', ''), '0'), '.')
                 <div class="wd-history__title">
                     <i class="fa fa-history"></i> 提现记录
                 </div>
-                <a href="/user/merchant/finance.php" data-pjax="#merchantContent" class="wd-history__more">
+                <a href="/user/merchant/finance" data-pjax="#merchantContent" class="wd-history__more">
                     查看全部余额明细 <i class="fa fa-angle-right"></i>
                 </a>
             </div>
@@ -416,7 +416,7 @@ $(function () {
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 处理中...');
 
             $.ajax({
-                url: '/user/merchant/withdraw.php',
+                url: '/user/merchant/withdraw',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -446,7 +446,7 @@ $(function () {
         table.render({
             elem: '#mcWdTable',
             id: 'mcWdTableId',
-            url: '/user/merchant/withdraw.php',
+            url: '/user/merchant/withdraw',
             method: 'POST',
             where: { _action: 'list', csrf_token: csrfToken },
             page: true,

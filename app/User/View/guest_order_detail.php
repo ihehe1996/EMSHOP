@@ -31,7 +31,7 @@ if ($detailOrder !== null):
     }
 ?>
     <div class="fo-detail">
-        <a href="/user/find_order.php" data-pjax class="fo-detail__nav">
+        <a href="/user/find_order" data-pjax class="fo-detail__nav">
             <i class="fa fa-angle-left"></i> 返回查单
         </a>
 
@@ -171,7 +171,7 @@ if ($detailOrder !== null):
     </div>
 <?php elseif ($detailDenied): ?>
     <div class="fo-detail">
-        <a href="/user/find_order.php" data-pjax class="fo-detail__nav">
+        <a href="/user/find_order" data-pjax class="fo-detail__nav">
             <i class="fa fa-angle-left"></i> 去查询
         </a>
         <section class="fo-detail__empty">
@@ -179,19 +179,19 @@ if ($detailOrder !== null):
             <h2 class="fo-detail__empty-title">无法直接访问订单详情</h2>
             <p class="fo-detail__empty-text">为保护买家隐私，订单详情不能通过链接直接打开。</p>
             <p class="fo-detail__empty-hint">请回到查单页，用浏览器订单 / 联系方式 / 订单密码 / 订单编号查询后，再点「查看详情」。</p>
-            <a href="/user/find_order.php" data-pjax class="fo-detail__empty-btn"><i class="fa fa-search"></i> 去查单</a>
+            <a href="/user/find_order" data-pjax class="fo-detail__empty-btn"><i class="fa fa-search"></i> 去查单</a>
         </section>
     </div>
 <?php else: ?>
     <div class="fo-detail">
-        <a href="/user/find_order.php" data-pjax class="fo-detail__nav">
+        <a href="/user/find_order" data-pjax class="fo-detail__nav">
             <i class="fa fa-angle-left"></i> 去查询
         </a>
         <section class="fo-detail__empty">
             <div class="fo-detail__empty-icon"><i class="fa fa-inbox"></i></div>
             <h2 class="fo-detail__empty-title">订单不存在或已被删除</h2>
             <p class="fo-detail__empty-hint">请回到查单页重新查询。</p>
-            <a href="/user/find_order.php" data-pjax class="fo-detail__empty-btn"><i class="fa fa-search"></i> 去查单</a>
+            <a href="/user/find_order" data-pjax class="fo-detail__empty-btn"><i class="fa fa-search"></i> 去查单</a>
         </section>
     </div>
 <?php endif; ?>

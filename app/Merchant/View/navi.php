@@ -83,7 +83,7 @@ $(function () {
 
         function loadList() {
             $.ajax({
-                url: '/user/merchant/navi.php',
+                url: '/user/merchant/navi',
                 type: 'POST', dataType: 'json',
                 data: { _action: 'list' },
                 success: function (res) {
@@ -184,7 +184,7 @@ $(function () {
             var name = $(this).data('name');
             layer.confirm('确定删除「' + name + '」？', function (idx) {
                 $.ajax({
-                    url: '/user/merchant/navi.php', type: 'POST', dataType: 'json',
+                    url: '/user/merchant/navi', type: 'POST', dataType: 'json',
                     data: { _action: 'delete', csrf_token: csrfToken, id: id },
                     success: function (res) {
                         if (res.code === 200) {
@@ -200,7 +200,7 @@ $(function () {
         $(document).on('click.mcNaviPage', '.mc-navi-toggle', function () {
             var id = $(this).data('id');
             $.ajax({
-                url: '/user/merchant/navi.php', type: 'POST', dataType: 'json',
+                url: '/user/merchant/navi', type: 'POST', dataType: 'json',
                 data: { _action: 'toggle_status', csrf_token: csrfToken, id: id },
                 success: function (res) {
                     if (res.code === 200) {
@@ -215,7 +215,7 @@ $(function () {
         $(document).on('click.mcNaviPage', '.mc-navi-toggle-hide', function () {
             var id = $(this).data('id');
             $.ajax({
-                url: '/user/merchant/navi.php', type: 'POST', dataType: 'json',
+                url: '/user/merchant/navi', type: 'POST', dataType: 'json',
                 data: { _action: 'toggle_hide_system', csrf_token: csrfToken, id: id },
                 success: function (res) {
                     if (res.code === 200) {
@@ -259,7 +259,7 @@ $(function () {
                 + '<div class="layui-form-item"><label class="layui-form-label">名称</label><div class="layui-input-block"><input type="text" class="layui-input" name="name" maxlength="100" value="' + (isEdit ? escapeHtml(row.name) : '') + '" placeholder="如：联系我们"></div></div>'
                 + '<div class="layui-form-item"><label class="layui-form-label">类型</label><div class="layui-input-block">' + typeRadio + '</div></div>'
                 + '<div class="layui-form-item mcNaviRefBlogRow"' + (curType === 'blog_cat' ? '' : ' style="display:none;"') + '><label class="layui-form-label">博客分类</label><div class="layui-input-block"><select name="type_ref_id_blog">' + blogOptions + '</select></div></div>'
-                + '<div class="layui-form-item mcNaviRefPageRow"' + (curType === 'page' ? '' : ' style="display:none;"') + '><label class="layui-form-label">页面</label><div class="layui-input-block"><select name="type_ref_id_page">' + pageOptions + '</select>' + (publishedPages.length === 0 ? '<div class="layui-form-mid layui-word-aux">尚无已发布页面，<a href="/user/merchant/page.php" target="_blank" style="color:#4e6ef2;">去创建</a></div>' : '') + '</div></div>'
+                + '<div class="layui-form-item mcNaviRefPageRow"' + (curType === 'page' ? '' : ' style="display:none;"') + '><label class="layui-form-label">页面</label><div class="layui-input-block"><select name="type_ref_id_page">' + pageOptions + '</select>' + (publishedPages.length === 0 ? '<div class="layui-form-mid layui-word-aux">尚无已发布页面，<a href="/user/merchant/page" target="_blank" style="color:#4e6ef2;">去创建</a></div>' : '') + '</div></div>'
                 + '<div class="layui-form-item mcNaviLinkRow"' + (curType === 'custom' ? '' : ' style="display:none;"') + '><label class="layui-form-label">链接</label><div class="layui-input-block"><input type="text" class="layui-input" name="link" maxlength="500" value="' + (isEdit && row.type === 'custom' ? escapeHtml(row.link || '') : '') + '" placeholder="如 https://example.com 或 ?c=page&id=1"></div></div>'
                 + '<div class="layui-form-item"><label class="layui-form-label">图标</label><div class="layui-input-block"><input type="text" class="layui-input" name="icon" maxlength="255" value="' + (isEdit ? escapeHtml(row.icon || '') : '') + '" placeholder="选填，如 fa fa-home"></div></div>'
                 + '<div class="layui-form-item"><label class="layui-form-label">打开方式</label><div class="layui-input-block">'
@@ -305,7 +305,7 @@ $(function () {
                     data.push({ name: 'type_ref_id', value: refVal });
 
                     $.ajax({
-                        url: '/user/merchant/navi.php', type: 'POST', dataType: 'json',
+                        url: '/user/merchant/navi', type: 'POST', dataType: 'json',
                         data: $.param(data),
                         success: function (res) {
                             if (res.code === 200) {

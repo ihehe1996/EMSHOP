@@ -32,7 +32,7 @@ defined('EM_ROOT') || exit('access denied!');
         </div>
         <div class="sidebar-user-links">
             <a href="/user/"><i class="fa fa-user"></i> 个人中心</a>
-            <a href="/user/order.php"><i class="fa fa-file-text-o"></i> 我的订单</a>
+            <a href="/user/order"><i class="fa fa-file-text-o"></i> 我的订单</a>
         </div>
         <?php else: ?>
         <div class="sidebar-user sidebar-user--guest">

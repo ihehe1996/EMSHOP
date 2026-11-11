@@ -14,7 +14,7 @@ if (!defined('EM_ROOT')) { exit('Access Denied'); }
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
-    <script src="/user/static/js/order_delivery_poll.js"></script>
+    <script src="/content/static/user/js/order_delivery_poll.js"></script>
     <script src="/content/static/js/guest_find.js?v=<?= (int) @filemtime(EM_ROOT . '/content/static/js/guest_find.js') ?>"></script>
 </head>
 <body>

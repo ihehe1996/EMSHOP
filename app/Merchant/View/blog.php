@@ -113,7 +113,7 @@ $(function () {
         function renderTable() {
             table.render({
                 elem: '#mcBlogTable',
-                url: '/user/merchant/blog.php',
+                url: '/user/merchant/blog',
                 method: 'POST',
                 where: { _action: 'list', status: currentStatus, category_id: currentCategoryId, keyword: currentKeyword },
                 page: true,
@@ -151,7 +151,7 @@ $(function () {
                 return;
             }
             if (event === 'toggle_status' || event === 'toggle_top') {
-                $.post('/user/merchant/blog.php', { _action: event, csrf_token: csrfToken, id: data.id }, function (res) {
+                $.post('/user/merchant/blog', { _action: event, csrf_token: csrfToken, id: data.id }, function (res) {
                     if (res.code === 200) {
                         if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                         layer.msg(res.msg || '已更新');
@@ -162,7 +162,7 @@ $(function () {
             }
             if (event === 'delete') {
                 layer.confirm('确定删除文章「' + data.title + '」？', function (idx) {
-                    $.post('/user/merchant/blog.php', { _action: 'delete', csrf_token: csrfToken, id: data.id }, function (res) {
+                    $.post('/user/merchant/blog', { _action: 'delete', csrf_token: csrfToken, id: data.id }, function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                             layer.msg('已删除');
@@ -189,7 +189,7 @@ $(function () {
             var ids = sel.map(function (r) { return r.id; });
             var msg = act === 'delete' ? '确定批量删除选中的 ' + ids.length + ' 篇文章？' : '确定批量' + (act === 'publish' ? '发布' : '转为草稿') + '?';
             layer.confirm(msg, function (idx) {
-                $.post('/user/merchant/blog.php', {
+                $.post('/user/merchant/blog', {
                     _action: 'batch', csrf_token: csrfToken,
                     batch_action: act, ids: JSON.stringify(ids)
                 }, function (res) {
@@ -236,7 +236,7 @@ $(function () {
                 area: [window.innerWidth >= 1200 ? '1100px' : '95%', window.innerHeight >= 700 ? '90%' : '95%'],
                 maxmin: true,
                 shadeClose: false,
-                content: '/user/merchant/blog_edit.php?_popup=1' + (id > 0 ? '&id=' + id : ''),
+                content: '/user/merchant/blog_edit?_popup=1' + (id > 0 ? '&id=' + id : ''),
                 end: function () {
                     if (window._mcBlogPopupSaved) {
                         window._mcBlogPopupSaved = false;

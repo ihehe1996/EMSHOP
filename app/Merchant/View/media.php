@@ -60,7 +60,7 @@ if (!defined('EM_ROOT')) {
         function loadMedia(page) {
             var context = $('#mediaContextSelect').val();
             $.ajax({
-                url: '/user/merchant/media.php',
+                url: '/user/merchant/media',
                 type: 'POST',
                 data: { action: 'list', page: page, limit: 24, context: context },
                 dataType: 'json',

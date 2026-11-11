@@ -15,11 +15,11 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
     <link rel="icon" href="<?= htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
-    <link rel="stylesheet" href="/user/static/css/user.css">
+    <link rel="stylesheet" href="/content/static/user/css/user.css">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
-    <script src="/user/static/js/order_delivery_poll.js"></script>
+    <script src="/content/static/user/js/order_delivery_poll.js"></script>
 </head>
 <body class="uc-body">
 
@@ -39,19 +39,19 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
             [
                 'title' => '账户',
                 'items' => [
-                    ['href' => '/user/home.php',    'icon' => 'fa-dashboard',     'label' => '概览'],
-                    ['href' => '/user/profile.php', 'icon' => 'fa-user-circle-o', 'label' => '个人资料'],
+                    ['href' => '/user/home',    'icon' => 'fa-dashboard',     'label' => '概览'],
+                    ['href' => '/user/profile', 'icon' => 'fa-user-circle-o', 'label' => '个人资料'],
                 ],
             ],
             [
                 'title' => '交易',
                 'items' => array_values(array_filter([
-                    ['href' => '/user/order.php',       'icon' => 'fa-file-text-o', 'label' => '我的订单'],
-                    ['href' => '/user/wallet.php',      'icon' => 'fa-credit-card', 'label' => '我的钱包'],
-                    ['href' => '/user/balance_log.php', 'icon' => 'fa-list-alt',    'label' => '余额明细'],
-                    shop_coupon_enabled() ? ['href' => '/user/coupon.php', 'icon' => 'fa-ticket', 'label' => '我的优惠券'] : null,
-                    MerchantContext::currentId() === 0 ? ['href' => '/user/rebate.php', 'icon' => 'fa-share-alt', 'label' => '我的推广'] : null,
-                    ['href' => '/user/address.php', 'icon' => 'fa-map-marker', 'label' => '收货地址'],
+                    ['href' => '/user/order',       'icon' => 'fa-file-text-o', 'label' => '我的订单'],
+                    ['href' => '/user/wallet',      'icon' => 'fa-credit-card', 'label' => '我的钱包'],
+                    ['href' => '/user/balance_log', 'icon' => 'fa-list-alt',    'label' => '余额明细'],
+                    shop_coupon_enabled() ? ['href' => '/user/coupon', 'icon' => 'fa-ticket', 'label' => '我的优惠券'] : null,
+                    MerchantContext::currentId() === 0 ? ['href' => '/user/rebate', 'icon' => 'fa-share-alt', 'label' => '我的推广'] : null,
+                    ['href' => '/user/address', 'icon' => 'fa-map-marker', 'label' => '收货地址'],
                 ])),
             ],
         ];
@@ -62,8 +62,8 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
                 'title' => '分站',
                 'items' => [
                     $merchantId > 0
-                        ? ['href' => '/user/merchant/home.php',  'icon' => 'fa-sitemap',     'label' => '我的分站', 'pjax' => false]
-                        : ['href' => '/user/merchant/apply.php', 'icon' => 'fa-plus-circle', 'label' => '开通分站', 'pjax' => false],
+                        ? ['href' => '/user/merchant/home',  'icon' => 'fa-sitemap',     'label' => '我的分站', 'pjax' => false]
+                        : ['href' => '/user/merchant/apply', 'icon' => 'fa-plus-circle', 'label' => '开通分站', 'pjax' => false],
                 ],
             ];
         }
@@ -71,7 +71,7 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
         $ucMenu[] = [
             'title' => '开发',
             'items' => [
-                ['href' => '/user/api.php', 'icon' => 'fa-plug', 'label' => 'API 对接'],
+                ['href' => '/user/api', 'icon' => 'fa-plug', 'label' => 'API 对接'],
             ],
         ];
 
@@ -88,7 +88,7 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
         ?>
         <aside class="uc-sidebar" id="ucSidebar">
             <div class="uc-sidebar__header">
-                <a href="/user/home.php" data-pjax="#userContent" class="uc-sidebar__brand">
+                <a href="/user/home" data-pjax="#userContent" class="uc-sidebar__brand">
                     <?php if ($siteLogoType === 'image' && $siteLogo !== ''): ?>
                     <img src="<?= htmlspecialchars($siteLogo) ?>" alt="" class="uc-sidebar__brand-img">
                     <?php else: ?>
@@ -121,7 +121,7 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
                         <i class="fa fa-bars"></i>
                     </button>
                     <nav class="uc-toolbar__crumb" aria-label="当前位置">
-                        <a href="/user/home.php" data-pjax="#userContent" class="uc-toolbar__crumb-home">个人中心</a>
+                        <a href="/user/home" data-pjax="#userContent" class="uc-toolbar__crumb-home">个人中心</a>
                         <i class="fa fa-angle-right uc-toolbar__crumb-sep"<?= $ucPageTitle === '' ? ' hidden' : '' ?>></i>
                         <span class="uc-toolbar__crumb-current" id="ucPageTitle"<?= $ucPageTitle === '' ? ' hidden' : '' ?>><?= htmlspecialchars($ucPageTitle) ?></span>
                     </nav>
@@ -157,13 +157,13 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
                             <i class="fa fa-angle-down uc-user-menu__arrow"></i>
                         </button>
                         <div class="uc-user-menu__dropdown uc-glass-panel">
-                            <a href="/user/profile.php" data-pjax="#userContent" class="uc-user-menu__link">
+                            <a href="/user/profile" data-pjax="#userContent" class="uc-user-menu__link">
                                 <i class="fa fa-user-circle-o"></i> 个人资料
                             </a>
-                            <a href="/user/wallet.php" data-pjax="#userContent" class="uc-user-menu__link">
+                            <a href="/user/wallet" data-pjax="#userContent" class="uc-user-menu__link">
                                 <i class="fa fa-credit-card"></i> 我的钱包
                             </a>
-                            <a href="/user/order.php" data-pjax="#userContent" class="uc-user-menu__link">
+                            <a href="/user/order" data-pjax="#userContent" class="uc-user-menu__link">
                                 <i class="fa fa-list-alt"></i> 我的订单
                             </a>
                             <div class="uc-user-menu__divider"></div>

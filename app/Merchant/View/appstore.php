@@ -172,7 +172,7 @@ layui.use(['table', 'layer'], function () {
     table.render({
         elem: '#masTable',
         id: 'masTableId',
-        url: '/user/merchant/appstore.php?_action=list',
+        url: '/user/merchant/appstore?_action=list',
         method: 'get',
         where: buildWhere(),
         page: true,
@@ -236,7 +236,7 @@ layui.use(['table', 'layer'], function () {
         layer.confirm(msg, { title: '应用购买', shadeClose: false }, function (idx) {
             layer.close(idx);
             var loading = layer.load(2, { shade: [0.28, '#000'] });
-            $.post('/user/merchant/appstore.php', {
+            $.post('/user/merchant/appstore', {
                 _action: 'buy',
                 csrf_token: window.MAS_CSRF,
                 market_id: d.id

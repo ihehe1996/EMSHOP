@@ -299,7 +299,7 @@ $(function () {
                 detail: $('#fDetail_' + seq).val().trim(),
                 is_default: $('#fIsDefault_' + seq).is(':checked') ? 1 : ''
             };
-            $.post('/user/address.php', payload, function (res) {
+            $.post('/user/address', payload, function (res) {
                 if (res.code === 200) {
                     if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                     layer.msg(res.msg || '已保存');
@@ -331,7 +331,7 @@ $(function () {
         if (act === 'edit') {
             openEditor(addr);
         } else if (act === 'set_default') {
-            $.post('/user/address.php',
+            $.post('/user/address',
                 { csrf_token: csrfToken, action: 'set_default', id: addr.id },
                 function (res) {
                     if (res.code === 200) {
@@ -343,7 +343,7 @@ $(function () {
                 }, 'json');
         } else if (act === 'delete') {
             layer.confirm('确认删除这条地址吗？', { btn: ['确认删除', '取消'] }, function (confirmIdx) {
-                $.post('/user/address.php',
+                $.post('/user/address',
                     { csrf_token: csrfToken, action: 'delete', id: addr.id },
                     function (res) {
                         if (res.code === 200) {

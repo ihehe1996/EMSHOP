@@ -15,7 +15,9 @@ defined('EM_ROOT') || exit('access denied!');
  *   满足任一即放行；都不满足返回 403
  */
 
-require_once __DIR__ . '/../../../user/global_public.php';
+require_once EM_ROOT . '/init.php';
+// 游客也可能访问：只取会话里的用户，不强制登录
+$frontUser = !empty($_SESSION['em_front_user']) ? (array) $_SESSION['em_front_user'] : null;
 require_once __DIR__ . '/inc_export_filename.php';
 
 $action = (string) Input::get('action', '');

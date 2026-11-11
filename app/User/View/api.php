@@ -174,7 +174,7 @@ if (!defined('EM_ROOT')) {
         function doGenerate() {
             var origHtml = btn.html();
             btn.addClass('is-loading').html('<i class="fa fa-spinner fa-spin"></i> 请稍候');
-            $.post('/user/api.php', {
+            $.post('/user/api', {
                 action: 'generate_secret',
                 csrf_token: csrfToken
             }, function (res) {

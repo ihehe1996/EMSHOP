@@ -530,7 +530,7 @@ final class Currency
      * 渲染前台"货币切换器"下拉 HTML 片段。
      *
      * 只输出已启用的货币；主货币永远在列表里；当前选中项用 visitorCode() 决定。
-     * 下拉切换时 onchange 自动提交到 /user/currency_switch.php 写 cookie + 302 回当前页。
+     * 下拉切换时 onchange 自动提交到 /user/currency_switch 写 cookie + 302 回当前页。
      *
      * 主题中直接回显即可：
      *   <?= Currency::switcherHtml() ?>
@@ -562,7 +562,7 @@ final class Currency
         }
 
         $cls = 'em-currency-switcher' . ($extraClass !== '' ? ' ' . $esc($extraClass) : '');
-        return '<form action="/user/currency_switch.php" method="post" class="' . $cls . '">'
+        return '<form action="/user/currency_switch" method="post" class="' . $cls . '">'
              . '<select name="code" onchange="this.form.submit()">' . $opts . '</select>'
              . '<noscript><button type="submit">切换</button></noscript>'
              . '</form>';

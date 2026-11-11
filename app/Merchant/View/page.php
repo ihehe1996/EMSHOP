@@ -97,7 +97,7 @@ $(function () {
         function renderTable() {
             table.render({
                 elem: '#mcPageTable',
-                url: '/user/merchant/page.php',
+                url: '/user/merchant/page',
                 method: 'POST',
                 where: { _action: 'list', status: currentStatus, keyword: currentKeyword },
                 page: true, limit: 20, limits: [10, 20, 50, 100],
@@ -129,7 +129,7 @@ $(function () {
 
             if (event === 'edit') { openEdit(data.id); return; }
             if (event === 'toggle_status') {
-                $.post('/user/merchant/page.php', { _action: 'toggle_status', csrf_token: csrfToken, id: data.id }, function (res) {
+                $.post('/user/merchant/page', { _action: 'toggle_status', csrf_token: csrfToken, id: data.id }, function (res) {
                     if (res.code === 200) {
                         if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                         layer.msg(res.msg || '已更新');
@@ -140,7 +140,7 @@ $(function () {
             }
             if (event === 'set_homepage') {
                 layer.confirm('把「' + data.title + '」设为本店首页？同时会替换当前已设的页面首页。', function (idx) {
-                    $.post('/user/merchant/page.php', { _action: 'set_homepage', csrf_token: csrfToken, id: data.id }, function (res) {
+                    $.post('/user/merchant/page', { _action: 'set_homepage', csrf_token: csrfToken, id: data.id }, function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                             layer.msg(res.msg || '已设为本店首页');
@@ -152,7 +152,7 @@ $(function () {
                 return;
             }
             if (event === 'clear_homepage') {
-                $.post('/user/merchant/page.php', { _action: 'clear_homepage', csrf_token: csrfToken, id: data.id }, function (res) {
+                $.post('/user/merchant/page', { _action: 'clear_homepage', csrf_token: csrfToken, id: data.id }, function (res) {
                     if (res.code === 200) {
                         if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                         layer.msg(res.msg || '已取消本店首页');
@@ -163,7 +163,7 @@ $(function () {
             }
             if (event === 'delete') {
                 layer.confirm('确定删除「' + data.title + '」？', function (idx) {
-                    $.post('/user/merchant/page.php', { _action: 'delete', csrf_token: csrfToken, id: data.id }, function (res) {
+                    $.post('/user/merchant/page', { _action: 'delete', csrf_token: csrfToken, id: data.id }, function (res) {
                         if (res.code === 200) {
                             if (res.data && res.data.csrf_token) csrfToken = res.data.csrf_token;
                             layer.msg('已删除');
@@ -188,7 +188,7 @@ $(function () {
             var ids = sel.map(function (r) { return r.id; });
             var msg = act === 'delete' ? '确定批量删除选中的 ' + ids.length + ' 个页面？' : '确定批量' + (act === 'publish' ? '发布' : '转为草稿') + '?';
             layer.confirm(msg, function (idx) {
-                $.post('/user/merchant/page.php', {
+                $.post('/user/merchant/page', {
                     _action: 'batch', csrf_token: csrfToken,
                     batch_action: act, ids: JSON.stringify(ids)
                 }, function (res) {
@@ -225,7 +225,7 @@ $(function () {
                 skin: 'admin-modal',
                 area: [window.innerWidth >= 1200 ? '1100px' : '95%', window.innerHeight >= 700 ? '90%' : '95%'],
                 maxmin: true, shadeClose: false,
-                content: '/user/merchant/page_edit.php?_popup=1' + (id > 0 ? '&id=' + id : ''),
+                content: '/user/merchant/page_edit?_popup=1' + (id > 0 ? '&id=' + id : ''),
                 end: function () {
                     if (window._mcPagePopupSaved) {
                         window._mcPagePopupSaved = false;

@@ -21,7 +21,7 @@ $esc = function (string $s): string {
     <title>开通分站 - <?= $esc($siteName) ?></title>
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
-    <link rel="stylesheet" href="/user/merchant/static/css/merchant.css?v=<?= @filemtime(EM_ROOT . '/user/merchant/static/css/merchant.css') ?: time() ?>">
+    <link rel="stylesheet" href="/content/static/merchant/css/merchant.css?v=<?= @filemtime(EM_ROOT . '/content/static/merchant/css/merchant.css') ?: time() ?>">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
 </head>
@@ -39,7 +39,7 @@ $esc = function (string $s): string {
         </a>
         <span class="mc-apply-header__chip"><i class="fa fa-sitemap"></i> 开通分站</span>
         <div class="mc-apply-header__right">
-            <a href="/user/home.php" class="mc-apply-header__btn"><i class="fa fa-user"></i> 个人中心</a>
+            <a href="/user/home" class="mc-apply-header__btn"><i class="fa fa-user"></i> 个人中心</a>
             <a href="/" class="mc-apply-header__btn"><i class="fa fa-home"></i> 返回首页</a>
         </div>
     </div>
@@ -133,7 +133,7 @@ $esc = function (string $s): string {
                         <div class="mc-apply-balance__label">账户余额</div>
                         <div class="mc-apply-balance__amount"><?= $esc($currencySymbol) ?><?= $displayMoney ?></div>
                     </div>
-                    <a href="/user/wallet.php" class="mc-apply-balance__action">
+                    <a href="/user/wallet" class="mc-apply-balance__action">
                         <i class="fa fa-plus"></i> 充值
                     </a>
                 </div>
@@ -182,7 +182,7 @@ $(function () {
             $btn.prop('disabled', true).html('<i class="fa fa-refresh fa-spin"></i> 开通中...');
 
             $.ajax({
-                url: '/user/merchant/apply.php',
+                url: '/user/merchant/apply',
                 type: 'POST',
                 dataType: 'json',
                 data: $('#mcApplyForm').serialize(),
@@ -190,7 +190,7 @@ $(function () {
                     if (res.code === 200) {
                         layer.msg(res.msg || '开通成功', { time: 800 });
                         setTimeout(function () {
-                            location.href = (res.data && res.data.redirect) || '/user/merchant/home.php';
+                            location.href = (res.data && res.data.redirect) || '/user/merchant/home';
                         }, 800);
                     } else {
                         layer.msg(res.msg || '开通失败');

@@ -18,7 +18,7 @@ $csrfToken = Csrf::token();
             <div class="fin-balance-card__inner">
                 <div class="fin-balance-card__label">当前店铺余额</div>
                 <div class="fin-balance-card__value"><?= htmlspecialchars((string) $uc['shopBalance']) ?></div>
-                <a href="/user/merchant/withdraw.php" data-pjax="#merchantContent" class="fin-balance-card__cta">
+                <a href="/user/merchant/withdraw" data-pjax="#merchantContent" class="fin-balance-card__cta">
                     <i class="fa fa-credit-card"></i> 立即提现
                 </a>
             </div>
@@ -312,7 +312,7 @@ $(function () {
         table.render({
             elem: '#mcFinTable',
             id: 'mcFinTableId',
-            url: '/user/merchant/finance.php',
+            url: '/user/merchant/finance',
             method: 'POST',
             where: where(),
             page: true,
@@ -354,7 +354,7 @@ $(function () {
 
         // 加载本月汇总
         $.ajax({
-            url: '/user/merchant/finance.php',
+            url: '/user/merchant/finance',
             type: 'POST',
             dataType: 'json',
             data: { _action: 'summary' },

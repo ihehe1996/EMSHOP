@@ -28,7 +28,7 @@ $domainAlerts = $domainAlerts ?? [];
     ?>
     <div style="margin-bottom:14px;padding:12px 16px;background:<?= $bg ?>;border:1px solid <?= $border ?>;border-radius:6px;color:<?= $color ?>;font-size:13px;line-height:1.7;">
         <i class="fa <?= $icon ?>"></i> <?= htmlspecialchars($alert['msg']) ?>
-        <a href="/user/merchant/settings.php" data-pjax="#merchantContent" style="color:<?= $color ?>;text-decoration:underline;margin-left:4px;">前往设置 →</a>
+        <a href="/user/merchant/settings" data-pjax="#merchantContent" style="color:<?= $color ?>;text-decoration:underline;margin-left:4px;">前往设置 →</a>
     </div>
     <?php endforeach; ?>
 
@@ -82,7 +82,7 @@ $domainAlerts = $domainAlerts ?? [];
     <div class="mc-section">
         <div class="mc-section-title">
             店铺信息
-            <a href="/user/merchant/settings.php" data-pjax="#merchantContent" class="mc-section-action">编辑 →</a>
+            <a href="/user/merchant/settings" data-pjax="#merchantContent" class="mc-section-action">编辑 →</a>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;font-size:13px;color:#374151;">
             <div>
@@ -146,16 +146,16 @@ $domainAlerts = $domainAlerts ?? [];
     <div class="mc-section">
         <div class="mc-section-title">快捷操作</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;">
-            <a href="/user/merchant/goods.php" data-pjax="#merchantContent" class="uc-quick-item">
+            <a href="/user/merchant/goods" data-pjax="#merchantContent" class="uc-quick-item">
                 <i class="fa fa-shopping-bag"></i><span>商品管理</span>
             </a>
-            <a href="/user/merchant/order.php" data-pjax="#merchantContent" class="uc-quick-item">
+            <a href="/user/merchant/order" data-pjax="#merchantContent" class="uc-quick-item">
                 <i class="fa fa-file-text-o"></i><span>订单管理</span>
             </a>
-            <a href="/user/merchant/finance.php" data-pjax="#merchantContent" class="uc-quick-item">
+            <a href="/user/merchant/finance" data-pjax="#merchantContent" class="uc-quick-item">
                 <i class="fa fa-list-alt"></i><span>余额明细</span>
             </a>
-            <a href="/user/merchant/withdraw.php" data-pjax="#merchantContent" class="uc-quick-item">
+            <a href="/user/merchant/withdraw" data-pjax="#merchantContent" class="uc-quick-item">
                 <i class="fa fa-credit-card"></i><span>申请提现</span>
             </a>
         </div>

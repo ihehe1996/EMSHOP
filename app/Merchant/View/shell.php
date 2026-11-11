@@ -22,8 +22,8 @@ $showSelfGoods = (int) ($lv['allow_self_goods'] ?? 0) === 1;
     <link rel="icon" href="<?= htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8') ?>">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
-    <link rel="stylesheet" href="/user/static/css/user.css">
-    <link rel="stylesheet" href="/user/merchant/static/css/merchant.css?v=<?= @filemtime(EM_ROOT . '/user/merchant/static/css/merchant.css') ?: time() ?>">
+    <link rel="stylesheet" href="/content/static/user/css/user.css">
+    <link rel="stylesheet" href="/content/static/merchant/css/merchant.css?v=<?= @filemtime(EM_ROOT . '/content/static/merchant/css/merchant.css') ?: time() ?>">
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/jquery.pjax.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
@@ -71,13 +71,13 @@ $showSelfGoods = (int) ($lv['allow_self_goods'] ?? 0) === 1;
                     <i class="fa fa-angle-down uc-header-user__caret"></i>
                 </div>
                 <div class="uc-header-user__dropdown">
-                    <a href="/user/home.php" class="uc-header-user__item">
+                    <a href="/user/home" class="uc-header-user__item">
                         <i class="fa fa-user-circle-o"></i> 个人中心
                     </a>
-                    <a href="/user/wallet.php" class="uc-header-user__item">
+                    <a href="/user/wallet" class="uc-header-user__item">
                         <i class="fa fa-credit-card"></i> 我的钱包
                     </a>
-                    <a href="/user/order.php" class="uc-header-user__item">
+                    <a href="/user/order" class="uc-header-user__item">
                         <i class="fa fa-list-alt"></i> 我的订单
                     </a>
                     <div class="uc-header-user__divider"></div>
@@ -113,54 +113,54 @@ $showSelfGoods = (int) ($lv['allow_self_goods'] ?? 0) === 1;
 
         <nav class="uc-nav">
             <div class="uc-nav-title">经营</div>
-            <a href="/user/merchant/home.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/home" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-dashboard"></i><span>概览</span>
             </a>
-            <a href="/user/merchant/goods.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/goods" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-shopping-bag"></i><span>商品管理</span>
             </a>
-            <a href="/user/merchant/category.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/category" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-folder"></i><span>分类管理</span>
             </a>
-            <a href="/user/merchant/order.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/order" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-file-text-o"></i><span>订单管理</span>
             </a>
 
             <div class="uc-nav-title">内容</div>
-            <a href="/user/merchant/navi.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/navi" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-compass"></i><span>导航管理</span>
             </a>
-            <a href="/user/merchant/blog_category.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/blog_category" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-folder-open"></i><span>文章分类</span>
             </a>
-            <a href="/user/merchant/blog.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/blog" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-file-text"></i><span>文章管理</span>
             </a>
-            <a href="/user/merchant/page.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/page" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-file-o"></i><span>页面管理</span>
             </a>
 
             <div class="uc-nav-title">财务</div>
-            <a href="/user/merchant/finance.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/finance" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-list-alt"></i><span>余额明细</span>
             </a>
-            <a href="/user/merchant/withdraw.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/withdraw" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-credit-card"></i><span>店铺余额</span>
             </a>
 
             <div class="uc-nav-title">扩展</div>
-            <a href="/user/merchant/appstore.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/appstore" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-shopping-basket"></i><span>应用商店</span>
             </a>
-            <a href="/user/merchant/plugin.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/plugin" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-plug"></i><span>插件管理</span>
             </a>
-            <a href="/user/merchant/template.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/template" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-paint-brush"></i><span>模板管理</span>
             </a>
 
             <div class="uc-nav-title">设置</div>
-            <a href="/user/merchant/settings.php" data-pjax="#merchantContent" class="uc-nav-item">
+            <a href="/user/merchant/settings" data-pjax="#merchantContent" class="uc-nav-item">
                 <i class="fa fa-cog"></i><span>店铺设置</span>
             </a>
         </nav>

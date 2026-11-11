@@ -48,7 +48,7 @@ if (!defined('EM_ROOT')) {
     <?php if ($totalPages > 1): ?>
     <div class="uc-pagination">
         <?php if ($page > 1): ?>
-        <a href="/user/balance_log.php?page=<?= $page - 1 ?>" data-pjax="#userContent" class="uc-page-btn">&laquo; 上一页</a>
+        <a href="/user/balance_log?page=<?= $page - 1 ?>" data-pjax="#userContent" class="uc-page-btn">&laquo; 上一页</a>
         <?php endif; ?>
 
         <?php
@@ -56,11 +56,11 @@ if (!defined('EM_ROOT')) {
         $end = min($totalPages, $page + 2);
         for ($i = $start; $i <= $end; $i++):
         ?>
-        <a href="/user/balance_log.php?page=<?= $i ?>" data-pjax="#userContent" class="uc-page-btn<?= $i === $page ? ' active' : '' ?>"><?= $i ?></a>
+        <a href="/user/balance_log?page=<?= $i ?>" data-pjax="#userContent" class="uc-page-btn<?= $i === $page ? ' active' : '' ?>"><?= $i ?></a>
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-        <a href="/user/balance_log.php?page=<?= $page + 1 ?>" data-pjax="#userContent" class="uc-page-btn">下一页 &raquo;</a>
+        <a href="/user/balance_log?page=<?= $page + 1 ?>" data-pjax="#userContent" class="uc-page-btn">下一页 &raquo;</a>
         <?php endif; ?>
 
         <span class="uc-page-info">共 <?= $total ?> 条</span>

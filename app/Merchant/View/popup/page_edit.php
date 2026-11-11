@@ -8,7 +8,7 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 $isEdit = isset($pageRow) && !empty($pageRow);
 $pageTitle = $isEdit ? '编辑页面' : '新建页面';
-$popupTemplateUploadUrl = '/user/merchant/upload.php';
+$popupTemplateUploadUrl = '/user/merchant/upload';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
@@ -185,7 +185,7 @@ $(function () {
 
             window.emTinymceSave();
             $.ajax({
-                url: '/user/merchant/page_edit.php',
+                url: '/user/merchant/page_edit',
                 type: 'POST',
                 data: $('#mcPageForm').serialize(),
                 dataType: 'json',

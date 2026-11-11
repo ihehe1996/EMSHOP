@@ -29,7 +29,7 @@ $emsPendingHash = htmlspecialchars($pendingDeliveryHash ?? 'empty', ENT_QUOTES, 
     <div class="uc-order-tabs">
         <?php foreach ($statusTabs as $key => $label): ?>
         <?php $cnt = (int) ($statusCounts[$key] ?? 0); ?>
-        <a href="/user/order.php?status=<?= $key ?>" data-pjax="#userContent"
+        <a href="/user/order?status=<?= $key ?>" data-pjax="#userContent"
            class="uc-order-tab<?= $status === $key ? ' is-active' : '' ?>">
             <?= $label ?><?php if ($cnt > 0): ?> <span class="uc-order-tab__count"><?= $cnt ?></span><?php endif; ?>
         </a>
@@ -95,10 +95,10 @@ $emsPendingHash = htmlspecialchars($pendingDeliveryHash ?? 'empty', ENT_QUOTES, 
                     </strong>
                 </div>
                 <div class="uc-order-actions">
-                    <a href="/user/order_detail.php?order_no=<?= urlencode((string) $order['order_no']) ?>"
+                    <a href="/user/order_detail?order_no=<?= urlencode((string) $order['order_no']) ?>"
                        data-pjax="#userContent" class="uc-order-btn">查看详情</a>
                     <?php if ($order['status'] === 'pending'): ?>
-                    <a href="/user/order_detail.php?order_no=<?= urlencode((string) $order['order_no']) ?>"
+                    <a href="/user/order_detail?order_no=<?= urlencode((string) $order['order_no']) ?>"
                        data-pjax="#userContent" class="uc-order-btn uc-order-btn--primary">去支付</a>
                     <?php endif; ?>
                 </div>
@@ -110,7 +110,7 @@ $emsPendingHash = htmlspecialchars($pendingDeliveryHash ?? 'empty', ENT_QUOTES, 
     <?php if ($totalPages > 1): ?>
     <div class="uc-pagination">
         <?php if ($page > 1): ?>
-        <a href="/user/order.php?status=<?= $status ?>&page=<?= $page - 1 ?>"
+        <a href="/user/order?status=<?= $status ?>&page=<?= $page - 1 ?>"
            data-pjax="#userContent" class="uc-page-btn">&laquo; 上一页</a>
         <?php endif; ?>
 
@@ -119,12 +119,12 @@ $emsPendingHash = htmlspecialchars($pendingDeliveryHash ?? 'empty', ENT_QUOTES, 
         $pEnd = min($totalPages, $page + 2);
         for ($i = $pStart; $i <= $pEnd; $i++):
         ?>
-        <a href="/user/order.php?status=<?= $status ?>&page=<?= $i ?>"
+        <a href="/user/order?status=<?= $status ?>&page=<?= $i ?>"
            data-pjax="#userContent" class="uc-page-btn<?= $i === $page ? ' active' : '' ?>"><?= $i ?></a>
         <?php endfor; ?>
 
         <?php if ($page < $totalPages): ?>
-        <a href="/user/order.php?status=<?= $status ?>&page=<?= $page + 1 ?>"
+        <a href="/user/order?status=<?= $status ?>&page=<?= $page + 1 ?>"
            data-pjax="#userContent" class="uc-page-btn">下一页 &raquo;</a>
         <?php endif; ?>
 

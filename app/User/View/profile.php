@@ -63,7 +63,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
         $btn.addClass('is-loading').text('保存中...');
 
         $.ajax({
-            url: '/user/profile.php',
+            url: '/user/profile',
             type: 'POST',
             data: $(this).serialize(),
             dataType: 'json',

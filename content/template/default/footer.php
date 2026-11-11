@@ -106,7 +106,7 @@
         <a href="/user/" class="mobile-nav-item">
             <i class="fa fa-user"></i><span>个人中心</span>
         </a>
-        <a href="/user/order.php" class="mobile-nav-item">
+        <a href="/user/order" class="mobile-nav-item">
             <i class="fa fa-file-text-o"></i><span>我的订单</span>
         </a>
         <a href="?c=login&a=logout" class="mobile-nav-item mobile-nav-logout">

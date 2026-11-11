@@ -103,7 +103,7 @@ function epay_show_trade_context(string $orderNo): array
             'status' => (string) ($recharge['status'] ?? ''),
             'amount_raw' => (int) ($recharge['amount'] ?? 0),
             'payment_code' => (string) ($recharge['payment_code'] ?? ''),
-            'redirect_url' => '/user/wallet.php',
+            'redirect_url' => '/user/wallet',
             'title' => '充值支付 ' . $orderNo,
             'created_at' => (string) ($recharge['created_at'] ?? ''),
             'order_items' => [],
@@ -144,8 +144,8 @@ function epay_show_trade_context(string $orderNo): array
         'amount_raw' => (int) ($order['pay_amount'] ?? 0),
         'payment_code' => (string) ($order['payment_code'] ?? ''),
         'redirect_url' => $userId > 0
-            ? '/user/order_detail.php?order_no=' . rawurlencode($orderNo)
-            : '/user/find_order.php',
+            ? '/user/order_detail?order_no=' . rawurlencode($orderNo)
+            : '/user/find_order',
         'title' => '订单支付 ' . $orderNo,
         'created_at' => (string) ($order['created_at'] ?? ''),
         'order_items' => $items,

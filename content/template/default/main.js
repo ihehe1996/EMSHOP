@@ -617,7 +617,7 @@ var GoodsDetail = (function () {
                 if (!addresses.length) {
                     layui.layer.confirm('您还没有收货地址，是否现在前往添加？', { btn: ['去添加', '取消'] }, function (idx) {
                         layui.layer.close(idx);
-                        location.href = '/user/address.php';
+                        location.href = '/user/address';
                     });
                     return;
                 }
@@ -642,7 +642,7 @@ var GoodsDetail = (function () {
                           + '</div></label>';
                 });
                 html += '</div>';
-                html += '<a href="/user/address.php" class="detail-addr-manage"><i class="fa fa-cog"></i> 管理我的收货地址</a>';
+                html += '<a href="/user/address" class="detail-addr-manage"><i class="fa fa-cog"></i> 管理我的收货地址</a>';
                 html += '</div>';
                 afterOpen = function () {};
             } else {

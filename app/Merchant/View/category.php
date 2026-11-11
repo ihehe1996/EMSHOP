@@ -151,7 +151,7 @@ $(function(){
         function loadCats() {
             catLoaded = true;
             $.ajax({
-                url: '/user/merchant/category.php',
+                url: '/user/merchant/category',
                 type: 'POST',
                 dataType: 'json',
                 data: {_action: 'list'},
@@ -224,7 +224,7 @@ $(function(){
             var id = $(this).data('id');
             var all = topCats.concat();
             // 从整个列表再找
-            $.ajax({url:'/user/merchant/category.php',type:'POST',dataType:'json',data:{_action:'list'}})
+            $.ajax({url:'/user/merchant/category',type:'POST',dataType:'json',data:{_action:'list'}})
                 .done(function (res) {
                     if (!res || res.code !== 200) { layer.msg('加载失败'); return; }
                     var row = (res.data.data || []).find(function (r) { return r.id == id; });
@@ -236,7 +236,7 @@ $(function(){
             var name = $(this).data('name');
             layer.confirm('确定删除分类「' + name + '」？', function (idx) {
                 $.ajax({
-                    url: '/user/merchant/category.php',
+                    url: '/user/merchant/category',
                     type: 'POST', dataType: 'json',
                     data: {_action: 'delete', csrf_token: csrfToken, id: id},
                     success: function (res) {
@@ -285,7 +285,7 @@ $(function(){
                     if (!has) data.push({name: 'status', value: '0'});
 
                     $.ajax({
-                        url: '/user/merchant/category.php',
+                        url: '/user/merchant/category',
                         type: 'POST', dataType: 'json',
                         data: $.param(data),
                         success: function (res) {
@@ -304,7 +304,7 @@ $(function(){
         // ============ 主站分类（别名映射） ============
         function loadMap() {
             $.ajax({
-                url: '/user/merchant/category.php',
+                url: '/user/merchant/category',
                 type: 'POST', dataType: 'json',
                 data: {_action: 'list_map'},
                 success: function (res) {
@@ -362,7 +362,7 @@ $(function(){
             var id = $(this).data('id');
             var alias = $('.mc-map-alias[data-id="' + id + '"]').val();
             $.ajax({
-                url: '/user/merchant/category.php',
+                url: '/user/merchant/category',
                 type: 'POST', dataType: 'json',
                 data: {_action: 'save_map', csrf_token: csrfToken, master_category_id: id, alias_name: alias},
                 success: function (res) {
@@ -377,7 +377,7 @@ $(function(){
         $(document).on('click.mcCatPage', '.mc-map-toggle-hide', function () {
             var id = $(this).data('id');
             $.ajax({
-                url: '/user/merchant/category.php',
+                url: '/user/merchant/category',
                 type: 'POST', dataType: 'json',
                 data: {_action: 'toggle_hide_map', csrf_token: csrfToken, master_category_id: id},
                 success: function (res) {

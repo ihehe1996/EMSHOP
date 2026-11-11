@@ -48,7 +48,7 @@ if (!defined('EM_ROOT')) {
     <div class="uc-section">
         <div class="uc-section-title">
             最近变动
-            <a href="/user/balance_log.php" data-pjax="#userContent" class="uc-section-link">查看全部 &rarr;</a>
+            <a href="/user/balance_log" data-pjax="#userContent" class="uc-section-link">查看全部 &rarr;</a>
         </div>
 
         <?php if (!empty($recentLogs)): ?>

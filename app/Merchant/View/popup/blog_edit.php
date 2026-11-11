@@ -11,7 +11,7 @@ $csrfToken = Csrf::token();
 $isEdit = isset($article) && !empty($article);
 $placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '/content/static/img/placeholder.png';
 $pageTitle = $isEdit ? '编辑文章' : '写文章';
-$popupTemplateUploadUrl = '/user/merchant/upload.php';
+$popupTemplateUploadUrl = '/user/merchant/upload';
 $esc = function (?string $str): string {
     return htmlspecialchars($str ?? '', ENT_QUOTES, 'UTF-8');
 };
@@ -55,7 +55,7 @@ include EM_ROOT . '/app/Admin/View/popup/header.php';
                                     <?php endforeach; ?>
                                 </select>
                                 <?php if (empty($categories)): ?>
-                                <div class="layui-form-mid layui-word-aux">尚未创建分类，<a href="/user/merchant/blog_category.php" target="_blank" style="color:#4e6ef2;">去创建</a></div>
+                                <div class="layui-form-mid layui-word-aux">尚未创建分类，<a href="/user/merchant/blog_category" target="_blank" style="color:#4e6ef2;">去创建</a></div>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -248,7 +248,7 @@ $(function () {
                 fd.append('csrf_token', csrfToken);
                 fd.append('context', 'blog_cover');
                 $.ajax({
-                    url: '/user/merchant/upload.php',
+                    url: '/user/merchant/upload',
                     type: 'POST', data: fd, processData: false, contentType: false, dataType: 'json',
                     success: function (res) {
                         if (res.code === 200 && res.data && res.data.url) {
@@ -353,7 +353,7 @@ $(function () {
             window.emTinymceSave();
             var formData = $('#mcBlogForm').serialize();
             $.ajax({
-                url: '/user/merchant/blog_edit.php?_action=save',
+                url: '/user/merchant/blog_edit?_action=save',
                 type: 'POST', data: formData, dataType: 'json',
                 success: function (res) {
                     if (res.code === 200) {

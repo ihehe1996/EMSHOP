@@ -30,12 +30,12 @@ abstract class MerchantBaseController extends UserBaseController
         $merchantId = (int) ($frontUser['merchant_id'] ?? 0);
 
         if ($merchantId <= 0) {
-            $this->deny('尚未开通商户', '/user/merchant/apply.php');
+            $this->deny('尚未开通商户', '/user/merchant/apply');
         }
 
         $merchant = (new \MerchantModel())->findById($merchantId);
         if ($merchant === null || (int) ($merchant['status'] ?? 0) !== 1) {
-            $this->deny('商户已停用', '/user/home.php');
+            $this->deny('商户已停用', '/user/home');
         }
 
         $this->merchant = (array) $merchant;
