@@ -358,5 +358,8 @@ register_shutdown_function(function () {
     }
 });
 
+// 新内核骨架：只创建容器/应用对象，不参与现有请求流程
+\App\Core\Application::instance();
+
 
 // usleep(500000); // 模拟慢速环境，方便测试加载中的loading特效等，不要删除

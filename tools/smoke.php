@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * 轻量冒烟检查（不依赖 Composer / PHPUnit）。
+ *
+ * 用法：
+ *   php tools/smoke.php          # CLI 基础设施检查
+ *   php tools/smoke.php --http   # 额外用 php -S 检查首页 / 后台登录页
+ */
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+
+$root = dirname(__DIR__);
+require $root . '/init.php';
+
+$failed = 0;
+
+function smoke_check(string $label, bool $ok): void
+{
+    global $failed;
+    echo ($ok ? '[PASS] ' : '[FAIL] ') . $label . PHP_EOL;
+    if (!$ok) {
+        $failed++;
+    }
+}
+
+// 旧代码路径必须保持不变
+smoke_check('旧类可加载：Database', class_exists('Database'));
+smoke_check('旧类可加载：Config', class_exists('Config'));
+smoke_check('旧类可加载：AuthService', class_exists('AuthService'));
+smoke_check('旧类可加载：Csrf', class_exists('Csrf'));
+smoke_check('旧常量仍存在：EM_CONFIG', defined('EM_CONFIG') && is_array(EM_CONFIG) && isset(EM_CONFIG['db']));
+
+// 新内核基础设施
+smoke_check('新类可加载：App\\Core\\Application', class_exists('App\\Core\\Application'));
+smoke_check('新类可加载：App\\Core\\Container', class_exists('App\\Core\\Container'));
+
+$app = \App\Core\Application::instance();
+$container = $app->container();
+smoke_check('容器可解析 Application', $container->make(\App\Core\Application::class) === $app);
+smoke_check('容器可解析 Container', $container->make(\App\Core\Container::class) === $container);
+
+// 容器行为
+$container->singleton('smoke.singleton', static function () {
+    return new stdClass();
+});
+smoke_check('singleton 只解析一次', $container->make('smoke.singleton') === $container->make('smoke.singleton'));
+
+$container->bind('smoke.bind', static function () {
+    return new stdClass();
+});
+smoke_check('bind 每次新建', $container->make('smoke.bind') !== $container->make('smoke.bind'));
+
+// 可选 HTTP 检查
+if (in_array('--http', $argv, true)) {
+    $port = 18000 + random_int(0, 999);
+    $null = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+    $proc = @proc_open(
+        [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root],
+        [0 => ['file', $null, 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']],
+        $pipes,
+        $root
+    );
+
+    if (!is_resource($proc)) {
+        smoke_check('启动 php -S', false);
+    } else {
+        usleep(800000);
+
+        $adminKey = trim((string) Config::get('admin_entry_key', ''));
+        $urls = [
+            '/' => 200,
+            '/admin/sign.php' . ($adminKey !== '' ? '?s=' . rawurlencode($adminKey) : '') => 200,
+        ];
+
+        foreach ($urls as $path => $expect) {
+            $context = stream_context_create(['http' => ['ignore_errors' => true, 'timeout' => 10]]);
+            $body = @file_get_contents('http://127.0.0.1:' . $port . $path, false, $context);
+            $status = 0;
+            if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+                $status = (int) $m[1];
+            }
+            smoke_check('HTTP ' . $path . ' -> ' . $status, $body !== false && $status === $expect);
+        }
+
+        proc_terminate($proc);
+        proc_close($proc);
+    }
+}
+
+echo $failed === 0 ? "SMOKE OK\n" : "SMOKE FAILED: {$failed}\n";
+exit($failed === 0 ? 0 : 1);
