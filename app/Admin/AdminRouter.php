@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Admin;
 
 use App\Admin\Controller\AppOrderController;
+use App\Admin\Controller\AppstoreBuyController;
 use App\Admin\Controller\AttachmentController;
 use App\Admin\Controller\BlogCategoryController;
 use App\Admin\Controller\BlogCommentController;
@@ -25,6 +26,7 @@ use App\Admin\Controller\LanguageController;
 use App\Admin\Controller\LogsController;
 use App\Admin\Controller\MerchantController;
 use App\Admin\Controller\MerchantLevelController;
+use App\Admin\Controller\MerchantMarketController;
 use App\Admin\Controller\MerchantOrderController;
 use App\Admin\Controller\NaviController;
 use App\Admin\Controller\NotFoundController;
@@ -101,6 +103,8 @@ final class AdminRouter
         'plugin' => [PluginController::class, 'index'],
         'settings' => [SettingsController::class, 'index'],
         'app_order' => [AppOrderController::class, 'index'],
+        'merchant_market' => [MerchantMarketController::class, 'index'],
+        'appstore_buy' => [AppstoreBuyController::class, 'index'],
     ];
 
     /** @var AdminRouter|null */
