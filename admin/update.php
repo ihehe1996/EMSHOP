@@ -103,7 +103,11 @@ try {
             if (!$res['ok']) {
                 Response::error($res['error'] ?? '更新脚本执行失败', $res);
             }
-            Response::success($res['ran'] ? '更新脚本执行完成' : '本次升级包无更新脚本', $res);
+            $msg = $res['ran'] ? '更新脚本执行完成' : '本次升级包无更新脚本';
+            if ($res['ran'] && !$res['deleted']) {
+                $msg .= '（注意：update.php 删除失败，请手动删除网站根目录的 update.php）';
+            }
+            Response::success($msg, $res);
         }
 
         // ------------------------------------------------------------

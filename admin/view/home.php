@@ -2234,6 +2234,9 @@ $(function () {
                     }
                     setStep('run_script', 'done', '执行完成并已删除');
                     log('更新脚本 update.php 已执行并删除', 'ok');
+                    if (d.deleted === false) {
+                        log('警告：update.php 删除失败，请手动删除网站根目录的 update.php', 'err');
+                    }
                     if (d.output) {
                         d.output.split(/\r?\n/).forEach(function (line) {
                             if (line !== '') log('  ' + line, 'info');

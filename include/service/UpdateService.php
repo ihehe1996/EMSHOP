@@ -538,10 +538,10 @@ final class UpdateService
         }
 
         $script = EM_ROOT . '/update.php';
-        if (!is_file($script)) {
+        if (!is_file($script) || !is_readable($script)) {
             return [
                 'ok' => false, 'ran' => false, 'deleted' => false, 'output' => '',
-                'error' => '升级包带有 update.php，但文件未被应用到网站根目录',
+                'error' => '升级包带有 update.php，但文件未被成功应用或不可读',
             ];
         }
 
@@ -553,12 +553,18 @@ final class UpdateService
         // 脚本里 exit / 触发致命错误时 finally 不执行，这里兜底
         register_shutdown_function($delete);
 
+        // 用独立闭包执行：脚本里的局部变量（$output / $error / $script 等）
+        // 不会覆盖本方法的同名变量，把状态维护和脚本作用域隔开
+        $runner = static function (string $__packageScript): void {
+            include $__packageScript;
+        };
+
         $level  = ob_get_level();
         $output = '';
         $error  = '';
         ob_start();
         try {
-            include $script;
+            $runner($script);
         } catch (Throwable $e) {
             $error = $e->getMessage();
         } finally {
@@ -572,9 +578,10 @@ final class UpdateService
             $delete();
         }
 
-        if (strlen($output) > 4000) {
-            $output = (function_exists('mb_substr') ? mb_substr($output, 0, 4000) : substr($output, 0, 4000))
-                . "\n…（输出过长已截断）";
+        // 输出/异常信息必须能 json_encode（脚本可能是 GBK 编码或 echo 了二进制）
+        $output = self::normalizeScriptOutput($output);
+        if ($error !== '') {
+            $error = self::normalizeScriptOutput($error);
         }
 
         $deleted = !is_file($script);
@@ -592,6 +599,45 @@ final class UpdateService
         }
 
         return ['ok' => true, 'ran' => true, 'deleted' => $deleted, 'output' => $output];
+    }
+
+    /**
+     * 把脚本输出整理成可安全 json_encode 的文本：按 4000 字符截断 + 保证合法 UTF-8。
+     *
+     * 脚本文件本身可能是 GBK 编码，或脚本里 var_dump 了二进制内容；一旦输出非法
+     * UTF-8，Response::json 的 json_encode 会返回 false，整个 AJAX 响应变成空串，
+     * 前端只报解析错误，而脚本其实已经执行成功并被删除了 —— 很容易误判成升级失败。
+     */
+    private static function normalizeScriptOutput(string $output): string
+    {
+        if ($output === '') {
+            return '';
+        }
+
+        if (strlen($output) > 4000) {
+            $output = (function_exists('mb_substr') ? mb_substr($output, 0, 4000) : substr($output, 0, 4000))
+                . "\n…（输出过长已截断）";
+        }
+
+        if (@preg_match('//u', $output) === 1) {
+            return $output;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $converted = (string) mb_convert_encoding($output, 'UTF-8', 'UTF-8');
+            if (@preg_match('//u', $converted) === 1) {
+                return $converted;
+            }
+        }
+        if (function_exists('iconv')) {
+            $converted = (string) @iconv('UTF-8', 'UTF-8//IGNORE', $output);
+            if (@preg_match('//u', $converted) === 1) {
+                return $converted;
+            }
+        }
+
+        // 兜底：mbstring / iconv 都不可用时只保留 ASCII 可打印字符与换行
+        return (string) preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '?', $output);
     }
 
     // ================================================================
