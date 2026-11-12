@@ -38,7 +38,6 @@ smoke_check('旧类可加载：Database', class_exists('Database'));
 smoke_check('旧类可加载：Config', class_exists('Config'));
 smoke_check('旧类可加载：AuthService', class_exists('AuthService'));
 smoke_check('旧类可加载：Csrf', class_exists('Csrf'));
-smoke_check('旧常量仍存在：EM_CONFIG', defined('EM_CONFIG') && is_array(EM_CONFIG) && isset(EM_CONFIG['db']));
 
 // 新内核基础设施
 smoke_check('新类可加载：App\\Core\\Application', class_exists('App\\Core\\Application'));
@@ -53,7 +52,6 @@ smoke_check('容器可解析 Container', $container->make(\App\Core\Container::c
 smoke_check('新类可加载：App\\Admin\\AdminRouter', class_exists('App\\Admin\\AdminRouter'));
 smoke_check('新类可加载：App\\Admin\\Controller\\AbstractAdminController', class_exists('App\\Admin\\Controller\\AbstractAdminController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\BaseAdminController', class_exists('App\\Admin\\Controller\\BaseAdminController'));
-smoke_check('新类可加载：App\\Admin\\Controller\\HomeController', class_exists('App\\Admin\\Controller\\HomeController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\DashboardController', class_exists('App\\Admin\\Controller\\DashboardController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\LicenseController', class_exists('App\\Admin\\Controller\\LicenseController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\NotFoundController', class_exists('App\\Admin\\Controller\\NotFoundController'));
@@ -106,11 +104,6 @@ smoke_check('新类可加载：App\\Admin\\Controller\\LogoutController', class_
 smoke_check('新类可加载：App\\Admin\\Controller\\PluginActionController', class_exists('App\\Admin\\Controller\\PluginActionController'));
 smoke_check('新类可加载：App\\Admin\\Controller\\CacheController', class_exists('App\\Admin\\Controller\\CacheController'));
 smoke_check('新类可加载：App\\Admin\\AdminShell', class_exists('App\\Admin\\AdminShell'));
-smoke_check('新类可加载：App\\Support\\LegacyAdminRemoval', class_exists('App\\Support\\LegacyAdminRemoval'));
-smoke_check(
-    '旧后台删除标记不应残留',
-    !is_file($root . '/content/tmp/admin_legacy_removal.pending')
-);
 smoke_check('新类可加载：App\\User\\UserRouter', class_exists('App\\User\\UserRouter'));
 smoke_check('新类可加载：App\\User\\UserShell', class_exists('App\\User\\UserShell'));
 smoke_check('新类可加载：App\\Merchant\\MerchantRouter', class_exists('App\\Merchant\\MerchantRouter'));
@@ -1354,9 +1347,6 @@ $replaceFile->setAccessible(true);
 $newFormatSource = "<?php\n\ndefine('EM_APP_NAME', 'x');\ndefine('EM_AUTH_SECRET', 'abc123');\n";
 smoke_check('CsrfSecret 解析新格式密钥', $extractSecret->invoke($csrfService, $newFormatSource) === 'abc123');
 
-$oldFormatSource = "<?php\nreturn [\n    'app' => ['name' => 'x'],\n    'auth' => [\n        'session_key' => 'k',\n        'secret' => 'oldsecret',\n    ],\n];\n";
-smoke_check('CsrfSecret 解析老数组密钥', $extractSecret->invoke($csrfService, $oldFormatSource) === 'oldsecret');
-
 $injectedNew = $injectSecret->invoke($csrfService, "<?php\n\ndefine('EM_APP_NAME', 'x');\n", 'newsecret');
 smoke_check('CsrfSecret 注入新格式', is_string($injectedNew)
     && $extractSecret->invoke($csrfService, $injectedNew) === 'newsecret'
@@ -1369,11 +1359,6 @@ try {
     $csrfSyntaxOk = false;
 }
 smoke_check('CsrfSecret 注入结果语法合法', $csrfSyntaxOk);
-
-$oldArrayNoSecret = "<?php\nreturn [\n    'auth' => [\n        'session_key' => 'k',\n        'csrf_key' => 'c',\n    ],\n];\n";
-$injectedOld = $injectSecret->invoke($csrfService, $oldArrayNoSecret, 'oldnew');
-smoke_check('CsrfSecret 注入老数组格式', is_string($injectedOld)
-    && $extractSecret->invoke($csrfService, $injectedOld) === 'oldnew');
 
 // 原子替换只在系统临时目录验证
 $tmpConfig = sys_get_temp_dir() . '/emshop_csrf_smoke_' . getmypid() . '.php';

@@ -446,8 +446,6 @@ final class View
             // 公共视图（app/User/View/public/）：登录 / 注册 / 找回密码等账号页，全站共用一份。
             // 放在主题目录之后：主题里自带同名文件时仍优先用主题的（老主题定制不失效）。
             EM_ROOT . '/app/User/View/public/',
-            // 核心视图回退（include/view/），供各模板共用
-            EM_ROOT . '/include/view/',
         ];
 
         foreach ($dirs as $dir) {

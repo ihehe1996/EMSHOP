@@ -58,7 +58,7 @@ final class UpdateService
      * 所以按归属判断：文件里带我们的标识 → 是我们放的，照常覆盖（覆盖前留一份 .emshop-bak）；
      * 不带 → 是人家的文件，一个字都不动。
      *
-     * 只认根目录这一层。包里的 `admin/.htaccess` 之类不在此列 —— 那是随功能走的文件。
+     * 只认根目录这一层；子目录里的配置文件不在此列，随功能走的文件照常覆盖。
      */
     private const MANAGED_SERVER_CONFIG = [
         '.htaccess'  => '@emshop-managed',
@@ -677,11 +677,6 @@ final class UpdateService
             }
         }
 
-        // 升级已完成：写入旧后台目录待删除标记，由之后任意一次 Web 请求执行清理
-        if (class_exists('\\App\\Support\\LegacyAdminRemoval')) {
-            \App\Support\LegacyAdminRemoval::schedule();
-        }
-
         return ['ok' => true, 'update_reported' => $reported];
     }
 
@@ -795,16 +790,16 @@ final class UpdateService
 
     /**
      * 解压目录可能是 emshop-v1.2.0/ 这样套一层的，也可能是直接铺平的。
-     * 看解压根下有没有 init.php 或 admin/ 来判断，找不到就返回原目录。
+     * 看解压根下有没有 init.php 或 app/ 来判断，找不到就返回原目录。
      */
     private static function detectPackageRoot(string $extractPath): string
     {
-        if (is_file($extractPath . '/init.php') || is_dir($extractPath . '/admin')) {
+        if (is_file($extractPath . '/init.php') || is_dir($extractPath . '/app')) {
             return rtrim($extractPath, '/');
         }
 
         foreach (glob($extractPath . '/*', GLOB_ONLYDIR) ?: [] as $sub) {
-            if (is_file($sub . '/init.php') || is_dir($sub . '/admin')) {
+            if (is_file($sub . '/init.php') || is_dir($sub . '/app')) {
                 return rtrim($sub, '/');
             }
         }

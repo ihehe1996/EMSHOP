@@ -429,6 +429,7 @@ PHP;
         '',
         '// 应用配置（当前版本仅预留，功能后续接入）',
         "define('EM_APP_NAME', Env::get('EM_APP_NAME', 'EMSHOP'));   // 应用名",
+        "define('EM_APP_ADMIN_ENTRY', Env::get('EM_APP_ADMIN_ENTRY', 'admin'));  // 后台入口路径段（admin → /admin，xadmin → /xadmin）",
         '',
         '// 数据库连接',
         "define('EM_DB_HOST', Env::get('EM_DB_HOST', " . var_export($host, true) . '));',
