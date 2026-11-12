@@ -135,7 +135,6 @@ Autoloader::register([
     EM_ROOT . '/include/lib',
     EM_ROOT . '/include/model',
     EM_ROOT . '/include/service',
-    EM_ROOT . '/include/controller',
 ]);
 
 // 后台入口路径：默认 /admin，可在 .env 里用 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。
@@ -144,6 +143,14 @@ define('EM_ADMIN_PATH', '/' . \App\Admin\AdminRouter::normalizeEntry((string) EM
 
 // 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
 \App\Core\Application::instance();
+
+// 支付插件（含第三方）仍按全局类名 'PaymentCallbackController' 调用；
+// 实现已迁到 app/Home/Controller，这里按需把全局别名指过去。
+spl_autoload_register(static function (string $class): void {
+    if ($class === 'PaymentCallbackController') {
+        class_alias(\App\Home\Controller\PaymentCallbackController::class, 'PaymentCallbackController');
+    }
+});
 
 // 核心服务注册进容器（懒加载：登记取法，首次 make 才创建）
 \App\Core\ServiceProvider::register(\App\Core\Application::instance()->container());

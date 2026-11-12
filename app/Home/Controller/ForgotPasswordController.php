@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 找回密码旧路由兼容：重定向到 LoginController。
  *

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 首页控制器。
  *
@@ -26,7 +28,7 @@ class IndexController extends BaseController
      */
     public function display(): void
     {
-        $mode = (string) Config::get('homepage_mode', 'mall');
+        $mode = (string) \Config::get('homepage_mode', 'mall');
 
         $this->view->render($mode === 'goods_list' ? 'goods_list' : 'index');
     }

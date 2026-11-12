@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 前台"我的推广"控制器。
  *
@@ -17,9 +19,9 @@ class RebateController extends BaseController
         if (session_status() === PHP_SESSION_NONE) session_start();
         $user = $_SESSION['em_front_user'] ?? null;
         if (empty($user['id'])) {
-            if (Request::isPost()) Response::error('请先登录');
+            if (\Request::isPost()) \Response::error('请先登录');
             // GET 请求未登录 → 跳登录页
-            Response::redirect('/?c=login');
+            \Response::redirect('/?c=login');
         }
         return $user;
     }
@@ -27,7 +29,7 @@ class RebateController extends BaseController
     public function _index(): void
     {
         // 主页面移到个人中心内（/user/rebate），这里直接重定向
-        Response::redirect('/user/rebate');
+        \Response::redirect('/user/rebate');
     }
 
     /**
@@ -35,10 +37,10 @@ class RebateController extends BaseController
      */
     public function withdraw(): void
     {
-        if (!Request::isPost()) Response::error('无效请求');
+        if (!\Request::isPost()) \Response::error('无效请求');
 
-        if (MerchantContext::currentId() > 0) {
-            Response::error('商户站不支持推广返佣');
+        if (\MerchantContext::currentId() > 0) {
+            \Response::error('商户站不支持推广返佣');
         }
 
         $user = $this->requireLogin();
@@ -48,18 +50,18 @@ class RebateController extends BaseController
         // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
         // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
         try {
-            $amountRaw = Money::parse(Input::post('amount', ''));
-        } catch (InvalidArgumentException $e) {
-            Response::error('请输入正确的提现金额');
+            $amountRaw = \Money::parse(\Input::post('amount', ''));
+        } catch (\InvalidArgumentException $e) {
+            \Response::error('请输入正确的提现金额');
         }
 
         try {
-            $withdrawId = RebateService::withdraw($userId, $amountRaw);
-        } catch (RuntimeException $e) {
-            Response::error($e->getMessage());
+            $withdrawId = \RebateService::withdraw($userId, $amountRaw);
+        } catch (\RuntimeException $e) {
+            \Response::error($e->getMessage());
         }
 
-        Response::success('提现成功', ['withdraw_id' => $withdrawId]);
+        \Response::success('提现成功', ['withdraw_id' => $withdrawId]);
     }
 
     /**
@@ -76,15 +78,15 @@ class RebateController extends BaseController
         // 「到期转可用」的真实迁移在提现路径（RebateService::withdraw）里完成；
         // 列表只需要展示正确的状态，这一点已由 CommissionLogModel::paginateByUser
         // 按 frozen_until 计算「有效状态」来保证。
-        $page = max(1, (int) Input::get('page', 1));
-        $perPage = max(1, min(50, (int) Input::get('limit', 20)));
-        $status = (string) Input::get('status', '');
+        $page = max(1, (int) \Input::get('page', 1));
+        $perPage = max(1, min(50, (int) \Input::get('limit', 20)));
+        $status = (string) \Input::get('status', '');
 
         $filter = [];
         if ($status !== '') $filter['status'] = $status;
 
-        $result = (new CommissionLogModel())->paginateByUser($userId, $filter, $page, $perPage);
-        Response::success('', [
+        $result = (new \CommissionLogModel())->paginateByUser($userId, $filter, $page, $perPage);
+        \Response::success('', [
             'data'  => $result['list'],
             'total' => $result['total'],
         ]);
@@ -99,12 +101,12 @@ class RebateController extends BaseController
         $user = $this->requireLogin();
         $userId = (int) $user['id'];
 
-        $page = max(1, (int) Input::get('page', 1));
-        $perPage = max(1, min(50, (int) Input::get('limit', 20)));
-        $level = (string) Input::get('level', '');
+        $page = max(1, (int) \Input::get('page', 1));
+        $perPage = max(1, min(50, (int) \Input::get('limit', 20)));
+        $level = (string) \Input::get('level', '');
         $offset = ($page - 1) * $perPage;
 
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
         // 用 CASE 把关系标成 L1/L2，一条 SQL 搞定；level 过滤时把 WHERE 收窄
         if ($level === '1') {
@@ -121,13 +123,13 @@ class RebateController extends BaseController
             $levelExpr = "CASE WHEN inviter_l1 = {$userId} THEN 1 ELSE 2 END";
         }
 
-        $countRow = Database::fetchOne(
+        $countRow = \Database::fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$prefix}user WHERE {$where}",
             $params
         );
         $total = (int) ($countRow['cnt'] ?? 0);
 
-        $rows = Database::query(
+        $rows = \Database::query(
             "SELECT id, username, nickname, avatar, created_at, {$levelExpr} AS team_level
              FROM {$prefix}user
              WHERE {$where}
@@ -144,7 +146,7 @@ class RebateController extends BaseController
         }
         unset($r);
 
-        Response::success('', ['data' => $rows, 'total' => $total]);
+        \Response::success('', ['data' => $rows, 'total' => $total]);
     }
 
     /**

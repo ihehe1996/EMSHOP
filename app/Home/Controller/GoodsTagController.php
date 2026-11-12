@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 商品标签页控制器。
  *
@@ -21,7 +23,7 @@ class GoodsTagController extends BaseController
 
         $tag = null;
         if ($tagId > 0) {
-            $tag = GoodsTagModel::getById($tagId);
+            $tag = \GoodsTagModel::getById($tagId);
         }
 
         if (!$tag) {
@@ -30,7 +32,7 @@ class GoodsTagController extends BaseController
                 'tag'        => null,
                 'goods_list' => [],
                 'pagination' => null,
-                'all_tags'   => GoodsTagModel::getPopularTags(30),
+                'all_tags'   => \GoodsTagModel::getPopularTags(30),
             ]);
             $this->view->render('goods_tag');
             return;
@@ -42,7 +44,7 @@ class GoodsTagController extends BaseController
         $result['list'] = applyFilter('index_goods_list', $result['list'], 'tag');
 
         // 所有标签
-        $allTags = GoodsTagModel::getPopularTags(30);
+        $allTags = \GoodsTagModel::getPopularTags(30);
 
         $this->view->setTitle('标签：' . $tag['name']);
         $this->view->setData([

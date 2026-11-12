@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 前台优惠券控制器。
  *
@@ -61,48 +63,48 @@ class CouponController extends BaseController
      */
     public function receive(): void
     {
-        if (!Request::isPost()) Response::error('无效请求');
+        if (!\Request::isPost()) \Response::error('无效请求');
         if (!shop_coupon_enabled()) {
-            Response::error('优惠券功能未启用');
+            \Response::error('优惠券功能未启用');
         }
 
         $identity = $this->getIdentity();
         if ($identity['user_id'] <= 0) {
-            Response::error('请先登录');
+            \Response::error('请先登录');
         }
 
-        $couponId = (int) Input::post('coupon_id', 0);
-        if ($couponId <= 0) Response::error('参数错误');
+        $couponId = (int) \Input::post('coupon_id', 0);
+        if ($couponId <= 0) \Response::error('参数错误');
 
-        $couponModel = new CouponModel();
+        $couponModel = new \CouponModel();
         $coupon = $couponModel->findById($couponId);
-        if (!$coupon) Response::error('优惠券不存在');
-        if (!$coupon['is_enabled']) Response::error('优惠券已下架');
+        if (!$coupon) \Response::error('优惠券不存在');
+        if (!$coupon['is_enabled']) \Response::error('优惠券已下架');
         if ((int) ($coupon['show_on_front'] ?? 1) !== 1) {
-            Response::error('该优惠券不可在领券中心领取');
+            \Response::error('该优惠券不可在领券中心领取');
         }
 
         $now = time();
         if (!empty($coupon['start_at']) && strtotime((string) $coupon['start_at']) > $now) {
-            Response::error('优惠券尚未开始');
+            \Response::error('优惠券尚未开始');
         }
         if (!empty($coupon['end_at']) && strtotime((string) $coupon['end_at']) < $now) {
-            Response::error('优惠券已过期');
+            \Response::error('优惠券已过期');
         }
 
         $total = (int) $coupon['total_usage_limit'];
         if ($total !== -1 && (int) $coupon['used_count'] >= $total) {
-            Response::error('优惠券已被领完');
+            \Response::error('优惠券已被领完');
         }
 
-        $userCouponModel = new UserCouponModel();
+        $userCouponModel = new \UserCouponModel();
         try {
             $userCouponModel->claim($identity['user_id'], $couponId);
-        } catch (RuntimeException $e) {
-            Response::error($e->getMessage());
+        } catch (\RuntimeException $e) {
+            \Response::error($e->getMessage());
         }
 
-        Response::success('领取成功');
+        \Response::success('领取成功');
     }
 
     /**
@@ -112,39 +114,39 @@ class CouponController extends BaseController
      */
     public function check(): void
     {
-        if (!Request::isPost()) Response::error('无效请求');
+        if (!\Request::isPost()) \Response::error('无效请求');
         if (!shop_coupon_enabled()) {
-            Response::error('优惠券功能未启用');
+            \Response::error('优惠券功能未启用');
         }
 
-        $code = trim((string) Input::post('code', ''));
-        $goodsItemsJson = (string) Input::post('goods_items', '[]');
+        $code = trim((string) \Input::post('code', ''));
+        $goodsItemsJson = (string) \Input::post('goods_items', '[]');
 
-        if ($code === '') Response::error('请输入优惠券码');
+        if ($code === '') \Response::error('请输入优惠券码');
 
         // Money::parse 先做严格的十进制白名单校验，再换算成主货币 micro 整数。
         // 此处原先的 bcmul 还在 try 之外 —— 传 1e5 会抛出未捕获的 ValueError，
         // 使这个免登录接口直接 500（PHP 7.4 下则静默截断成错误金额）。
         try {
-            $goodsAmountRaw = Money::parse(Input::post('goods_amount', '0'));
-        } catch (InvalidArgumentException $e) {
-            Response::error('订单金额无效');
+            $goodsAmountRaw = \Money::parse(\Input::post('goods_amount', '0'));
+        } catch (\InvalidArgumentException $e) {
+            \Response::error('订单金额无效');
         }
         $goodsItems = json_decode($goodsItemsJson, true) ?: [];
 
-        $service = new CouponService();
+        $service = new \CouponService();
         try {
             $result = $service->check($code, [
                 'goods_amount_raw' => $goodsAmountRaw,
                 'goods_items'      => $goodsItems,
                 'user_id'          => $this->getIdentity()['user_id'],
             ]);
-        } catch (RuntimeException $e) {
-            Response::error($e->getMessage());
+        } catch (\RuntimeException $e) {
+            \Response::error($e->getMessage());
         }
 
         $coupon = $result['coupon'];
-        Response::success('可用', [
+        \Response::success('可用', [
             'coupon'   => [
                 'id'    => (int) $coupon['id'],
                 'code'  => $coupon['code'],
@@ -161,16 +163,16 @@ class CouponController extends BaseController
     public function mine(): void
     {
         if (!shop_coupon_enabled()) {
-            Response::success('', ['coupons' => []]);
+            \Response::success('', ['coupons' => []]);
         }
 
         $identity = $this->getIdentity();
         if ($identity['user_id'] <= 0) {
-            Response::success('', ['coupons' => []]);
+            \Response::success('', ['coupons' => []]);
         }
 
-        $userCouponModel = new UserCouponModel();
-        $list = $userCouponModel->listByView($identity['user_id'], UserCouponModel::VIEW_UNUSED, 50);
+        $userCouponModel = new \UserCouponModel();
+        $list = $userCouponModel->listByView($identity['user_id'], \UserCouponModel::VIEW_UNUSED, 50);
 
         $out = [];
         foreach ($list as $row) {
@@ -187,6 +189,6 @@ class CouponController extends BaseController
                 'end_at'         => $row['end_at'],
             ];
         }
-        Response::success('', ['coupons' => $out]);
+        \Response::success('', ['coupons' => $out]);
     }
 }

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 前台控制器基类。
  *
@@ -10,23 +12,23 @@ declare(strict_types=1);
 abstract class BaseController
 {
     /** @var View */
-    protected View $view;
+    protected \View $view;
 
     /** @var Dispatcher */
-    protected Dispatcher $dispatcher;
+    protected \Dispatcher $dispatcher;
 
     /** @var string 当前控制器名（用于模板导航高亮等） */
     protected string $controllerName;
 
     /** @var FrontDataService|null 取数服务（无状态，请求内复用同一实例） */
-    private ?FrontDataService $frontData = null;
+    private ?\FrontDataService $frontData = null;
 
     /**
      * @param View       $view           视图实例
      * @param Dispatcher $dispatcher    调度器引用
      * @param string     $controllerName 当前控制器名
      */
-    public function __construct(View $view, Dispatcher $dispatcher, string $controllerName)
+    public function __construct(\View $view, \Dispatcher $dispatcher, string $controllerName)
     {
         $this->view = $view;
         $this->dispatcher = $dispatcher;
@@ -42,10 +44,10 @@ abstract class BaseController
      * 同名委托，让既有的 6 个控制器调用点一行都不用改。服务无状态，实例复用即可
      * （内部的 static 局部缓存因此仍在同一请求内共享）。
      */
-    private function frontData(): FrontDataService
+    private function frontData(): \FrontDataService
     {
         if ($this->frontData === null) {
-            $this->frontData = new FrontDataService();
+            $this->frontData = new \FrontDataService();
         }
         return $this->frontData;
     }
@@ -258,7 +260,7 @@ abstract class BaseController
      */
     public static function formatStockText(int $stock): string
     {
-        return FrontDataService::formatStockText($stock);
+        return \FrontDataService::formatStockText($stock);
     }
 
     /**
@@ -270,7 +272,7 @@ abstract class BaseController
      */
     protected static function resolveOriginalPrice(?array $spec): ?float
     {
-        return FrontDataService::resolveOriginalPrice($spec);
+        return \FrontDataService::resolveOriginalPrice($spec);
     }
 
 }

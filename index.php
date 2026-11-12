@@ -23,15 +23,15 @@ require_once __DIR__ . '/init.php';
 // 支付回调直连入口：由 /notify 和 /return 命中，不走前台 Dispatcher/模板渲染。
 $requestPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
 if ($requestPath === '/notify') {
-    PaymentCallbackController::handleNotify();
+    \App\Home\Controller\PaymentCallbackController::handleNotify();
     exit;
 }
 if ($requestPath === '/return') {
-    PaymentCallbackController::handleReturn();
+    \App\Home\Controller\PaymentCallbackController::handleReturn();
     exit;
 }
 if ($requestPath === '/test') {
-    PaymentCallbackController::handleTest();
+    \App\Home\Controller\PaymentCallbackController::handleTest();
     exit;
 }
 

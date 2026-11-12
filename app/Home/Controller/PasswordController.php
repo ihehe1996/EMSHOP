@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 密码保护页控制器。
  *
@@ -17,7 +19,7 @@ class PasswordController extends BaseController
     {
         $this->view->setTitle('密码保护');
         $this->view->setData([
-            'is_post' => Request::isPost(),
+            'is_post' => \Request::isPost(),
             'error' => '',
         ]);
         $this->view->render('password');

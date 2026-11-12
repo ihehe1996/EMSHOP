@@ -581,5 +581,5 @@ addAction('payment_return_epay', function (array $data): void {
         Response::redirect('/user/wallet');
     }
 
-    Response::redirect(PaymentCallbackController::buildReturnRedirectUrl($orderNo));
+    Response::redirect(\App\Home\Controller\PaymentCallbackController::buildReturnRedirectUrl($orderNo));
 });

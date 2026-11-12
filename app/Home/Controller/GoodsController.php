@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 商品控制器。
  *
@@ -45,8 +47,8 @@ class GoodsController extends BaseController
 
         // —— 「这一页能不能打开」的判断：重定向 / 404 必须在任何输出之前完成，所以留在控制器 ——
         // 主站前台只看 owner_id=0；商户前台只看本店自建或主站引用
-        $row = $id > 0 ? GoodsModel::getById($id) : null;
-        if ($row && !MerchantContext::isGoodsVisibleToCurrentScope($row)) {
+        $row = $id > 0 ? \GoodsModel::getById($id) : null;
+        if ($row && !\MerchantContext::isGoodsVisibleToCurrentScope($row)) {
             $row = null;
         }
 
@@ -59,7 +61,7 @@ class GoodsController extends BaseController
             && !empty($row["jump_url"])
             && (int) $this->getArg("_preview", 0) !== 1
         ) {
-            Response::redirect((string) $row["jump_url"]);
+            \Response::redirect((string) $row["jump_url"]);
             return;
         }
 
@@ -70,7 +72,7 @@ class GoodsController extends BaseController
             && $row["deleted_at"] === null
             && (int) $row["is_on_sale"] === 1;
         if ($canView
-            && (string) Config::get("shop_block_sold_out_access", "1") !== "0"
+            && (string) \Config::get("shop_block_sold_out_access", "1") !== "0"
             && (int) ($row["total_stock"] ?? 0) === 0
         ) {
             $canView = false;

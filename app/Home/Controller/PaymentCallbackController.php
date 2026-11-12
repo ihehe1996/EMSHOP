@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 支付回调控制器（同步跳回 + 异步通知）。
  */
@@ -13,7 +15,7 @@ final class PaymentCallbackController
      */
     public static function handleTest(): void
     {
-        Response::json(200, '伪静态探测正常');
+        \Response::json(200, '伪静态探测正常');
     }
 
     /**
@@ -24,14 +26,14 @@ final class PaymentCallbackController
         $data = array_merge($_GET, $_POST);
         $plugin = self::resolvePlugin($data);
         if ($plugin === '') {
-            Response::redirect(self::buildReturnRedirectUrl());
+            \Response::redirect(self::buildReturnRedirectUrl());
         }
 
         // 商户站子域名回调需切到主站 scope，让插件读取主站凭证。
-        PaymentService::dispatchReturn($plugin, $data);
+        \PaymentService::dispatchReturn($plugin, $data);
 
         // 兜底：插件未跳转时按身份回跳。
-        Response::redirect(self::buildReturnRedirectUrl());
+        \Response::redirect(self::buildReturnRedirectUrl());
     }
 
     /**
@@ -69,7 +71,7 @@ final class PaymentCallbackController
 
 
         // 插件内应输出 success/fail 并 exit。
-        PaymentService::dispatchNotify($plugin, $data);
+        \PaymentService::dispatchNotify($plugin, $data);
 
         // 兜底：插件未输出时判失败。
         http_response_code(500);
@@ -107,9 +109,9 @@ final class PaymentCallbackController
      */
     private static function resolvePlugin(array $data): string
     {
-        $plugin = trim((string) Input::get('plugin', ''));
+        $plugin = trim((string) \Input::get('plugin', ''));
         if ($plugin === '') {
-            $plugin = PaymentService::detectPluginFromCallback($data);
+            $plugin = \PaymentService::detectPluginFromCallback($data);
         }
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin)) {
             return '';

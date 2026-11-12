@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 前台"钱包充值"控制器。
  *
@@ -15,7 +17,7 @@ class RechargeController extends BaseController
         if (session_status() === PHP_SESSION_NONE) session_start();
         $user = $_SESSION['em_front_user'] ?? null;
         if (empty($user['id'])) {
-            Response::error('请先登录');
+            \Response::error('请先登录');
         }
         return $user;
     }
@@ -27,7 +29,7 @@ class RechargeController extends BaseController
      */
     public function create(): void
     {
-        if (!Request::isPost()) Response::error('无效请求');
+        if (!\Request::isPost()) \Response::error('无效请求');
 
         $user   = $this->requireLogin();
         $userId = (int) $user['id'];
@@ -37,36 +39,36 @@ class RechargeController extends BaseController
         // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
         // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
         try {
-            $amountRaw = Money::parse(Input::post('amount', ''));
-        } catch (InvalidArgumentException $e) {
-            Response::error('请输入正确的充值金额');
+            $amountRaw = \Money::parse(\Input::post('amount', ''));
+        } catch (\InvalidArgumentException $e) {
+            \Response::error('请输入正确的充值金额');
         }
 
         // 后台配置的限额
-        $minRaw = (int) Config::get('shop_min_recharge', '1000000');
-        $maxRaw = (int) Config::get('shop_max_recharge', '1000000000000');
+        $minRaw = (int) \Config::get('shop_min_recharge', '1000000');
+        $maxRaw = (int) \Config::get('shop_max_recharge', '1000000000000');
         if ($amountRaw < $minRaw || $amountRaw > $maxRaw) {
-            $sym = ($p = Currency::getInstance()->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
-            Response::error(sprintf('充值金额须在 %s%s ~ %s%s 之间',
+            $sym = ($p = \Currency::getInstance()->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
+            \Response::error(sprintf('充值金额须在 %s%s ~ %s%s 之间',
                 $sym, bcdiv((string) $minRaw, '1000000', 2),
                 $sym, bcdiv((string) $maxRaw, '1000000', 2)));
         }
 
         // —— 校验支付方式
-        $paymentCode = trim((string) Input::post('payment_code', ''));
-        if ($paymentCode === '') Response::error('请选择支付方式');
-        if ($paymentCode === 'balance') Response::error('充值不能用余额支付');
+        $paymentCode = trim((string) \Input::post('payment_code', ''));
+        if ($paymentCode === '') \Response::error('请选择支付方式');
+        if ($paymentCode === 'balance') \Response::error('充值不能用余额支付');
 
-        $methods = PaymentService::getMethods();
+        $methods = \PaymentService::getMethods();
         $payment = null;
         foreach ($methods as $m) {
             if (($m['code'] ?? '') === $paymentCode) { $payment = $m; break; }
         }
-        if ($payment === null) Response::error('支付方式不可用');
+        if ($payment === null) \Response::error('支付方式不可用');
 
         try {
             // —— 创建 pending 充值单
-            $model = new UserRechargeModel();
+            $model = new \UserRechargeModel();
             $created = $model->create($userId, $amountRaw, $paymentCode, (string) $payment['plugin']);
 
             // —— 组装"伪订单"结构给 payment_create filter（字段与 em_order 同名，
@@ -82,21 +84,21 @@ class RechargeController extends BaseController
 
             // 走 PaymentService::createPayment 而不是直接 applyFilter —— 它会临时把 scope
             // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
-            $payPayload = PaymentService::createPaymentPayload($pseudoOrder, $payment);
+            $payPayload = \PaymentService::createPaymentPayload($pseudoOrder, $payment);
             $payUrl = (string) ($payPayload['pay_url'] ?? '');
             if ($payUrl === '') {
-                throw new RuntimeException('支付方式未生成支付链接');
+                throw new \RuntimeException('支付方式未生成支付链接');
             }
 
-            Response::success('', [
+            \Response::success('', [
                 'order_no'     => $created['order_no'],
                 'pay_url'      => $payUrl,
                 'qrcode'       => (string) ($payPayload['qrcode'] ?? ''),
             ]);
-        } catch (RuntimeException $e) {
-            Response::error($e->getMessage());
-        } catch (Throwable $e) {
-            Response::error('创建充值订单失败，请稍后重试');
+        } catch (\RuntimeException $e) {
+            \Response::error($e->getMessage());
+        } catch (\Throwable $e) {
+            \Response::error('创建充值订单失败，请稍后重试');
         }
     }
 }

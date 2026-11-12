@@ -21,7 +21,6 @@ Autoloader::register([
     EM_ROOT . '/include/lib',
     EM_ROOT . '/include/model',
     EM_ROOT . '/include/service',
-    EM_ROOT . '/include/controller',
 ]);
 
 // 读 .env 里的后台入口（EM_APP_ADMIN_ENTRY）；没有就让 Env 用默认值 admin

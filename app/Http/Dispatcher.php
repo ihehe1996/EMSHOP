@@ -823,23 +823,16 @@ final class Dispatcher
 
         // notfound 特殊处理
         if ($this->controller === 'notfound') {
-            $ctrlClass = 'ErrorController';
+            $short = 'Error';
         } else {
-            $ctrlClass = self::CONTROLLER_MAP[$mapKey] . 'Controller';
+            $short = self::CONTROLLER_MAP[$mapKey];
         }
 
+        $ctrlClass = '\\App\\Home\\Controller\\' . $short . 'Controller';
         $method = $this->action;
-        $ctrlFile = EM_ROOT . '/include/controller/' . $ctrlClass . '.php';
 
-        // 控制器文件不存在
-        if (!is_file($ctrlFile)) {
-            $this->render404('控制器文件不存在: ' . $ctrlClass);
-            return;
-        }
-
-        // 加载控制器类
-        require_once $ctrlFile;
-        if (!class_exists($ctrlClass, false)) {
+        // 控制器类不存在
+        if (!class_exists($ctrlClass)) {
             $this->render404('控制器类不存在: ' . $ctrlClass);
             return;
         }

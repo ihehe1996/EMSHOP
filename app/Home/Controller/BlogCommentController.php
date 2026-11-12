@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 博客评论控制器（前台 API）。
  *
@@ -23,7 +25,7 @@ class BlogCommentController extends BaseController
             case 'replies': $this->listReplies(); break;
             case 'post':    $this->postComment(); break;
             case 'delete':  $this->deleteComment(); break;
-            default:        Response::error('未知操作'); break;
+            default:        \Response::error('未知操作'); break;
         }
     }
 
@@ -46,28 +48,28 @@ class BlogCommentController extends BaseController
         $sort   = $_POST['sort'] ?? $_GET['sort'] ?? 'newest';
 
         if ($blogId <= 0) {
-            Response::error('参数错误');
+            \Response::error('参数错误');
             return;
         }
 
         // 验证文章属于当前 scope
-        $blog = BlogModel::getByIdForScope($blogId, MerchantContext::currentId());
+        $blog = \BlogModel::getByIdForScope($blogId, \MerchantContext::currentId());
         if (!$blog) {
-            Response::error('文章不存在');
+            \Response::error('文章不存在');
             return;
         }
 
-        $result = BlogCommentModel::getTopComments($blogId, $page, $limit, $sort);
+        $result = \BlogCommentModel::getTopComments($blogId, $page, $limit, $sort);
 
         // 为每条顶级评论加载前3条回复
         foreach ($result['list'] as &$comment) {
-            $replies = BlogCommentModel::getReplies((int) $comment['id'], 1, 3);
+            $replies = \BlogCommentModel::getReplies((int) $comment['id'], 1, 3);
             $comment['replies'] = $replies['list'];
             $comment['reply_total'] = $replies['total'];
         }
         unset($comment);
 
-        Response::success('', $result);
+        \Response::success('', $result);
     }
 
     /**
@@ -80,12 +82,12 @@ class BlogCommentController extends BaseController
         $limit    = min(50, max(1, (int) ($_POST['limit'] ?? $_GET['limit'] ?? 5)));
 
         if ($parentId <= 0) {
-            Response::error('参数错误');
+            \Response::error('参数错误');
             return;
         }
 
-        $result = BlogCommentModel::getReplies($parentId, $page, $limit);
-        Response::success('', $result);
+        $result = \BlogCommentModel::getReplies($parentId, $page, $limit);
+        \Response::success('', $result);
     }
 
     /**
@@ -95,7 +97,7 @@ class BlogCommentController extends BaseController
     {
         $user = $this->getFrontUser();
         if (!$user) {
-            Response::error('请先登录后再评论');
+            \Response::error('请先登录后再评论');
             return;
         }
 
@@ -105,29 +107,29 @@ class BlogCommentController extends BaseController
         $content     = trim($_POST['content'] ?? '');
 
         if ($blogId <= 0) {
-            Response::error('参数错误');
+            \Response::error('参数错误');
             return;
         }
         // 必须给当前 scope 的文章发评论
-        $blog = BlogModel::getByIdForScope($blogId, MerchantContext::currentId());
+        $blog = \BlogModel::getByIdForScope($blogId, \MerchantContext::currentId());
         if (!$blog) {
-            Response::error('文章不存在');
+            \Response::error('文章不存在');
             return;
         }
         if ($content === '') {
-            Response::error('评论内容不能为空');
+            \Response::error('评论内容不能为空');
             return;
         }
         if (mb_strlen($content) > 1000) {
-            Response::error('评论内容不能超过1000字');
+            \Response::error('评论内容不能超过1000字');
             return;
         }
 
         // 如果是回复，验证父评论存在
         if ($parentId > 0) {
-            $parent = BlogCommentModel::getById($parentId);
+            $parent = \BlogCommentModel::getById($parentId);
             if (!$parent || (int) $parent['status'] !== 1 || $parent['deleted_at'] !== null) {
-                Response::error('被回复的评论不存在');
+                \Response::error('被回复的评论不存在');
                 return;
             }
             // 确保 parent_id 始终指向顶级评论
@@ -136,7 +138,7 @@ class BlogCommentController extends BaseController
             }
         }
 
-        $newId = BlogCommentModel::create([
+        $newId = \BlogCommentModel::create([
             'blog_id'       => $blogId,
             'user_id'       => (int) $user['id'],
             'parent_id'     => $parentId,
@@ -146,17 +148,17 @@ class BlogCommentController extends BaseController
         ]);
 
         if (!$newId) {
-            Response::error('评论失败，请稍后重试');
+            \Response::error('评论失败，请稍后重试');
             return;
         }
 
         // 返回新评论数据（含用户信息）
-        $comment = BlogCommentModel::getById($newId);
+        $comment = \BlogCommentModel::getById($newId);
         $comment['nickname'] = $user['nickname'] ?? $user['username'] ?? '用户';
         $comment['username'] = $user['username'] ?? '';
         $comment['avatar']   = $user['avatar'] ?? '';
 
-        Response::success('评论成功', ['comment' => $comment]);
+        \Response::success('评论成功', ['comment' => $comment]);
     }
 
     /**
@@ -166,29 +168,29 @@ class BlogCommentController extends BaseController
     {
         $user = $this->getFrontUser();
         if (!$user) {
-            Response::error('请先登录');
+            \Response::error('请先登录');
             return;
         }
 
         $id = (int) ($_POST['id'] ?? 0);
         if ($id <= 0) {
-            Response::error('参数错误');
+            \Response::error('参数错误');
             return;
         }
 
-        $comment = BlogCommentModel::getById($id);
+        $comment = \BlogCommentModel::getById($id);
         if (!$comment || $comment['deleted_at'] !== null) {
-            Response::error('评论不存在');
+            \Response::error('评论不存在');
             return;
         }
 
         // 只能删除自己的评论
         if ((int) $comment['user_id'] !== (int) $user['id']) {
-            Response::error('无权删除该评论');
+            \Response::error('无权删除该评论');
             return;
         }
 
-        BlogCommentModel::delete($id);
-        Response::success('删除成功');
+        \BlogCommentModel::delete($id);
+        \Response::success('删除成功');
     }
 }

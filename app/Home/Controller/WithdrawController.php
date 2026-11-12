@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Home\Controller;
+
 /**
  * 前台"钱包提现"控制器。
  *
@@ -15,7 +17,7 @@ class WithdrawController extends BaseController
         if (session_status() === PHP_SESSION_NONE) session_start();
         $user = $_SESSION['em_front_user'] ?? null;
         if (empty($user['id'])) {
-            Response::error('请先登录');
+            \Response::error('请先登录');
         }
         return $user;
     }
@@ -28,10 +30,10 @@ class WithdrawController extends BaseController
      */
     public function create(): void
     {
-        if (!Request::isPost()) Response::error('无效请求');
+        if (!\Request::isPost()) \Response::error('无效请求');
 
-        if (!Csrf::validateOrSameOrigin((string) Input::post('csrf_token', ''))) {
-            Response::error('请求已失效，请刷新页面后重试');
+        if (!\Csrf::validateOrSameOrigin((string) \Input::post('csrf_token', ''))) {
+            \Response::error('请求已失效，请刷新页面后重试');
         }
 
         $user   = $this->requireLogin();
@@ -41,31 +43,31 @@ class WithdrawController extends BaseController
         // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
         // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
         try {
-            $amountRaw = Money::parse(Input::post('amount', ''));
-        } catch (InvalidArgumentException $e) {
-            Response::error('请输入正确的提现金额');
+            $amountRaw = \Money::parse(\Input::post('amount', ''));
+        } catch (\InvalidArgumentException $e) {
+            \Response::error('请输入正确的提现金额');
         }
 
-        $minRaw = (int) Config::get('shop_withdraw_min', '10000000');
-        $maxRaw = (int) Config::get('shop_withdraw_max', '5000000000');
+        $minRaw = (int) \Config::get('shop_withdraw_min', '10000000');
+        $maxRaw = (int) \Config::get('shop_withdraw_max', '5000000000');
         if ($amountRaw < $minRaw || $amountRaw > $maxRaw) {
-            $sym = ($p = Currency::getInstance()->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
-            Response::error(sprintf('提现金额须在 %s%s ~ %s%s 之间',
+            $sym = ($p = \Currency::getInstance()->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
+            \Response::error(sprintf('提现金额须在 %s%s ~ %s%s 之间',
                 $sym, bcdiv((string) $minRaw, '1000000', 2),
                 $sym, bcdiv((string) $maxRaw, '1000000', 2)));
         }
 
-        $channel      = trim((string) Input::post('channel', ''));
-        $accountName  = trim((string) Input::post('account_name', ''));
-        $accountNo    = trim((string) Input::post('account_no', ''));
-        $bankName     = trim((string) Input::post('bank_name', ''));
+        $channel      = trim((string) \Input::post('channel', ''));
+        $accountName  = trim((string) \Input::post('account_name', ''));
+        $accountNo    = trim((string) \Input::post('account_no', ''));
+        $bankName     = trim((string) \Input::post('bank_name', ''));
 
-        if (!in_array($channel, UserWithdrawModel::ALLOWED_CHANNELS, true)) {
-            Response::error('请选择收款方式');
+        if (!in_array($channel, \UserWithdrawModel::ALLOWED_CHANNELS, true)) {
+            \Response::error('请选择收款方式');
         }
 
         try {
-            $id = (new UserWithdrawModel())->create(
+            $id = (new \UserWithdrawModel())->create(
                 $userId,
                 $amountRaw,
                 $channel,
@@ -73,10 +75,10 @@ class WithdrawController extends BaseController
                 $accountNo,
                 $channel === 'bank' ? $bankName : ''
             );
-        } catch (RuntimeException $e) {
-            Response::error($e->getMessage());
+        } catch (\RuntimeException $e) {
+            \Response::error($e->getMessage());
         }
 
-        Response::success('申请已提交，等待管理员审核', ['id' => $id]);
+        \Response::success('申请已提交，等待管理员审核', ['id' => $id]);
     }
 }
