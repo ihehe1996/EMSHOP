@@ -411,7 +411,7 @@ final class View
         }
 
         ob_start();
-        include EM_ROOT . '/include/view/partials/license_banner.php';
+        include EM_ROOT . '/app/Home/View/partials/license_banner.php';
         return (string) ob_get_clean();
     }
 

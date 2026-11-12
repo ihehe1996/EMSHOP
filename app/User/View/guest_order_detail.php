@@ -84,7 +84,7 @@ if ($detailOrder !== null):
         <?php
         $extraPairs = $detailExtraPairs;
         $layout = 'fo';
-        include EM_ROOT . '/include/view/partials/order_extra_fields.php';
+        include EM_ROOT . '/app/User/View/partials/order_extra_fields.php';
         ?>
 
         <?php if (is_array($detailShipAddr) && !empty($detailShipAddr['recipient'])): ?>
@@ -106,7 +106,7 @@ if ($detailOrder !== null):
         <?php
         $orderGoods = $detailGoods;
         $layout = 'fo';
-        include EM_ROOT . '/include/view/partials/order_goods_guide.php';
+        include EM_ROOT . '/app/User/View/partials/order_goods_guide.php';
         ?>
 
         <?php if (!empty($detailGoods)): ?>

@@ -84,7 +84,7 @@ if (!defined('EM_ROOT')) {
 
     <?php
     $layout = 'uc';
-    include EM_ROOT . '/include/view/partials/order_extra_fields.php';
+    include EM_ROOT . '/app/User/View/partials/order_extra_fields.php';
     ?>
 
     <?php
@@ -110,7 +110,7 @@ if (!defined('EM_ROOT')) {
 
     <?php
     $layout = 'uc';
-    include EM_ROOT . '/include/view/partials/order_goods_guide.php';
+    include EM_ROOT . '/app/User/View/partials/order_goods_guide.php';
     ?>
 
     <!-- 商品信息 -->
