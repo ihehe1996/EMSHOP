@@ -968,7 +968,7 @@ final class LicenseClient
         // 仅在没有系统 CA 的环境（如 Windows 精简 PHP）使用。
         // 更新方式：重新下载 https://curl.se/ca/cacert.pem 覆盖本文件。
         $root = defined('EM_ROOT') ? EM_ROOT : dirname(__DIR__, 2);
-        $bundled = $root . '/include/data/cacert.pem';
+        $bundled = $root . '/app/Support/data/cacert.pem';
         if (@is_file($bundled) && @is_readable($bundled)) {
             return $bundled;
         }
