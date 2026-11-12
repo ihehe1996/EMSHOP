@@ -203,7 +203,7 @@ if (!$isPaid) {
 }
 
 $money = number_format($amountRaw / 1000000, 2, '.', '');
-$cur = Currency::getInstance()->getPrimary();
+$cur = Currency::getPrimary();
 $sym = (string) ($cur['symbol'] ?? '¥');
 $statusText = alipay_status_text($status, $isRecharge);
 $cardImage = '/content/plugin/alipay/alipay_card.png';

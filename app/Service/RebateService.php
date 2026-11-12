@@ -183,7 +183,7 @@ class RebateService extends BaseService
         $calcMode    = $this->calculateMode();
         $freezeDays  = $this->freezeDays();
         $freezeUntil = $freezeDays > 0 ? \date('Y-m-d H:i:s', time() + $freezeDays * 86400) : null;
-        $logModel    = new \App\Model\CommissionLogModel();
+        $logModel    = app(\App\Model\CommissionLogModel::class);
 
         $this->db->begin();
         try {
@@ -286,7 +286,7 @@ class RebateService extends BaseService
         $order = $this->db->find('order', $orderId);
         if ($order !== null && (int) ($order['merchant_id'] ?? 0) > 0) return;
 
-        (new \App\Model\CommissionLogModel())->revertByOrder($orderId);
+        app(\App\Model\CommissionLogModel::class)->revertByOrder($orderId);
     }
 
     /**
@@ -304,11 +304,11 @@ class RebateService extends BaseService
         }
 
         // 先惰性把到期 frozen 转 available
-        (new \App\Model\CommissionLogModel())->promoteMatured($userId);
+        app(\App\Model\CommissionLogModel::class)->promoteMatured($userId);
 
         $prefix = $this->db->prefix();
-        $logModel = new \App\Model\CommissionLogModel();
-        $withdrawModel = new \App\Model\CommissionWithdrawModel();
+        $logModel = app(\App\Model\CommissionLogModel::class);
+        $withdrawModel = app(\App\Model\CommissionWithdrawModel::class);
 
         $this->db->begin();
         try {
@@ -376,7 +376,7 @@ class RebateService extends BaseService
                 [$amountRaw, $userId]
             );
 
-            $ok = (new \App\Model\UserBalanceLogModel())->increase(
+            $ok = app(\App\Model\UserBalanceLogModel::class)->increase(
                 $userId,
                 $amountRaw,
                 '佣金提现',

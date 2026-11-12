@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 钱包提现审核（/admin/withdraw）。
+ * 钱包提现审核（{入口}/withdraw）。
  *
  * POST _action：
  *   list     分页查询
@@ -34,7 +34,7 @@ final class WithdrawController extends BaseAdminController
     {
         try {
             $action = (string) $this->input->post('_action', '');
-            $model = new \App\Model\UserWithdrawModel();
+            $model = app(\App\Model\UserWithdrawModel::class);
 
             if ($action === 'list') {
                 $page = max(1, (int) $this->input->post('page', 1));

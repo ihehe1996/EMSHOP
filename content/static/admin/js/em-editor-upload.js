@@ -4,7 +4,7 @@
  *
  * 大小限制（改一处需三处对齐，取最小值生效）：
  *   1. 本文件 EM_EDITOR_IMAGE_MAX_BYTES（浏览器 / 编辑器，默认 20MB）
- *   2. include/service/UploadService.php 的 $maxSize（服务端）
+ *   2. app/Service/UploadService.php 的 $maxSize（服务端）
  *   3. PHP：upload_max_filesize、post_max_size；Nginx：client_max_body_size
  */
 (function ($) {

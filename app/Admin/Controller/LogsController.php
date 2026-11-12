@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 后台系统日志页（占位，/admin/logs）。
+ * 后台系统日志页（占位，{入口}/logs）。
  *
- * 当前只渲染占位卡片，真实日志见 /admin/system_log。
+ * 当前只渲染占位卡片，真实日志见 {入口}/system_log。
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class LogsController extends BaseAdminController

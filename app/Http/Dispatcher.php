@@ -152,12 +152,12 @@ final class Dispatcher
     /** @var string 当前启用的主题名 */
     private string $theme = '';
 
-    /** @var \View 当前视图实例 */
+    /** @var \App\Support\View 当前视图实例 */
     private $view;
 
     public function __construct()
     {
-        $this->view = \View::getInstance();
+        $this->view = app(\App\Support\View::class);
     }
 
     /**
@@ -229,9 +229,9 @@ final class Dispatcher
         //   - $currency_symbol：当前访客币种的符号（Cookie > is_frontend_default > 主货币）
         //   - $currency_rate  ：1 主货币 = N 访客币种的 float 因子；JS 端用它做动态计算（详情页数量 × 单价）
         //   - 静态展示直接用 \Currency::displayMain($floatInMain)，自动换算 + 加符号
-        $primaryCurrency = \Currency::getInstance()->getPrimary();
+        $primaryCurrency = \Currency::getPrimary();
         $visitorCode = \Currency::visitorCode();
-        $visitorRow = $visitorCode !== '' ? \Currency::getInstance()->getByCode($visitorCode) : null;
+        $visitorRow = $visitorCode !== '' ? \Currency::getByCode($visitorCode) : null;
         $currencySymbol = $visitorRow
             ? ((string) ($visitorRow['symbol'] ?? ''))
             : ($primaryCurrency ? ($primaryCurrency['symbol'] ?? '¥') : '¥');
@@ -799,7 +799,7 @@ final class Dispatcher
             $scope = \MerchantContext::currentId() > 0
                 ? 'merchant_' . \MerchantContext::currentId()
                 : 'main';
-            $templateModel = new \App\Model\TemplateModel();
+            $templateModel = app(\App\Model\TemplateModel::class);
             return (string) ($templateModel->getEffectiveTheme($deviceType, $scope) ?? '');
         } catch (\Throwable $e) {
             return '';
@@ -838,7 +838,7 @@ final class Dispatcher
         }
 
         // 实例化控制器，注入视图、调度器引用、当前控制器名
-        $ctrl = new $ctrlClass($this->view, \Dispatcher::getInstance(), $this->controller);
+        $ctrl = new $ctrlClass($this->view, $this, $this->controller);
 
         // 动作方法不存在
         if (!method_exists($ctrl, $method)) {
@@ -890,7 +890,7 @@ final class Dispatcher
         // 因此前台展示页也要按“运行时名单”校验，而不是仅看商户显式 enabled 列表。
         $merchantId = \MerchantContext::currentId();
         $scope = $merchantId > 0 ? 'merchant_' . $merchantId : 'main';
-        $model = new \App\Model\PluginModel();
+        $model = app(\App\Model\PluginModel::class);
         $runtimeNames = $model->getRuntimeNames($scope);
         if (!in_array($slug, $runtimeNames, true)) {
             $this->render404('插件未启用');
@@ -1073,7 +1073,7 @@ final class Dispatcher
     /**
      * 获取当前视图实例。
      */
-    public function getView(): \View
+    public function getView(): \App\Support\View
     {
         return $this->view;
     }

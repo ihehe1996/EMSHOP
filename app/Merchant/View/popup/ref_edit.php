@@ -23,7 +23,7 @@ $markupPct = rtrim(rtrim(number_format(((int) $row['markup_rate']) / 100, 2, '.'
 // 弹窗是 iframe，拿不到父窗口的 window.EMSHOP_CURRENCY —— 这里重新解析访客币种 + 汇率
 $curSymbol = Currency::visitorSymbol();
 $visitorCurCode = Currency::visitorCode();
-$visitorCurRow = $visitorCurCode !== '' ? Currency::getInstance()->getByCode($visitorCurCode) : null;
+$visitorCurRow = $visitorCurCode !== '' ? Currency::getByCode($visitorCurCode) : null;
 $curRate = 1.0;
 if ($visitorCurRow !== null) {
     $rateRaw = (int) ($visitorCurRow['rate'] ?? 0);

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 导航管理（/admin/navi）。
+ * 导航管理（{入口}/navi）。
  *
- * 与旧 admin/navi.php 行为一致：
+ * 行为约定：
  *   - POST 处理列表 / 创建 / 更新 / 删除 / 状态与打开方式切换 / 拖动排序
  *   - ?_popup=1 渲染编辑弹窗
  *   - 普通请求渲染列表页
@@ -19,7 +19,7 @@ final class NaviController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \App\Model\NaviModel();
+        $model = app(\App\Model\NaviModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -332,8 +332,8 @@ final class NaviController extends BaseAdminController
         $this->render('popup/navi', [
             'editItem'        => $editItem,
             'topLevelItems'   => $model->getTopLevel(0),
-            'goodsCategories' => (new \App\Model\GoodsCategoryModel())->getAll(),
-            'blogCategories'  => (new \App\Model\BlogCategoryModel())->getAll(0),
+            'goodsCategories' => app(\App\Model\GoodsCategoryModel::class)->getAll(),
+            'blogCategories'  => app(\App\Model\BlogCategoryModel::class)->getAll(0),
             'publishedPages'  => app(\App\Model\PageModel::class)->getPublishedSimple(0),
         ]);
     }

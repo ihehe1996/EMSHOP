@@ -12,7 +12,7 @@ namespace App\Service;
  * 应用商店 · 主站采购服务。
  *
  * 业务流程:
- *   admin/appstore.php(tab=merchant)
+ *   后台应用商店页(tab=merchant)
  *     ── 调 LicenseClient 完成支付 + 拿下载地址(留给控制器)
  *     ── 下载 zip + 解压到 content/plugin|template/{name}/(留给控制器,与 tab=main 复用同一段)
  *     └─ registerPurchase()  ← 本 Service:把"已支付/已下载完成"的事实落到 em_app_market + em_app_market_log
@@ -28,7 +28,7 @@ final class MainAppPurchaseService extends BaseService
     public function __construct()
     {
         parent::__construct();
-        $this->marketModel = new \App\Model\AppMarketModel();
+        $this->marketModel = app(\App\Model\AppMarketModel::class);
     }
 
     /**

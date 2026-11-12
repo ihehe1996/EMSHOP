@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 系统设置（/admin/settings）。
+ * 系统设置（{入口}/settings）。
  *
  * 通过 action 参数切换选项卡：
  *   base / security / seo / user / shop / guest_find / rebate / blog / mail / substation

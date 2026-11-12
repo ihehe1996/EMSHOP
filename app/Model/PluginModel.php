@@ -333,7 +333,7 @@ final class PluginModel extends Model
      *   - disable:暂停使用,callback_rm 不跑、Storage 不清,随时可再启用
      *   - uninstall:调用方在前后会调插件 callback_rm + 清 Storage,清理插件私有数据
      *
-     * 本方法只负责修改启用列表;callback_rm / Storage 清理由 admin/plugin.php 处理。
+     * 本方法只负责修改启用列表;callback_rm / Storage 清理由后台插件页处理。
      */
     public function uninstall(string $name, string $scope): bool
     {
@@ -361,7 +361,7 @@ final class PluginModel extends Model
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return false;
-        return (new \App\Model\AppPurchaseModel())->isPurchased($merchantId, $name, 'plugin');
+        return app(\App\Model\AppPurchaseModel::class)->isPurchased($merchantId, $name, 'plugin');
     }
 
     // -----------------------------------------------------------------
@@ -369,7 +369,7 @@ final class PluginModel extends Model
     // -----------------------------------------------------------------
 
     /**
-     * 列表 API:扫磁盘 + 标注启用状态(给 admin/plugin.php 用)。
+     * 列表 API:扫磁盘 + 标注启用状态(给后台插件页用)。
      *
      * 返回每条 = 磁盘 header + is_enabled。
      *

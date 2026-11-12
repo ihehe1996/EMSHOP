@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 博客标签管理（/admin/blog_tag）。
+ * 博客标签管理（{入口}/blog_tag）。
  *
- * 与旧 admin/blog_tag.php 行为一致：
+ * 行为约定：
  *   - 主站后台只操作 merchant_id=0 的主站标签池
  *   - _action=list 分页列表、save 新增/编辑、delete / batch_delete / refresh_counts
  *   - 无 action 时渲染列表页

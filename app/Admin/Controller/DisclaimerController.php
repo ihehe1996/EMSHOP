@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 免责协议查看页（/admin/disclaimer）。
+ * 免责协议查看页（{入口}/disclaimer）。
  *
  * 正文 + 当前签署记录；数据由 DisclaimerService 提供。
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。

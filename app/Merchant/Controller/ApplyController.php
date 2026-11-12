@@ -37,7 +37,7 @@ final class ApplyController extends \App\User\Controller\UserBaseController
             true
         );
 
-        $merchantModel = new \App\Model\MerchantModel();
+        $merchantModel = app(\App\Model\MerchantModel::class);
         $existing = $merchantModel->findByUserId((int) $frontUser['id']);
         if ($existing !== null) {
             // 已开通：跳回商户后台
@@ -59,7 +59,7 @@ final class ApplyController extends \App\User\Controller\UserBaseController
                 }
 
                 $levelId = (int) $this->input->post('level_id', 0);
-                $levelModel = new \App\Model\MerchantLevelModel();
+                $levelModel = app(\App\Model\MerchantLevelModel::class);
                 $level = $levelModel->findById($levelId);
                 if ($level === null || (int) $level['is_enabled'] !== 1) {
                     $this->response->error('请选择有效的分站等级');
@@ -77,7 +77,7 @@ final class ApplyController extends \App\User\Controller\UserBaseController
                 $userId = (int) $frontUser['id'];
 
                 // 余额校验 + 扣款（走事务）
-                $balanceLogModel = new \App\Model\UserBalanceLogModel();
+                $balanceLogModel = app(\App\Model\UserBalanceLogModel::class);
 
                 $this->db->begin();
                 try {
@@ -151,7 +151,7 @@ final class ApplyController extends \App\User\Controller\UserBaseController
         }
 
         // GET：展示申请页
-        $levelModel = new \App\Model\MerchantLevelModel();
+        $levelModel = app(\App\Model\MerchantLevelModel::class);
         $allLevels = $levelModel->getEnabledList();
         // 只展示 price > 0 的等级（price=0 意为不允许自助开通）
         $levels = array_values(array_filter($allLevels, static fn($l) => (int) $l['price'] > 0));

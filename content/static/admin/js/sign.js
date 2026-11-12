@@ -13,7 +13,7 @@ $(function () {
 
         $button.prop('disabled', true).addClass('layui-btn-disabled').text('登录中...');
 
-        // 保留当前 URL 的查询串（含安全入口 ?s=xxx），否则 POST 会落到不带参数的 URL 被拦截
+        // 保留当前 URL 的查询串，避免登录后的跳转参数丢失
         $.ajax({
             url: (window.EM_ADMIN_PATH || '/admin') + '/sign' + window.location.search,
             type: 'POST',

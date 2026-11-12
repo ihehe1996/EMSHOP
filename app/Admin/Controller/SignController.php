@@ -5,19 +5,17 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 新后台登录页（/admin/sign）。
+ * 后台登录页（{入口}/sign，入口路径见 EM_ADMIN_PATH）。
  *
  *   - 已登录直接进后台首页
  *   - POST 校验 CSRF 后交给 app(\App\Service\AuthService::class)->attemptAdminLogin()
- *   - 登录成功进入 /admin/home，失败时重新渲染页面并显示错误
- *
- * 旧的 admin_entry_key 安全入口已废弃，本页不校验 ?s= 参数。
+ *   - 登录成功进入 {入口}/home，失败时重新渲染页面并显示错误
  */
 final class SignController extends AbstractAdminController
 {
     public function index(): void
     {
-        $auth = new \App\Service\AuthService();
+        $auth = app(\App\Service\AuthService::class);
 
         if ($auth->check()) {
             $this->response->redirect(EM_ADMIN_PATH . '/home');

@@ -76,7 +76,7 @@ class CouponController extends BaseController
         $couponId = (int) $this->input->post('coupon_id', 0);
         if ($couponId <= 0) $this->response->error('参数错误');
 
-        $couponModel = new \App\Model\CouponModel();
+        $couponModel = app(\App\Model\CouponModel::class);
         $coupon = $couponModel->findById($couponId);
         if (!$coupon) $this->response->error('优惠券不存在');
         if (!$coupon['is_enabled']) $this->response->error('优惠券已下架');
@@ -97,7 +97,7 @@ class CouponController extends BaseController
             $this->response->error('优惠券已被领完');
         }
 
-        $userCouponModel = new \App\Model\UserCouponModel();
+        $userCouponModel = app(\App\Model\UserCouponModel::class);
         try {
             $userCouponModel->claim($identity['user_id'], $couponId);
         } catch (\RuntimeException $e) {
@@ -134,7 +134,7 @@ class CouponController extends BaseController
         }
         $goodsItems = json_decode($goodsItemsJson, true) ?: [];
 
-        $service = new \App\Service\CouponService();
+        $service = app(\App\Service\CouponService::class);
         try {
             $result = $service->check($code, [
                 'goods_amount_raw' => $goodsAmountRaw,
@@ -171,7 +171,7 @@ class CouponController extends BaseController
             $this->response->success('', ['coupons' => []]);
         }
 
-        $userCouponModel = new \App\Model\UserCouponModel();
+        $userCouponModel = app(\App\Model\UserCouponModel::class);
         $list = $userCouponModel->listByView($identity['user_id'], \App\Model\UserCouponModel::VIEW_UNUSED, 50);
 
         $out = [];

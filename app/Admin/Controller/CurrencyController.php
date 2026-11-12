@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 货币配置（/admin/currency）。
+ * 货币配置（{入口}/currency）。
  *
  * 设计说明（方案 A 多币种）：
  *   - 主货币一旦设定不可切换（数据库里所有金额都以主货币 ×1000000 存储）

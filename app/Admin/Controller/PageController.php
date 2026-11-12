@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 页面管理（/admin/page）。
+ * 页面管理（{入口}/page）。
  *
- * 与旧 admin/page.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表 + 状态计数
  *   - set_homepage / clear_homepage / toggle_status / delete / batch
  *   - 无 action 时渲染列表页
  *
- * 编辑弹窗仍指向旧 admin/page_edit.php，等编辑器迁移时再切换。
+ * 编辑弹窗由 {入口}/page_edit 提供。
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class PageController extends BaseAdminController

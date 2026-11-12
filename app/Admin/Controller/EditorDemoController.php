@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 富文本编辑器演示页（/admin/editor_demo）。
+ * 富文本编辑器演示页（{入口}/editor_demo）。
  *
  * 演示 WangEditor v5 功能；POST 仅返回内容长度（演示模式）。
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。

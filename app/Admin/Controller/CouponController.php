@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 优惠券管理（/admin/coupon）。
+ * 优惠券管理（{入口}/coupon）。
  *
  * 动作：list / create / update / delete / batch_delete / toggle / toggle_show_front
  * ?_popup=1[&id=N] 渲染新增/编辑弹窗。
@@ -16,7 +16,7 @@ final class CouponController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \App\Model\CouponModel();
+        $model = app(\App\Model\CouponModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost($model);

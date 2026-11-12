@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 媒体选择器（/admin/media）。
+ * 媒体选择器（{入口}/media）。
  *
  * GET 渲染选择器弹窗；POST action=list 返回当前管理员的附件列表（只读）。
  * 弹窗视图通过 window.TEMPLATE_MEDIA_URL 取本地址。

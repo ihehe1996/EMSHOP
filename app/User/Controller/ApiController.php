@@ -38,7 +38,7 @@ final class ApiController extends UserBaseController
                     $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
-                $userModel = new \App\Model\UserListModel();
+                $userModel = app(\App\Model\UserListModel::class);
                 $userId = (int) $frontUser['id'];
 
                 switch ($action) {

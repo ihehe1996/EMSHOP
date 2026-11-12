@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 
 // 应用收费由中心服务端统一以人民币结算，这里固定用 ¥ 不读站点主货币
 // 分类 tabs 由 PHP 直接渲染(基于 PluginModel::MERCHANT_PLUGIN_CATEGORIES);列表走
-// /admin/appstore?_action=list（服务端 app-list，scope=branch），可购状态来自响应的 can_buy
+// {入口}/appstore?_action=list（服务端 app-list，scope=branch），可购状态来自响应的 can_buy
 
 // 应用图片（封面 / 内容图）统一基于授权服务器线路拼接；以此保证资源 URL
 // 在全站稳定、可被浏览器缓存

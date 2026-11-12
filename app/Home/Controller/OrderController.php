@@ -187,7 +187,7 @@ class OrderController extends BaseController
                 $this->response->error('优惠券功能未启用');
             }
             if ($couponCode !== '') {
-                $couponService = new \App\Service\CouponService();
+                $couponService = app(\App\Service\CouponService::class);
                 try {
                     // 商品详情页下单金额 = 单商品价 × 数量
                     //   price_raw 是 app(\App\Model\GoodsModel::class)->getSpecsByGoodsId() 动态计算字段（商户站会乘 factor），
@@ -242,7 +242,7 @@ class OrderController extends BaseController
 
             // 非余额支付：触发 payment_create 过滤器，让对应插件生成 pay_url
             // 走 PaymentService::createPayment 而不是直接 applyFilter —— 它会临时把 scope
-            // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
+            // 切到 'main' 让插件从主站 scope 读到支付凭证（商户 scope 没存这些凭证）
             $payPayload = ['pay_url' => '', 'qrcode' => ''];
             if (!$paidNow) {
                 $orderRow = app(\App\Model\OrderModel::class)->getById((int) $result['order_id']);

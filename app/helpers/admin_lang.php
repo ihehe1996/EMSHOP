@@ -23,7 +23,7 @@ if (!function_exists('loadAdminTranslations')) {
     {
         $langCode = (string) ($_COOKIE['admin_lang'] ?? '');
 
-        $langModel = new \App\Model\LanguageModel();
+        $langModel = app(\App\Model\LanguageModel::class);
         $lang = null;
 
         if ($langCode !== '') {
@@ -38,7 +38,7 @@ if (!function_exists('loadAdminTranslations')) {
             return;
         }
 
-        $translator = new \App\Model\LangModel();
+        $translator = app(\App\Model\LangModel::class);
         $rows = $translator->getByLangId((int) $lang['id']);
 
         $map = [];

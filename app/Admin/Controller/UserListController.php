@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 会员列表（/admin/user_list）。
+ * 会员列表（{入口}/user_list）。
  *
  * 管理 em_user 里的所有账号（含管理员）。当前登录账号自己不能禁用/删除。
  *
@@ -83,7 +83,7 @@ final class UserListController extends BaseAdminController
                         $limit = 15;
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     $result = $model->getAll($page, $limit, $keyword, $sortField, $sortOrder);
 
                     $this->response->success('', [
@@ -129,7 +129,7 @@ final class UserListController extends BaseAdminController
                     $status = $this->input->post('status', '1');
                     $status = $status === '1' ? 1 : 0;
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
 
                     if ($model->existsUsername($username)) {
                         $this->response->error('该用户名已被占用');
@@ -173,7 +173,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     $existing = $model->findById($id);
                     if ($existing === null) {
                         $this->response->error('用户不存在');
@@ -232,9 +232,9 @@ final class UserListController extends BaseAdminController
 
                     // 改的是自己：同步刷新当前会话（含密码指纹），避免下一次请求被踢下线
                     if ($id === $currentAdminId) {
-                        $freshUser = (new \App\Model\UserModel())->findById($id);
+                        $freshUser = app(\App\Model\UserModel::class)->findById($id);
                         if ($freshUser !== null) {
-                            $auth = new \App\Service\AuthService();
+                            $auth = app(\App\Service\AuthService::class);
                             $auth->refreshSession($freshUser);
                         }
                     }
@@ -253,7 +253,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能禁用当前登录的账号');
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     if ($model->findById($id) === null) {
                         $this->response->error('用户不存在');
                     }
@@ -275,7 +275,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能删除当前登录的账号');
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     if ($model->findById($id) === null) {
                         $this->response->error('用户不存在');
                     }
@@ -304,7 +304,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能删除当前登录的账号');
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     $deleted = $model->deleteBatch($ids, $currentAdminId);
 
                     $csrfToken = $this->csrf->refresh();
@@ -319,7 +319,7 @@ final class UserListController extends BaseAdminController
                     if (empty($_FILES['file'])) {
                         $this->response->error('请选择图片文件');
                     }
-                    $uploader = new \App\Service\UploadService();
+                    $uploader = app(\App\Service\UploadService::class);
                     $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'avatar');
                     $csrfToken = $this->csrf->refresh();
                     $this->response->success('上传成功', [
@@ -334,7 +334,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $userModel = new \App\Model\UserListModel();
+                    $userModel = app(\App\Model\UserListModel::class);
                     $u = $userModel->findById($userId);
                     if ($u === null) {
                         $this->response->error('用户不存在');
@@ -347,7 +347,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('该用户已开通商户分站');
                     }
 
-                    $levelModel = new \App\Model\MerchantLevelModel();
+                    $levelModel = app(\App\Model\MerchantLevelModel::class);
                     $levelId = (int) $this->input->post('level_id', 0);
                     $merchantLevelRow = $levelId > 0 ? $levelModel->findById($levelId) : null;
                     if ($merchantLevelRow === null) {
@@ -379,7 +379,7 @@ final class UserListController extends BaseAdminController
                         }
                     }
 
-                    $merchantModel = new \App\Model\MerchantModel();
+                    $merchantModel = app(\App\Model\MerchantModel::class);
                     if ($merchantModel->existsSubdomain($subdomain)) {
                         $this->response->error('二级域名已被占用');
                     }
@@ -424,7 +424,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $model = new \App\Model\UserListModel();
+                    $model = app(\App\Model\UserListModel::class);
                     $existing = $model->findById($userId);
                     if ($existing === null) {
                         $this->response->error('用户不存在');
@@ -432,7 +432,7 @@ final class UserListController extends BaseAdminController
 
                     $levelId = (int) $this->input->post('level_id', 0);
                     if ($levelId > 0) {
-                        $lvRow = (new \App\Model\UserLevelModel())->findById($levelId);
+                        $lvRow = app(\App\Model\UserLevelModel::class)->findById($levelId);
                         if ($lvRow === null || (string) ($lvRow['enabled'] ?? 'y') !== 'y') {
                             $this->response->error('用户等级不存在或已被禁用');
                         }
@@ -466,7 +466,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('请输入有效的金额');
                     }
 
-                    $balanceLog = new \App\Model\UserBalanceLogModel();
+                    $balanceLog = app(\App\Model\UserBalanceLogModel::class);
                     $operatorId = (int) ($admin['id'] ?? 0);
                     $operatorName = (string) ($admin['nickname'] ?? $admin['username'] ?? '管理员');
 
@@ -481,7 +481,7 @@ final class UserListController extends BaseAdminController
                     }
 
                     // 返回最新余额
-                    $freshUser = (new \App\Model\UserListModel())->findById($userId);
+                    $freshUser = app(\App\Model\UserListModel::class)->findById($userId);
                     $newBalance = $freshUser ? bcdiv((string) ($freshUser['money'] ?? 0), '1000000', 2) : '0.00';
 
                     $this->response->success('操作成功', [
@@ -507,7 +507,7 @@ final class UserListController extends BaseAdminController
     private function renderBalancePopup(): void
     {
         $userId = (int) $this->input->get('id', 0);
-        $balanceUser = (new \App\Model\UserListModel())->findById($userId);
+        $balanceUser = app(\App\Model\UserListModel::class)->findById($userId);
         if (!$balanceUser) {
             exit('用户不存在');
         }
@@ -525,12 +525,12 @@ final class UserListController extends BaseAdminController
     private function renderLevelPopup(): void
     {
         $userId = (int) $this->input->get('id', 0);
-        $levelUser = (new \App\Model\UserListModel())->findById($userId);
+        $levelUser = app(\App\Model\UserListModel::class)->findById($userId);
         if ($levelUser === null) {
             exit('用户不存在');
         }
 
-        $allLevels = (new \App\Model\UserLevelModel())->getAll();
+        $allLevels = app(\App\Model\UserLevelModel::class)->getAll();
         $userLevels = array_values(array_filter($allLevels, static fn($l) => (string) ($l['enabled'] ?? 'y') === 'y'));
 
         $this->render('popup/user_level_change', [
@@ -546,7 +546,7 @@ final class UserListController extends BaseAdminController
     private function renderMerchantOpenPopup(): void
     {
         $userId = (int) $this->input->get('user_id', 0);
-        $presetUser = (new \App\Model\UserListModel())->findById($userId);
+        $presetUser = app(\App\Model\UserListModel::class)->findById($userId);
         if ($presetUser === null) {
             exit('用户不存在');
         }
@@ -554,7 +554,7 @@ final class UserListController extends BaseAdminController
             exit('该用户已开通商户');
         }
 
-        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
+        $levels = app(\App\Model\MerchantLevelModel::class)->getEnabledList();
         if ($levels === []) {
             exit('请先在「商户等级」中创建并启用至少一个等级');
         }
@@ -572,7 +572,7 @@ final class UserListController extends BaseAdminController
     private function renderMerchantDetailPopup(): void
     {
         $userId = (int) $this->input->get('user_id', 0);
-        $merchantDetail = (new \App\Model\MerchantModel())->findByUserId($userId);
+        $merchantDetail = app(\App\Model\MerchantModel::class)->findByUserId($userId);
         if (!$merchantDetail) {
             exit('该用户未开通商户');
         }
@@ -606,7 +606,7 @@ final class UserListController extends BaseAdminController
         $editUser = null;
 
         if ($editId > 0) {
-            $editUser = (new \App\Model\UserListModel())->findById($editId);
+            $editUser = app(\App\Model\UserListModel::class)->findById($editId);
         }
 
         $this->render('popup/user_edit', [

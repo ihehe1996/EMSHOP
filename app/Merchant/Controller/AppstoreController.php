@@ -148,8 +148,8 @@ final class AppstoreController extends MerchantBaseController
                 $marketId = (int) $this->input->post('market_id', 0);
                 if ($marketId <= 0) $this->response->error('参数错误');
 
-                $marketModel = new \App\Model\AppMarketModel();
-                $purchaseModel = new \App\Model\AppPurchaseModel();
+                $marketModel = app(\App\Model\AppMarketModel::class);
+                $purchaseModel = app(\App\Model\AppPurchaseModel::class);
 
                 $this->db->begin();
                 try {
@@ -183,11 +183,11 @@ final class AppstoreController extends MerchantBaseController
 
                     // 文件存在校验：主站采购上架后物理文件应该已准备好
                     if ($type === 'plugin') {
-                        if (!(new \App\Model\PluginModel())->existsOnDisk($appCode)) {
+                        if (!app(\App\Model\PluginModel::class)->existsOnDisk($appCode)) {
                             throw new \RuntimeException('主站文件未就绪，请联系主站管理员检查插件文件');
                         }
                     } else {
-                        if (!(new \App\Model\TemplateModel())->existsOnDisk($appCode)) {
+                        if (!app(\App\Model\TemplateModel::class)->existsOnDisk($appCode)) {
                             throw new \RuntimeException('主站文件未就绪，请联系主站管理员检查模板文件');
                         }
                     }
@@ -250,7 +250,7 @@ final class AppstoreController extends MerchantBaseController
 
                     // 写应用订单
                     $appOrderNo = 'AO' . date('YmdHis') . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-                    (new \App\Model\AppOrderModel())->create([
+                    app(\App\Model\AppOrderModel::class)->create([
                         'order_no'       => $appOrderNo,
                         'merchant_id'    => $merchantId,
                         'user_id'        => $merchantUid,

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 应用订单（/admin/app_order）。
+ * 应用订单（{入口}/app_order）。
  *
  * 记录分站站长在商户端应用商店的购买订单（当前支付方式为余额扣款）。
  * GET _action=list 返回列表 JSON（只读）。
@@ -36,7 +36,7 @@ final class AppOrderController extends BaseAdminController
     private function outputList(): void
     {
         try {
-            $model = new \App\Model\AppOrderModel();
+            $model = app(\App\Model\AppOrderModel::class);
             $result = $model->paginateForAdmin([
                 'page'        => max(1, (int) $this->input->get('page', 1)),
                 'page_size'   => max(1, min(100, (int) $this->input->get('limit', 20))),

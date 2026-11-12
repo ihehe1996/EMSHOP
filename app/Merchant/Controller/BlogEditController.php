@@ -30,7 +30,7 @@ final class BlogEditController extends MerchantBaseController
 
             $categoryId = (int) $this->input->post('category_id', 0);
             if ($categoryId > 0) {
-                $cat = (new \App\Model\BlogCategoryModel())->findById($categoryId);
+                $cat = app(\App\Model\BlogCategoryModel::class)->findById($categoryId);
                 if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                     $this->response->error('请选择本店的分类');
                 }
@@ -90,7 +90,7 @@ final class BlogEditController extends MerchantBaseController
                 $article = null;
             }
         }
-        $categories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
+        $categories = app(\App\Model\BlogCategoryModel::class)->getAll($merchantId);
 
         if ($this->input->get('_popup', '') === '1') {
             $this->render('popup/blog_edit', get_defined_vars());

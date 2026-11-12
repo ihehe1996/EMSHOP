@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商品分类管理（/admin/goods_category）。
+ * 商品分类管理（{入口}/goods_category）。
  *
  * 仅支持 2 级分类：顶级 和 二级（归属某顶级）。
- * 与旧 admin/goods_category.php 行为一致：树形列表 / 新增 / 编辑 / 删除 /
+ * 行为约定：树形列表 / 新增 / 编辑 / 删除 /
  * 批量删除 / 状态切换 / 图片上传，以及 ?_popup=1 编辑弹窗。
  *
  * 动作参数以 GET 的 action 为主（旧视图用 ?action=add/edit/...）；
@@ -20,7 +20,7 @@ final class GoodsCategoryController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \App\Model\GoodsCategoryModel();
+        $model = app(\App\Model\GoodsCategoryModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -263,7 +263,7 @@ final class GoodsCategoryController extends BaseAdminController
                 if (empty($_FILES['file'])) {
                     $this->response->error('请选择图片文件');
                 }
-                $uploader = new \App\Service\UploadService();
+                $uploader = app(\App\Service\UploadService::class);
                 $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'goods_category');
                 $csrfToken = $this->csrf->refresh();
                 $this->response->success('上传成功', [

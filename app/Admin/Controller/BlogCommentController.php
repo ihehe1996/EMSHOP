@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 评论管理（/admin/blog_comment）。
+ * 评论管理（{入口}/blog_comment）。
  *
- * 与旧 admin/blog_comment.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表 + 状态计数
  *   - approve / reject / delete / batch
  *   - 主站后台只能操作主站文章（merchant_id=0）下的评论

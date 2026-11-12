@@ -168,7 +168,7 @@ final class FrontDataService extends BaseService
             //   1) 优先 goods_delivery_type filter（virtual_card 按 plugin_data.auto_delivery 动态切换）
             //   2) filter 没响应 → 兜底读 goods_type_register 注册的 delivery_type 字段（physical 静态 manual 走这条）
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
-            if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
+            if ($deliveryType === '' && !empty($row['goods_type'])) {
                 $typeCfg = $this->goodsTypeManager->getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];
@@ -336,7 +336,7 @@ final class FrontDataService extends BaseService
             $stock = (int) $row['total_stock'];
             // 发货类型解析（同 queryGoodsList）：filter 优先，没响应时兜底读 goods_type_register 注册的 delivery_type
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
-            if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
+            if ($deliveryType === '' && !empty($row['goods_type'])) {
                 $typeCfg = $this->goodsTypeManager->getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];

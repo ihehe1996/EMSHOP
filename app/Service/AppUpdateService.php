@@ -26,7 +26,7 @@ final class AppUpdateService extends BaseService
     /**
      * 检查已装应用的新版本。
      *
-     * 返回结构刻意与视图和 admin/appstore.php?_action=update 的既有契约对齐
+     * 返回结构刻意与视图和后台应用商店页的 ?_action=update 契约对齐
      * （version / file_path / min_version），调用方拿到即可直接喂给模板；
      * 服务端的 package_url 在这里映射成 file_path，页面与更新 action 都不用改。
      *
@@ -89,7 +89,7 @@ final class AppUpdateService extends BaseService
                 $filePath = (string) ($row['package_url'] ?? '');
                 // 未授权 / 授权与域名不匹配时，服务端只回"有新版本"但不给下载地址
                 // （package_url 为空串）。这种条目不能当成"可更新"：页面会画出更新按钮，
-                // 点下去却因为 file_path 为空被 admin/appstore.php 的 update 分支拒绝
+                // 点下去却因为 file_path 为空被后台应用商店页的 update 分支拒绝
                 // （"EM官方未提供下载地址"）。宁可这条不显示更新，也不给一个必然失败的按钮。
                 if ($filePath === '') continue;
 

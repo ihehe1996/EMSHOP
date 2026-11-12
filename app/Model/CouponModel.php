@@ -250,7 +250,7 @@ class CouponModel extends Model
                 // 原先这里没有任何格式校验：非空值直接 bcmul，遇到 1e5 这类
                 // 科学计数法会在 PHP 8 抛未捕获的 ValueError（PHP 7.4 静默截断成错误面额）。
                 // Money::parse 只放行严格的十进制数字，非法输入抛 InvalidArgumentException，
-                // 由调用方（admin/coupon.php 的 catch Throwable）转成清晰的错误提示。
+                // 由调用方（后台优惠券页的 catch Throwable）转成清晰的错误提示。
                 $out[$f] = $this->money->parse($v, true);
             }
         }

@@ -11,8 +11,8 @@ if (!defined('EM_ROOT')) {
  */
 
 $csrf_token = Csrf::token();
-$token      = trim((string) Dispatcher::getInstance()->getArg('token', ''));
-$tokenValid = (new \App\Service\PasswordResetService())->validateToken($token) !== null;
+$token      = trim((string) Dispatcher::getArg('token', ''));
+$tokenValid = app(\App\Service\PasswordResetService::class)->validateToken($token) !== null;
 
 ob_start();
 if ($tokenValid):

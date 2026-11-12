@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 资源管理（/admin/attachment）。
+ * 资源管理（{入口}/attachment）。
  *
  * 统一管理当前管理员上传的附件（图片、文件等），数据存于 em_attachment 表。
- * 与旧 admin/attachment.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表（按 user_id 隔离）
  *   - _action=stats 统计
  *   - _action=delete / batchDelete 删除记录与物理文件
@@ -43,7 +43,7 @@ final class AttachmentController extends BaseAdminController
                 }
             }
 
-            $model = new \App\Model\AttachmentModel();
+            $model = app(\App\Model\AttachmentModel::class);
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
 

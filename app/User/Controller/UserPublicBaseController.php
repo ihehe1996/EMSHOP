@@ -27,7 +27,7 @@ abstract class UserPublicBaseController extends \App\Core\AbstractController
         if (!empty($_SESSION['em_front_user'])) {
             $user = (array) $_SESSION['em_front_user'];
 
-            $fresh = (new \App\Model\UserListModel())->findById((int) ($user['id'] ?? 0));
+            $fresh = app(\App\Model\UserListModel::class)->findById((int) ($user['id'] ?? 0));
             if ($fresh !== null) {
                 $user['money']    = (int) ($fresh['money'] ?? 0);
                 $user['nickname'] = (string) ($fresh['nickname'] ?: $fresh['username']);

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 修改密码弹窗（/admin/password）。
+ * 修改密码弹窗（{入口}/password）。
  *
  * GET: 渲染修改密码视图
  * POST: 校验旧密码后更新密码，并刷新当前会话
  *
- * 与旧 admin/password.php 行为一致。
+ * 行为约定。
  */
 final class PasswordController extends BaseAdminController
 {
@@ -35,7 +35,7 @@ final class PasswordController extends BaseAdminController
                 $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $userModel = new \App\Model\UserModel();
+            $userModel = app(\App\Model\UserModel::class);
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
             $oldPassword = (string) $this->input->post('old_password', '');
@@ -67,7 +67,7 @@ final class PasswordController extends BaseAdminController
             // 密码指纹变了，刷新当前会话，避免把自己也踢下线；其它终端会自动失效
             $freshUser = $userModel->findById($userId);
             if ($freshUser !== null) {
-                $auth = new \App\Service\AuthService();
+                $auth = app(\App\Service\AuthService::class);
                 $auth->refreshSession($freshUser);
             }
 

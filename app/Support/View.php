@@ -122,7 +122,7 @@ final class View
      *   $this->getData()              - 获取已有数据
      *
      * 也可通过全局函数获取 Dispatcher：
-     *   Dispatcher::getInstance()->getController()
+     *   Dispatcher::getController()
      */
     private function loadModule(): void
     {

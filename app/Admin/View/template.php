@@ -376,7 +376,7 @@ function doRequest(action, name, extraData, done) {
 }
 
 /**
- * 模板更新：复用应用商店的 update action（/admin/appstore）
+ * 模板更新：复用应用商店的 update action（{入口}/appstore）
  * 该 action 会下载最新 zip → 解压覆盖 content/template/{name} → 更新 em_template.version
  * 注意：appstore.php 的 update 接口成功时返回新的 csrf_token,需同步到本地 csrfToken 避免后续 template.php 的 POST 失效
  */

@@ -434,7 +434,7 @@ function active_theme_name(string $fallback = 'default'): string
         $scope = MerchantContext::currentId() > 0
             ? 'merchant_' . MerchantContext::currentId()
             : 'main';
-        $theme = (string) ((new \App\Model\TemplateModel())->getActiveTheme(current_device_type(), $scope) ?? '');
+        $theme = (string) (app(\App\Model\TemplateModel::class)->getActiveTheme(current_device_type(), $scope) ?? '');
     } catch (Throwable $e) {
         $theme = '';
     }
@@ -568,7 +568,7 @@ function template_config(?string $theme = null): array
 {
     $name = trim((string) $theme);
     if ($name === '') {
-        $name = View::getInstance()->getTheme();
+        $name = View::getTheme();
         if ($name === '') {
             $name = 'default';
         }

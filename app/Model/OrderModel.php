@@ -169,8 +169,8 @@ class OrderModel extends Model
                 // 这里 fail-fast 拦住，比让用户付钱后永远收不到货好得多。
                 // 为兼容历史无类型数据：goods_type 为空串时放过，保持旧行为。
                 $goodsType = (string) ($goods['goods_type'] ?? '');
-                if ($goodsType !== '' && class_exists('GoodsTypeManager')) {
-                    if (\GoodsTypeManager::getTypeConfig($goodsType) === null) {
+                if ($goodsType !== '') {
+                    if (app(\App\Support\GoodsTypeManager::class)->getTypeConfig($goodsType) === null) {
                         throw new \RuntimeException('商品「' . $goods['title'] . '」所属类型插件未启用，暂不支持下单，请联系管理员');
                     }
                 }
@@ -284,7 +284,7 @@ class OrderModel extends Model
             $needsAddress = false;
             $goodsCfgCache = [];
             foreach ($orderGoodsRows as $r) {
-                $typeCfg = \GoodsTypeManager::getTypeConfig((string) ($r['goods_type'] ?? ''));
+                $typeCfg = app(\App\Support\GoodsTypeManager::class)->getTypeConfig((string) ($r['goods_type'] ?? ''));
                 $need = !empty($typeCfg['needs_address']);
                 $cfgArr = json_decode((string) ($r['_goods_configs'] ?? '{}'), true) ?: [];
                 if ($cfgArr === []) {
@@ -401,7 +401,7 @@ class OrderModel extends Model
 
             // 事务内扣减券使用次数 + 标记用户券为 used
             if (!empty($orderData['coupon']) && is_array($orderData['coupon'])) {
-                $couponService = new \App\Service\CouponService();
+                $couponService = app(\App\Service\CouponService::class);
                 $couponService->apply(
                     $orderData['coupon'],
                     (int) ($orderData['user_id'] ?? 0),
@@ -644,7 +644,7 @@ class OrderModel extends Model
         $this->db->begin();
         try {
             // 扣款
-            $balanceLog = new \App\Model\UserBalanceLogModel();
+            $balanceLog = app(\App\Model\UserBalanceLogModel::class);
             $ok = $balanceLog->decrease($userId, $payAmount, '购买商品：' . $order['order_no']);
             if (!$ok) {
                 throw new \RuntimeException('余额不足');
@@ -1159,7 +1159,7 @@ class OrderModel extends Model
 
         // 请求前再校验一次：地址可能来自更早写入的历史数据（那时入库还没有内网校验），
         // 也可能在这条记录存下之后才被解析到内网（DNS 变更）。任一情况都不应发出请求。
-        if (!\DownloadUrlGuard::isPublicHttpUrl($callbackUrl)) {
+        if (!app(\App\Support\DownloadUrlGuard::class)->isPublicHttpUrl($callbackUrl)) {
             $this->writeSystemLog(
                 'warning',
                 '发货回调地址被拒绝',
@@ -1295,7 +1295,7 @@ class OrderModel extends Model
             if (!class_exists(\App\Model\SystemLogModel::class)) {
                 return;
             }
-            $m = new \App\Model\SystemLogModel();
+            $m = app(\App\Model\SystemLogModel::class);
             if ($level === 'error') {
                 $m->error('system', $action, $message, $detail);
             } elseif ($level === 'warning' || $level === 'warn') {

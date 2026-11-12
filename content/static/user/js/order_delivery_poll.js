@@ -1,5 +1,5 @@
 /**
- * 异步发货轮询：订单处于 paid / delivering 时定时请求 order_poll.php，
+ * 异步发货轮询：订单处于 paid / delivering 时定时请求 /user/order_poll，
  * 状态变化后整页刷新以展示卡密 / 最新状态。
  */
 (function (global) {

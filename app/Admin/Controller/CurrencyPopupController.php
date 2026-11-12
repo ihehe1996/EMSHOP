@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 货币添加/编辑弹窗（/admin/currency_popup）。
+ * 货币添加/编辑弹窗（{入口}/currency_popup）。
  *
  * GET  ?mode=add|edit[&id=] —— 渲染弹窗视图
  * POST  _action=add|edit   —— 保存

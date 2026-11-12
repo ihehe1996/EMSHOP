@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 文章编辑弹窗（/admin/blog_edit）。
+ * 文章编辑弹窗（{入口}/blog_edit）。
  *
  * 动作：_action=save 保存；?_popup=1 渲染编辑弹窗。
- * 与旧 admin/blog_edit.php 行为一致（主站后台不展示/操作商户文章）。
+ * 行为约定（主站后台不展示/操作商户文章）。
  */
 final class BlogEditController extends BaseAdminController
 {

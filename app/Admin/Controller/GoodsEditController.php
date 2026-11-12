@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商品编辑弹窗（/admin/goods_edit）。
+ * 商品编辑弹窗（{入口}/goods_edit）。
  *
- * 由商品列表（/admin/goods）以 iframe 弹窗打开，只提供弹窗与 AJAX 动作：
+ * 由商品列表（{入口}/goods）以 iframe 弹窗打开，只提供弹窗与 AJAX 动作：
  *   GET  ?_popup=1                     渲染编辑 / 新增表单
  *   GET  ?_action=stock_manager        库存管理弹窗
  *   GET  ?_action=search_users         规格「用户专属价」用户搜索
@@ -24,7 +24,7 @@ final class GoodsEditController extends BaseAdminController
         // 与迁移前一致：GET 优先（哪怕为空串），没有再取 POST 的 _action
         $action = (string) ($this->input->get('_action', null) ?? $this->input->post('_action', ''));
         // 用户搜索（规格"用户专属价"弹窗内联搜索用）
-        // GET /admin/goods_edit?_action=search_users&q=keyword
+        // GET {入口}/goods_edit?_action=search_users&q=keyword
         // 按用户名 / 昵称 / 邮箱模糊匹配，status=1，最多 10 条。
         // 不按 role 过滤：这里是给买家设专属价，管理账号也能在前台下单，一样要能设。
         if ($action === 'search_users') {
@@ -588,7 +588,7 @@ final class GoodsEditController extends BaseAdminController
 
         // 插件专属 action（card_list/card_import/card_delete/card_export/card_manager）
         // 已迁移至各自的商品类型插件目录，通过 admin_plugin_action 钩子分发
-        // 路由入口：/admin/plugin_action?_action=card_list 等
+        // 路由入口：{入口}/plugin_action?_action=card_list 等
 
         // 库存管理弹窗（按商品类型加载不同的库存管理界面）
         if ($action === 'stock_manager') {
@@ -687,7 +687,7 @@ final class GoodsEditController extends BaseAdminController
             $userLevels = [];
             if (class_exists(\App\Model\UserLevelModel::class)) {
                 try {
-                    $userLevels = (new \App\Model\UserLevelModel())->getAll();
+                    $userLevels = app(\App\Model\UserLevelModel::class)->getAll();
                 } catch (\Throwable $e) {
                     $userLevels = [];
                 }

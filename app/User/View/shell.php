@@ -32,7 +32,7 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
         <!-- 左侧：菜单 -->
         <?php
         $merchantId = (int) ($frontUser['merchant_id'] ?? 0);
-        $inMerchantContext = class_exists('MerchantContext') && MerchantContext::currentId() > 0;
+        $inMerchantContext = MerchantContext::currentId() > 0;
 
         // 菜单表：侧栏渲染、当前项高亮、页头标题三处共用一份，别再各写一遍
         $ucMenu = [
@@ -128,7 +128,7 @@ $userDisplayName = htmlspecialchars($frontUser['nickname'] ?? $frontUser['userna
                 </div>
                 <div class="uc-toolbar__right">
                     <?php
-                    $lastMerchant = class_exists('MerchantContext') ? MerchantContext::lastMerchant() : null;
+                    $lastMerchant = MerchantContext::lastMerchant();
                     if ($lastMerchant !== null && $lastMerchant['url'] !== ''):
                         $mName = $lastMerchant['name'] ?: $lastMerchant['slug'];
                         if (mb_strlen($mName, 'UTF-8') > 10) {

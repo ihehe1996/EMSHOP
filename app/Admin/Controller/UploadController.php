@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 图片上传接口（/admin/upload）。
+ * 图片上传接口（{入口}/upload）。
  *
  * 仅接受 POST；写 em_attachment 并落盘，必须校验 CSRF。
  * context=goods_image 时触发 goods_image_upload 钩子，允许插件接管上传结果。
@@ -27,7 +27,7 @@ final class UploadController extends BaseAdminController
             $this->response->error('请选择图片文件');
         }
 
-        $uploader = new \App\Service\UploadService();
+        $uploader = app(\App\Service\UploadService::class);
         $context = (string) $this->input->post('context', 'default');
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         if ($context === 'site_favicon') {

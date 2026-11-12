@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商品管理（/admin/goods）。
+ * 商品管理（{入口}/goods）。
  *
  * 动作：list / toggle_sale / toggle_recommend / delete / physical_delete / batch / clone
  * 无 action 时渲染列表页。

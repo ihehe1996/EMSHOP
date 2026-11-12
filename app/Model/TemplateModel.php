@@ -134,7 +134,7 @@ final class TemplateModel extends Model
     // -----------------------------------------------------------------
 
     /**
-     * 列表 API:扫磁盘 + 标注启用状态(给 admin/template.php 用)。
+     * 列表 API:扫磁盘 + 标注启用状态(给后台模板页用)。
      *
      * 返回每条 = 磁盘 header + is_active_pc / is_active_mobile / has_setting。
      *
@@ -175,7 +175,7 @@ final class TemplateModel extends Model
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return false;
-        return (new \App\Model\AppPurchaseModel())->isPurchased($merchantId, $name, 'template');
+        return app(\App\Model\AppPurchaseModel::class)->isPurchased($merchantId, $name, 'template');
     }
 
     // -----------------------------------------------------------------

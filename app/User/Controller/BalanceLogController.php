@@ -23,7 +23,7 @@ final class BalanceLogController extends UserBaseController
         $perPage = 5;
 
         // 查询余额变动记录
-        $balanceLogModel = new \App\Model\UserBalanceLogModel();
+        $balanceLogModel = app(\App\Model\UserBalanceLogModel::class);
         $result = $balanceLogModel->getListByUser((int) $frontUser['id'], $page, $perPage);
 
         $logList    = $result['list'];

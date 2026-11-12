@@ -2,7 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 
 // ===== 查单页 tab 路由（PJAX 模式）=====
-// 由 user/find_order.php 注入：$currentTab / $contactOn / $passwordOn / $captchaExpr / $guestToken / $currencySymbol
+// 由游客查单控制器注入：$currentTab / $contactOn / $passwordOn / $captchaExpr / $guestToken / $currencySymbol
 // tab 改成 <a data-pjax> 链接：
 //   /user/find_order          → token（默认）
 //   /user/find_order?tab=credentials

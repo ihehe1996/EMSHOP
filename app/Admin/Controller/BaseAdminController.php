@@ -28,7 +28,7 @@ abstract class BaseAdminController extends AbstractAdminController
     {
         parent::__construct();
 
-        $this->auth = new \App\Service\AuthService();
+        $this->auth = app(\App\Service\AuthService::class);
         $user = $this->auth->check() ? $this->auth->user() : null;
         if (!is_array($user)) {
             $this->response->redirect(self::SIGN_URL);

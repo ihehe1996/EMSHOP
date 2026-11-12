@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 语言管理（/admin/language）。
+ * 语言管理（{入口}/language）。
  *
- * 与旧 admin/language.php 行为一致：
+ * 行为约定：
  *   - _action=list / create / update / delete / toggle
  *   - ?_popup=1 添加/编辑弹窗
  *   - 至少保留一种语言；至少保留一种启用语言
@@ -48,7 +48,7 @@ final class LanguageController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     $keyword = trim((string) $this->input->post('keyword', ''));
 
                     // 获取所有语言数据
@@ -88,7 +88,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('语言代码最多20个字符');
                     }
 
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     if ($model->existsName($name)) {
                         $this->response->error('语言名称已被占用');
                     }
@@ -116,7 +116,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     $existing = $model->findById($id);
                     if ($existing === null) {
                         $this->response->error('语言不存在');
@@ -166,7 +166,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     if ($model->findById($id) === null) {
                         $this->response->error('语言不存在');
                     }
@@ -188,7 +188,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     $lang = $model->findById($id);
                     if ($lang === null) {
                         $this->response->error('语言不存在');
@@ -224,7 +224,7 @@ final class LanguageController extends BaseAdminController
         $editLang = null;
 
         if ($editId > 0) {
-            $editLang = (new \App\Model\LanguageModel())->findById($editId);
+            $editLang = app(\App\Model\LanguageModel::class)->findById($editId);
         }
 
         $this->render('popup/language', [

@@ -67,7 +67,7 @@ class WithdrawController extends BaseController
         }
 
         try {
-            $id = (new \App\Model\UserWithdrawModel())->create(
+            $id = app(\App\Model\UserWithdrawModel::class)->create(
                 $userId,
                 $amountRaw,
                 $channel,

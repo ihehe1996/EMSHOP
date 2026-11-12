@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 后台个人信息（/admin/profile）。
+ * 后台个人信息（{入口}/profile）。
  *
  * 支持修改账号/昵称/邮箱/手机号、上传头像、选择头像、恢复默认头像。
- * 与旧 admin/profile.php 行为一致（动作参数是 POST 的 action，不是 _action）。
+ * 行为约定（动作参数是 POST 的 action，不是 _action）。
  *
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
@@ -37,10 +37,10 @@ final class ProfileController extends BaseAdminController
                 $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $userModel = new \App\Model\UserModel();
+            $userModel = app(\App\Model\UserModel::class);
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
-            $auth = new \App\Service\AuthService();
+            $auth = app(\App\Service\AuthService::class);
 
             switch ($action) {
                 case 'profile':
@@ -108,7 +108,7 @@ final class ProfileController extends BaseAdminController
                         $this->response->error('请选择头像文件');
                     }
 
-                    $uploader = new \App\Service\UploadService();
+                    $uploader = app(\App\Service\UploadService::class);
                     $result = $uploader->upload($_FILES['avatar_file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'avatar');
 
                     $userModel->updateProfile($userId, [
@@ -185,7 +185,7 @@ final class ProfileController extends BaseAdminController
     private function renderPage(): void
     {
         $admin = $this->user();
-        $userFull = (new \App\Model\UserModel())->findById((int) ($admin['id'] ?? 0));
+        $userFull = app(\App\Model\UserModel::class)->findById((int) ($admin['id'] ?? 0));
 
         if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';

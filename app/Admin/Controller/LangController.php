@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 翻译管理（/admin/lang）。
+ * 翻译管理（{入口}/lang）。
  *
  * 翻译数据存于 lang 表，语言数据存于 language 表。
- * 与旧 admin/lang.php 行为一致：
+ * 行为约定：
  *   - languages / list / batchCreate / update / delete / batchSave / batchDelete
  *   - ?_popup=1 添加/编辑弹窗
  *
@@ -49,7 +49,7 @@ final class LangController extends BaseAdminController
             switch ($action) {
                 case 'languages':
                     // 获取所有启用的语言
-                    $model = new \App\Model\LanguageModel();
+                    $model = app(\App\Model\LanguageModel::class);
                     $languages = $model->getEnabled();
                     $this->response->success('', [
                         'data' => $languages,
@@ -58,7 +58,7 @@ final class LangController extends BaseAdminController
                     break;
 
                 case 'list':
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     $langId = (int) $this->input->post('langId', 0);
                     $keyword = trim((string) $this->input->post('keyword', ''));
 
@@ -100,7 +100,7 @@ final class LangController extends BaseAdminController
                         $translations = [];
                     }
 
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     $count = 0;
                     foreach ($translations as $langIdStr => $content) {
                         $langId = (int) $langIdStr;
@@ -138,7 +138,7 @@ final class LangController extends BaseAdminController
                         $this->response->error('无效的翻译ID');
                     }
 
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     $existing = $langModel->findById($id);
                     if ($existing === null) {
                         $this->response->error('翻译不存在');
@@ -173,7 +173,7 @@ final class LangController extends BaseAdminController
                         $this->response->error('无效的翻译ID');
                     }
 
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     if ($langModel->findById($id) === null) {
                         $this->response->error('翻译不存在');
                     }
@@ -191,7 +191,7 @@ final class LangController extends BaseAdminController
                         $pairs = [];
                     }
 
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     $count = 0;
                     foreach ($pairs as $id => $value) {
                         $id = (int) $id;
@@ -217,7 +217,7 @@ final class LangController extends BaseAdminController
                         $this->response->error('请选择要删除的翻译');
                     }
 
-                    $langModel = new \App\Model\LangModel();
+                    $langModel = app(\App\Model\LangModel::class);
                     $count = 0;
                     foreach ($ids as $id) {
                         $id = (int) $id;
@@ -260,10 +260,10 @@ final class LangController extends BaseAdminController
         $editLangName = null;
 
         if ($editId > 0) {
-            $langModel = new \App\Model\LangModel();
+            $langModel = app(\App\Model\LangModel::class);
             $editLang = $langModel->findById($editId);
             if ($editLang !== null) {
-                $langM = new \App\Model\LanguageModel();
+                $langM = app(\App\Model\LanguageModel::class);
                 $langInfo = $langM->findById((int) $editLang['lang_id']);
                 $editLangName = $langInfo ? $langInfo['name'] : null;
             }
@@ -272,7 +272,7 @@ final class LangController extends BaseAdminController
         $this->render('popup/lang', [
             'editLang'     => $editLang,
             'editLangName' => $editLangName,
-            'languages'    => (new \App\Model\LanguageModel())->getEnabled(),
+            'languages'    => app(\App\Model\LanguageModel::class)->getEnabled(),
             'pageTitle'    => $editLang !== null ? '编辑翻译' : '添加翻译',
         ]);
     }
@@ -282,7 +282,7 @@ final class LangController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $languages = (new \App\Model\LanguageModel())->getEnabled();
+        $languages = app(\App\Model\LanguageModel::class)->getEnabled();
 
         if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';

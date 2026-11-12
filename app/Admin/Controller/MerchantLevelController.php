@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商户等级管理（/admin/merchant_level）。
+ * 商户等级管理（{入口}/merchant_level）。
  *
- * 与旧 admin/merchant_level.php 行为一致：
+ * 行为约定：
  *   - _action=list / create / update / delete / toggle / toggle_perm
  *   - ?_popup=1 添加/编辑弹窗
  *
@@ -50,7 +50,7 @@ final class MerchantLevelController extends BaseAdminController
                 }
             }
 
-            $model = new \App\Model\MerchantLevelModel();
+            $model = app(\App\Model\MerchantLevelModel::class);
 
             switch ($action) {
                 case 'list':
@@ -221,7 +221,7 @@ final class MerchantLevelController extends BaseAdminController
         $editId = (int) $this->input->get('id', 0);
         $editLevel = null;
         if ($editId > 0) {
-            $editLevel = (new \App\Model\MerchantLevelModel())->findById($editId);
+            $editLevel = app(\App\Model\MerchantLevelModel::class)->findById($editId);
             if ($editLevel !== null) {
                 $editLevel = $this->rowForView($editLevel);
             }

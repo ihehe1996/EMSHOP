@@ -41,7 +41,7 @@ class CouponService extends BaseService
             throw new \RuntimeException('请输入优惠券码');
         }
 
-        $couponModel = new \App\Model\CouponModel();
+        $couponModel = app(\App\Model\CouponModel::class);
         $coupon = $couponModel->findByCode($code);
         if (!$coupon) {
             throw new \RuntimeException('优惠券不存在');
@@ -99,14 +99,14 @@ class CouponService extends BaseService
      */
     public function apply(array $coupon, int $userId, int $orderId): void
     {
-        $couponModel = new \App\Model\CouponModel();
+        $couponModel = app(\App\Model\CouponModel::class);
         if (!$couponModel->incrementUsedCount((int) $coupon['id'])) {
             throw new \RuntimeException('优惠券已被领完');
         }
 
         // 若用户已领取该券，标记为已使用
         if ($userId > 0) {
-            $userCouponModel = new \App\Model\UserCouponModel();
+            $userCouponModel = app(\App\Model\UserCouponModel::class);
             $row = $userCouponModel->findByUserAndCoupon($userId, (int) $coupon['id']);
             if ($row && ($row['status'] ?? '') === 'unused') {
                 $userCouponModel->markUsed((int) $row['id'], $orderId);

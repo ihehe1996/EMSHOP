@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 页面编辑弹窗（/admin/page_edit）。
+ * 页面编辑弹窗（{入口}/page_edit）。
  *
  * 动作：_action=save 保存；?_popup=1 渲染编辑弹窗。
- * 与旧 admin/page_edit.php 行为一致（主站后台不展示/操作商户页面）。
+ * 行为约定（主站后台不展示/操作商户页面）。
  */
 final class PageEditController extends BaseAdminController
 {

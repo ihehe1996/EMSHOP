@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 应用商店（/admin/appstore）。
+ * 应用商店（{入口}/appstore）。
  *
  * 浏览、购买、下载、安装 / 更新官方应用、模板与插件。
  *   GET  _action=list        列表（layui table 分页）
@@ -236,11 +236,11 @@ final class AppstoreController extends BaseAdminController
                     //   插件:磁盘有目录 = 已装(version 走 parseHeader);em_plugin 表已废弃,启用列表在 em_config
                     //   模板:仍按 em_template 表(scope='main')
                     $installedPlugins = [];
-                    foreach ((new \App\Model\PluginModel())->scanPlugins() as $slug => $info) {
+                    foreach (app(\App\Model\PluginModel::class)->scanPlugins() as $slug => $info) {
                         $installedPlugins[$slug] = (string) ($info['version'] ?? '');
                     }
                     $installedThemes = [];
-                    foreach ((new \App\Model\TemplateModel())->scanTemplates() as $slug => $info) {
+                    foreach (app(\App\Model\TemplateModel::class)->scanTemplates() as $slug => $info) {
                         $installedThemes[$slug] = (string) ($info['version'] ?? '');
                     }
                     // 主站应用商店只标记是否已安装;installed_version 不再注入,is_installed 仅用于显示"已安装"灰按钮
@@ -253,7 +253,7 @@ final class AppstoreController extends BaseAdminController
                     unset($app);
                 } else {
                     // tab=merchant:主站为分站采购,应用商店只需要合并是否已上架
-                    $marketModel = new \App\Model\AppMarketModel();
+                    $marketModel = app(\App\Model\AppMarketModel::class);
                     foreach ($result['data'] as &$app) {
                         $slug = (string) ($app['name_en'] ?? '');
                         $type = (string) ($app['type'] ?? '');
@@ -523,18 +523,18 @@ final class AppstoreController extends BaseAdminController
                 // 注册到本地数据库
                 if ($tab === 'merchant') {
                     // 已上架的应用不允许再次安装
-                    $existingMarket = (new \App\Model\AppMarketModel())->findByAppCode($name, $type);
+                    $existingMarket = app(\App\Model\AppMarketModel::class)->findByAppCode($name, $type);
                     if ($existingMarket !== null) {
                         $this->response->error('应用已安装，无需重复安装');
                     }
 
                     // tab=merchant:主站为分站采购 → 落 em_app_market + 写流水(走 MainAppPurchaseService)
                     // 元数据从磁盘 header 读(物理文件主站采购时已经下好/解压好);售价默认等于成本价,主站可在
-                    // 分站市场管理页(/admin/merchant_market)修改
+                    // 分站市场管理页({入口}/merchant_market)修改
                     $title = $name; $version = ''; $category = ''; $cover = ''; $description = '';
                     if ($type === 'plugin') {
                         $mainFile = $targetDir . '/' . $name . '.php';
-                        $headerInfo = is_file($mainFile) ? (new \App\Model\PluginModel())->parseHeader($mainFile) : null;
+                        $headerInfo = is_file($mainFile) ? app(\App\Model\PluginModel::class)->parseHeader($mainFile) : null;
                         if ($headerInfo) {
                             $title       = (string) ($headerInfo['title']       ?: $name);
                             $version     = (string) ($headerInfo['version']     ?? '');
@@ -544,7 +544,7 @@ final class AppstoreController extends BaseAdminController
                         if (is_file($targetDir . '/icon.png'))      $cover = '/content/plugin/' . $name . '/icon.png';
                         elseif (is_file($targetDir . '/icon.gif'))  $cover = '/content/plugin/' . $name . '/icon.gif';
                     } else {
-                        $scanned = (new \App\Model\TemplateModel())->scanTemplates();
+                        $scanned = app(\App\Model\TemplateModel::class)->scanTemplates();
                         if (isset($scanned[$name])) {
                             $tInfo = $scanned[$name];
                             $title       = (string) ($tInfo['title']       ?: $name);
@@ -555,7 +555,7 @@ final class AppstoreController extends BaseAdminController
                     }
 
                     $costPerUnit = max(0, (int) $this->input->post('cost_per_unit', 0));
-                    $service = new \App\Service\MainAppPurchaseService();
+                    $service = app(\App\Service\MainAppPurchaseService::class);
                     $result = $service->registerPurchase([
                         'app_code'        => $name,
                         'type'            => $type,

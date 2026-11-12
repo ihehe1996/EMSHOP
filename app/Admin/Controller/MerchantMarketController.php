@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 主站后台 · 分站市场管理（/admin/merchant_market）。
+ * 主站后台 · 分站市场管理（{入口}/merchant_market）。
  *
  * 列出 em_app_market 已上架的应用（主站为分站采购的清单），
  * 改售价 / 上下架 / 查采购流水。
@@ -17,8 +17,8 @@ final class MerchantMarketController extends BaseAdminController
 {
     public function index(): void
     {
-        $marketModel = new \App\Model\AppMarketModel();
-        $purchaseModel = new \App\Model\AppPurchaseModel();
+        $marketModel = app(\App\Model\AppMarketModel::class);
+        $purchaseModel = app(\App\Model\AppPurchaseModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost();
@@ -73,7 +73,7 @@ final class MerchantMarketController extends BaseAdminController
                         $this->response->error('market_id 非法');
                     }
 
-                    $service = new \App\Service\MainAppPurchaseService();
+                    $service = app(\App\Service\MainAppPurchaseService::class);
                     $ok = $service->updateRetailPrice($marketId, $price);
                     if (!$ok) {
                         $this->response->error('价格未改动或目标不存在');
@@ -90,7 +90,7 @@ final class MerchantMarketController extends BaseAdminController
                         $this->response->error('market_id 非法');
                     }
 
-                    $service = new \App\Service\MainAppPurchaseService();
+                    $service = app(\App\Service\MainAppPurchaseService::class);
                     $ok = $service->setListed($marketId, $listed);
                     if (!$ok) {
                         $this->response->error('状态未改动或目标不存在');

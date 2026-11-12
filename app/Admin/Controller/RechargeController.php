@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 钱包充值订单（/admin/recharge）。
+ * 钱包充值订单（{入口}/recharge）。
  *
  * POST _action：
  *   list         分页列表 + 状态计数（只读）
@@ -35,7 +35,7 @@ final class RechargeController extends BaseAdminController
     {
         try {
             $action = (string) $this->input->post('_action', '');
-            $model = new \App\Model\UserRechargeModel();
+            $model = app(\App\Model\UserRechargeModel::class);
             $rechargeTable = $this->db->prefix() . 'user_recharge';
 
             // 写操作校验 CSRF（list / summary 只读，免校验）

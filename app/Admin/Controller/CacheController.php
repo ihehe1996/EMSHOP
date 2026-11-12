@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 后台清缓存（/admin/cache）。
+ * 后台清缓存（{入口}/cache）。
  *
  * POST _action=clear_cache 清空缓存。
  */

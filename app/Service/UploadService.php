@@ -60,7 +60,7 @@ final class UploadService extends BaseService
         $resultUrl = '';
 
         if (in_array($context, ['default', 'avatar'], true)) {
-            $attachmentModel = new \App\Model\AttachmentModel();
+            $attachmentModel = app(\App\Model\AttachmentModel::class);
             $existing = $attachmentModel->findByMd5($md5);
             if ($existing !== null) {
                 $isDuplicate = true;
@@ -110,7 +110,7 @@ final class UploadService extends BaseService
             }
 
             // 写入附件记录
-            $attachmentModel = new \App\Model\AttachmentModel();
+            $attachmentModel = app(\App\Model\AttachmentModel::class);
             $attachmentId = $attachmentModel->insert([
                 'user_id' => $uploaderId > 0 ? $uploaderId : null,
                 'file_name' => $originalName,

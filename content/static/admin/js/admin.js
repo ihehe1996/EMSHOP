@@ -19,8 +19,8 @@
      */
     function setActiveMenu(url) {
         // 命中策略（避免"多项同 path 全亮"问题）：
-        //   1. 先按 path + query 精确匹配（解决 /admin/commission.php?tab=log 与 ?tab=withdraw 互不干扰）
-        //   2. 没命中再退到只按 path 匹配（解决 /admin/settings.php?action=xxx 共用一项菜单）
+        //   1. 先按 path + query 精确匹配（解决 /admin/commission?tab=log 与 ?tab=withdraw 互不干扰）
+        //   2. 没命中再退到只按 path 匹配（解决 /admin/settings?action=xxx 共用一项菜单）
         //   3. path 匹配也只取第一项命中，杜绝同 path 不同 query 的多项被同时高亮
         var a = document.createElement('a');
         a.href = url;
@@ -411,7 +411,7 @@
     window.updateCsrf = updateCsrf;
 
     /**
-     * 打开媒体库弹窗（admin/view/popup/media.php）
+     * 打开媒体库弹窗（app/Admin/View/popup/media.php）
      * 选中后由弹窗内「确定」回调 onPick(url)；提示用宿主窗口的 layer.msg。
      *
      * @param {function(string):void} onPick 选中回调

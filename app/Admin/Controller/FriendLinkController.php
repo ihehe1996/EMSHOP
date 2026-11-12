@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 友情链接管理（/admin/friend_link）。
+ * 友情链接管理（{入口}/friend_link）。
  *
- * 与旧 admin/friend_link.php 行为一致：
+ * 行为约定：
  *   - POST 处理列表 / 创建 / 更新 / 删除 / 状态切换 / 批量删除 / 图片上传
  *   - ?_popup=1 渲染添加/编辑弹窗
  *   - 普通请求渲染列表页
@@ -47,7 +47,7 @@ final class FriendLinkController extends BaseAdminController
                 }
             }
 
-            $model = new \App\Model\FriendLinkModel();
+            $model = app(\App\Model\FriendLinkModel::class);
 
             switch ($action) {
                 case 'list':
@@ -217,7 +217,7 @@ final class FriendLinkController extends BaseAdminController
                     if (empty($_FILES['file'])) {
                         $this->response->error('请选择图片文件');
                     }
-                    $uploader = new \App\Service\UploadService();
+                    $uploader = app(\App\Service\UploadService::class);
                     $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'friend_link');
                     $csrfToken = $this->csrf->refresh();
                     $this->response->success('上传成功', [
@@ -245,7 +245,7 @@ final class FriendLinkController extends BaseAdminController
         $editLink = null;
 
         if ($editId > 0) {
-            $editLink = (new \App\Model\FriendLinkModel())->findById($editId);
+            $editLink = app(\App\Model\FriendLinkModel::class)->findById($editId);
         }
 
         $this->render('popup/friend_link', [

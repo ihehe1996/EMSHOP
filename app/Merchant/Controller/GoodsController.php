@@ -950,7 +950,7 @@ final class GoodsController extends MerchantBaseController
 
             $csrfToken = $this->csrf->token();
             $pageTitle = '库存管理';
-            // 让 stock_form 插件里的 AJAX 把 save_stock 打回商户控制器，而不是 /admin/goods_edit
+            // 让 stock_form 插件里的 AJAX 把 save_stock 打回商户控制器，而不是 {入口}/goods_edit
             $popupStockSaveUrl = '/user/merchant/goods?_action=save_stock';
             // 卡密库存 / 导入弹窗走商户入口，避免打开主站后台
             $popupCardActionBase = '/user/merchant/goods';

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 在线升级接口（/admin/update）。
+ * 在线升级接口（{入口}/update）。
  *
  * 所有动作均为 POST AJAX，由升级向导按
  * preflight → download → extract → apply → migrate → run_script → finalize 调度。

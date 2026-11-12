@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商户（分站）管理（/admin/merchant）。
+ * 商户（分站）管理（{入口}/merchant）。
  *
  * 页面动作：
  *   list         列表
@@ -55,8 +55,8 @@ final class MerchantController extends BaseAdminController
                 }
             }
 
-            $model = new \App\Model\MerchantModel();
-            $levelModel = new \App\Model\MerchantLevelModel();
+            $model = app(\App\Model\MerchantModel::class);
+            $levelModel = app(\App\Model\MerchantLevelModel::class);
 
             switch ($action) {
                 case 'list':
@@ -242,7 +242,7 @@ final class MerchantController extends BaseAdminController
      */
     private function renderOpenPopup(): void
     {
-        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
+        $levels = app(\App\Model\MerchantLevelModel::class)->getEnabledList();
 
         $this->render('popup/merchant_open', [
             'levels'    => $levels,
@@ -256,14 +256,14 @@ final class MerchantController extends BaseAdminController
     private function renderEditPopup(): void
     {
         $editId = (int) $this->input->get('id', 0);
-        $editRow = $editId > 0 ? (new \App\Model\MerchantModel())->findById($editId) : null;
+        $editRow = $editId > 0 ? app(\App\Model\MerchantModel::class)->findById($editId) : null;
         if ($editRow === null) {
             echo '<div style="padding:30px;text-align:center;color:#999">商户不存在</div>';
             return;
         }
 
         $this->render('popup/merchant_edit', [
-            'levels'    => (new \App\Model\MerchantLevelModel())->getEnabledList(),
+            'levels'    => app(\App\Model\MerchantLevelModel::class)->getEnabledList(),
             'editRow'   => $editRow,
             'pageTitle' => '编辑商户：' . $editRow['name'],
         ]);
@@ -274,7 +274,7 @@ final class MerchantController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
+        $levels = app(\App\Model\MerchantLevelModel::class)->getEnabledList();
 
         if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';

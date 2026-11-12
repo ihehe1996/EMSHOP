@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 系统日志管理（/admin/system_log）。
+ * 系统日志管理（{入口}/system_log）。
  *
- * 与旧 admin/system_log.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表、stats 统计、view 详情（只读）
  *   - delete / batchDelete / cleanup 清理
  *
@@ -41,7 +41,7 @@ final class SystemLogController extends BaseAdminController
                 }
             }
 
-            $model = new \App\Model\SystemLogModel();
+            $model = app(\App\Model\SystemLogModel::class);
 
             switch ($action) {
                 case 'list':
@@ -143,7 +143,7 @@ final class SystemLogController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $model = new \App\Model\SystemLogModel();
+        $model = app(\App\Model\SystemLogModel::class);
         $statsByType = $model->statsByType();
         $totalCount = $model->count();
 

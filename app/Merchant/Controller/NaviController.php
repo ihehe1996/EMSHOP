@@ -15,7 +15,7 @@ final class NaviController extends MerchantBaseController
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
         $merchantId = (int) $currentMerchant['id'];
-        $model = new \App\Model\NaviModel();
+        $model = app(\App\Model\NaviModel::class);
 
         if ($this->request->isPost()) {
             try {
@@ -62,7 +62,7 @@ final class NaviController extends MerchantBaseController
                         if ($type === 'blog_cat') {
                             $catId = (int) $this->input->post('type_ref_id', 0);
                             if ($catId <= 0) $this->response->error('请选择博客分类');
-                            $cat = (new \App\Model\BlogCategoryModel())->findById($catId);
+                            $cat = app(\App\Model\BlogCategoryModel::class)->findById($catId);
                             if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                                 $this->response->error('博客分类无效或不属于本店');
                             }
@@ -142,7 +142,7 @@ final class NaviController extends MerchantBaseController
                         if ($type === 'blog_cat') {
                             $catId = (int) $this->input->post('type_ref_id', 0);
                             if ($catId <= 0) $this->response->error('请选择博客分类');
-                            $cat = (new \App\Model\BlogCategoryModel())->findById($catId);
+                            $cat = app(\App\Model\BlogCategoryModel::class)->findById($catId);
                             if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                                 $this->response->error('博客分类无效或不属于本店');
                             }
@@ -240,7 +240,7 @@ final class NaviController extends MerchantBaseController
         }
 
         // 渲染页面 —— 提前把本店博客分类、页面传给 view（用于"博客分类 / 页面"类型下拉）
-        $blogCategories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
+        $blogCategories = app(\App\Model\BlogCategoryModel::class)->getAll($merchantId);
         $publishedPages = app(\App\Model\PageModel::class)->getPublishedSimple($merchantId);
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/navi.php', $frontUser, $currentMerchant, $merchantLevel, [

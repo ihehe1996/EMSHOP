@@ -36,7 +36,7 @@ final class CouponController extends UserBaseController
         $view = (string) $this->input->get('view', \App\Model\UserCouponModel::VIEW_UNUSED);
         if (!in_array($view, $allowed, true)) $view = \App\Model\UserCouponModel::VIEW_UNUSED;
 
-        $userCouponModel = new \App\Model\UserCouponModel();
+        $userCouponModel = app(\App\Model\UserCouponModel::class);
         $coupons = $userCouponModel->listByView((int) $frontUser['id'], $view, 200);
         $counts  = $userCouponModel->countByViews((int) $frontUser['id']);
 

@@ -60,7 +60,7 @@ if (!defined('EM_DB_HOST')) {
     require EM_ROOT . '/config.php';
 }
 
-// 安装器模板暂未写这一项：新装站的 config.php 里没有，这里补默认值（读 .env 可覆盖）。
+// 兜底：手写/旧版 config.php 可能没有这一项，这里补默认值（读 .env 可覆盖）。
 if (!defined('EM_APP_ADMIN_ENTRY')) {
     define('EM_APP_ADMIN_ENTRY', (string) Env::get('EM_APP_ADMIN_ENTRY', 'admin'));
 }
@@ -216,7 +216,7 @@ $GLOBALS['__em_current_scope'] = $emCurrentScope;
 // 禁用商品类型的副作用（已有该类型商品在前台没类型配置、无法下单）由 OrderModel 统一报错拦截。
 $emHooks = [];
 try {
-    $pluginModel = new \App\Model\PluginModel();
+    $pluginModel = app(\App\Model\PluginModel::class);
     $activePlugins = $pluginModel->getRuntimeNames($emCurrentScope);
 
     if (is_array($activePlugins) && $activePlugins !== []) {
@@ -242,7 +242,7 @@ try {
 
 // 加载当前启用模板的系统挂载文件（按当前 scope）
 try {
-    $templateModel = new \App\Model\TemplateModel();
+    $templateModel = app(\App\Model\TemplateModel::class);
     $activeTemplates = array_filter([
         $templateModel->getEffectiveTheme('pc', $emCurrentScope),
         $templateModel->getEffectiveTheme('mobile', $emCurrentScope),

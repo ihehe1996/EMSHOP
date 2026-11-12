@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 应用商店 —— 购买弹窗（/admin/appstore_buy）。
+ * 应用商店 —— 购买弹窗（{入口}/appstore_buy）。
  *
- * 仅渲染独立弹窗框架 HTML；页面初始化后由 JS 调 /admin/appstore 的接口。
+ * 仅渲染独立弹窗框架 HTML；页面初始化后由 JS 调 {入口}/appstore 的接口。
  */
 final class AppstoreBuyController extends BaseAdminController
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 推广返佣（/admin/commission）。
+ * 推广返佣（{入口}/commission）。
  *
  * 只读页面：
  *   ?tab=log      (默认) 佣金流水
@@ -50,7 +50,7 @@ final class CommissionController extends BaseAdminController
                         $filter['user_id'] = $uid;
                     }
 
-                    $result = (new \App\Model\CommissionWithdrawModel())->paginate($filter, $page, $perPage);
+                    $result = app(\App\Model\CommissionWithdrawModel::class)->paginate($filter, $page, $perPage);
                 } else {
                     // 佣金流水：按 user_id / status / level 过滤
                     $status = (string) $this->input->post('status', '');

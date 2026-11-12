@@ -17,7 +17,7 @@ final class PluginController extends MerchantBaseController
         $csrfToken    = $this->csrf->token();
         $merchantId   = (int) ($currentMerchant['id'] ?? 0);
         $scope        = 'merchant_' . $merchantId;
-        $pluginModel  = new \App\Model\PluginModel();
+        $pluginModel  = app(\App\Model\PluginModel::class);
 
         // ============================================================
         // POST 处理:enable / disable / save_config
@@ -148,7 +148,7 @@ final class PluginController extends MerchantBaseController
             // 标题走磁盘 parseHeader,不再依赖 DB 行
             $header    = $pluginModel->parseHeader(EM_ROOT . '/content/plugin/' . $name . '/' . $name . '.php');
             $pageTitle = '插件设置:' . htmlspecialchars((string) ($header['title'] ?? $name), ENT_QUOTES, 'UTF-8');
-            // 让插件 setting.php 里的 AJAX 把 save_config 提交到商户路径,而不是默认的 /admin/plugin
+            // 让插件 setting.php 里的 AJAX 把 save_config 提交到商户路径,而不是默认的 {入口}/plugin
             $popupPluginSaveUrl = '/user/merchant/plugin';
             include dirname(__DIR__, 2) . '/Admin/View/popup/header.php';
 
@@ -169,7 +169,7 @@ final class PluginController extends MerchantBaseController
         // 元数据全部来自 parseHeader(磁盘),DB 只查 is_enabled / 已购
         // ============================================================
         $disk          = $pluginModel->scanPlugins();                        // 磁盘所有插件 + parseHeader 元数据
-        $purchaseModel = new \App\Model\AppPurchaseModel();
+        $purchaseModel = app(\App\Model\AppPurchaseModel::class);
         $ownedCodes    = $purchaseModel->purchasedCodes($merchantId, 'plugin'); // 商户已购 app_code 列表
         $ownedSet      = array_flip($ownedCodes);
 

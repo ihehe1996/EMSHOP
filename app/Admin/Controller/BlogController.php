@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 文章管理（/admin/blog）。
+ * 文章管理（{入口}/blog）。
  *
- * 与旧 admin/blog.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表 + 状态计数
  *   - toggle_status / toggle_top / delete / batch
  *   - 无 action 时渲染列表页
  *
- * 编辑弹窗仍指向旧 admin/blog_edit.php，等编辑器迁移时再切换。
+ * 编辑弹窗由 {入口}/blog_edit 提供。
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
 final class BlogController extends BaseAdminController

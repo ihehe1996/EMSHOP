@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 模板管理（/admin/template）。
+ * 模板管理（{入口}/template）。
  *
- * 设计原则与 admin/plugin.php 一致：磁盘=已装，启用状态走 config。
+ * 设计原则与后台插件页一致：磁盘=已装，启用状态走 config。
  *   - 磁盘有目录 = 已装（无 install action）
  *   - 主站 PC/Mobile 启用模板存于 em_config.active_template_pc / active_template_mobile
  *   - 模板配置通过 TemplateStorage（em_options 表）存取
@@ -24,7 +24,7 @@ final class TemplateController extends BaseAdminController
 
     public function index(): void
     {
-        $model = new \App\Model\TemplateModel();
+        $model = app(\App\Model\TemplateModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost($model);

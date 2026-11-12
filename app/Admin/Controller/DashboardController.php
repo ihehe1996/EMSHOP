@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 后台控制台首页（/admin/home）。
+ * 后台控制台首页（{入口}/home）。
  *
  * 流程：
  *   - 鉴权；授权状态核对由首页的 admin_index_data 请求异步触发

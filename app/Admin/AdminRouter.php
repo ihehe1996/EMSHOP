@@ -76,7 +76,7 @@ final class AdminRouter
 
     /** 不能用作后台入口的路径段（与固定路由 / 目录冲突） */
     private const RESERVED_ENTRIES = [
-        'user', 'content', 'install', 'include', 'app', 'tools', 'server',
+        'user', 'content', 'install', 'include', 'app', 'bootstrap', 'tools', 'server',
         'index', 'index.php', 'notify', 'return', 'test',
     ];
 

@@ -166,7 +166,7 @@ final class BlogController extends MerchantBaseController
         }
 
         // 列表页：本店分类下拉
-        $categories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
+        $categories = app(\App\Model\BlogCategoryModel::class)->getAll($merchantId);
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/blog.php', $frontUser, $currentMerchant, $merchantLevel, [
             'categories' => $categories,

@@ -1,7 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('access denied!');
 
-// 由 user/find_order.php 注入：
+// 由游客查单控制器注入：
 // $detailOrder / $detailDenied / $detailOrderNo / $detailGoods / $detailExtraPairs / $statusMap / $esc
 
 if ($detailOrder !== null):

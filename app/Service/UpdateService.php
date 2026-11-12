@@ -11,7 +11,7 @@ namespace App\Service;
 /**
  * 在线升级服务。
  *
- * 升级流水线（由 admin/update.php 按顺序调度 AJAX 调用）：
+ * 升级流水线（由后台「在线升级」页面按顺序调度 AJAX 调用）：
  *   1. preflight       —— 预检：写权限 / 磁盘空间 / PHP 版本 / 源版本兼容
  *   2. download        —— 下载升级包到临时 cache（校验 SHA256）
  *   3. extract         —— 解压到 tmp/update/extract/，成功后删除 zip
@@ -77,7 +77,7 @@ final class UpdateService extends BaseService
     private const CONFIG_LEAVE      = 'leave';    // 人家的文件 → 跳过
 
     /** 写权限抽查的关键目录（preflight 校验） */
-    private const CHECK_WRITABLE = ['admin', 'include', 'install', 'user', 'content/static'];
+    private const CHECK_WRITABLE = ['app', 'bootstrap', 'install', 'content/static'];
 
     // ================================================================
     // Step 1: preflight — 预检
@@ -211,10 +211,7 @@ final class UpdateService extends BaseService
             CURLOPT_CONNECTTIMEOUT => 10,  // 10秒建立连接时间
             CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? \EM_VERSION : 'dev'),
             // 证书与主机名校验默认开启；自签线路由 config 的 license_insecure_tls=1 显式降级
-        ] + (class_exists('LicenseClient') ? $this->licenseClient->tlsOptions() : [
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-        ]));
+        ] + $this->licenseClient->tlsOptions());
         $ok = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
@@ -666,16 +663,14 @@ final class UpdateService extends BaseService
         @unlink(EM_ROOT . self::MANIFEST_FILE);
 
         // 记录一下最后升级时间
-        if (class_exists('Config')) {
-            $this->config->set('last_update_at', (string) time());
-        }
+        $this->config->set('last_update_at', (string) time());
 
         // 上报更新成功（官方站版本管理的「更新数」+1）。
         // finalize 是独立的一次请求，此时新文件已经覆盖完，init.php 里的
         // EM_VERSION 就是这次升级到的目标版本（不是升级前的旧版本）。
         // 尽力而为：网络 / 接口异常都不影响升级结果，方法内部已吞掉异常。
         $reported = false;
-        if (defined('EM_VERSION') && class_exists('LicenseClient')) {
+        if (defined('EM_VERSION')) {
             try {
                 $reported = $this->licenseClient->reportUpdateSuccess((string) EM_VERSION);
             } catch (\Throwable $e) {
@@ -770,7 +765,6 @@ final class UpdateService extends BaseService
         if (preg_match('#^(https?:)?//#i', $url)) return $url;
 
         // 相对路径：补当前授权服务器的域名做前缀
-        if (!class_exists('LicenseClient')) return $url;
         $base = rtrim($this->licenseClient->currentBaseUrl(), '/');
         if ($base === '') return $url;
 
@@ -782,12 +776,9 @@ final class UpdateService extends BaseService
      */
     private function isTrustedPackageUrl(string $url): bool
     {
-        if (!class_exists('DownloadUrlGuard') || !class_exists('LicenseClient')) {
-            return false;
-        }
         foreach ($this->licenseClient->lines() as $line) {
             $base = rtrim((string) ($line['url'] ?? ''), '/');
-            if ($base !== '' && \DownloadUrlGuard::isAllowed($url, $base, true)) {
+            if ($base !== '' && app(\App\Support\DownloadUrlGuard::class)->isAllowed($url, $base, true)) {
                 return true;
             }
         }
@@ -936,7 +927,7 @@ final class UpdateService extends BaseService
         try {
             $admin = $_SESSION['em_admin_auth'] ?? null;
             $operator = is_array($admin) ? $admin : [];
-            (new \App\Model\SystemLogModel())->info(
+            app(\App\Model\SystemLogModel::class)->info(
                 'admin_operation',
                 $action,
                 '在线升级：' . $action,

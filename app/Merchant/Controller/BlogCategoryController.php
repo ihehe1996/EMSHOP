@@ -15,7 +15,7 @@ final class BlogCategoryController extends MerchantBaseController
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
         $merchantId = (int) $currentMerchant['id'];
-        $model = new \App\Model\BlogCategoryModel();
+        $model = app(\App\Model\BlogCategoryModel::class);
 
         if ($this->request->isPost()) {
             try {

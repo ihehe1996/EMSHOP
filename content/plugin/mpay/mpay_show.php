@@ -341,7 +341,7 @@ if (!$isPaid && $payError === '' && !$isSubmitPostMode && $qrText === '' && $ent
 }
 
 $money = number_format($amountRaw / 1000000, 2, '.', '');
-$cur = Currency::getInstance()->getPrimary();
+$cur = Currency::getPrimary();
 $sym = (string) ($cur['symbol'] ?? '¥');
 $statusText = mpay_show_status_text($status, $isRecharge);
 $channelLabel = mpay_show_channel_label($paymentCode);

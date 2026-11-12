@@ -40,7 +40,7 @@ final class AuthService extends BaseService
             'remember_days_default' => EM_AUTH_REMEMBER_DAYS_DEFAULT,
             'remember_days_checked' => EM_AUTH_REMEMBER_DAYS_CHECKED,
         ];
-        $this->users = new \App\Model\UserModel();
+        $this->users = app(\App\Model\UserModel::class);
         $this->hasher = new \PasswordHash(8, true);
     }
 

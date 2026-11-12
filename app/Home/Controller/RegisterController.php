@@ -124,7 +124,7 @@ class RegisterController extends BaseController
         }
 
         // 唯一性检查
-        $userModel = new \App\Model\UserListModel();
+        $userModel = app(\App\Model\UserListModel::class);
         if ($userModel->existsUsername($username)) {
             $this->response->error('该账号已被注册');
         }

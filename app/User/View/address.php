@@ -2,7 +2,7 @@
 /**
  * 用户中心 - 收货地址列表
  *
- * 由 user/address.php 控制器预填 $addressList。
+ * 由用户中心地址控制器预填 $addressList。
  * 省市区三级联动使用第三方库 cityAreaSelect（数据与逻辑都在库里）。
  */
 $csrfToken = $csrfToken ?? Csrf::token();

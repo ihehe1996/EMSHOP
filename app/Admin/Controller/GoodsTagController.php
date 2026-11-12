@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 商品标签管理（/admin/goods_tag）。
+ * 商品标签管理（{入口}/goods_tag）。
  *
- * 与旧 admin/goods_tag.php 行为一致：
+ * 行为约定：
  *   - _action=list 分页列表（layui table）
  *   - _action=save 新增/编辑
  *   - _action=delete / batch_delete / refresh_counts

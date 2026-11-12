@@ -6,7 +6,7 @@ declare(strict_types=1);
 /**
  * EMSHOP 命令行管理工具箱
  *
- * 自包含的单文件 CLI（不加载 init.php / Autoloader，仅依赖 config.php + PasswordHash.php）。
+ * 自包含的单文件 CLI（不加载 init.php / Autoloader，仅依赖 bootstrap/Env.php + config.php + PasswordHash.php）。
  * 提供：查看管理员账号、重置管理员密码。输出带 ANSI 彩色、CJK 等宽对齐、盒状表格，
  * 自动探测终端能力（Windows VT / NO_COLOR / 重定向），不支持时优雅降级为纯文本。
  *
@@ -323,7 +323,11 @@ function emo_banner(): void
 $root = __DIR__;
 $lockFile = $root . '/install/install.lock';
 $configFile = $root . '/config.php';
-$passwordHashFile = $root . '/include/lib/PasswordHash.php';
+$passwordHashFile = $root . '/app/Vendor/PasswordHash.php';
+
+if (!defined('EM_ROOT')) {
+    define('EM_ROOT', $root);
+}
 
 if (!is_file($lockFile)) {
     fwrite(STDERR, "当前站点尚未安装，缺少 install/install.lock。\n");
@@ -331,18 +335,33 @@ if (!is_file($lockFile)) {
 }
 
 if (!is_file($configFile) || !is_file($passwordHashFile)) {
-    fwrite(STDERR, "缺少必要文件：config.php 或 include/lib/PasswordHash.php。\n");
+    fwrite(STDERR, "缺少必要文件：config.php 或 app/Vendor/PasswordHash.php。\n");
     exit(1);
 }
 
-$config = require $configFile;
+// config.php 是常量定义格式，依赖 Env 与 EM_ROOT；先加载引导文件再 require。
+require_once $root . '/bootstrap/Env.php';
+Env::load($root);
+require_once $configFile;
 require_once $passwordHashFile;
 $command = $argv[1] ?? '';
 
-if (!is_array($config) || empty($config['db']) || !is_array($config['db'])) {
+if (!defined('EM_DB_HOST') || !defined('EM_DB_NAME')) {
     fwrite(STDERR, "config.php 中缺少数据库配置。\n");
     exit(1);
 }
+
+$config = [
+    'db' => [
+        'host'     => (string) EM_DB_HOST,
+        'port'     => (int) EM_DB_PORT,
+        'dbname'   => (string) EM_DB_NAME,
+        'username' => (string) EM_DB_USER,
+        'password' => (string) EM_DB_PASSWORD,
+        'charset'  => (string) EM_DB_CHARSET,
+        'prefix'   => (string) EM_DB_PREFIX,
+    ],
+];
 
 // ---------------------------------------------------------------------------
 // 数据库访问

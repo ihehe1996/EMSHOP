@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 后台订单管理（/admin/order）。
+ * 后台订单管理（{入口}/order）。
  *
  * 动作：list / delete / batch_delete / clear_by_status / detail / mark_paid / ship
  * 弹窗：?_popup=detail / ship
@@ -360,7 +360,7 @@ final class OrderController extends BaseAdminController
         // 用户信息
         $buyer = null;
         if ((int) $order['user_id'] > 0) {
-            $buyer = (new \App\Model\UserListModel())->findById((int) $order['user_id']);
+            $buyer = app(\App\Model\UserListModel::class)->findById((int) $order['user_id']);
         }
 
         // 队列任务状态
@@ -530,7 +530,7 @@ final class OrderController extends BaseAdminController
 
         $buyer = null;
         if ((int) $order['user_id'] > 0) {
-            $buyer = (new \App\Model\UserListModel())->findById((int) $order['user_id']);
+            $buyer = app(\App\Model\UserListModel::class)->findById((int) $order['user_id']);
         }
 
         $queueTasks = $this->db->query(

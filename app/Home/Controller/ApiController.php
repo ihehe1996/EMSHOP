@@ -777,7 +777,7 @@ class ApiController extends BaseController
             $this->response->error('请求已过期');
         }
 
-        $user = (new \App\Model\UserListModel())->findById($appId);
+        $user = app(\App\Model\UserListModel::class)->findById($appId);
         if ($user === null || (int) ($user['status'] ?? 0) !== 1) {
             $this->response->error('API 用户不存在或已禁用');
         }
@@ -865,7 +865,7 @@ class ApiController extends BaseController
             ];
         }
 
-        $merchant = (new \App\Model\MerchantModel())->findById($merchantId);
+        $merchant = app(\App\Model\MerchantModel::class)->findById($merchantId);
         if ($merchant === null || (int) ($merchant['status'] ?? 0) !== 1) {
             $this->response->error('商户不存在或已停用');
         }
@@ -889,14 +889,6 @@ class ApiController extends BaseController
      */
     private function resolveGoodsApiHostScope(): array
     {
-        if (!class_exists('MerchantContext')) {
-            return [
-                'merchant_id'  => 0,
-                'owner_id'     => 0,
-                'merchant_row' => null,
-            ];
-        }
-
         $hostMerchantId = $this->merchantContext->currentId();
         if ($hostMerchantId <= 0) {
             return [
@@ -1093,7 +1085,7 @@ class ApiController extends BaseController
             throw new \RuntimeException('优惠券功能未启用');
         }
         if ($couponCode !== '') {
-            $couponService = new \App\Service\CouponService();
+            $couponService = app(\App\Service\CouponService::class);
             $checkRes = $couponService->check($couponCode, [
                 'goods_amount_raw' => $estimatedPayRaw,
                 'goods_items'      => [[
@@ -1314,7 +1306,7 @@ class ApiController extends BaseController
             if (!class_exists(\App\Model\SystemLogModel::class)) {
                 return;
             }
-            $m = new \App\Model\SystemLogModel();
+            $m = app(\App\Model\SystemLogModel::class);
             if ($level === 'error') {
                 $m->error('system', $action, $message, $detail);
             } elseif ($level === 'warning' || $level === 'warn') {

@@ -228,22 +228,21 @@ $userRegisterEnabled = (string) (Config::get('user_register', '0')) === '1';
 // 在 pathArgs 里，不在 $_GET。
 $listQ = null;
 if (in_array($controller, ['goods_list', 'goods_index'], true)) {
-    $d = Dispatcher::getInstance();
-    $categoryId     = (int) $d->getArg('category_id', 0);
-    $categorySource = (string) $d->getArg('category_source', 'main');
+    $categoryId     = (int) Dispatcher::getArg('category_id', 0);
+    $categorySource = (string) Dispatcher::getArg('category_source', 'main');
     if (!in_array($categorySource, ['main', 'merchant'], true)) {
         $categorySource = 'main';
     }
-    $tagId = (int) $d->getArg('tag_id', 0);
-    $page  = max(1, (int) $d->getArg('page', 1));
-    $sort  = trim((string) $d->getArg('sort', 'default'));
+    $tagId = (int) Dispatcher::getArg('tag_id', 0);
+    $page  = max(1, (int) Dispatcher::getArg('page', 1));
+    $sort  = trim((string) Dispatcher::getArg('sort', 'default'));
     if (!in_array($sort, ['default', 'hot', 'sold', 'price_asc', 'price_desc'], true)) {
         $sort = 'default';
     }
 
     // slug 路由兼容（仅主站分类有 slug 字段）：?slug=xxx 或 /goods_list/slug/xxx
     if ($categoryId <= 0) {
-        $slug = trim((string) $d->getArg('slug', ''));
+        $slug = trim((string) Dispatcher::getArg('slug', ''));
         if ($slug !== '' && preg_match('/^[a-zA-Z0-9_\-\p{Han}]+$/u', $slug)) {
             $row = Database::fetchOne(
                 'SELECT `id` FROM `' . Database::prefix() . 'goods_category` WHERE `slug` = ? AND `status` = 1 LIMIT 1',
@@ -295,10 +294,9 @@ if (in_array($controller, ['goods_list', 'goods_index'], true)) {
 // /blog/list/{分类}）的参数在 pathArgs 里，不在 $_GET。
 $blogQ = null;
 if (in_array($controller, ['blog_list', 'blog_index'], true)) {
-    $d = Dispatcher::getInstance();
-    $categoryId = (int) $d->getArg('category_id', 0);
-    $tagId      = (int) $d->getArg('tag_id', 0);
-    $page       = max(1, (int) $d->getArg('page', 1));
+    $categoryId = (int) Dispatcher::getArg('category_id', 0);
+    $tagId      = (int) Dispatcher::getArg('tag_id', 0);
+    $page       = max(1, (int) Dispatcher::getArg('page', 1));
 
     // 页面标题：标签优先，其次分类名，都没有就是「全部文章」
     // （判断规则与 template_blog_list_data() 的筛选保持一致：标签要属于当前 scope）
@@ -337,9 +335,8 @@ if (in_array($controller, ['blog_list', 'blog_index'], true)) {
 // 解析结果 assign 成 $search_q，模板（search.php）用它取数。
 $searchQ = null;
 if ($controller === 'search') {
-    $d = Dispatcher::getInstance();
-    $keyword = trim((string) $d->getArg('q', ''));
-    $type    = trim((string) $d->getArg('type', 'all'));
+    $keyword = trim((string) Dispatcher::getArg('q', ''));
+    $type    = trim((string) Dispatcher::getArg('type', 'all'));
     if (!in_array($type, ['all', 'goods', 'article'], true)) {
         $type = 'all';
     }
@@ -763,7 +760,7 @@ function template_goods_content_data(?array $row): array
                     // 解析商品配置（附加选项 / 返佣 / SEO 等；插件的数据走各自挂载点）
                     $configs = json_decode($row['configs'] ?? '{}', true) ?: [];
                     $defaultDeliveryType = 'manual';
-                    if (!empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
+                    if (!empty($row['goods_type'])) {
                         $typeCfg = GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
                         if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                             $defaultDeliveryType = (string) $typeCfg['delivery_type'];
@@ -836,7 +833,7 @@ function template_goods_content_data(?array $row): array
         // 本商品是否要求收货地址（由商品类型插件在 goods_type_register 里声明 needs_address=true）
         // 模板 / JS 据此在"立即购买"时弹出地址选择或手填表单；不需要时保持现有流程不变
         $needsAddress = false;
-        if ($goods && !empty($goods['goods_type']) && class_exists('GoodsTypeManager')) {
+        if ($goods && !empty($goods['goods_type'])) {
             $typeCfg = GoodsTypeManager::getTypeConfig((string) $goods['goods_type']);
             $needsAddress = !empty($typeCfg['needs_address']);
             $needsAddress = (bool) applyFilter('goods_needs_address', $needsAddress, $goods);

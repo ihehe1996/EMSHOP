@@ -220,7 +220,7 @@ final class InstallReporter extends BaseService
         // 正常运行时 init.php 已 define（当前选中线路）；安装时还没有 init.php，
         // 直接取官方线路常量的第一条 —— 只碰常量，不读 Config（安装环境没有数据库）。
         $base = defined('EM_LICENSE_SERVER_URL') ? \trim((string) EM_LICENSE_SERVER_URL) : '';
-        if ($base === '' && class_exists('LicenseClient')) {
+        if ($base === '') {
             $lines = $this->licenseClient->officialLines();
             $base  = trim((string) ($lines[0]['url'] ?? ''));
         }

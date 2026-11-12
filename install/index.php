@@ -1285,15 +1285,6 @@ try {
         $debug['trace'] = substr($trace, 0, 6000);
     }
 
-    // 附加最近一次执行的 SQL 上下文（用于精准定位哪条建表/建索引失败）
-    try {
-        if (class_exists('Database') && method_exists('Database', 'lastSqlContext')) {
-            $debug['sql_context'] = Database::lastSqlContext();
-        }
-    } catch (Throwable $ignored) {
-        // ignore
-    }
-
     $snapshotAfter = installer_fetch_tables($dbClean);
     if ($snapshotAfter['ok']) {
         $beforeMap = [];

@@ -243,7 +243,7 @@ $(function(){
 
     var csrfToken = <?php echo json_encode($csrfToken); ?>;
     // 当前登录管理员 id：只用于把「自己」那一行的禁用/删除控件置灰，
-    // 真正的拦截在服务端（admin/user_list.php 的 $currentAdminId 判断）。
+    // 真正的拦截在服务端（后台用户列表页的 $currentAdminId 判断）。
     // 必须挂到 window：上面的行内模板是 layui 的 laytpl，用 new Function 编译，
     // 作用域是全局而非本闭包，闭包里的局部变量在 {{# }} 里取不到（旁边 updateCsrf
     // 挂 window 是同一个原因）。

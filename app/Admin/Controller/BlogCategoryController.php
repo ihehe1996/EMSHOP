@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 文章分类管理（/admin/blog_category）。
+ * 文章分类管理（{入口}/blog_category）。
  *
  * 仅支持 2 级分类：顶级 和 二级（归属某顶级）。
- * 与旧 admin/blog_category.php 行为一致：列表 / 创建 / 更新 / 删除 /
+ * 行为约定：列表 / 创建 / 更新 / 删除 /
  * 批量删除 / 状态切换 / 图片上传，以及 ?_popup=1 编辑弹窗。
  *
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
@@ -17,7 +17,7 @@ final class BlogCategoryController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \App\Model\BlogCategoryModel();
+        $model = app(\App\Model\BlogCategoryModel::class);
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -289,7 +289,7 @@ final class BlogCategoryController extends BaseAdminController
                     if (empty($_FILES['file'])) {
                         $this->response->error('请选择图片文件');
                     }
-                    $uploader = new \App\Service\UploadService();
+                    $uploader = app(\App\Service\UploadService::class);
                     $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'blog_category');
                     $csrfToken = $this->csrf->refresh();
                     $this->response->success('上传成功', [

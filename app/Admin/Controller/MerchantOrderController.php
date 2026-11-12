@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 分站订单（/admin/merchant_order）。
+ * 分站订单（{入口}/merchant_order）。
  *
  * 后台只读监控：em_order.merchant_id > 0 的订单都属于这里，
  * 主站后台只能看不能改 —— 商户订单的发货 / 退款由商户自己在 /user/merchant/order 操作。
@@ -122,7 +122,7 @@ final class MerchantOrderController extends BaseAdminController
                 }
                 unset($row);
 
-                // 批量补商品（避免 N+1）—— 复用 admin/order.php 的同款逻辑
+                // 批量补商品（避免 N+1）—— 复用后台订单页的同款逻辑
                 if ($rows) {
                     $orderIds = array_map(static fn($r) => (int) $r['id'], $rows);
                     $ph = implode(',', array_fill(0, count($orderIds), '?'));

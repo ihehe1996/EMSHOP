@@ -18,12 +18,12 @@ $__licenseLevel       = $__licenseRow !== null ? (string) ($__licenseRow['level'
 $__licenseLevelLabel  = $__licenseRow !== null ? (string) ($__licenseRow['level_label'] ?? '') : '';
 
 // 主货币符号（从货币配置读，未配置时回退到 ¥）
-$__primary = Currency::getInstance()->getPrimary();
+$__primary = Currency::getPrimary();
 $currencySymbol = $__primary ? ($__primary['symbol'] ?? '¥') : '¥';
 
 /* ============================================================
  * 统计数据采集：view 自查，不依赖外层 controller 预填
- * ——  /admin/home 整页与 Pjax 两种入口都用同一段
+ * ——  {入口}/home 整页与 Pjax 两种入口都用同一段
  * ============================================================ */
 $__prefix  = Database::prefix();
 $__today   = date('Y-m-d');
@@ -51,7 +51,7 @@ try {
     // 查询失败不影响页面
 }
 
-// 销售趋势：改为前端 AJAX 按需拉取（/admin/home?_action=trend&range=xxx），这里不再预加载
+// 销售趋势：改为前端 AJAX 按需拉取（{入口}/home?_action=trend&range=xxx），这里不再预加载
 // 订单状态分布 / 最近订单 / 最近注册 已从 Dashboard 移除
 
 // 系统信息
@@ -68,8 +68,8 @@ $sysInfo = [
 try {
     $__r = Database::fetchOne('SELECT VERSION() AS v');
     if ($__r !== null) $sysInfo['db'] = 'MySQL ' . (string) ($__r['v'] ?? '-');
-    $sysInfo['template_count'] = count((new \App\Model\TemplateModel())->scanTemplates());
-    $mainPlugins = (new \App\Model\PluginModel())->scanPlugins();
+    $sysInfo['template_count'] = count(app(\App\Model\TemplateModel::class)->scanTemplates());
+    $mainPlugins = app(\App\Model\PluginModel::class)->scanPlugins();
     $merchantCodes = [];
     $__rows = Database::query('SELECT `app_code` FROM `' . $__prefix . 'app_market` WHERE `type` = ?', ['plugin']);
     foreach ($__rows as $__row) {
@@ -248,7 +248,7 @@ $__officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
 /* ============================================================
  * 官方公告 / 广告推广 / 版本更新 / 代理商联系方式
  *   这四块数据依赖中心服务器接口，同步拉取会拖慢首屏
- *   因此页面先渲染骨架，由 JS 异步请求 /admin/home?_action=admin_index_data
+ *   因此页面先渲染骨架，由 JS 异步请求 {入口}/home?_action=admin_index_data
  * ============================================================ */
 ?>
 <div class="admin-page">
@@ -2398,7 +2398,7 @@ $(function () {
 
     // ========== 附加操作卡（激活码 / 下载）==========
     // 激活码卡：正常情况直接用首页初始化时已拉到的 buy_links 渲染，
-    // 不再打开 /admin/license?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
+    // 不再打开 {入口}/license?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
     // 上次请求失败则点「获取」时重新请求接口，成功后再弹。
     function openBuyLinksPopup() {
         var links = __dashIndexData.buy_links || [];
@@ -2515,7 +2515,7 @@ $(function () {
         dashEnsureIndexData(openDownloadPopup);
     });
 
-    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（/admin/license?_popup=official_login）
+    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（{入口}/license?_popup=official_login）
     function openOfficialAuthPopup(initialTab) {
         if (typeof layui === 'undefined' || !layui.layer) return;
 

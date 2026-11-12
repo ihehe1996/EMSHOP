@@ -4,7 +4,7 @@ if (!defined('EM_ROOT')) {
 }
 /** @var array<string, mixed>|null $agent base-data 归一化结果（见 LicenseService::fetchBaseData） */
 /** @var string|null $agentError */
-/** @var string $popupMode 'agent'=获取激活码 / 'contact'=联系客服，由 /admin/license 按 ?_popup= 传入 */
+/** @var string $popupMode 'agent'=获取激活码 / 'contact'=联系客服，由 {入口}/license 按 ?_popup= 传入 */
 
 // 同一个弹窗两种用途，内容互不重叠：
 //   agent   —— 去哪儿买激活码（只放购买渠道）

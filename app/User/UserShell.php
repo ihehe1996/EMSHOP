@@ -7,7 +7,7 @@ namespace App\User;
 /**
  * 用户中心框架壳（侧边栏 + 顶栏 + 内容区）。
  *
- * 对应原 user/index.php + user/view/index.php 的组合：统一准备布局变量，
+ * 由框架壳与布局视图组成：统一准备布局变量，
  * 再把子页面视图渲染进 #userContent 内容区。
  */
 final class UserShell

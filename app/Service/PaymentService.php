@@ -154,7 +154,7 @@ class PaymentService extends BaseService
 
         // 充值订单号约定以 R 开头，走 user_recharge
         if (strncmp($orderNo, 'R', 1) === 0) {
-            $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
+            $recharge = app(\App\Model\UserRechargeModel::class)->findByOrderNo($orderNo);
             $plugin = trim((string) ($recharge['payment_plugin'] ?? ''));
             return preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin) ? $plugin : '';
         }
@@ -220,7 +220,7 @@ class PaymentService extends BaseService
      */
     private function collectMainPluginMethods(): array
     {
-        $pm = new \App\Model\PluginModel();
+        $pm = app(\App\Model\PluginModel::class);
         $rows = $pm->getEnabledByCategory('支付插件', 'main');
         if ($rows === []) {
             return [];

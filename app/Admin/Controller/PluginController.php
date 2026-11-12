@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 插件管理（/admin/plugin）。
+ * 插件管理（{入口}/plugin）。
  *
  * 设计原则：磁盘是真理，启用列表是字符串。
  *   - 磁盘有目录 = 已装
@@ -24,7 +24,7 @@ final class PluginController extends BaseAdminController
 
     public function index(): void
     {
-        $model = new \App\Model\PluginModel();
+        $model = app(\App\Model\PluginModel::class);
         $isPopup = (string) $this->input->get('_popup', '') === '1';
 
         if ($this->request->isPost()) {
@@ -74,13 +74,13 @@ final class PluginController extends BaseAdminController
                     $this->response->error('market_id 非法');
                 }
 
-                $marketModel = new \App\Model\AppMarketModel();
+                $marketModel = app(\App\Model\AppMarketModel::class);
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                     $this->response->error('分站插件不存在');
                 }
 
-                $service = new \App\Service\MainAppPurchaseService();
+                $service = app(\App\Service\MainAppPurchaseService::class);
                 $ok = $service->updateRetailPrice($marketId, $price);
                 if (!$ok) {
                     $this->response->error('价格未改动或目标不存在');
@@ -95,7 +95,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('market_id 非法');
                 }
 
-                $marketModel = new \App\Model\AppMarketModel();
+                $marketModel = app(\App\Model\AppMarketModel::class);
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                     $this->response->error('分站插件不存在');
@@ -106,7 +106,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('参数不匹配,请刷新页面后重试');
                 }
 
-                $service = new \App\Service\MainAppPurchaseService();
+                $service = app(\App\Service\MainAppPurchaseService::class);
                 $ok = $service->setListed($marketId, $listed);
                 if (!$ok) {
                     $this->response->error('状态未改动或目标不存在');
@@ -193,7 +193,7 @@ final class PluginController extends BaseAdminController
                 case 'uninstall': {
                     $marketId = (int) $this->input->post('market_id', 0);
                     if ($marketId > 0) {
-                        $marketModel = new \App\Model\AppMarketModel();
+                        $marketModel = app(\App\Model\AppMarketModel::class);
                         $market = $marketModel->findById($marketId);
                         if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                             $this->response->error('分站插件不存在');
@@ -204,7 +204,7 @@ final class PluginController extends BaseAdminController
                         }
 
                         // 已售出（有购买记录/已扣配额）不允许卸载，避免已购分站数据悬空
-                        $soldCount = (new \App\Model\AppPurchaseModel())->countByMarket($marketId);
+                        $soldCount = app(\App\Model\AppPurchaseModel::class)->countByMarket($marketId);
                         $consumedQuota = (int) ($market['consumed_quota'] ?? 0);
                         if ($soldCount > 0 || $consumedQuota > 0) {
                             $this->response->error('该分站插件已有分站购买记录,请改为下架');
@@ -300,7 +300,7 @@ final class PluginController extends BaseAdminController
 
         if ($listScope === 'merchant') {
             try {
-                $result = (new \App\Model\AppMarketModel())->paginate([
+                $result = app(\App\Model\AppMarketModel::class)->paginate([
                     'type'      => 'plugin',
                     'page'      => 1,
                     'page_size' => 100,

@@ -15,7 +15,7 @@ final class HomeController extends UserBaseController
     {
         $user = $this->user();
 
-        // 沿用原 user/home.php 的口径：余额按主货币直接换算，不带访客币种
+        // 沿用用户中心首页的口径：余额按主货币直接换算，不带访客币种
         $displayMoney = '0.00';
         if (!empty($user['money'])) {
             $displayMoney = bcdiv((string) $user['money'], '1000000', 2);

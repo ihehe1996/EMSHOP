@@ -30,14 +30,14 @@ final class AdminShell
         require_once EM_ROOT . '/app/helpers/admin_lang.php';
 
         if ($user === []) {
-            $user = (new \App\Service\AuthService())->user() ?? [];
+            $user = app(\App\Service\AuthService::class)->user() ?? [];
         }
 
         // 控制器局部变量原样带进内容视图（旧框架壳是同一作用域 require，视图一直依赖这些变量）
         extract($vars, EXTR_SKIP);
 
         $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \App\Model\LanguageModel())->getEnabled();
+        $languages = app(\App\Model\LanguageModel::class)->getEnabled();
         $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
 
         $adminContentView = $contentView;

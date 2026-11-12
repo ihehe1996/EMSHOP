@@ -11,11 +11,11 @@ namespace App\Home\Controller;
  */
 abstract class BaseController extends \App\Core\AbstractController
 {
-    /** @var View */
-    protected \View $view;
+    /** @var \App\Support\View */
+    protected \App\Support\View $view;
 
-    /** @var Dispatcher */
-    protected \Dispatcher $dispatcher;
+    /** @var \App\Http\Dispatcher */
+    protected \App\Http\Dispatcher $dispatcher;
 
     /** @var string 当前控制器名（用于模板导航高亮等） */
     protected string $controllerName;
@@ -24,11 +24,11 @@ abstract class BaseController extends \App\Core\AbstractController
     private ?\App\Service\FrontDataService $frontData = null;
 
     /**
-     * @param View       $view           视图实例
-     * @param Dispatcher $dispatcher    调度器引用
-     * @param string     $controllerName 当前控制器名
+     * @param \App\Support\View    $view           视图实例
+     * @param \App\Http\Dispatcher $dispatcher    调度器引用
+     * @param string               $controllerName 当前控制器名
      */
-    public function __construct(\View $view, \Dispatcher $dispatcher, string $controllerName)
+    public function __construct(\App\Support\View $view, \App\Http\Dispatcher $dispatcher, string $controllerName)
     {
         parent::__construct();
 
@@ -49,7 +49,7 @@ abstract class BaseController extends \App\Core\AbstractController
     private function frontData(): \App\Service\FrontDataService
     {
         if ($this->frontData === null) {
-            $this->frontData = new \App\Service\FrontDataService();
+            $this->frontData = app(\App\Service\FrontDataService::class);
         }
         return $this->frontData;
     }

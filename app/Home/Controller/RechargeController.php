@@ -68,7 +68,7 @@ class RechargeController extends BaseController
 
         try {
             // —— 创建 pending 充值单
-            $model = new \App\Model\UserRechargeModel();
+            $model = app(\App\Model\UserRechargeModel::class);
             $created = $model->create($userId, $amountRaw, $paymentCode, (string) $payment['plugin']);
 
             // —— 组装"伪订单"结构给 payment_create filter（字段与 em_order 同名，
@@ -83,7 +83,7 @@ class RechargeController extends BaseController
             ];
 
             // 走 PaymentService::createPayment 而不是直接 applyFilter —— 它会临时把 scope
-            // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
+            // 切到 'main' 让插件从主站 scope 读到支付凭证（商户 scope 没存这些凭证）
             $payPayload = app(\App\Service\PaymentService::class)->createPaymentPayload($pseudoOrder, $payment);
             $payUrl = (string) ($payPayload['pay_url'] ?? '');
             if ($payUrl === '') {

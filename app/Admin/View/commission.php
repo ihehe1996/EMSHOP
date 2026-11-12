@@ -77,7 +77,7 @@ $tab = (string) ($tab ?? 'log');
 .cmm-input::placeholder { color: #9ca3af; }
 .cmm-input[type="number"] { width: 160px; min-width: 0; }
 
-/* 行内组件 —— 仿 admin/page.php 风格 */
+/* 行内组件 —— 仿后台页面管理页风格 */
 .cmm-uid {
     display: inline-flex; align-items: center;
     padding: 2px 8px; font-size: 12px; line-height: 16px;

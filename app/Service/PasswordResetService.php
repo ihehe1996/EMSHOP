@@ -40,8 +40,8 @@ final class PasswordResetService extends BaseService
     public function __construct()
     {
         parent::__construct();
-        $this->resetModel = new \App\Model\PasswordResetModel();
-        $this->userModel = new \App\Model\UserListModel();
+        $this->resetModel = app(\App\Model\PasswordResetModel::class);
+        $this->userModel = app(\App\Model\UserListModel::class);
     }
 
     /**
@@ -233,7 +233,7 @@ final class PasswordResetService extends BaseService
     {
         try {
             if (class_exists(\App\Model\SystemLogModel::class)) {
-                (new \App\Model\SystemLogModel())->error(
+                app(\App\Model\SystemLogModel::class)->error(
                     'system',
                     '重置密码邮件发送失败',
                     'Mailer::send 返回 false，用户未收到重置邮件（对外仍返回统一提示，避免账号枚举）',
@@ -298,7 +298,7 @@ final class PasswordResetService extends BaseService
     {
         try {
             if (class_exists(\App\Model\SystemLogModel::class)) {
-                (new \App\Model\SystemLogModel())->error(
+                app(\App\Model\SystemLogModel::class)->error(
                     'system',
                     '重置密码链接无法生成',
                     'site_url / main_domain 均未配置，已跳过发送',
