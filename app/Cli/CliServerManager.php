@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * CLI 主进程（管家）
  *
@@ -107,7 +109,7 @@ final class CliServerManager
 
             $width = 0;
             foreach ($plain as $l) {
-                $width = max($width, function_exists('mb_strwidth') ? mb_strwidth($l) : strlen($l));
+                $width = max($width, function_exists('mb_strwidth') ? \mb_strwidth($l) : \strlen($l));
             }
             $border = str_repeat('=', $width);
 
@@ -146,7 +148,7 @@ final class CliServerManager
         try {
             CliServer::probeMysql();
             CliServer::log('数据库连接成功，准备启动 CLI 任务服务');
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             CliServer::log('启动失败：数据库未就绪，' . $e->getMessage());
             echo "数据库未就绪，退出进程，等待重试\n";
             sleep(6);
@@ -222,7 +224,7 @@ final class CliServerManager
         if ($children === [] && self::hasBusinessWorkerDefs($defs)) {
             echo "没有 worker 启动成功，主进程退出。\n";
             CliServer::log('启动失败：worker 定义存在但全部拉起失败');
-            WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
+            \WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
             CliServer::clearPid();
             return 1;
         }
@@ -251,7 +253,7 @@ final class CliServerManager
                 try {
                     // **必须 reload**：管家是常驻进程，不清缓存就会一直读启动时的快照，
                     // 站长在后台做的任何改动都看不见。
-                    Config::reload();
+                    \Config::reload();
 
                     self::checkFileVersionAndReload();
                     self::checkPluginReloadRequests($children, $defs);
@@ -275,7 +277,7 @@ final class CliServerManager
                     }
 
                     self::$configReadWarned = false;
-                } catch (Throwable $e) {
+                } catch (\Throwable $e) {
                     // 数据库抖动导致读不到配置 —— **绝不能当成「插件全被停用」**，
                     // 否则一次网络抖动就会把正在干活的 worker 全停掉。跳过本轮即可。
                     //
@@ -375,7 +377,7 @@ final class CliServerManager
         @unlink(CliServer::workersStateFile());
         // 清掉宿主心跳、每个 worker 的类型心跳，以及所有能力心跳：进程已经不在了，
         // 留着文件会让后台首页在 TTL 窗口内继续显示「运行中」，也会让发货继续走异步路径。
-        WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
+        \WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
         @unlink(CliServer::heartbeatFile());
         CliServer::log('关闭：CLI 主进程已退出');
         echo "EMSHOP CLI 任务服务已停止。\n";
@@ -417,12 +419,12 @@ final class CliServerManager
 
         foreach ($byPlugin as $slug => $pluginDefs) {
             try {
-                if ((string) Config::get(CliServer::pluginReloadKey($slug), '') === '') {
+                if ((string) \Config::get(CliServer::pluginReloadKey($slug), '') === '') {
                     continue;
                 }
                 // 先清标记：即使下面重启失败，也不会下一轮再触发一遍
-                Config::set(CliServer::pluginReloadKey($slug), '');
-            } catch (Throwable $e) {
+                \Config::set(CliServer::pluginReloadKey($slug), '');
+            } catch (\Throwable $e) {
                 continue; // 读不到配置就跳过，下一轮再说
             }
 
@@ -637,7 +639,7 @@ final class CliServerManager
         // **不碰能力心跳**：它是同一能力下所有 worker 共用的（四种发货 worker 都提供
         // delivery），停掉其中一个时别的还在干活；而且它现在由核心的 HeartbeatWorker
         // 独家维护，停一个业务 worker 不该去动它。
-        WorkerHeartbeat::clearAll([$type]);
+        \WorkerHeartbeat::clearAll([$type]);
     }
 
     /**
@@ -663,7 +665,7 @@ final class CliServerManager
             }
             // applied + 旧 key 双写，过渡期内任一侧 bump 都能对齐
             CliServer::setAppliedFileVersion($pending);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             CliServer::log('代码热更新检查失败，' . $e->getMessage());
         }
     }
@@ -708,7 +710,7 @@ final class CliServerManager
     {
         $pid = CliServer::readPid();
         if ($pid > 0 && CliServer::isProcessAlive($pid)) {
-            $hostAge = WorkerHeartbeat::hostAge();
+            $hostAge = \WorkerHeartbeat::hostAge();
             $hostDesc = $hostAge === null ? '心跳缺失' : "心跳 {$hostAge}s 前";
             echo "任务服务正在运行（主进程 PID：{$pid}，{$hostDesc}）\n";
 
@@ -726,8 +728,8 @@ final class CliServerManager
                 $wPid = (int) ($row['pid'] ?? 0);
                 $alive = $wPid > 0 && CliServer::isProcessAlive($wPid) ? '运行中' : '已退出';
                 // 能力心跳：进程在 ≠ 任务在跑（可能卡死在一次上游请求里）
-                $hbAge = WorkerHeartbeat::age($type);
-                $hbDesc = $hbAge === null ? '心跳缺失' : ($hbAge <= WorkerHeartbeat::TTL ? "心跳 {$hbAge}s 前" : "心跳停滞 {$hbAge}s");
+                $hbAge = \WorkerHeartbeat::age($type);
+                $hbDesc = $hbAge === null ? '心跳缺失' : ($hbAge <= \WorkerHeartbeat::TTL ? "心跳 {$hbAge}s 前" : "心跳停滞 {$hbAge}s");
                 echo "  worker {$type}  PID {$wPid}  {$alive}  {$hbDesc}\n";
             }
             return 0;
@@ -1077,7 +1079,7 @@ final class CliServerManager
                 'master_pid' => (int) getmypid(),
                 'updated_at' => date('Y-m-d H:i:s'),
                 'workers' => $workers,
-            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            ], JSON_UNESCAPED_UNICODE | \JSON_PRETTY_PRINT),
             LOCK_EX
         );
     }

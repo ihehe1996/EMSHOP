@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * CLI Worker（子进程）：按 type 找到插件注册的实现，循环调用它的 tick()。
  *
@@ -113,8 +115,8 @@ final class CliServerWorker
         while (!self::$stopRequested) {
             if (time() - $lastConfigReload >= 15) {
                 try {
-                    Config::reload();
-                } catch (Throwable $e) {
+                    \Config::reload();
+                } catch (\Throwable $e) {
                     CliServer::log("异常：{$type} 重载配置失败，" . $e->getMessage());
                 }
                 $lastConfigReload = time();
@@ -122,16 +124,16 @@ final class CliServerWorker
 
             try {
                 $worker->tick();
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 CliServer::log("异常：{$type} 执行失败，" . $e->getMessage());
             }
 
-            WorkerHeartbeat::touchWorker($type);
+            \WorkerHeartbeat::touchWorker($type);
 
             self::idleSleep($interval, $type);
         }
 
-        WorkerHeartbeat::clearAll([$type]);
+        \WorkerHeartbeat::clearAll([$type]);
         CliServer::log("worker 退出：{$type}，PID " . getmypid());
         return 0;
     }
@@ -166,7 +168,7 @@ final class CliServerWorker
         $seconds = max(1, $seconds);
 
         // 只在「间隔明显长于 TTL」时才需要补刷，短周期 worker 本来每次 tick 都会刷
-        $refreshEvery = ($seconds > WorkerHeartbeat::TTL && $type !== '') ? 10 : 0;
+        $refreshEvery = ($seconds > \WorkerHeartbeat::TTL && $type !== '') ? 10 : 0;
 
         for ($i = 1; $i <= $seconds; $i++) {
             if (self::$stopRequested) {
@@ -174,7 +176,7 @@ final class CliServerWorker
             }
             sleep(1);
             if ($refreshEvery > 0 && $i % $refreshEvery === 0) {
-                WorkerHeartbeat::touchWorker($type);
+                \WorkerHeartbeat::touchWorker($type);
             }
         }
     }

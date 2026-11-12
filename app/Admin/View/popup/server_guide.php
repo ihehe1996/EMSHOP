@@ -22,7 +22,7 @@ $hostAge   = WorkerHeartbeat::hostAge();
 // 没装这类插件时列表为空 —— 此时即便切到 CLI 模式也没有子进程可跑。
 $workers = [];
 try {
-    foreach (CliServer::workerDefinitions() as $def) {
+    foreach (\App\Cli\CliServer::workerDefinitions() as $def) {
         $type = (string) $def['type'];
         $workers[] = [
             'type'   => $type,

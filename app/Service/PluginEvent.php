@@ -71,7 +71,7 @@ final class PluginEvent
         } catch (\Throwable $e) {
             // 发布失败不能拖垮主流程（比如发货）。订阅方会少收到一次通知，
             // 但发货本身必须成功 —— 这里记一条日志就够了。
-            \CliServer::log("异常：发布插件事件 {$event} 失败，" . $e->getMessage());
+            \App\Cli\CliServer::log("异常：发布插件事件 {$event} 失败，" . $e->getMessage());
             return 0;
         }
     }

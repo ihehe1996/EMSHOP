@@ -107,7 +107,7 @@ final class UpdateController extends BaseAdminController
                 case 'finalize': {
                     $res = \App\Service\UpdateService::finalize();
                     // 每次系统升级完成后 bump pending 版本，触发任务服务检测并重载 worker
-                    \CliServer::bumpPendingFileVersion();
+                    \App\Cli\CliServer::bumpPendingFileVersion();
                     $this->response->success('升级完成', $res + ['csrf_token' => $this->csrf->refresh()]);
                 }
 

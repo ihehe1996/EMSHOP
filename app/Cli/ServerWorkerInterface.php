@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * 后台任务 worker 契约。
  *

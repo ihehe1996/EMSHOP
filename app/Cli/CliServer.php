@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * CLI 公共工具：路径、日志、PID、进程探测等。
  *
@@ -83,13 +85,13 @@ final class CliServer
      */
     public static function heartbeatFile(): string
     {
-        return WorkerHeartbeat::hostFile();
+        return \WorkerHeartbeat::hostFile();
     }
 
     /** 刷新宿主心跳（管家进程调用） */
     public static function touchHeartbeat(): void
     {
-        WorkerHeartbeat::touchHost();
+        \WorkerHeartbeat::touchHost();
     }
 
     public static function workersStateFile(): string
@@ -137,8 +139,8 @@ final class CliServer
      */
     public static function getPendingFileVersion(): string
     {
-        $primary = trim((string) (Config::get(self::CONFIG_FILE_VERSION_PENDING, '') ?? ''));
-        $legacy = trim((string) (Config::get(self::CONFIG_FILE_VERSION_PENDING_LEGACY, '') ?? ''));
+        $primary = trim((string) (\Config::get(self::CONFIG_FILE_VERSION_PENDING, '') ?? ''));
+        $legacy = trim((string) (\Config::get(self::CONFIG_FILE_VERSION_PENDING_LEGACY, '') ?? ''));
         if ($primary === '') {
             return $legacy;
         }
@@ -154,8 +156,8 @@ final class CliServer
     public static function setAppliedFileVersion(string $version): void
     {
         $version = trim($version);
-        Config::set(self::CONFIG_FILE_VERSION_APPLIED, $version);
-        Config::set(self::CONFIG_FILE_VERSION_APPLIED_LEGACY, $version);
+        \Config::set(self::CONFIG_FILE_VERSION_APPLIED, $version);
+        \Config::set(self::CONFIG_FILE_VERSION_APPLIED_LEGACY, $version);
     }
 
     /**
@@ -179,8 +181,8 @@ final class CliServer
         }
 
         try {
-            Config::set(self::pluginReloadKey($slug), (string) time());
-        } catch (Throwable $e) {
+            \Config::set(self::pluginReloadKey($slug), (string) time());
+        } catch (\Throwable $e) {
             self::log("异常：标记插件 {$slug} 需要重载失败，" . $e->getMessage());
         }
     }
@@ -203,12 +205,12 @@ final class CliServer
      */
     public static function bumpPendingFileVersion(?string $version = null): void
     {
-        $version = trim((string) ($version !== null ? $version : time()));
+        $version = trim((string) ($version !== null ? $version : \time()));
         if ($version === '') {
             $version = (string) time();
         }
-        Config::set(self::CONFIG_FILE_VERSION_PENDING, $version);
-        Config::set(self::CONFIG_FILE_VERSION_PENDING_LEGACY, $version);
+        \Config::set(self::CONFIG_FILE_VERSION_PENDING, $version);
+        \Config::set(self::CONFIG_FILE_VERSION_PENDING_LEGACY, $version);
     }
 
     /**
@@ -217,11 +219,11 @@ final class CliServer
      */
     private static function readConfigPrefer(string $primary, string $legacy, string $default = ''): string
     {
-        $value = trim((string) (Config::get($primary, '') ?? ''));
+        $value = trim((string) (\Config::get($primary, '') ?? ''));
         if ($value !== '') {
             return $value;
         }
-        $value = trim((string) (Config::get($legacy, '') ?? ''));
+        $value = trim((string) (\Config::get($legacy, '') ?? ''));
         if ($value !== '') {
             return $value;
         }
@@ -260,7 +262,7 @@ final class CliServer
 
         self::loadSiteContext();
 
-        $raw = function_exists('applyFilter') ? applyFilter('server_worker_types', []) : [];
+        $raw = function_exists('applyFilter') ? \applyFilter('server_worker_types', []) : [];
         if (!is_array($raw)) {
             $raw = [];
         }
@@ -341,7 +343,7 @@ final class CliServer
         }
 
         if (is_a($class, DeliveryTaskWorker::class, true)) {
-            return WorkerHeartbeat::CAPABILITY_DELIVERY;
+            return \WorkerHeartbeat::CAPABILITY_DELIVERY;
         }
 
         return '';
@@ -360,7 +362,7 @@ final class CliServer
      */
     public static function enabledPluginNames(): array
     {
-        $raw = (string) (Config::get('enabled_plugins', '') ?? '');
+        $raw = (string) (\Config::get('enabled_plugins', '') ?? '');
 
         $names = [];
         foreach (explode(',', $raw) as $one) {
@@ -449,7 +451,7 @@ final class CliServer
         }
         try {
             require_once $init;
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             self::log('加载站点上下文失败：' . $e->getMessage());
         }
 
@@ -558,7 +560,7 @@ final class CliServer
             return false;
         }
 
-        $forced = defined('EM_CONSOLE_ENCODING') ? strtolower(trim((string) EM_CONSOLE_ENCODING)) : '';
+        $forced = defined('EM_CONSOLE_ENCODING') ? \strtolower(trim((string) EM_CONSOLE_ENCODING)) : '';
         if ($forced === 'gbk') {
             return true;
         }
@@ -629,16 +631,16 @@ final class CliServer
         // 里面不能出现订单号（游客查单凭据）、联系方式、哈希令牌、密钥等。
         // 详见 LogSanitizer 的类注释。
         $safeMessage = class_exists('LogSanitizer')
-            ? LogSanitizer::sanitize($message)
+            ? \LogSanitizer::sanitize($message)
             : $message;
 
         $line = '[' . date('Y-m-d H:i:s') . '] ' . $safeMessage . "\n";
-        @file_put_contents(self::logFile(), $line, FILE_APPEND | LOCK_EX);
+        @file_put_contents(self::logFile(), $line, FILE_APPEND | \LOCK_EX);
     }
 
     public static function phpBinary(): string
     {
-        return PHP_BINARY !== '' ? PHP_BINARY : 'php';
+        return PHP_BINARY !== '' ? \PHP_BINARY : 'php';
     }
 
     public static function readPid(string $pidFile = ''): int
@@ -738,7 +740,7 @@ final class CliServer
         }
         try {
             return $callback();
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             self::log("进程管理函数 {$function} 调用异常：" . $e->getMessage());
             return $default;
         }
@@ -834,7 +836,7 @@ final class CliServer
         }
 
         if (function_exists('posix_kill')) {
-            return @posix_kill($pid, defined('SIGTERM') ? SIGTERM : 15);
+            return @posix_kill($pid, defined('SIGTERM') ? \SIGTERM : 15);
         }
 
         if (function_exists('exec')) {
@@ -880,12 +882,12 @@ final class CliServer
             $db = (array) ($cfg['db'] ?? []);
         } else {
             $db = [
-                'host'     => defined('EM_DB_HOST') ? EM_DB_HOST : '127.0.0.1',
-                'port'     => defined('EM_DB_PORT') ? EM_DB_PORT : 3306,
-                'dbname'   => defined('EM_DB_NAME') ? EM_DB_NAME : '',
-                'username' => defined('EM_DB_USER') ? EM_DB_USER : '',
-                'password' => defined('EM_DB_PASSWORD') ? EM_DB_PASSWORD : '',
-                'charset'  => defined('EM_DB_CHARSET') ? EM_DB_CHARSET : 'utf8mb4',
+                'host'     => defined('EM_DB_HOST') ? \EM_DB_HOST : '127.0.0.1',
+                'port'     => defined('EM_DB_PORT') ? \EM_DB_PORT : 3306,
+                'dbname'   => defined('EM_DB_NAME') ? \EM_DB_NAME : '',
+                'username' => defined('EM_DB_USER') ? \EM_DB_USER : '',
+                'password' => defined('EM_DB_PASSWORD') ? \EM_DB_PASSWORD : '',
+                'charset'  => defined('EM_DB_CHARSET') ? \EM_DB_CHARSET : 'utf8mb4',
             ];
         }
 
@@ -897,16 +899,16 @@ final class CliServer
         $charset = (string) ($db['charset'] ?? 'utf8mb4');
 
         if ($dbname === '' || $username === '') {
-            throw new RuntimeException('数据库配置不完整');
+            throw new \RuntimeException('数据库配置不完整');
         }
 
         if (extension_loaded('mysqli')) {
-            mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+            mysqli_report(MYSQLI_REPORT_ERROR | \MYSQLI_REPORT_STRICT);
             $mysqli = mysqli_init();
             $mysqli->real_connect($host, $username, $password, $dbname, $port);
             $mysqli->set_charset($charset);
             $rs = $mysqli->query('SELECT 1');
-            if ($rs instanceof mysqli_result) {
+            if ($rs instanceof \mysqli_result) {
                 $rs->free();
             }
             $mysqli->close();
@@ -915,16 +917,16 @@ final class CliServer
 
         if (extension_loaded('pdo_mysql')) {
             $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $dbname, $charset);
-            $pdo = new PDO($dsn, $username, $password, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
+            $pdo = new \PDO($dsn, $username, $password, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                \PDO::ATTR_EMULATE_PREPARES => false,
             ]);
             $pdo->query('SELECT 1');
             $pdo = null;
             return;
         }
 
-        throw new RuntimeException('当前 PHP 环境既不支持 mysqli，也不支持 pdo_mysql，无法探测数据库连接');
+        throw new \RuntimeException('当前 PHP 环境既不支持 mysqli，也不支持 pdo_mysql，无法探测数据库连接');
     }
 }

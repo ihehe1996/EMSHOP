@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * 通用发货 worker —— **核心提供，插件不用自己写**。
  *
@@ -63,7 +65,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
 
         try {
             $task = \App\Service\DeliveryQueueService::claimFor($claim);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             CliServer::log('异常：领取发货任务失败，' . $e->getMessage());
             return;
         }
@@ -78,7 +80,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
             if ($hook === '') {
                 // 插件注册有误（声明了 claim 却没给 hook）。
                 // 用永久失败收尾，别让任务卡在 processing 里没人管。
-                throw new PermanentDeliveryException(
+                throw new \PermanentDeliveryException(
                     '发货 worker 未配置 hook，请检查插件的 server_worker_types 注册'
                 );
             }
@@ -113,7 +115,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
             if ($recovered > 0) {
                 CliServer::log("发货队列：回收了 {$recovered} 条被中断的任务，已重新排队");
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             CliServer::log('异常：回收僵尸发货任务失败，' . $e->getMessage());
         }
     }

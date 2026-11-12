@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * 通用事件订阅 worker —— **核心提供，插件不用自己写**。
  *
@@ -72,8 +74,8 @@ final class EventSubscriberWorker implements ServerWorkerInterface
         }
 
         try {
-            $storage = Storage::getInstance($plugin);
-        } catch (Throwable $e) {
+            $storage = \Storage::getInstance($plugin);
+        } catch (\Throwable $e) {
             CliServer::log('异常：事件订阅 worker 取不到插件存储，' . $e->getMessage());
             return;
         }
@@ -97,7 +99,7 @@ final class EventSubscriberWorker implements ServerWorkerInterface
                 try {
                     // 调订阅方自己的钩子 —— 它的代码就在这个进程里
                     $this->dispatch($event, $row['args']);
-                } catch (Throwable $e) {
+                } catch (\Throwable $e) {
                     // 单条失败不阻塞后面的，但要记下来；游标仍然前进，
                     // 所以这条事件不会重试（通知场景可接受，避免一条坏数据卡死整个订阅）
                     CliServer::log("异常：处理事件 {$event} #{$row['id']} 失败，" . $e->getMessage());
@@ -131,8 +133,8 @@ final class EventSubscriberWorker implements ServerWorkerInterface
         // （用户收到 N 份重复邮件/推送），也违背了「每个插件的代码只在自己进程里跑」。
         $plugin = trim((string) ($this->def['plugin'] ?? ''));
         $callbacks = $plugin !== ''
-            ? Hooks::getCallbacksForPlugin($event, $plugin)
-            : Hooks::getCallbacks($event);
+            ? \Hooks::getCallbacksForPlugin($event, $plugin)
+            : \Hooks::getCallbacks($event);
         if ($callbacks === []) {
             return;
         }
@@ -161,7 +163,7 @@ final class EventSubscriberWorker implements ServerWorkerInterface
             if ($deleted > 0) {
                 CliServer::log("插件事件：清理了 {$deleted} 条过期事件");
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             CliServer::log('异常：清理插件事件失败，' . $e->getMessage());
         }
     }

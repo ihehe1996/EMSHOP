@@ -71,7 +71,7 @@ function callback_rm()
 // 更新插件时执行：处理表结构升级
 function callback_update()
 {
-    CliServer::markPluginChanged('virtual_card');
+    \App\Cli\CliServer::markPluginChanged('virtual_card');
     // 新版本仅支持全新库安装，不再执行老库升级补丁
 }
 

@@ -156,7 +156,7 @@ addFilter('server_worker_types', function ($types) {
     $types[] = [
         'type'   => 'deliver_virtual_card',
         'label'  => '发货（虚拟卡密）',
-        'class'  => 'DeliveryTaskWorker',
+        'class'  => '\App\Cli\DeliveryTaskWorker',
         'claim'  => ['goods_type' => 'virtual_card'],
         'hook'   => 'goods_type_virtual_card_order_paid',
         'plugin' => 'virtual_card',

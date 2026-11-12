@@ -131,7 +131,6 @@ if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_NONE) {
 require_once EM_ROOT . '/include/lib/Autoloader.php';
 
 Autoloader::register([
-    EM_ROOT . '/include/cli',
     EM_ROOT . '/include/lib',
 ]);
 
@@ -179,6 +178,20 @@ spl_autoload_register(static function (string $class): void {
     }
     if (isset($services[$class])) {
         class_alias('\\App\\Service\\' . $class, $class);
+    }
+});
+
+// 后台任务 worker 类已迁到 app/Cli；插件注册 worker 时仍可能写全局类名。
+spl_autoload_register(static function (string $class): void {
+    static $cli = null;
+    if ($cli === null) {
+        $cli = [];
+        foreach (glob(EM_ROOT . '/app/Cli/*.php') ?: [] as $file) {
+            $cli[basename($file, '.php')] = true;
+        }
+    }
+    if (isset($cli[$class])) {
+        class_alias('\\App\\Cli\\' . $class, $class);
     }
 });
 

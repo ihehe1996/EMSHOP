@@ -80,7 +80,7 @@ final class DeliveryQueueService
             return null; // 被别人抢走了，正常现象，不必记日志
         }
 
-        \CliServer::log('抢占任务成功 >>> ' . $taskId);
+        \App\Cli\CliServer::log('抢占任务成功 >>> ' . $taskId);
         return $claimed;
     }
 
@@ -192,7 +192,7 @@ final class DeliveryQueueService
                 );
                 // FPM 同步模式下这条日志是「发货失败」的唯一主动信号
                 // （异步模式下站长还能在后台看到 retry 行），别去掉。
-                \CliServer::log(
+                \App\Cli\CliServer::log(
                     "发货失败，不再重试 >>> 任务 {$taskId} / 订单 {$orderId} >>> " . $e->getMessage()
                 );
                 self::markOrderDeliveryFailed($orderId);

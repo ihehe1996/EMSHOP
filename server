@@ -55,7 +55,7 @@ if ($command === 'worker') {
     // 真正的「这个 type 没人注册」由 CliServerWorker::run() 明确报出来。
     require EM_ROOT . '/init.php';
     // run() 里 while 循环，直到被主进程终止；返回值作为进程退出码
-    exit(CliServerWorker::run($argv));
+    exit(\App\Cli\CliServerWorker::run($argv));
 }
 
 // ── 分支 B：worker 探测（短命进程）───────────────────────
@@ -64,9 +64,9 @@ if ($command === 'worker') {
 // 结果写进 content/server/worker-defs.json，管家读文件（不读 stdout）。
 if ($command === 'probe-workers') {
     require EM_ROOT . '/init.php';
-    exit(CliServer::probeWorkers());
+    exit(\App\Cli\CliServer::probeWorkers());
 }
 
 // ── 分支 C：主进程（管家）────────────────────────────────
 // start/stop/status/reload 都走这里；start 会进入长循环，不会马上结束
-exit(CliServerManager::run($argv));
+exit(\App\Cli\CliServerManager::run($argv));

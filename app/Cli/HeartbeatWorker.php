@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Cli;
+
 /**
  * 能力心跳维护 worker —— **核心自有，不由插件注册**。
  *
@@ -41,7 +43,7 @@ final class HeartbeatWorker implements ServerWorkerInterface
      * 新增能力时在这里加一项，并同步 `WorkerHeartbeat` 里的常量。
      */
     private const CAPABILITIES = [
-        WorkerHeartbeat::CAPABILITY_DELIVERY,
+        \WorkerHeartbeat::CAPABILITY_DELIVERY,
     ];
 
     /**
@@ -64,7 +66,7 @@ final class HeartbeatWorker implements ServerWorkerInterface
     public function tick(): void
     {
         foreach (self::CAPABILITIES as $capability) {
-            WorkerHeartbeat::touchWorker($capability);
+            \WorkerHeartbeat::touchWorker($capability);
         }
     }
 }
