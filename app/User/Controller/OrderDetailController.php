@@ -17,10 +17,10 @@ final class OrderDetailController extends UserPublicBaseController
          * 支持登录用户和游客访问（通过 guest_token 校验权限）。
          */
 
-        $siteName = \Config::get('sitename', 'EMSHOP');
+        $siteName = $this->config->get('sitename', 'EMSHOP');
 
         // 获取订单
-        $orderNo = (string) \Input::get('order_no', '');
+        $orderNo = (string) $this->input->get('order_no', '');
         $order = null;
         $orderGoods = [];
 
@@ -56,7 +56,7 @@ final class OrderDetailController extends UserPublicBaseController
             }
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('order_detail', get_defined_vars());
             echo '</div>';

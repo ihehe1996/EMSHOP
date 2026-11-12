@@ -18,12 +18,12 @@ final class WithdrawController extends MerchantBaseController
         $userId = (int) $currentMerchant['user_id'];
         $feeRate = (int) ($merchantLevel['withdraw_fee_rate'] ?? 0); // 万分位
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
-                $action = (string) \Input::post('_action', '');
+                $action = (string) $this->input->post('_action', '');
 
                 switch ($action) {
                     case 'apply': {
@@ -31,21 +31,21 @@ final class WithdrawController extends MerchantBaseController
                         // 原先的 (float) + round 走浮点，虽然不会抛错，但金额入参不该经过
                         // 浮点运算；且它与前台提现/充值的口径统一后更易维护。
                         try {
-                            $amount = \Money::parse(\Input::post('amount', ''));
+                            $amount = \Money::parse($this->input->post('amount', ''));
                         } catch (InvalidArgumentException $e) {
-                            \Response::error('请填写有效的提现金额');
+                            $this->response->error('请填写有效的提现金额');
                         }
 
                         $fee = (int) floor($amount * $feeRate / 10000);
                         $net = $amount - $fee;
                         if ($net <= 0) {
-                            \Response::error('扣除手续费后实到账金额过小，请提升提现金额');
+                            $this->response->error('扣除手续费后实到账金额过小，请提升提现金额');
                         }
 
-                        \Database::begin();
+                        $this->db->begin();
                         try {
-                            $userTable = \Database::prefix() . 'user';
-                            $row = \Database::fetchOne(
+                            $userTable = $this->db->prefix() . 'user';
+                            $row = $this->db->fetchOne(
                                 'SELECT `money`, `shop_balance` FROM `' . $userTable . '` WHERE `id` = ? FOR UPDATE',
                                 [$userId]
                             );
@@ -62,14 +62,14 @@ final class WithdrawController extends MerchantBaseController
                             $shopAfter = $shopBefore - $amount;
                             $moneyAfter = $moneyBefore + $net;
 
-                            \Database::execute(
+                            $this->db->execute(
                                 'UPDATE `' . $userTable . '` SET `shop_balance` = ?, `money` = ? WHERE `id` = ?',
                                 [$shopAfter, $moneyAfter, $userId]
                             );
 
                             // 先登提现记录，拿到 withdraw_id
                             $now = date('Y-m-d H:i:s');
-                            $withdrawId = \Database::insert('merchant_withdraw', [
+                            $withdrawId = $this->db->insert('merchant_withdraw', [
                                 'merchant_id' => $merchantId,
                                 'user_id' => $userId,
                                 'amount' => $amount,
@@ -83,7 +83,7 @@ final class WithdrawController extends MerchantBaseController
                             ]);
 
                             // 店铺余额日志：提现本金
-                            \Database::insert('merchant_balance_log', [
+                            $this->db->insert('merchant_balance_log', [
                                 'merchant_id' => $merchantId,
                                 'user_id' => $userId,
                                 'type' => 'withdraw',
@@ -96,7 +96,7 @@ final class WithdrawController extends MerchantBaseController
                             ]);
                             // 手续费也走一条（若有）
                             if ($fee > 0) {
-                                \Database::insert('merchant_balance_log', [
+                                $this->db->insert('merchant_balance_log', [
                                     'merchant_id' => $merchantId,
                                     'user_id' => $userId,
                                     'type' => 'withdraw_fee',
@@ -110,7 +110,7 @@ final class WithdrawController extends MerchantBaseController
                             }
 
                             // 消费余额日志
-                            \Database::insert('user_balance_log', [
+                            $this->db->insert('user_balance_log', [
                                 'user_id' => $userId,
                                 'type' => 'increase',
                                 'amount' => $net,
@@ -122,39 +122,39 @@ final class WithdrawController extends MerchantBaseController
                                 'ip' => $_SERVER['REMOTE_ADDR'] ?? '',
                             ]);
 
-                            \Database::commit();
+                            $this->db->commit();
 
                             $frontUser['money'] = $moneyAfter;
                             $frontUser['shop_balance'] = $shopAfter;
                             $_SESSION['em_front_user'] = $frontUser;
 
-                            \Response::success('提现成功', [
+                            $this->response->success('提现成功', [
                                 // 返回带访客币种符号的完整字符串，前端直接输出到提示条
-                                'amount' => \Currency::displayAmount($amount),
-                                'fee' => \Currency::displayAmount($fee),
-                                'net' => \Currency::displayAmount($net),
-                                'csrf_token' => \Csrf::refresh(),
+                                'amount' => $this->currency->displayAmount($amount),
+                                'fee' => $this->currency->displayAmount($fee),
+                                'net' => $this->currency->displayAmount($net),
+                                'csrf_token' => $this->csrf->refresh(),
                             ]);
                         } catch (\Throwable $e) {
-                            \Database::rollBack();
+                            $this->db->rollBack();
                             throw $e;
                         }
                         break;
                     }
 
                     case 'list': {
-                        $page = max(1, (int) \Input::post('page', 1));
-                        $pageSize = max(1, min(100, (int) \Input::post('limit', 20)));
+                        $page = max(1, (int) $this->input->post('page', 1));
+                        $pageSize = max(1, min(100, (int) $this->input->post('limit', 20)));
                         $offset = ($page - 1) * $pageSize;
 
-                        $t = \Database::prefix() . 'merchant_withdraw';
-                        $count = \Database::fetchOne(
+                        $t = $this->db->prefix() . 'merchant_withdraw';
+                        $count = $this->db->fetchOne(
                             'SELECT COUNT(*) AS c FROM `' . $t . '` WHERE `merchant_id` = ?',
                             [$merchantId]
                         );
                         $total = (int) ($count['c'] ?? 0);
 
-                        $rows = \Database::query(
+                        $rows = $this->db->query(
                             'SELECT * FROM `' . $t . '` WHERE `merchant_id` = ?
                               ORDER BY `created_at` DESC, `id` DESC
                               LIMIT ' . $pageSize . ' OFFSET ' . $offset,
@@ -162,27 +162,27 @@ final class WithdrawController extends MerchantBaseController
                         );
                         foreach ($rows as &$r) {
                             // 按访客当前展示币种输出（金额列全部带符号）
-                            $r['amount_view'] = \Currency::displayAmount((int) $r['amount']);
-                            $r['fee_view'] = \Currency::displayAmount((int) $r['fee_amount']);
-                            $r['net_view'] = \Currency::displayAmount((int) $r['net_amount']);
+                            $r['amount_view'] = $this->currency->displayAmount((int) $r['amount']);
+                            $r['fee_view'] = $this->currency->displayAmount((int) $r['fee_amount']);
+                            $r['net_view'] = $this->currency->displayAmount((int) $r['net_amount']);
                         }
                         unset($r);
 
-                        \Response::success('', [
+                        $this->response->success('', [
                             'data' => $rows,
                             'total' => $total,
-                            'csrf_token' => \Csrf::token(),
+                            'csrf_token' => $this->csrf->token(),
                         ]);
                         break;
                     }
 
                     default:
-                        \Response::error('未知操作');
+                        $this->response->error('未知操作');
                 }
             } catch (RuntimeException $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage() ?: '系统繁忙，请稍后再试');
+                $this->response->error($e->getMessage() ?: '系统繁忙，请稍后再试');
             }
         }
 

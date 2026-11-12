@@ -15,12 +15,12 @@ final class DisclaimerController extends BaseAdminController
     public function index(): void
     {
         // 框架壳上的签署弹窗提交到这里（旧入口是 admin/index.php?_action=disclaimer_accept）
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handleAccept();
             return;
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('disclaimer');
             echo '</div>';
@@ -35,15 +35,15 @@ final class DisclaimerController extends BaseAdminController
      */
     private function handleAccept(): void
     {
-        if ((string) \Input::post('_action', '') !== 'disclaimer_accept') {
-            \Response::error('未知操作');
+        if ((string) $this->input->post('_action', '') !== 'disclaimer_accept') {
+            $this->response->error('未知操作');
         }
 
-        if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
-        if ((string) \Input::post('agree', '0') !== '1') {
-            \Response::error('请先阅读并同意免责协议');
+        if ((string) $this->input->post('agree', '0') !== '1') {
+            $this->response->error('请先阅读并同意免责协议');
         }
 
         $admin = $this->user();
@@ -53,9 +53,9 @@ final class DisclaimerController extends BaseAdminController
             \RateLimit::clientIp()
         );
         if (!$saved) {
-            \Response::error('签署记录保存失败，请稍后重试');
+            $this->response->error('签署记录保存失败，请稍后重试');
         }
 
-        \Response::success('已签署');
+        $this->response->success('已签署');
     }
 }

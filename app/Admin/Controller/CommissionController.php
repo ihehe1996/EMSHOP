@@ -18,12 +18,12 @@ final class CommissionController extends BaseAdminController
 {
     public function index(): void
     {
-        $tab = (string) \Input::get('tab', 'log');
+        $tab = (string) $this->input->get('tab', 'log');
         if (!in_array($tab, ['log', 'withdraw'], true)) {
             $tab = 'log';
         }
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -37,15 +37,15 @@ final class CommissionController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
             if ($action === 'list') {
-                $type = (string) \Input::post('tab', 'log');
-                $page = max(1, (int) \Input::post('page', 1));
-                $perPage = max(1, min(100, (int) \Input::post('limit', 20)));
+                $type = (string) $this->input->post('tab', 'log');
+                $page = max(1, (int) $this->input->post('page', 1));
+                $perPage = max(1, min(100, (int) $this->input->post('limit', 20)));
 
                 if ($type === 'withdraw') {
                     $filter = [];
-                    $uid = (int) \Input::post('user_id', 0);
+                    $uid = (int) $this->input->post('user_id', 0);
                     if ($uid > 0) {
                         $filter['user_id'] = $uid;
                     }
@@ -53,9 +53,9 @@ final class CommissionController extends BaseAdminController
                     $result = (new \CommissionWithdrawModel())->paginate($filter, $page, $perPage);
                 } else {
                     // 佣金流水：按 user_id / status / level 过滤
-                    $status = (string) \Input::post('status', '');
-                    $level = (int) \Input::post('level', 0);
-                    $uid = (int) \Input::post('user_id', 0);
+                    $status = (string) $this->input->post('status', '');
+                    $level = (int) $this->input->post('level', 0);
+                    $uid = (int) $this->input->post('user_id', 0);
                     $where = [];
                     $params = [];
                     if ($uid > 0) {
@@ -72,8 +72,8 @@ final class CommissionController extends BaseAdminController
                     }
                     $whereSql = $where ? implode(' AND ', $where) : '1=1';
 
-                    $prefix = \Database::prefix();
-                    $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$prefix}commission_log WHERE {$whereSql}", $params);
+                    $prefix = $this->db->prefix();
+                    $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$prefix}commission_log WHERE {$whereSql}", $params);
                     $total = (int) ($countRow['cnt'] ?? 0);
                     $totalPages = max(1, (int) ceil($total / $perPage));
                     if ($page > $totalPages) {
@@ -81,7 +81,7 @@ final class CommissionController extends BaseAdminController
                     }
                     $offset = ($page - 1) * $perPage;
 
-                    $rows = \Database::query(
+                    $rows = $this->db->query(
                         "SELECT * FROM {$prefix}commission_log WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
                         $params
                     );
@@ -93,15 +93,15 @@ final class CommissionController extends BaseAdminController
                     $result = ['list' => $rows, 'total' => $total];
                 }
 
-                \Response::success('', [
+                $this->response->success('', [
                     'data' => $result['list'],
                     'total' => $result['total'],
-                    'csrf_token' => \Csrf::token(),
+                    'csrf_token' => $this->csrf->token(),
                 ]);
             }
-            \Response::error('未知操作');
+            $this->response->error('未知操作');
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙');
+            $this->response->error('系统繁忙');
         }
     }
 
@@ -110,7 +110,7 @@ final class CommissionController extends BaseAdminController
      */
     private function renderList(string $tab): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('commission', ['tab' => $tab]);
             echo '</div>';

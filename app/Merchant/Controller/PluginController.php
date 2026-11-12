@@ -14,7 +14,7 @@ final class PluginController extends MerchantBaseController
         $frontUser = $this->user();
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
-        $csrfToken    = \Csrf::token();
+        $csrfToken    = $this->csrf->token();
         $merchantId   = (int) ($currentMerchant['id'] ?? 0);
         $scope        = 'merchant_' . $merchantId;
         $pluginModel  = new \PluginModel();
@@ -22,16 +22,16 @@ final class PluginController extends MerchantBaseController
         // ============================================================
         // POST 处理:enable / disable / save_config
         // ============================================================
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效,请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效,请刷新页面后重试');
                 }
 
-                $action = (string) \Input::post('_action', '');
-                $name   = trim((string) \Input::post('name', ''));
+                $action = (string) $this->input->post('_action', '');
+                $name   = trim((string) $this->input->post('name', ''));
                 if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
-                    \Response::error('非法插件名');
+                    $this->response->error('非法插件名');
                 }
 
                 $owned = $pluginModel->isInstalled($name, $scope);
@@ -66,26 +66,26 @@ final class PluginController extends MerchantBaseController
                 }
 
                 if ($isSystemPlugin) {
-                    \Response::error('该插件由主站统一管理,商户端不可操作');
+                    $this->response->error('该插件由主站统一管理,商户端不可操作');
                 }
 
                 if (!$owned && !$selfEnabled) {
-                    \Response::error('该插件未在你的店铺中购买/启用,无法操作');
+                    $this->response->error('该插件未在你的店铺中购买/启用,无法操作');
                 }
 
                 switch ($action) {
                     case 'enable': {
-                        if (!$owned) \Response::error('该插件未在你的店铺中购买,无法启用');
-                        if ($pluginModel->isEnabled($name, $scope)) \Response::error('该插件已经是启用状态');
+                        if (!$owned) $this->response->error('该插件未在你的店铺中购买,无法启用');
+                        if ($pluginModel->isEnabled($name, $scope)) $this->response->error('该插件已经是启用状态');
                         $pluginModel->enable($name, $scope);
-                        \Response::success('插件已启用', ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success('插件已启用', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     case 'disable': {
-                        if (!$pluginModel->isEnabled($name, $scope)) \Response::error('该插件已经是禁用状态');
+                        if (!$pluginModel->isEnabled($name, $scope)) $this->response->error('该插件已经是禁用状态');
                         $pluginModel->disable($name, $scope);
-                        \Response::success('插件已禁用', ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success('插件已禁用', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
@@ -102,29 +102,29 @@ final class PluginController extends MerchantBaseController
                         // 通用兜底:全部 POST 字段(除框架字段)逐个写 Storage
                         // Storage 实例的 scope 自动从 $GLOBALS['__em_current_scope'](merchant_X)读
                         $storage = \Storage::getInstance($name);
-                        foreach (\Input::allPost() as $k => $v) {
+                        foreach ($this->input->allPost() as $k => $v) {
                             if (in_array($k, ['_action', 'csrf_token', 'name'], true)) continue;
                             $storage->setValue($k, $v);
                         }
-                        \Response::success('配置已保存', ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success('配置已保存', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     default:
-                        \Response::error('未知操作');
+                        $this->response->error('未知操作');
                 }
             } catch (RuntimeException $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             } catch (\Throwable $e) {
-                \Response::error('系统繁忙,请稍后再试');
+                $this->response->error('系统繁忙,请稍后再试');
             }
         }
 
         // ============================================================
         // 弹窗模式:渲染插件设置页(沿用)
         // ============================================================
-        if (\Input::get('_popup', '') === '1') {
-            $name = trim((string) \Input::get('name', ''));
+        if ($this->input->get('_popup', '') === '1') {
+            $name = trim((string) $this->input->get('name', ''));
             if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
                 exit('非法插件名');
             }
@@ -144,7 +144,7 @@ final class PluginController extends MerchantBaseController
                 exit('该插件暂无设置页面');
             }
 
-            $csrfToken = \Csrf::token();
+            $csrfToken = $this->csrf->token();
             // 标题走磁盘 parseHeader,不再依赖 DB 行
             $header    = $pluginModel->parseHeader(EM_ROOT . '/content/plugin/' . $name . '/' . $name . '.php');
             $pageTitle = '插件设置:' . htmlspecialchars((string) ($header['title'] ?? $name), ENT_QUOTES, 'UTF-8');
@@ -193,7 +193,7 @@ final class PluginController extends MerchantBaseController
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/plugin.php', $frontUser, $currentMerchant, $merchantLevel, [
             'plugins'   => $plugins,
-            'csrfToken' => \Csrf::token(),
+            'csrfToken' => $this->csrf->token(),
         ]);
     }
 }

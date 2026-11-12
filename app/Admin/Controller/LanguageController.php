@@ -18,12 +18,12 @@ final class LanguageController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup();
             return;
         }
@@ -37,19 +37,19 @@ final class LanguageController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             if ($action !== 'list') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
             switch ($action) {
                 case 'list':
                     $model = new \LanguageModel();
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
 
                     // 获取所有语言数据
                     $languages = $model->getAll();
@@ -64,36 +64,36 @@ final class LanguageController extends BaseAdminController
                         });
                     }
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => array_values($languages),
                         'total' => count($languages),
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'create':
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('语言名称不能为空');
+                        $this->response->error('语言名称不能为空');
                     }
                     if (mb_strlen($name) > 50) {
-                        \Response::error('语言名称最多50个字符');
+                        $this->response->error('语言名称最多50个字符');
                     }
 
-                    $code = trim((string) \Input::post('code', ''));
+                    $code = trim((string) $this->input->post('code', ''));
                     if ($code === '') {
-                        \Response::error('语言代码不能为空');
+                        $this->response->error('语言代码不能为空');
                     }
                     if (mb_strlen($code) > 20) {
-                        \Response::error('语言代码最多20个字符');
+                        $this->response->error('语言代码最多20个字符');
                     }
 
                     $model = new \LanguageModel();
                     if ($model->existsName($name)) {
-                        \Response::error('语言名称已被占用');
+                        $this->response->error('语言名称已被占用');
                     }
                     if ($model->existsCode($code)) {
-                        \Response::error('语言代码已被占用');
+                        $this->response->error('语言代码已被占用');
                     }
 
                     // 表单里的 is_default / enabled 都是原生 checkbox，未勾选时不提交该字段，
@@ -101,117 +101,117 @@ final class LanguageController extends BaseAdminController
                     $model->create([
                         'name' => $name,
                         'code' => $code,
-                        'icon' => trim((string) \Input::post('icon', '')),
-                        'enabled' => \Input::post('enabled', 'n') === 'y' ? 'y' : 'n',
-                        'is_default' => \Input::post('is_default', 'n') === 'y' ? 'y' : 'n',
+                        'icon' => trim((string) $this->input->post('icon', '')),
+                        'enabled' => $this->input->post('enabled', 'n') === 'y' ? 'y' : 'n',
+                        'is_default' => $this->input->post('is_default', 'n') === 'y' ? 'y' : 'n',
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('语言创建成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('语言创建成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'update':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的语言ID');
+                        $this->response->error('无效的语言ID');
                     }
 
                     $model = new \LanguageModel();
                     $existing = $model->findById($id);
                     if ($existing === null) {
-                        \Response::error('语言不存在');
+                        $this->response->error('语言不存在');
                     }
 
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('语言名称不能为空');
+                        $this->response->error('语言名称不能为空');
                     }
                     if (mb_strlen($name) > 50) {
-                        \Response::error('语言名称最多50个字符');
+                        $this->response->error('语言名称最多50个字符');
                     }
 
-                    $code = trim((string) \Input::post('code', ''));
+                    $code = trim((string) $this->input->post('code', ''));
                     if ($code === '') {
-                        \Response::error('语言代码不能为空');
+                        $this->response->error('语言代码不能为空');
                     }
                     if (mb_strlen($code) > 20) {
-                        \Response::error('语言代码最多20个字符');
+                        $this->response->error('语言代码最多20个字符');
                     }
 
                     if ($model->existsName($name, $id)) {
-                        \Response::error('语言名称已被占用');
+                        $this->response->error('语言名称已被占用');
                     }
                     if ($model->existsCode($code, $id)) {
-                        \Response::error('语言代码已被占用');
+                        $this->response->error('语言代码已被占用');
                     }
 
-                    $isDefault = \Input::post('is_default', 'n') === 'y' ? 'y' : 'n';
+                    $isDefault = $this->input->post('is_default', 'n') === 'y' ? 'y' : 'n';
 
                     // enabled 同样必须按「未勾选 = 否」处理。
                     $model->update($id, [
                         'name' => $name,
                         'code' => $code,
-                        'icon' => trim((string) \Input::post('icon', '')),
-                        'enabled' => \Input::post('enabled', 'n') === 'y' ? 'y' : 'n',
+                        'icon' => trim((string) $this->input->post('icon', '')),
+                        'enabled' => $this->input->post('enabled', 'n') === 'y' ? 'y' : 'n',
                         'is_default' => $isDefault,
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('语言更新成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('语言更新成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的语言ID');
+                        $this->response->error('无效的语言ID');
                     }
 
                     $model = new \LanguageModel();
                     if ($model->findById($id) === null) {
-                        \Response::error('语言不存在');
+                        $this->response->error('语言不存在');
                     }
 
                     // 禁止删除最后一个语言
                     if ($model->count() <= 1) {
-                        \Response::error('至少需要保留一种语言');
+                        $this->response->error('至少需要保留一种语言');
                     }
 
                     $model->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'toggle':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的语言ID');
+                        $this->response->error('无效的语言ID');
                     }
 
                     $model = new \LanguageModel();
                     $lang = $model->findById($id);
                     if ($lang === null) {
-                        \Response::error('语言不存在');
+                        $this->response->error('语言不存在');
                     }
 
                     // 禁止禁用最后一个**启用中**的语言。
                     if ($lang['enabled'] === 'y' && count($model->getEnabled()) <= 1) {
-                        \Response::error('至少需要保留一种启用语言');
+                        $this->response->error('至少需要保留一种启用语言');
                     }
 
                     $model->toggle($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('状态已更新', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('状态已更新', ['csrf_token' => $csrfToken]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -220,7 +220,7 @@ final class LanguageController extends BaseAdminController
      */
     private function renderPopup(): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editLang = null;
 
         if ($editId > 0) {
@@ -238,7 +238,7 @@ final class LanguageController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('language');
             echo '</div>';

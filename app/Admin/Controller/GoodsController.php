@@ -16,34 +16,34 @@ final class GoodsController extends BaseAdminController
 {
     public function index(): void
     {
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         // 非 list 操作统一验证 CSRF
         if ($action !== 'list' && $action !== '') {
-            $csrf = (string) \Input::post('csrf_token', '');
+            $csrf = (string) $this->input->post('csrf_token', '');
             if ($csrf === '') {
-                $csrf = (string) \Input::get('csrf_token', '');
+                $csrf = (string) $this->input->get('csrf_token', '');
             }
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
         }
 
         // 列表接口（供 layui table 使用，layui table 要求 code=0）
         if ($action === 'list') {
-            $page = (int) \Input::post('page', 1);
-            $limit = (int) \Input::post('limit', 20);
-            $keyword = trim((string) \Input::post('keyword', ''));
-            $categoryId = (int) \Input::post('category_id', 0);
-            $isOnSaleRaw = (string) \Input::post('is_on_sale', '');
+            $page = (int) $this->input->post('page', 1);
+            $limit = (int) $this->input->post('limit', 20);
+            $keyword = trim((string) $this->input->post('keyword', ''));
+            $categoryId = (int) $this->input->post('category_id', 0);
+            $isOnSaleRaw = (string) $this->input->post('is_on_sale', '');
             $isOnSale = $isOnSaleRaw !== '' ? (int) $isOnSaleRaw : null;
-            $goodsType = trim((string) \Input::post('goods_type', ''));
-            $isRecommendedRaw = (string) \Input::post('is_recommended', '');
+            $goodsType = trim((string) $this->input->post('goods_type', ''));
+            $isRecommendedRaw = (string) $this->input->post('is_recommended', '');
             $isRecommended = $isRecommendedRaw !== '' ? (int) $isRecommendedRaw : null;
-            $statusRaw = (string) \Input::post('status', '');
+            $statusRaw = (string) $this->input->post('status', '');
             $status = $statusRaw !== '' ? (int) $statusRaw : null;
 
             $where = [];
@@ -113,7 +113,7 @@ final class GoodsController extends BaseAdminController
                 'msg' => '',
                 'count' => $result['total'],
                 'data' => $result['list'],
-                'csrf_token' => \Csrf::token(),
+                'csrf_token' => $this->csrf->token(),
                 'tab_counts' => $tabCounts
             ], JSON_UNESCAPED_UNICODE);
             exit;
@@ -121,66 +121,66 @@ final class GoodsController extends BaseAdminController
 
         // 切换上架状态（走 GoodsModel 以触发钩子和变更日志）
         if ($action === 'toggle_sale') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $goods = \GoodsModel::getById($id);
             if (!$goods) {
-                \Response::error('商品不存在');
+                $this->response->error('商品不存在');
             }
             $newStatus = $goods['is_on_sale'] ? 0 : 1;
             $result = \GoodsModel::update($id, ['is_on_sale' => $newStatus]);
             if ($result) {
-                \Response::success('状态已更新', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('更新失败');
+                $this->response->error('更新失败');
             }
         }
 
         // 切换推荐状态
         if ($action === 'toggle_recommend') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $goods = \GoodsModel::getById($id);
             if (!$goods) {
-                \Response::error('商品不存在');
+                $this->response->error('商品不存在');
             }
             $newStatus = $goods['is_recommended'] ? 0 : 1;
             $result = \GoodsModel::update($id, ['is_recommended' => $newStatus]);
             if ($result) {
-                \Response::success('状态已更新', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('更新失败');
+                $this->response->error('更新失败');
             }
         }
 
         // 删除商品（逻辑删除）
         if ($action === 'delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $result = \GoodsModel::delete($id);
             if ($result) {
                 // 自动同步标签计数（软删除后商品被排除，goods_count 需要重算）
                 \GoodsTagModel::refreshAllCounts();
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // 物理删除商品
         if ($action === 'physical_delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $result = \GoodsModel::forceDelete($id);
             if ($result) {
                 \GoodsTagModel::refreshAllCounts();
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // 批量操作
         if ($action === 'batch') {
-            $batchAction = (string) \Input::post('batch_action', '');
+            $batchAction = (string) $this->input->post('batch_action', '');
             // jQuery AJAX 发送数组时会转为 ids[]=1&ids[]=2，故需兼容数组和 JSON 字符串两种格式
-            $rawIds = \Input::post('ids', null);
+            $rawIds = $this->input->post('ids', null);
             if ($rawIds !== null) {
                 if (is_array($rawIds)) {
                     $ids = array_map('intval', $rawIds);
@@ -194,7 +194,7 @@ final class GoodsController extends BaseAdminController
             // JSON 解出来的值也可能是字符串：统一转正整数，杜绝把整段字符串当 WHERE
             $ids = array_values(array_filter(array_map('intval', (array) $ids), static fn($v) => $v > 0));
             if (empty($ids)) {
-                \Response::error('请选择商品');
+                $this->response->error('请选择商品');
             }
             // Database::update 返回 affected_rows，值未变化时为 0 但并非失败，
             // 因此用 try/catch 捕获真正的异常，affected_rows=0 视为成功。
@@ -230,22 +230,22 @@ final class GoodsController extends BaseAdminController
                 \GoodsTagModel::refreshAllCounts();
             }
             if ($failed === 0) {
-                \Response::success('操作成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('操作成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('操作失败');
+                $this->response->error('操作失败');
             }
         }
 
         // 克隆商品
         if ($action === 'clone') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $newId = \GoodsModel::clone($id);
             if ($newId) {
                 // 克隆会复制 tag 关联 → goods_count 增加，自动刷新一次
                 \GoodsTagModel::refreshAllCounts();
-                \Response::success('克隆成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('克隆成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('克隆失败');
+                $this->response->error('克隆失败');
             }
         }
 
@@ -258,12 +258,12 @@ final class GoodsController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $categories = \Database::query(
-            'SELECT * FROM ' . \Database::prefix() . 'goods_category WHERE status = 1 ORDER BY parent_id ASC, sort ASC'
+        $categories = $this->db->query(
+            'SELECT * FROM ' . $this->db->prefix() . 'goods_category WHERE status = 1 ORDER BY parent_id ASC, sort ASC'
         );
         $goodsTypes = \GoodsTypeManager::getTypes();
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('goods', ['categories' => $categories, 'goodsTypes' => $goodsTypes]);
             echo '</div>';

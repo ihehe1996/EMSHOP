@@ -23,16 +23,16 @@ final class DashboardController extends BaseAdminController
 
     public function index(): void
     {
-        $siteUrl = trim((string) (\Config::get('site_url') ?? ''));
+        $siteUrl = trim((string) ($this->config->get('site_url') ?? ''));
 
         if ($siteUrl === '') {
-            if ((string) \Input::get('_action', '') !== '') {
-                \Response::error('请先在基础设置中配置站点地址（site_url）');
+            if ((string) $this->input->get('_action', '') !== '') {
+                $this->response->error('请先在基础设置中配置站点地址（site_url）');
             }
-            \Response::redirect(EM_ADMIN_PATH . '/settings?action=base&_need_site_url=1');
+            $this->response->redirect(EM_ADMIN_PATH . '/settings?action=base&_need_site_url=1');
         }
 
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === 'admin_index_data') {
             $this->outputIndexData();
             return;
@@ -42,15 +42,15 @@ final class DashboardController extends BaseAdminController
             return;
         }
 
-        if ((string) \Input::get('popup', '') === 'rewrite') {
+        if ((string) $this->input->get('popup', '') === 'rewrite') {
             $this->render('popup/rewrite');
             return;
         }
-        if ((string) \Input::get('popup', '') === 'server_guide') {
+        if ((string) $this->input->get('popup', '') === 'server_guide') {
             $this->render('popup/server_guide');
             return;
         }
-        if ((string) \Input::get('_popup', '') === 'server_restart') {
+        if ((string) $this->input->get('_popup', '') === 'server_restart') {
             $this->render('popup/server_restart');
             return;
         }
@@ -83,7 +83,7 @@ final class DashboardController extends BaseAdminController
         $latency = $data !== null ? (int) round((microtime(true) - $start) * 1000) : -1;
 
         // 这里的 authorized / license_type 只作为展示数据回给前端，不用来改本地授权状态
-        \Response::success('', ($data ?? [
+        $this->response->success('', ($data ?? [
             'authorized'       => null,
             'license_type'     => '',
             'license_label'    => '',
@@ -115,8 +115,8 @@ final class DashboardController extends BaseAdminController
             session_write_close();
         }
 
-        $range = (string) \Input::get('range', '7d');
-        $prefix = \Database::prefix();
+        $range = (string) $this->input->get('range', '7d');
+        $prefix = $this->db->prefix();
         $orderTable = $prefix . 'order';
 
         // 1. 根据 range 确定起止时间 + 聚合粒度 + 时间桶 label 列表
@@ -249,7 +249,7 @@ final class DashboardController extends BaseAdminController
                         WHERE `status` = ? AND `complete_time` >= ? AND `complete_time` <= ?
                         GROUP BY bucket";
             }
-            $rows = \Database::query($sql, ['completed', date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs)]);
+            $rows = $this->db->query($sql, ['completed', date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs)]);
             $index = [];
             foreach ($rows as $r) {
                 $index[(string) $r['bucket']] = $r;
@@ -274,7 +274,7 @@ final class DashboardController extends BaseAdminController
             '6m' => '最近半年', 'year' => '本年', '12m' => '最近 1 年',
         ];
 
-        \Response::success('', [
+        $this->response->success('', [
             'range' => $range,
             'range_label' => $rangeLabels[$range] ?? $range,
             'labels' => $labels,
@@ -288,7 +288,7 @@ final class DashboardController extends BaseAdminController
      */
     private function renderHome(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('home');
             echo '</div>';

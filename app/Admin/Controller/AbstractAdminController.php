@@ -9,7 +9,7 @@ namespace App\Admin\Controller;
  *
  * 只提供视图渲染，供登录页等公开页面复用；需要登录的后台页面继承 BaseAdminController。
  */
-abstract class AbstractAdminController
+abstract class AbstractAdminController extends \App\Core\AbstractController
 {
     /**
      * 渲染 app/Admin/View 下的模板。

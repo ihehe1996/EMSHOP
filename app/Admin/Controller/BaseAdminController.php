@@ -26,10 +26,12 @@ abstract class BaseAdminController extends AbstractAdminController
 
     public function __construct()
     {
+        parent::__construct();
+
         $this->auth = new \AuthService();
         $user = $this->auth->check() ? $this->auth->user() : null;
         if (!is_array($user)) {
-            \Response::redirect(self::SIGN_URL);
+            $this->response->redirect(self::SIGN_URL);
         }
 
         $this->adminUser = $user;
@@ -58,9 +60,9 @@ abstract class BaseAdminController extends AbstractAdminController
             return;
         }
 
-        $token = trim((string) \Input::get('csrf_token', ''));
+        $token = trim((string) $this->input->get('csrf_token', ''));
         if ($token === '') {
-            $token = trim((string) \Input::post('csrf_token', ''));
+            $token = trim((string) $this->input->post('csrf_token', ''));
         }
         if ($token === '') {
             return;
@@ -71,15 +73,15 @@ abstract class BaseAdminController extends AbstractAdminController
             'list',            // 弹窗里的列表接口
             'get_plugin_form', // 商品类型插件的配置表单
         ];
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
         if (in_array(trim($action), $readOnlyActions, true)) {
             return;
         }
 
-        \Response::error('铁铁，演示模式下无权限执行该操作哦~');
+        $this->response->error('铁铁，演示模式下无权限执行该操作哦~');
     }
 
     /**

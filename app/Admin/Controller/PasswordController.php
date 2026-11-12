@@ -16,7 +16,7 @@ final class PasswordController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -30,36 +30,36 @@ final class PasswordController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $csrf = (string) \Input::post('csrf_token', '');
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            $csrf = (string) $this->input->post('csrf_token', '');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
 
             $userModel = new \UserModel();
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
-            $oldPassword = (string) \Input::post('old_password', '');
-            $newPassword = (string) \Input::post('new_password', '');
-            $confirmPassword = (string) \Input::post('confirm_password', '');
+            $oldPassword = (string) $this->input->post('old_password', '');
+            $newPassword = (string) $this->input->post('new_password', '');
+            $confirmPassword = (string) $this->input->post('confirm_password', '');
 
             if ($oldPassword === '' || $newPassword === '') {
-                \Response::error('密码不能为空');
+                $this->response->error('密码不能为空');
             }
             if ($newPassword !== $confirmPassword) {
-                \Response::error('两次输入的新密码不一致');
+                $this->response->error('两次输入的新密码不一致');
             }
             if (mb_strlen($newPassword) < 6) {
-                \Response::error('新密码长度不能少于6位');
+                $this->response->error('新密码长度不能少于6位');
             }
 
             $currentUser = $userModel->findById($userId);
             if ($currentUser === null) {
-                \Response::error('用户不存在');
+                $this->response->error('用户不存在');
             }
 
             $hasher = new \PasswordHash(8, true);
             if (!$hasher->CheckPassword($oldPassword, (string) $currentUser['password'])) {
-                \Response::error('旧密码不正确');
+                $this->response->error('旧密码不正确');
             }
 
             $userModel->updatePassword($userId, $hasher->HashPassword($newPassword));
@@ -71,12 +71,12 @@ final class PasswordController extends BaseAdminController
                 $auth->refreshSession($freshUser);
             }
 
-            $newToken = \Csrf::refresh();
-            \Response::success('密码修改成功', ['csrf_token' => $newToken]);
+            $newToken = $this->csrf->refresh();
+            $this->response->success('密码修改成功', ['csrf_token' => $newToken]);
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 }

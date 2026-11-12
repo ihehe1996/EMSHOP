@@ -13,15 +13,15 @@ final class CouponController extends UserBaseController
     {
         $frontUser = $this->user();
         if (!shop_coupon_enabled()) {
-            if (\Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-                \Response::error('优惠券功能未启用');
+            if ($this->request->isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                $this->response->error('优惠券功能未启用');
             }
             header('Location: /user/home');
             exit;
         }
 
-        $siteName = \Config::get('sitename', 'EMSHOP');
-        $csrfToken = \Csrf::token();
+        $siteName = $this->config->get('sitename', 'EMSHOP');
+        $csrfToken = $this->csrf->token();
         $displayMoney = '0.00';
         if (!empty($frontUser['money'])) {
             $displayMoney = bcdiv((string) $frontUser['money'], '1000000', 2);
@@ -33,7 +33,7 @@ final class CouponController extends UserBaseController
             \UserCouponModel::VIEW_EXPIRED,
             \UserCouponModel::VIEW_INVALID,
         ];
-        $view = (string) \Input::get('view', \UserCouponModel::VIEW_UNUSED);
+        $view = (string) $this->input->get('view', \UserCouponModel::VIEW_UNUSED);
         if (!in_array($view, $allowed, true)) $view = \UserCouponModel::VIEW_UNUSED;
 
         $userCouponModel = new \UserCouponModel();
@@ -47,7 +47,7 @@ final class CouponController extends UserBaseController
             \UserCouponModel::VIEW_INVALID => '已失效',
         ];
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('coupon', get_defined_vars());
             echo '</div>';

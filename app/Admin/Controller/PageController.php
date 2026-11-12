@@ -19,28 +19,28 @@ final class PageController extends BaseAdminController
 {
     public function index(): void
     {
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         // 非 list 操作统一校验 CSRF
         if ($action !== 'list' && $action !== '') {
-            $csrf = (string) \Input::post('csrf_token', '');
+            $csrf = (string) $this->input->post('csrf_token', '');
             if ($csrf === '') {
-                $csrf = (string) \Input::get('csrf_token', '');
+                $csrf = (string) $this->input->get('csrf_token', '');
             }
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
         }
 
         // ========== 列表接口（给 layui table 用）==========
         if ($action === 'list') {
-            $page = (int) \Input::post('page', 1);
-            $limit = (int) \Input::post('limit', 20);
-            $keyword = trim((string) \Input::post('keyword', ''));
-            $statusRaw = (string) \Input::post('status', '');
+            $page = (int) $this->input->post('page', 1);
+            $limit = (int) $this->input->post('limit', 20);
+            $keyword = trim((string) $this->input->post('keyword', ''));
+            $statusRaw = (string) $this->input->post('status', '');
             $status = $statusRaw !== '' ? (int) $statusRaw : null;
 
             // 主站后台只看 merchant_id=0
@@ -65,7 +65,7 @@ final class PageController extends BaseAdminController
                 'msg' => '',
                 'count' => $result['total'],
                 'data' => $result['list'],
-                'csrf_token' => \Csrf::token(),
+                'csrf_token' => $this->csrf->token(),
                 'tab_counts' => [
                     'all' => $countAll,
                     'published' => $countPublished,
@@ -77,85 +77,85 @@ final class PageController extends BaseAdminController
 
         // ========== 设为站点首页（主站作用域）==========
         if ($action === 'set_homepage') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $page = \PageModel::getById($id);
             if (!$page) {
-                \Response::error('页面不存在');
+                $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
-                \Response::error('无权操作商户页面');
+                $this->response->error('无权操作商户页面');
             }
             if (\PageModel::setHomepage($id, 0)) {
-                \Response::success('已设为主站首页', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('已设为主站首页', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('设置失败');
+                $this->response->error('设置失败');
             }
         }
 
         // ========== 取消页面首页（回退到 homepage_mode）==========
         if ($action === 'clear_homepage') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $page = \PageModel::getById($id);
             if (!$page) {
-                \Response::error('页面不存在');
+                $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
-                \Response::error('无权操作商户页面');
+                $this->response->error('无权操作商户页面');
             }
             \PageModel::clearHomepage(0, $id);
-            \Response::success('已取消首页', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('已取消首页', ['csrf_token' => $this->csrf->token()]);
         }
 
         // ========== 切换发布状态 ==========
         if ($action === 'toggle_status') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $page = \PageModel::getById($id);
             if (!$page) {
-                \Response::error('页面不存在');
+                $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
-                \Response::error('无权操作商户页面');
+                $this->response->error('无权操作商户页面');
             }
             $newStatus = (int) $page['status'] ? 0 : 1;
             \PageModel::update($id, ['status' => $newStatus]);
-            \Response::success('状态已更新', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
         }
 
         // ========== 删除 ==========
         if ($action === 'delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $page = \PageModel::getById($id);
             if (!$page) {
-                \Response::error('页面不存在');
+                $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
-                \Response::error('无权操作商户页面');
+                $this->response->error('无权操作商户页面');
             }
             if (\PageModel::delete($id)) {
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // ========== 批量操作 ==========
         if ($action === 'batch') {
-            $batchAction = (string) \Input::post('batch_action', '');
-            $rawIds = \Input::post('ids', null);
+            $batchAction = (string) $this->input->post('batch_action', '');
+            $rawIds = $this->input->post('ids', null);
             $ids = is_array($rawIds)
                 ? array_map('intval', $rawIds)
                 : (json_decode((string) $rawIds, true) ?: []);
             if (empty($ids)) {
-                \Response::error('请选择页面');
+                $this->response->error('请选择页面');
             }
             // 限定本批次只能是主站页面
-            $prefix = \Database::prefix();
-            $allowed = \Database::query(
+            $prefix = $this->db->prefix();
+            $allowed = $this->db->query(
                 "SELECT id FROM {$prefix}page WHERE merchant_id = 0 AND id IN (" . implode(',', array_map('intval', $ids)) . ")"
             );
             $allowedIds = array_map(fn($r) => (int) $r['id'], $allowed);
             if (empty($allowedIds)) {
-                \Response::error('所选页面均无权操作');
+                $this->response->error('所选页面均无权操作');
             }
             $failed = count($ids) - count($allowedIds);
             foreach ($allowedIds as $id) {
@@ -175,9 +175,9 @@ final class PageController extends BaseAdminController
                 }
             }
             if ($failed === 0) {
-                \Response::success('批量操作成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('批量操作成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('批量操作部分失败（' . $failed . '/' . count($ids) . '）');
+                $this->response->error('批量操作部分失败（' . $failed . '/' . count($ids) . '）');
             }
         }
 
@@ -190,7 +190,7 @@ final class PageController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('page');
             echo '</div>';

@@ -23,16 +23,16 @@ final class OrderPollController extends UserPublicBaseController
          *     对当前客户端有权查看的订单重算 paid/delivering 快照 hash（最多 50 个单号）
          */
 
-        if (!\Request::isPost()) {
-            \Response::error('仅支持 POST');
+        if (!$this->request->isPost()) {
+            $this->response->error('仅支持 POST');
         }
 
-        if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-            \Response::error('验证失败，请刷新页面后重试');
+        if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+            $this->response->error('验证失败，请刷新页面后重试');
         }
 
-        $action = trim((string) \Input::post('action', ''));
-        $prefix = \Database::prefix();
+        $action = trim((string) $this->input->post('action', ''));
+        $prefix = $this->db->prefix();
 
         /**
          * 是否与单条订单轮询接口相同的「可查看」判定（登录本人 / 同 guest_token / 查单白名单）。
@@ -57,7 +57,7 @@ final class OrderPollController extends UserPublicBaseController
         };
 
         if ($action === 'find_pending_snapshot') {
-            $raw = \Input::post('order_nos', '');
+            $raw = $this->input->post('order_nos', '');
             $list = [];
             if (is_array($raw)) {
                 $list = $raw;
@@ -89,15 +89,15 @@ final class OrderPollController extends UserPublicBaseController
             }
             sort($pairs);
             $hash = $pairs === [] ? 'empty' : md5(implode("\n", $pairs));
-            \Response::success('', ['hash' => $hash, 'pending_count' => count($pairs)]);
+            $this->response->success('', ['hash' => $hash, 'pending_count' => count($pairs)]);
         }
 
         if ($action === 'pending_snapshot') {
             if (empty($frontUser['id'])) {
-                \Response::error('请先登录');
+                $this->response->error('请先登录');
             }
             $uid = (int) $frontUser['id'];
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT `order_no`, `status` FROM `{$prefix}order`
                  WHERE `user_id` = ? AND `status` IN ('paid','delivering')
                  ORDER BY `id` ASC",
@@ -108,24 +108,24 @@ final class OrderPollController extends UserPublicBaseController
                 $pairs[] = (string) ($r['order_no'] ?? '') . '|' . (string) ($r['status'] ?? '');
             }
             $hash = $pairs === [] ? 'empty' : md5(implode("\n", $pairs));
-            \Response::success('', ['hash' => $hash, 'pending_count' => count($pairs)]);
+            $this->response->success('', ['hash' => $hash, 'pending_count' => count($pairs)]);
         }
 
-        $orderNo = trim((string) \Input::post('order_no', ''));
+        $orderNo = trim((string) $this->input->post('order_no', ''));
         if ($orderNo === '') {
-            \Response::error('缺少订单号');
+            $this->response->error('缺少订单号');
         }
 
         $order = \OrderModel::getByOrderNo($orderNo);
         if (!$order) {
-            \Response::error('订单不存在');
+            $this->response->error('订单不存在');
         }
 
         if (!$orderPollAllowed($order)) {
-            \Response::error('无权查看该订单');
+            $this->response->error('无权查看该订单');
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'status'              => (string) ($order['status'] ?? ''),
             'status_name'         => \OrderModel::statusName((string) ($order['status'] ?? '')),
             'awaiting_delivery'   => in_array((string) ($order['status'] ?? ''), ['paid', 'delivering'], true),

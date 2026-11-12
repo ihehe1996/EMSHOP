@@ -13,7 +13,7 @@ final class CurrencySwitchController extends UserPublicBaseController
     {
         $frontUser = $this->user();
         $code = strtoupper(trim((string) ($_POST['code'] ?? $_GET['code'] ?? '')));
-        $currencyModel = \Currency::getInstance();
+        $currencyModel = $this->currency;
 
         // 校验：必须是已启用的货币；否则清掉 cookie（回退主货币）
         $clear = false;

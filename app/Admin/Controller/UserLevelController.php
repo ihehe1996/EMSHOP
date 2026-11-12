@@ -18,12 +18,12 @@ final class UserLevelController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup();
             return;
         }
@@ -37,62 +37,62 @@ final class UserLevelController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             // list 请求不需要 CSRF 验证
             if ($action !== 'list') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
             switch ($action) {
                 case 'list':
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
                     $model = new \UserLevelModel();
                     $levels = $model->getAll($keyword);
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => array_values($levels),
                         'total' => count($levels),
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'create':
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('等级名称不能为空');
+                        $this->response->error('等级名称不能为空');
                     }
                     if (mb_strlen($name) > 50) {
-                        \Response::error('等级名称最多50个字符');
+                        $this->response->error('等级名称最多50个字符');
                     }
 
-                    $level = (int) \Input::post('level', 0);
+                    $level = (int) $this->input->post('level', 0);
                     if ($level <= 0) {
-                        \Response::error('等级不能为空');
+                        $this->response->error('等级不能为空');
                     }
 
                     $model = new \UserLevelModel();
                     if ($model->existsName($name)) {
-                        \Response::error('等级名称已被占用');
+                        $this->response->error('等级名称已被占用');
                     }
                     if ($model->existsLevel($level)) {
-                        \Response::error('等级数值已被占用');
+                        $this->response->error('等级数值已被占用');
                     }
 
-                    $discount = (float) \Input::post('discount', 9.9);
+                    $discount = (float) $this->input->post('discount', 9.9);
                     if ($discount < 1 || $discount > 10) {
-                        \Response::error('折扣率必须在 1 ~ 10 之间');
+                        $this->response->error('折扣率必须在 1 ~ 10 之间');
                     }
 
-                    $selfOpenPrice = (float) \Input::post('self_open_price', 0.0);
+                    $selfOpenPrice = (float) $this->input->post('self_open_price', 0.0);
                     if ($selfOpenPrice < 0) {
-                        \Response::error('自助开通价格不能为负数');
+                        $this->response->error('自助开通价格不能为负数');
                     }
 
-                    $unlockExp = max(0, (int) \Input::post('unlock_exp', 0));
+                    $unlockExp = max(0, (int) $this->input->post('unlock_exp', 0));
 
                     $model->create([
                         'name' => $name,
@@ -100,56 +100,56 @@ final class UserLevelController extends BaseAdminController
                         'discount' => $discount,
                         'self_open_price' => $selfOpenPrice,
                         'unlock_exp' => $unlockExp,
-                        'remark' => trim((string) \Input::post('remark', '')),
-                        'enabled' => \Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
+                        'remark' => trim((string) $this->input->post('remark', '')),
+                        'enabled' => $this->input->post('enabled', 'y') === 'y' ? 'y' : 'n',
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('等级创建成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('等级创建成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'update':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的等级ID');
+                        $this->response->error('无效的等级ID');
                     }
 
                     $model = new \UserLevelModel();
                     $existing = $model->findById($id);
                     if ($existing === null) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
 
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('等级名称不能为空');
+                        $this->response->error('等级名称不能为空');
                     }
                     if (mb_strlen($name) > 50) {
-                        \Response::error('等级名称最多50个字符');
+                        $this->response->error('等级名称最多50个字符');
                     }
 
-                    $level = (int) \Input::post('level', 0);
+                    $level = (int) $this->input->post('level', 0);
                     if ($level <= 0) {
-                        \Response::error('等级不能为空');
+                        $this->response->error('等级不能为空');
                     }
 
-                    $discount = (float) \Input::post('discount', 9.9);
+                    $discount = (float) $this->input->post('discount', 9.9);
                     if ($discount < 1 || $discount > 10) {
-                        \Response::error('折扣率必须在 1 ~ 10 之间');
+                        $this->response->error('折扣率必须在 1 ~ 10 之间');
                     }
 
-                    $selfOpenPrice = (float) \Input::post('self_open_price', 0.0);
+                    $selfOpenPrice = (float) $this->input->post('self_open_price', 0.0);
                     if ($selfOpenPrice < 0) {
-                        \Response::error('自助开通价格不能为负数');
+                        $this->response->error('自助开通价格不能为负数');
                     }
 
-                    $unlockExp = max(0, (int) \Input::post('unlock_exp', 0));
+                    $unlockExp = max(0, (int) $this->input->post('unlock_exp', 0));
 
                     if ($model->existsName($name, $id)) {
-                        \Response::error('已存在同名等级');
+                        $this->response->error('已存在同名等级');
                     }
                     if ($model->existsLevel($level, $id)) {
-                        \Response::error('已存在同名等级数值');
+                        $this->response->error('已存在同名等级数值');
                     }
 
                     $model->update($id, [
@@ -158,57 +158,57 @@ final class UserLevelController extends BaseAdminController
                         'discount' => $discount,
                         'self_open_price' => $selfOpenPrice,
                         'unlock_exp' => $unlockExp,
-                        'remark' => trim((string) \Input::post('remark', '')),
-                        'enabled' => \Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
+                        'remark' => trim((string) $this->input->post('remark', '')),
+                        'enabled' => $this->input->post('enabled', 'y') === 'y' ? 'y' : 'n',
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('等级更新成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('等级更新成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的等级ID');
+                        $this->response->error('无效的等级ID');
                     }
 
                     $model = new \UserLevelModel();
                     if ($model->findById($id) === null) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
 
                     $model->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'toggle':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的等级ID');
+                        $this->response->error('无效的等级ID');
                     }
 
                     $model = new \UserLevelModel();
                     $level = $model->findById($id);
                     if ($level === null) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
 
                     $newEnabled = $level['enabled'] === 'y' ? 'n' : 'y';
                     $model->update($id, ['enabled' => $newEnabled]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('状态已更新', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('状态已更新', ['csrf_token' => $csrfToken]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -217,7 +217,7 @@ final class UserLevelController extends BaseAdminController
      */
     private function renderPopup(): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editLevel = null;
 
         if ($editId > 0) {
@@ -235,7 +235,7 @@ final class UserLevelController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('user_level');
             echo '</div>';

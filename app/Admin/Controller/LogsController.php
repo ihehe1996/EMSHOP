@@ -14,7 +14,7 @@ final class LogsController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('logs');
             echo '</div>';

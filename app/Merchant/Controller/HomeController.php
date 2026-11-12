@@ -14,10 +14,10 @@ final class HomeController extends MerchantBaseController
         $merchant = $this->merchant();
         $user = $this->user();
         $merchantId = (int) $merchant['id'];
-        $orderTable = \Database::prefix() . 'order';
+        $orderTable = $this->db->prefix() . 'order';
 
         // 所有订单总数（不含退款）
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $orderTable . '`
               WHERE `merchant_id` = ? AND `status` <> \'refunded\'',
             [$merchantId]
@@ -26,7 +26,7 @@ final class HomeController extends MerchantBaseController
 
         // 本月订单
         $monthStart = date('Y-m-01 00:00:00');
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $orderTable . '`
               WHERE `merchant_id` = ? AND `created_at` >= ? AND `status` <> \'refunded\'',
             [$merchantId, $monthStart]
@@ -34,7 +34,7 @@ final class HomeController extends MerchantBaseController
         $orderThisMonth = (int) ($row['c'] ?? 0);
 
         // 待处理（已付款 + 未发货）
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $orderTable . '`
               WHERE `merchant_id` = ? AND `status` IN (\'paid\')',
             [$merchantId]
@@ -42,7 +42,7 @@ final class HomeController extends MerchantBaseController
         $orderPending = (int) ($row['c'] ?? 0);
 
         // 本月已完成销售额（pay_amount 合计 ×1000000）
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COALESCE(SUM(`pay_amount`), 0) AS s FROM `' . $orderTable . '`
               WHERE `merchant_id` = ? AND `status` = \'completed\' AND `complete_time` >= ?',
             [$merchantId, $monthStart]
@@ -50,20 +50,20 @@ final class HomeController extends MerchantBaseController
         $salesThisMonth = bcdiv((string) ((int) ($row['s'] ?? 0)), '1000000', 2);
 
         // 本店在售的主站商品数：默认全部上架，减去商户显式下架的数量
-        $refTable = \Database::prefix() . 'goods_merchant_ref';
-        $goodsTable = \Database::prefix() . 'goods';
-        $rowTotal = \Database::fetchOne(
+        $refTable = $this->db->prefix() . 'goods_merchant_ref';
+        $goodsTable = $this->db->prefix() . 'goods';
+        $rowTotal = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $goodsTable . '`
              WHERE `owner_id` = 0 AND `status` = 1 AND `deleted_at` IS NULL'
         );
-        $rowOff = \Database::fetchOne(
+        $rowOff = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $refTable . '` WHERE `merchant_id` = ? AND `is_on_sale` = 0',
             [$merchantId]
         );
         $referencedGoods = (int) ($rowTotal['c'] ?? 0) - (int) ($rowOff['c'] ?? 0);
 
         // 自建商品数（我的 owner_id）
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $goodsTable . '` WHERE `owner_id` = ? AND `status` = 1',
             [(int) $user['id']]
         );
@@ -71,7 +71,7 @@ final class HomeController extends MerchantBaseController
 
         // 域名绑定状态：用于首页通知条
         $domainAlerts = [];
-        $mainDomain = (string) (\Config::get('main_domain') ?? '');
+        $mainDomain = (string) ($this->config->get('main_domain') ?? '');
         $subdomain = (string) ($merchant['subdomain'] ?? '');
         if ($subdomain !== '' && $mainDomain === '') {
             $domainAlerts[] = ['type' => 'warning', 'msg' => '您已绑定二级域名 ' . $subdomain . '，但主站尚未配置根域名 —— 该域名暂不生效，请联系主站管理员配置'];
@@ -87,7 +87,7 @@ final class HomeController extends MerchantBaseController
             'domainAlerts'    => $domainAlerts,
         ];
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="merchantContent" class="mc-content">';
             $this->render('home', $vars + [
                 'frontUser'       => $user,
@@ -119,10 +119,10 @@ final class HomeController extends MerchantBaseController
         $raw = (int) ($user['shop_balance'] ?? 0);
 
         return [
-            'siteName'       => (string) (\Config::get('sitename') ?? 'EMSHOP'),
-            'currencySymbol' => \Currency::visitorSymbol(),
-            'displayMoney'   => \Currency::displayAmount((int) ($user['money'] ?? 0)),
-            'shopBalance'    => \Currency::displayAmount($raw),
+            'siteName'       => (string) ($this->config->get('sitename') ?? 'EMSHOP'),
+            'currencySymbol' => $this->currency->visitorSymbol(),
+            'displayMoney'   => $this->currency->displayAmount((int) ($user['money'] ?? 0)),
+            'shopBalance'    => $this->currency->displayAmount($raw),
             'shopBalanceRaw' => $raw,
         ];
     }

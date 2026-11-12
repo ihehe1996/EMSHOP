@@ -10,13 +10,15 @@ namespace App\User\Controller;
  * 对应原 user/global_public.php：游客可访问订单详情 / 查单 / 货币切换 / 轮询接口，
  * 已登录时刷新当前用户资料。
  */
-abstract class UserPublicBaseController
+abstract class UserPublicBaseController extends \App\Core\AbstractController
 {
     /** @var array<string, mixed>|null */
     private $frontUser;
 
     public function __construct()
     {
+        parent::__construct();
+
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }

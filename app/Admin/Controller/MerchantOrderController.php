@@ -21,7 +21,7 @@ final class MerchantOrderController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -35,20 +35,20 @@ final class MerchantOrderController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
-            $prefix = \Database::prefix();
+            $action = (string) $this->input->post('_action', '');
+            $prefix = $this->db->prefix();
 
             // 列表
             if ($action === 'list') {
-                $page = max(1, (int) \Input::post('page', 1));
-                $limit = (int) \Input::post('limit', 15);
+                $page = max(1, (int) $this->input->post('page', 1));
+                $limit = (int) $this->input->post('limit', 15);
                 if ($limit < 1 || $limit > 100) {
                     $limit = 15;
                 }
 
-                $keyword = trim((string) \Input::post('keyword', ''));
-                $status = trim((string) \Input::post('status', ''));
-                $merchantId = (int) \Input::post('merchant_id', 0);
+                $keyword = trim((string) $this->input->post('keyword', ''));
+                $status = trim((string) $this->input->post('status', ''));
+                $merchantId = (int) $this->input->post('merchant_id', 0);
 
                 // 强制 merchant_id > 0（这是分站订单页的核心约束）
                 $where = 'o.merchant_id > 0';
@@ -74,7 +74,7 @@ final class MerchantOrderController extends BaseAdminController
                     $params[] = $kw; $params[] = $kw; $params[] = $kw; $params[] = $kw; $params[] = $kw;
                 }
 
-                $countRow = \Database::fetchOne(
+                $countRow = $this->db->fetchOne(
                     "SELECT COUNT(*) AS cnt
                        FROM {$prefix}order o
                        LEFT JOIN {$prefix}user u ON o.user_id = u.id
@@ -85,7 +85,7 @@ final class MerchantOrderController extends BaseAdminController
                 $total = (int) ($countRow['cnt'] ?? 0);
 
                 $offset = ($page - 1) * $limit;
-                $rows = \Database::query(
+                $rows = $this->db->query(
                     "SELECT o.*,
                             u.username, u.nickname, u.avatar,
                             m.name AS merchant_name
@@ -126,7 +126,7 @@ final class MerchantOrderController extends BaseAdminController
                 if ($rows) {
                     $orderIds = array_map(static fn($r) => (int) $r['id'], $rows);
                     $ph = implode(',', array_fill(0, count($orderIds), '?'));
-                    $goodsRows = \Database::query(
+                    $goodsRows = $this->db->query(
                         "SELECT order_id, goods_title, spec_name, quantity, cover_image
                            FROM {$prefix}order_goods
                           WHERE order_id IN ({$ph})
@@ -151,7 +151,7 @@ final class MerchantOrderController extends BaseAdminController
                 }
 
                 // 顺手算分桶（chips 上的徽章数字）—— 仅 merchant_id>0
-                $countRows = \Database::query(
+                $countRows = $this->db->query(
                     "SELECT status, COUNT(*) AS cnt FROM {$prefix}order WHERE merchant_id > 0 GROUP BY status"
                 );
                 $statusCounts = ['all' => 0];
@@ -162,11 +162,11 @@ final class MerchantOrderController extends BaseAdminController
                     $statusCounts[$s] = $c;
                 }
 
-                \Response::success('', [
+                $this->response->success('', [
                     'data'          => array_values($rows),
                     'total'         => $total,
                     'status_counts' => $statusCounts,
-                    'csrf_token'    => \Csrf::token(),
+                    'csrf_token'    => $this->csrf->token(),
                 ]);
             }
 
@@ -180,19 +180,19 @@ final class MerchantOrderController extends BaseAdminController
                 $paidStatuses = ['paid', 'delivering', 'delivered', 'completed'];
                 $ph = implode(',', array_fill(0, count($paidStatuses), '?'));
 
-                $todayRow = \Database::fetchOne(
+                $todayRow = $this->db->fetchOne(
                     "SELECT COUNT(*) AS cnt, COALESCE(SUM(pay_amount), 0) AS amt
                        FROM {$prefix}order
                       WHERE merchant_id > 0 AND status IN ({$ph}) AND DATE(pay_time) = ?",
                     array_merge($paidStatuses, [$today])
                 );
-                $monthRow = \Database::fetchOne(
+                $monthRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(pay_amount), 0) AS amt
                        FROM {$prefix}order
                       WHERE merchant_id > 0 AND status IN ({$ph}) AND pay_time >= ?",
                     array_merge($paidStatuses, [$monthStart])
                 );
-                $totalRow = \Database::fetchOne(
+                $totalRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(pay_amount), 0) AS amt
                        FROM {$prefix}order
                       WHERE merchant_id > 0 AND status IN ({$ph})",
@@ -201,7 +201,7 @@ final class MerchantOrderController extends BaseAdminController
 
                 $fmt = static fn(int $v): string => bcdiv((string) $v, '1000000', 2);
 
-                \Response::success('', ['data' => [
+                $this->response->success('', ['data' => [
                     'today_count'  => (int) ($todayRow['cnt'] ?? 0),
                     'today_amount' => $fmt((int) ($todayRow['amt'] ?? 0)),
                     'month_amount' => $fmt((int) ($monthRow['amt'] ?? 0)),
@@ -211,18 +211,18 @@ final class MerchantOrderController extends BaseAdminController
 
             // 筛选下拉用：所有"有订单的"商户列表
             if ($action === 'merchants') {
-                $rows = \Database::query(
+                $rows = $this->db->query(
                     "SELECT m.id, m.name
                        FROM {$prefix}merchant m
                       WHERE EXISTS (SELECT 1 FROM {$prefix}order o WHERE o.merchant_id = m.id LIMIT 1)
                       ORDER BY m.id ASC"
                 );
-                \Response::success('', ['data' => $rows]);
+                $this->response->success('', ['data' => $rows]);
             }
 
-            \Response::error('未知操作');
+            $this->response->error('未知操作');
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙：' . $e->getMessage());
+            $this->response->error('系统繁忙：' . $e->getMessage());
         }
     }
 
@@ -231,7 +231,7 @@ final class MerchantOrderController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('merchant_order');
             echo '</div>';

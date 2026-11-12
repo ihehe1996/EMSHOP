@@ -18,12 +18,12 @@ final class FriendLinkController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup();
             return;
         }
@@ -37,13 +37,13 @@ final class FriendLinkController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             // list 请求不需要 CSRF 验证
             if ($action !== 'list') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
@@ -51,188 +51,188 @@ final class FriendLinkController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
                     $links = $model->getAllForAdmin($keyword ?: null);
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => array_values($links),
                         'total' => count($links),
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'create':
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('链接名称不能为空');
+                        $this->response->error('链接名称不能为空');
                     }
                     if (mb_strlen($name) > 100) {
-                        \Response::error('链接名称最多100个字符');
+                        $this->response->error('链接名称最多100个字符');
                     }
 
-                    $url = trim((string) \Input::post('url', ''));
+                    $url = trim((string) $this->input->post('url', ''));
                     if ($url === '') {
-                        \Response::error('链接地址不能为空');
+                        $this->response->error('链接地址不能为空');
                     }
                     if (mb_strlen($url) > 500) {
-                        \Response::error('链接地址最多500个字符');
+                        $this->response->error('链接地址最多500个字符');
                     }
 
                     // 简单 URL 格式校验
                     if (!preg_match('/^https?:\/\//i', $url)) {
-                        \Response::error('链接地址必须以 http:// 或 https:// 开头');
+                        $this->response->error('链接地址必须以 http:// 或 https:// 开头');
                     }
 
-                    $expireTime = trim((string) \Input::post('expire_time', ''));
+                    $expireTime = trim((string) $this->input->post('expire_time', ''));
                     $expireTimeFormatted = null;
                     if ($expireTime !== '') {
                         $ts = strtotime($expireTime);
                         if ($ts === false) {
-                            \Response::error('过期时间格式不正确');
+                            $this->response->error('过期时间格式不正确');
                         }
                         $expireTimeFormatted = date('Y-m-d H:i:s', $ts);
                     }
 
-                    $sort = (int) \Input::post('sort', 0);
+                    $sort = (int) $this->input->post('sort', 0);
 
                     $model->create([
                         'name' => $name,
                         'url' => $url,
-                        'image' => trim((string) \Input::post('image', '')),
-                        'enabled' => \Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
+                        'image' => trim((string) $this->input->post('image', '')),
+                        'enabled' => $this->input->post('enabled', 'y') === 'y' ? 'y' : 'n',
                         'expire_time' => $expireTimeFormatted,
-                        'description' => trim((string) \Input::post('description', '')),
+                        'description' => trim((string) $this->input->post('description', '')),
                         'sort' => $sort,
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('友链创建成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('友链创建成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'update':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的友链ID');
+                        $this->response->error('无效的友链ID');
                     }
 
                     $existing = $model->findById($id);
                     if ($existing === null) {
-                        \Response::error('友链不存在');
+                        $this->response->error('友链不存在');
                     }
 
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '') {
-                        \Response::error('链接名称不能为空');
+                        $this->response->error('链接名称不能为空');
                     }
                     if (mb_strlen($name) > 100) {
-                        \Response::error('链接名称最多100个字符');
+                        $this->response->error('链接名称最多100个字符');
                     }
 
-                    $url = trim((string) \Input::post('url', ''));
+                    $url = trim((string) $this->input->post('url', ''));
                     if ($url === '') {
-                        \Response::error('链接地址不能为空');
+                        $this->response->error('链接地址不能为空');
                     }
                     if (mb_strlen($url) > 500) {
-                        \Response::error('链接地址最多500个字符');
+                        $this->response->error('链接地址最多500个字符');
                     }
                     if (!preg_match('/^https?:\/\//i', $url)) {
-                        \Response::error('链接地址必须以 http:// 或 https:// 开头');
+                        $this->response->error('链接地址必须以 http:// 或 https:// 开头');
                     }
 
-                    $expireTime = trim((string) \Input::post('expire_time', ''));
+                    $expireTime = trim((string) $this->input->post('expire_time', ''));
                     $expireTimeFormatted = null;
                     if ($expireTime !== '') {
                         $ts = strtotime($expireTime);
                         if ($ts === false) {
-                            \Response::error('过期时间格式不正确');
+                            $this->response->error('过期时间格式不正确');
                         }
                         $expireTimeFormatted = date('Y-m-d H:i:s', $ts);
                     }
 
-                    $sort = (int) \Input::post('sort', 0);
+                    $sort = (int) $this->input->post('sort', 0);
 
                     $model->update($id, [
                         'name' => $name,
                         'url' => $url,
-                        'image' => trim((string) \Input::post('image', '')),
-                        'enabled' => \Input::post('enabled', 'y') === 'y' ? 'y' : 'n',
+                        'image' => trim((string) $this->input->post('image', '')),
+                        'enabled' => $this->input->post('enabled', 'y') === 'y' ? 'y' : 'n',
                         'expire_time' => $expireTimeFormatted,
-                        'description' => trim((string) \Input::post('description', '')),
+                        'description' => trim((string) $this->input->post('description', '')),
                         'sort' => $sort,
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('友链更新成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('友链更新成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的友链ID');
+                        $this->response->error('无效的友链ID');
                     }
 
                     if ($model->findById($id) === null) {
-                        \Response::error('友链不存在');
+                        $this->response->error('友链不存在');
                     }
 
                     $model->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'toggle':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的友链ID');
+                        $this->response->error('无效的友链ID');
                     }
 
                     if ($model->findById($id) === null) {
-                        \Response::error('友链不存在');
+                        $this->response->error('友链不存在');
                     }
 
                     $model->toggle($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('状态已更新', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('状态已更新', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'batchDelete':
-                    $idsRaw = \Input::post('ids', '');
+                    $idsRaw = $this->input->post('ids', '');
                     if ($idsRaw === '') {
-                        \Response::error('请选择要删除的友链');
+                        $this->response->error('请选择要删除的友链');
                     }
                     $ids = array_filter(array_map('intval', explode(',', $idsRaw)));
                     if ($ids === []) {
-                        \Response::error('无效的友链ID');
+                        $this->response->error('无效的友链ID');
                     }
 
                     $deleted = $model->batchDelete($ids);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('已删除 ' . $deleted . ' 条友链', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('已删除 ' . $deleted . ' 条友链', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'image':
                     if (empty($_FILES['file'])) {
-                        \Response::error('请选择图片文件');
+                        $this->response->error('请选择图片文件');
                     }
                     $uploader = new \UploadService();
                     $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'friend_link');
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('上传成功', [
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('上传成功', [
                         'csrf_token' => $csrfToken,
                         'url' => $result['url'],
                     ]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -241,7 +241,7 @@ final class FriendLinkController extends BaseAdminController
      */
     private function renderPopup(): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editLink = null;
 
         if ($editId > 0) {
@@ -259,7 +259,7 @@ final class FriendLinkController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('friend_link');
             echo '</div>';

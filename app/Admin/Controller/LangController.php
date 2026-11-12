@@ -18,12 +18,12 @@ final class LangController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup();
             return;
         }
@@ -37,12 +37,12 @@ final class LangController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             if ($action !== 'list' && $action !== 'languages') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
@@ -51,20 +51,20 @@ final class LangController extends BaseAdminController
                     // 获取所有启用的语言
                     $model = new \LanguageModel();
                     $languages = $model->getEnabled();
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => $languages,
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'list':
                     $langModel = new \LangModel();
-                    $langId = (int) \Input::post('langId', 0);
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $langId = (int) $this->input->post('langId', 0);
+                    $keyword = trim((string) $this->input->post('keyword', ''));
 
                     // 分页参数
-                    $page = max(1, (int) \Input::post('page', 1));
-                    $limit = max(1, min(100, (int) \Input::post('limit', 10)));
+                    $page = max(1, (int) $this->input->post('page', 1));
+                    $limit = max(1, min(100, (int) $this->input->post('limit', 10)));
                     $offset = ($page - 1) * $limit;
 
                     // 获取总数
@@ -78,24 +78,24 @@ final class LangController extends BaseAdminController
                         $limit
                     );
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => $translations,
                         'total' => $total,
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'batchCreate':
                     // 批量创建/更新翻译（一个translate对应所有语言的content）
-                    $translate = trim((string) \Input::post('translate', ''));
+                    $translate = trim((string) $this->input->post('translate', ''));
                     if ($translate === '') {
-                        \Response::error('翻译语句不能为空');
+                        $this->response->error('翻译语句不能为空');
                     }
                     if (mb_strlen($translate) > 200) {
-                        \Response::error('翻译语句最多200个字符');
+                        $this->response->error('翻译语句最多200个字符');
                     }
 
-                    $translations = \Input::post('translations', []);
+                    $translations = $this->input->post('translations', []);
                     if (!is_array($translations)) {
                         $translations = [];
                     }
@@ -128,34 +128,34 @@ final class LangController extends BaseAdminController
                         }
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('批量创建成功，已处理 ' . $count . ' 条记录', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('批量创建成功，已处理 ' . $count . ' 条记录', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'update':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的翻译ID');
+                        $this->response->error('无效的翻译ID');
                     }
 
                     $langModel = new \LangModel();
                     $existing = $langModel->findById($id);
                     if ($existing === null) {
-                        \Response::error('翻译不存在');
+                        $this->response->error('翻译不存在');
                     }
 
-                    $translate = trim((string) \Input::post('translate', ''));
+                    $translate = trim((string) $this->input->post('translate', ''));
                     if ($translate === '') {
-                        \Response::error('翻译语句不能为空');
+                        $this->response->error('翻译语句不能为空');
                     }
                     if (mb_strlen($translate) > 200) {
-                        \Response::error('翻译语句最多200个字符');
+                        $this->response->error('翻译语句最多200个字符');
                     }
 
-                    $content = (string) \Input::post('content', '');
+                    $content = (string) $this->input->post('content', '');
 
                     if ($langModel->existsLangIdAndTranslate($existing['lang_id'], $translate, $id)) {
-                        \Response::error('该翻译已存在');
+                        $this->response->error('该翻译已存在');
                     }
 
                     $langModel->update($id, [
@@ -163,30 +163,30 @@ final class LangController extends BaseAdminController
                         'content' => $content,
                     ]);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('翻译更新成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('翻译更新成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的翻译ID');
+                        $this->response->error('无效的翻译ID');
                     }
 
                     $langModel = new \LangModel();
                     if ($langModel->findById($id) === null) {
-                        \Response::error('翻译不存在');
+                        $this->response->error('翻译不存在');
                     }
 
                     $langModel->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'batchSave':
                     // 批量保存翻译
-                    $pairs = \Input::post('pairs', []);
+                    $pairs = $this->input->post('pairs', []);
                     if (!is_array($pairs)) {
                         $pairs = [];
                     }
@@ -206,15 +206,15 @@ final class LangController extends BaseAdminController
                         $count++;
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('批量保存成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('批量保存成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'batchDelete':
                     // 批量删除翻译
-                    $ids = \Input::post('ids', []);
+                    $ids = $this->input->post('ids', []);
                     if (!is_array($ids) || empty($ids)) {
-                        \Response::error('请选择要删除的翻译');
+                        $this->response->error('请选择要删除的翻译');
                     }
 
                     $langModel = new \LangModel();
@@ -233,20 +233,20 @@ final class LangController extends BaseAdminController
                     }
 
                     if ($count === 0) {
-                        \Response::error('没有可删除的翻译');
+                        $this->response->error('没有可删除的翻译');
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('成功删除 ' . $count . ' 条翻译', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('成功删除 ' . $count . ' 条翻译', ['csrf_token' => $csrfToken]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -255,7 +255,7 @@ final class LangController extends BaseAdminController
      */
     private function renderPopup(): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editLang = null;
         $editLangName = null;
 
@@ -284,7 +284,7 @@ final class LangController extends BaseAdminController
     {
         $languages = (new \LanguageModel())->getEnabled();
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('lang', ['languages' => $languages]);
             echo '</div>';

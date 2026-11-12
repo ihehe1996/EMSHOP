@@ -26,15 +26,15 @@ final class TemplateController extends BaseAdminController
     {
         $model = new \TemplateModel();
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost($model);
             return;
         }
 
-        $isPopup = (string) \Input::get('_popup', '') === '1';
+        $isPopup = (string) $this->input->get('_popup', '') === '1';
 
         // AJAX 列表（GET）：扫磁盘 + 左联 DB 状态，并问一次中心"哪些有新版本"
-        if (!$isPopup && (string) \Input::get('_action', '') === 'list') {
+        if (!$isPopup && (string) $this->input->get('_action', '') === 'list') {
             $this->outputList($model);
             return;
         }
@@ -53,14 +53,14 @@ final class TemplateController extends BaseAdminController
     private function handlePost(\TemplateModel $model): void
     {
         try {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效,请刷新页面后重试');
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效,请刷新页面后重试');
             }
-            $action = (string) \Input::post('_action', '');
-            $name = $this->validateName((string) \Input::post('name', ''));
+            $action = (string) $this->input->post('_action', '');
+            $name = $this->validateName((string) $this->input->post('name', ''));
 
             if (!$model->existsOnDisk($name)) {
-                \Response::error('磁盘上未找到该模板');
+                $this->response->error('磁盘上未找到该模板');
             }
 
             $scope = self::SCOPE;
@@ -73,13 +73,13 @@ final class TemplateController extends BaseAdminController
 
                     if ($model->isActive($name, $client, $scope)) {
                         $model->clearActiveTheme($client, $scope);
-                        \Response::success($client === 'pc' ? '已取消PC端模板' : '已取消手机端模板',
-                            ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success($client === 'pc' ? '已取消PC端模板' : '已取消手机端模板',
+                            ['csrf_token' => $this->csrf->refresh()]);
                     }
 
                     $model->setActiveTheme($client, $name, $scope);
-                    \Response::success($client === 'pc' ? 'PC端模板已切换' : '手机端模板已切换',
-                        ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success($client === 'pc' ? 'PC端模板已切换' : '手机端模板已切换',
+                        ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
@@ -98,7 +98,7 @@ final class TemplateController extends BaseAdminController
                             return;
                         }
                     }
-                    \Response::error('该模板未提供配置保存逻辑');
+                    $this->response->error('该模板未提供配置保存逻辑');
                     break;
                 }
 
@@ -106,7 +106,7 @@ final class TemplateController extends BaseAdminController
                 // 当前启用中（PC 或 Mobile）的模板必须先切到别的再卸载
                 case 'uninstall': {
                     if ($model->isActive($name, 'pc', $scope) || $model->isActive($name, 'mobile', $scope)) {
-                        \Response::error('当前启用中的模板不允许卸载,请先切换到其它模板');
+                        $this->response->error('当前启用中的模板不允许卸载,请先切换到其它模板');
                     }
 
                     // 触发模板 callback_rm 清理它自己的私有数据（建表/资源等）
@@ -118,17 +118,17 @@ final class TemplateController extends BaseAdminController
                     if (is_dir($dir)) {
                         $this->deleteDirSafe($dir, EM_ROOT . '/content/template');
                     }
-                    \Response::success('模板已卸载', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('模板已卸载', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙,请稍后再试');
+            $this->response->error('系统繁忙,请稍后再试');
         }
     }
 
@@ -186,7 +186,7 @@ final class TemplateController extends BaseAdminController
             'msg'            => '',
             'count'          => count($data),
             'data'           => $data,
-            'csrf_token'     => \Csrf::token(),
+            'csrf_token'     => $this->csrf->token(),
         ], JSON_UNESCAPED_UNICODE);
         return;
     }
@@ -196,7 +196,7 @@ final class TemplateController extends BaseAdminController
      */
     private function renderPopup(\TemplateModel $model): void
     {
-        $name = $this->validateName((string) \Input::get('name', ''));
+        $name = $this->validateName((string) $this->input->get('name', ''));
         if (!$model->existsOnDisk($name)) {
             exit('磁盘上未找到该模板');
         }
@@ -205,7 +205,7 @@ final class TemplateController extends BaseAdminController
             exit('该模板暂无设置页面');
         }
 
-        $csrfToken = \Csrf::token();
+        $csrfToken = $this->csrf->token();
         $scanned = $model->scanTemplates();
         $titleStr = (string) ($scanned[$name]['title'] ?? $name);
         $pageTitle = '模板设置：' . htmlspecialchars($titleStr, ENT_QUOTES, 'UTF-8');
@@ -235,7 +235,7 @@ final class TemplateController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('template');
             echo '</div>';

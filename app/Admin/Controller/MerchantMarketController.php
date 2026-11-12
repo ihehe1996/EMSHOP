@@ -20,23 +20,23 @@ final class MerchantMarketController extends BaseAdminController
         $marketModel = new \AppMarketModel();
         $purchaseModel = new \AppPurchaseModel();
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_action', '') === 'list') {
+        if ((string) $this->input->get('_action', '') === 'list') {
             $this->outputList($marketModel, $purchaseModel);
             return;
         }
 
-        if ((string) \Input::get('_action', '') === 'logs') {
-            $marketId = (int) \Input::get('market_id', 0);
+        if ((string) $this->input->get('_action', '') === 'logs') {
+            $marketId = (int) $this->input->get('market_id', 0);
             if ($marketId <= 0) {
-                \Response::error('market_id 非法');
+                $this->response->error('market_id 非法');
             }
             $logs = $marketModel->logsByMarket($marketId, 100);
-            \Response::success('', ['list' => $logs]);
+            $this->response->success('', ['list' => $logs]);
         }
 
         $this->renderList();
@@ -48,21 +48,21 @@ final class MerchantMarketController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效,请刷新页面后重试');
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效,请刷新页面后重试');
             }
 
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             switch ($action) {
                 // 改分站售价
                 case 'set_retail_price': {
-                    $marketId = (int) \Input::post('market_id', 0);
+                    $marketId = (int) $this->input->post('market_id', 0);
                     // 售价单位是微分（×1,000,000），前端以"元"输入，这里乘转换
-                    if (\Input::post('retail_price_micro', null) !== null) {
-                        $price = max(0, (int) \Input::post('retail_price_micro', 0));
+                    if ($this->input->post('retail_price_micro', null) !== null) {
+                        $price = max(0, (int) $this->input->post('retail_price_micro', 0));
                     } else {
-                        $yuan = (string) \Input::post('retail_price', '0');
+                        $yuan = (string) $this->input->post('retail_price', '0');
                         $price = (int) round(((float) $yuan) * 1000000);
                         if ($price < 0) {
                             $price = 0;
@@ -70,42 +70,42 @@ final class MerchantMarketController extends BaseAdminController
                     }
 
                     if ($marketId <= 0) {
-                        \Response::error('market_id 非法');
+                        $this->response->error('market_id 非法');
                     }
 
                     $service = new \MainAppPurchaseService();
                     $ok = $service->updateRetailPrice($marketId, $price);
                     if (!$ok) {
-                        \Response::error('价格未改动或目标不存在');
+                        $this->response->error('价格未改动或目标不存在');
                     }
-                    \Response::success('售价已更新', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('售价已更新', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
                 // 上下架
                 case 'toggle_list': {
-                    $marketId = (int) \Input::post('market_id', 0);
-                    $listed = (int) \Input::post('is_listed', 0) === 1;
+                    $marketId = (int) $this->input->post('market_id', 0);
+                    $listed = (int) $this->input->post('is_listed', 0) === 1;
                     if ($marketId <= 0) {
-                        \Response::error('market_id 非法');
+                        $this->response->error('market_id 非法');
                     }
 
                     $service = new \MainAppPurchaseService();
                     $ok = $service->setListed($marketId, $listed);
                     if (!$ok) {
-                        \Response::error('状态未改动或目标不存在');
+                        $this->response->error('状态未改动或目标不存在');
                     }
-                    \Response::success($listed ? '已上架' : '已下架', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success($listed ? '已上架' : '已下架', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙,请稍后再试');
+            $this->response->error('系统繁忙,请稍后再试');
         }
     }
 
@@ -117,11 +117,11 @@ final class MerchantMarketController extends BaseAdminController
         header('Content-Type: application/json; charset=utf-8');
 
         $filter = [
-            'type'      => (string) \Input::get('type', ''),
-            'is_listed' => (string) \Input::get('is_listed', ''),
-            'keyword'   => (string) \Input::get('keyword', ''),
-            'page'      => max(1, (int) \Input::get('page', 1)),
-            'page_size' => min(100, max(1, (int) \Input::get('limit', 20))),
+            'type'      => (string) $this->input->get('type', ''),
+            'is_listed' => (string) $this->input->get('is_listed', ''),
+            'keyword'   => (string) $this->input->get('keyword', ''),
+            'page'      => max(1, (int) $this->input->get('page', 1)),
+            'page_size' => min(100, max(1, (int) $this->input->get('limit', 20))),
         ];
         $result = $marketModel->paginate($filter);
 
@@ -142,7 +142,7 @@ final class MerchantMarketController extends BaseAdminController
             'msg'        => '',
             'count'      => $result['total'],
             'data'       => $data,
-            'csrf_token' => \Csrf::token(),
+            'csrf_token' => $this->csrf->token(),
         ], JSON_UNESCAPED_UNICODE);
         return;
     }
@@ -152,7 +152,7 @@ final class MerchantMarketController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('merchant_market');
             echo '</div>';

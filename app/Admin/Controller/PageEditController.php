@@ -14,9 +14,9 @@ final class PageEditController extends BaseAdminController
 {
     public function index(): void
     {
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         if ($action === 'save') {
@@ -24,13 +24,13 @@ final class PageEditController extends BaseAdminController
             return;
         }
 
-        $id = (int) \Input::get('id', 0);
+        $id = (int) $this->input->get('id', 0);
         $pageRow = $id ? \PageModel::getById($id) : null;
         if ($pageRow && (int) $pageRow['merchant_id'] !== 0) {
             $pageRow = null; // 主站后台不展示商户页面
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->render('popup/page_edit', ['pageRow' => $pageRow]);
         }
     }
@@ -40,25 +40,25 @@ final class PageEditController extends BaseAdminController
      */
     private function handleSave(): void
     {
-        $csrf = (string) \Input::post('csrf_token', '');
-        if (!\Csrf::validate($csrf)) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        $csrf = (string) $this->input->post('csrf_token', '');
+        if (!$this->csrf->validate($csrf)) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        $id = (int) \Input::post('id', 0);
-        $title = trim((string) \Input::post('title', ''));
-        $slug = trim((string) \Input::post('slug', ''));
-        $content = (string) \Input::post('content', '');
-        $status = (int) \Input::post('status', 1);
-        $templateName = trim((string) \Input::post('template_name', ''));
-        $sort = (int) \Input::post('sort', 100);
-        $seoTitle = trim((string) \Input::post('seo_title', ''));
-        $seoKeywords = trim((string) \Input::post('seo_keywords', ''));
-        $seoDescription = trim((string) \Input::post('seo_description', ''));
+        $id = (int) $this->input->post('id', 0);
+        $title = trim((string) $this->input->post('title', ''));
+        $slug = trim((string) $this->input->post('slug', ''));
+        $content = (string) $this->input->post('content', '');
+        $status = (int) $this->input->post('status', 1);
+        $templateName = trim((string) $this->input->post('template_name', ''));
+        $sort = (int) $this->input->post('sort', 100);
+        $seoTitle = trim((string) $this->input->post('seo_title', ''));
+        $seoKeywords = trim((string) $this->input->post('seo_keywords', ''));
+        $seoDescription = trim((string) $this->input->post('seo_description', ''));
 
         // ---------- 校验 ----------
         if ($title === '') {
-            \Response::error('页面标题不能为空');
+            $this->response->error('页面标题不能为空');
         }
         // slug 为空则自动从标题生成（只保留 a-z / 0-9 / 中划线）
         if ($slug === '') {
@@ -71,21 +71,21 @@ final class PageEditController extends BaseAdminController
         } else {
             // slug 只允许字母数字/中划线/下划线
             if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $slug)) {
-                \Response::error('URL 别名只能包含字母、数字、中划线和下划线');
+                $this->response->error('URL 别名只能包含字母、数字、中划线和下划线');
             }
             $slug = strtolower($slug);
         }
         // 保留字黑名单（避免和系统路由冲突）
         $reserved = ['admin', 'user', 'blog', 'goods', 'order', 'login', 'logout', 'api', 'install', 'content', 'p'];
         if (in_array($slug, $reserved, true)) {
-            \Response::error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
+            $this->response->error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
         }
         if (\PageModel::slugExists($slug, $id, 0)) {
-            \Response::error('URL 别名 "' . $slug . '" 已被占用');
+            $this->response->error('URL 别名 "' . $slug . '" 已被占用');
         }
         // template_name 只允许小写字母数字中划线下划线
         if ($templateName !== '' && !preg_match('/^[a-z0-9_\-]+$/', $templateName)) {
-            \Response::error('模板名只能包含小写字母、数字、中划线和下划线');
+            $this->response->error('模板名只能包含小写字母、数字、中划线和下划线');
         }
 
         $data = [
@@ -104,10 +104,10 @@ final class PageEditController extends BaseAdminController
             if ($id) {
                 $existing = \PageModel::getById($id);
                 if (!$existing) {
-                    \Response::error('页面不存在');
+                    $this->response->error('页面不存在');
                 }
                 if ((int) $existing['merchant_id'] !== 0) {
-                    \Response::error('无权操作商户页面');
+                    $this->response->error('无权操作商户页面');
                 }
                 \PageModel::update($id, $data);
                 $pageId = $id;
@@ -116,12 +116,12 @@ final class PageEditController extends BaseAdminController
                 $pageId = \PageModel::create($data);
             }
             if (!$pageId) {
-                \Response::error('保存失败');
+                $this->response->error('保存失败');
             }
         } catch (\Throwable $e) {
-            \Response::error('保存失败：' . $e->getMessage());
+            $this->response->error('保存失败：' . $e->getMessage());
         }
 
-        \Response::success('保存成功', ['id' => $pageId, 'csrf_token' => \Csrf::refresh()]);
+        $this->response->success('保存成功', ['id' => $pageId, 'csrf_token' => $this->csrf->refresh()]);
     }
 }

@@ -13,15 +13,15 @@ final class CacheController extends BaseAdminController
 {
     public function index(): void
     {
-        if (!\Request::isPost()) {
-            \Response::error('请求方式不正确');
+        if (!$this->request->isPost()) {
+            $this->response->error('请求方式不正确');
         }
 
-        if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        \Cache::clear();
-        \Response::success('缓存已清空');
+        $this->cache->clear();
+        $this->response->success('缓存已清空');
     }
 }

@@ -17,8 +17,8 @@ final class RebateController extends UserBaseController
             exit;
         }
 
-        $siteName = \Config::get('sitename', 'EMSHOP');
-        $csrfToken = \Csrf::token();
+        $siteName = $this->config->get('sitename', 'EMSHOP');
+        $csrfToken = $this->csrf->token();
         $displayMoney = '0.00';
         if (!empty($frontUser['money'])) {
             $displayMoney = bcdiv((string) $frontUser['money'], '1000000', 2);
@@ -29,25 +29,25 @@ final class RebateController extends UserBaseController
         (new \CommissionLogModel())->promoteMatured($userId);
 
         // 最新用户数据
-        $row = \Database::find('user', $userId);
+        $row = $this->db->find('user', $userId);
         $frozen = (int) ($row['commission_frozen'] ?? 0);
         $available = (int) ($row['commission_available'] ?? 0);
         $inviteCode = trim((string) ($row['invite_code'] ?? ''));
         if ($inviteCode === '') {
             $inviteCode = \InviteToken::generateUniqueCode();
-            \Database::update('user', ['invite_code' => $inviteCode], $userId);
+            $this->db->update('user', ['invite_code' => $inviteCode], $userId);
         }
 
         // 统计
-        $prefix = \Database::prefix();
-        $directCount = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $directCount = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$prefix}user WHERE inviter_l1 = ?", [$userId]
         );
-        $teamCount = \Database::fetchOne(
+        $teamCount = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$prefix}user WHERE inviter_l1 = ? OR inviter_l2 = ?",
             [$userId, $userId]
         );
-        $totalEarned = \Database::fetchOne(
+        $totalEarned = $this->db->fetchOne(
             "SELECT COALESCE(SUM(amount), 0) AS total FROM {$prefix}commission_log
              WHERE user_id = ? AND status IN ('frozen', 'available', 'withdrawn')",
             [$userId]
@@ -62,15 +62,15 @@ final class RebateController extends UserBaseController
         };
         $inviteLink = $buildInviteLink($inviteCode);
         // 佣金按访客当前展示币种渲染（带符号完整字符串）；数据库里都是主货币 BIGINT ×1000000
-        $commissionFrozenDisplay    = \Currency::displayAmount((int) $frozen);
-        $commissionAvailableDisplay = \Currency::displayAmount((int) $available);
-        $totalEarnedDisplay         = \Currency::displayAmount((int) ($totalEarned['total'] ?? 0));
+        $commissionFrozenDisplay    = $this->currency->displayAmount((int) $frozen);
+        $commissionAvailableDisplay = $this->currency->displayAmount((int) $available);
+        $totalEarnedDisplay         = $this->currency->displayAmount((int) ($totalEarned['total'] ?? 0));
         $rebateEnabled              = \RebateService::isEnabled();
         $freezeDays                 = \RebateService::freezeDays();
         $directCountNum             = (int) ($directCount['cnt'] ?? 0);
         $teamCountNum               = (int) ($teamCount['cnt'] ?? 0);
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('rebate', get_defined_vars());
             echo '</div>';

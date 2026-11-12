@@ -18,28 +18,28 @@ final class BlogCommentController extends BaseAdminController
 {
     public function index(): void
     {
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         // 非 list 操作统一校验 CSRF
         if ($action !== 'list' && $action !== '') {
-            $csrf = (string) \Input::post('csrf_token', '');
+            $csrf = (string) $this->input->post('csrf_token', '');
             if ($csrf === '') {
-                $csrf = (string) \Input::get('csrf_token', '');
+                $csrf = (string) $this->input->get('csrf_token', '');
             }
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
         }
 
         // 列表接口（供 layui table 使用）
         if ($action === 'list') {
-            $page = (int) \Input::post('page', 1);
-            $limit = (int) \Input::post('limit', 20);
-            $keyword = trim((string) \Input::post('keyword', ''));
-            $statusRaw = (string) \Input::post('status', '');
+            $page = (int) $this->input->post('page', 1);
+            $limit = (int) $this->input->post('limit', 20);
+            $keyword = trim((string) $this->input->post('keyword', ''));
+            $statusRaw = (string) $this->input->post('status', '');
             $status = $statusRaw !== '' ? (int) $statusRaw : null;
 
             // 主站后台只看主站文章下的评论
@@ -60,7 +60,7 @@ final class BlogCommentController extends BaseAdminController
                 'msg'        => '',
                 'count'      => $result['total'],
                 'data'       => $result['list'],
-                'csrf_token' => \Csrf::token(),
+                'csrf_token' => $this->csrf->token(),
                 'tab_counts' => $counts,
             ], JSON_UNESCAPED_UNICODE);
             exit;
@@ -68,52 +68,52 @@ final class BlogCommentController extends BaseAdminController
 
         // 审核通过
         if ($action === 'approve') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
             \BlogCommentModel::updateStatus($id, 1);
-            \Response::success('已通过', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('已通过', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 拒绝
         if ($action === 'reject') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
             \BlogCommentModel::updateStatus($id, 2);
-            \Response::success('已拒绝', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('已拒绝', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 删除评论（逻辑删除）
         if ($action === 'delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
             if (\BlogCommentModel::delete($id)) {
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // 批量操作
         if ($action === 'batch') {
-            $batchAction = (string) \Input::post('batch_action', '');
-            $rawIds = \Input::post('ids', null);
+            $batchAction = (string) $this->input->post('batch_action', '');
+            $rawIds = $this->input->post('ids', null);
             $ids = is_array($rawIds)
                 ? array_map('intval', $rawIds)
                 : (json_decode((string) $rawIds, true) ?: []);
             if (empty($ids)) {
-                \Response::error('请选择评论');
+                $this->response->error('请选择评论');
             }
 
             // 限定主站文章下的评论
-            $prefix = \Database::prefix();
-            $allowedRows = \Database::query(
+            $prefix = $this->db->prefix();
+            $allowedRows = $this->db->query(
                 "SELECT c.id FROM {$prefix}blog_comment c
                  LEFT JOIN {$prefix}blog b ON c.blog_id = b.id
                  WHERE b.merchant_id = 0 AND c.id IN (" . implode(',', array_map('intval', $ids)) . ")"
             );
             $allowedIds = array_map(fn($r) => (int) $r['id'], $allowedRows);
             if (empty($allowedIds)) {
-                \Response::error('所选评论均无权操作');
+                $this->response->error('所选评论均无权操作');
             }
 
             if ($batchAction === 'approve') {
@@ -123,10 +123,10 @@ final class BlogCommentController extends BaseAdminController
             } elseif ($batchAction === 'delete') {
                 \BlogCommentModel::batchDelete($allowedIds);
             } else {
-                \Response::error('未知操作');
+                $this->response->error('未知操作');
             }
 
-            \Response::success('批量操作成功', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('批量操作成功', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 默认：显示列表页面
@@ -138,18 +138,18 @@ final class BlogCommentController extends BaseAdminController
      */
     private function assertMainComment(int $commentId): void
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT c.id, b.merchant_id FROM {$prefix}blog_comment c
              LEFT JOIN {$prefix}blog b ON c.blog_id = b.id
              WHERE c.id = ? LIMIT 1",
             [$commentId]
         );
         if (!$row) {
-            \Response::error('评论不存在');
+            $this->response->error('评论不存在');
         }
         if ((int) $row['merchant_id'] !== 0) {
-            \Response::error('无权操作商户文章下的评论');
+            $this->response->error('无权操作商户文章下的评论');
         }
     }
 
@@ -158,7 +158,7 @@ final class BlogCommentController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('blog_comment');
             echo '</div>';

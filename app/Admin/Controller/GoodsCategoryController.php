@@ -22,12 +22,12 @@ final class GoodsCategoryController extends BaseAdminController
     {
         $model = new \GoodsCategoryModel();
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost($model);
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup($model);
             return;
         }
@@ -40,13 +40,13 @@ final class GoodsCategoryController extends BaseAdminController
      */
     private function handlePost(\GoodsCategoryModel $model): void
     {
-        $action = (string) \Input::get('action', '');
+        $action = (string) $this->input->get('action', '');
         if ($action === '') {
-            $action = (string) \Input::post('action', '');
+            $action = (string) $this->input->post('action', '');
         }
         if ($action === '') {
             // 兼容旧视图：状态切换把 _action 放在 POST body 里
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         try {
@@ -54,12 +54,12 @@ final class GoodsCategoryController extends BaseAdminController
             // 全部需要校验。action 为空是树形表格的**只读查询** —— 前端把令牌放在
             // csrf 自定义请求头里（见视图的 treeTable 配置），
             // Input::post('csrf_token') 取不到，所以必须跳过，否则分类列表直接空白。
-            if ($action !== '' && !\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if ($action !== '' && !$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
 
             if ($action === '') {
-                $keyword = trim((string) \Input::post('keyword', ''));
+                $keyword = trim((string) $this->input->post('keyword', ''));
                 $allCategories = $model->getAll();
 
                 $data = [];
@@ -77,29 +77,29 @@ final class GoodsCategoryController extends BaseAdminController
                     'msg' => '',
                     'data' => array_values($data),
                     'count' => count($data),
-                    'csrf_token' => \Csrf::token(),
+                    'csrf_token' => $this->csrf->token(),
                 ], JSON_UNESCAPED_UNICODE);
                 die;
             }
 
             if ($action === 'add') {
-                $name = trim((string) \Input::post('name', ''));
+                $name = trim((string) $this->input->post('name', ''));
                 if ($name === '') {
-                    \Response::error('分类名称不能为空');
+                    $this->response->error('分类名称不能为空');
                 }
                 if (mb_strlen($name) > 100) {
-                    \Response::error('分类名称最多100个字符');
+                    $this->response->error('分类名称最多100个字符');
                 }
 
-                $parentId = (int) \Input::post('parent_id', 0);
+                $parentId = (int) $this->input->post('parent_id', 0);
 
-                $slug = trim((string) \Input::post('slug', ''));
+                $slug = trim((string) $this->input->post('slug', ''));
                 if ($slug !== '' && $model->existsSlug($slug)) {
-                    \Response::error('别名已存在');
+                    $this->response->error('别名已存在');
                 }
 
-                $sort = (int) \Input::post('sort', 100);
-                $status = \Input::post('status', '1') === '1' ? 1 : 0;
+                $sort = (int) $this->input->post('sort', 100);
+                $status = $this->input->post('status', '1') === '1' ? 1 : 0;
 
                 $rebateJson = $this->buildRebateJson();
 
@@ -107,56 +107,56 @@ final class GoodsCategoryController extends BaseAdminController
                     'parent_id' => $parentId,
                     'name' => $name,
                     'slug' => $slug,
-                    'description' => (string) \Input::post('description', ''),
-                    'icon' => (string) \Input::post('icon', ''),
-                    'cover_image' => (string) \Input::post('cover_image', ''),
+                    'description' => (string) $this->input->post('description', ''),
+                    'icon' => (string) $this->input->post('icon', ''),
+                    'cover_image' => (string) $this->input->post('cover_image', ''),
                     'sort' => $sort,
-                    'seo_title' => (string) \Input::post('seo_title', ''),
-                    'seo_keywords' => (string) \Input::post('seo_keywords', ''),
-                    'seo_description' => (string) \Input::post('seo_description', ''),
+                    'seo_title' => (string) $this->input->post('seo_title', ''),
+                    'seo_keywords' => (string) $this->input->post('seo_keywords', ''),
+                    'seo_description' => (string) $this->input->post('seo_description', ''),
                     'status' => $status,
                     'rebate_config' => $rebateJson,
                 ]);
 
-                $csrfToken = \Csrf::refresh();
-                \Response::success('分类创建成功', ['csrf_token' => $csrfToken]);
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success('分类创建成功', ['csrf_token' => $csrfToken]);
             }
 
             if ($action === 'edit') {
-                $id = (int) \Input::post('id', 0);
+                $id = (int) $this->input->post('id', 0);
                 if ($id <= 0) {
-                    \Response::error('无效的分类ID');
+                    $this->response->error('无效的分类ID');
                 }
 
                 $existing = $model->findById($id);
                 if ($existing === null) {
-                    \Response::error('分类不存在');
+                    $this->response->error('分类不存在');
                 }
 
-                $name = trim((string) \Input::post('name', ''));
+                $name = trim((string) $this->input->post('name', ''));
                 if ($name === '') {
-                    \Response::error('分类名称不能为空');
+                    $this->response->error('分类名称不能为空');
                 }
                 if (mb_strlen($name) > 100) {
-                    \Response::error('分类名称最多100个字符');
+                    $this->response->error('分类名称最多100个字符');
                 }
 
-                $parentId = (int) \Input::post('parent_id', 0);
+                $parentId = (int) $this->input->post('parent_id', 0);
 
                 // 二级分类不能变成顶级（避免混乱），除非本身就没有子分类
                 if ($existing['parent_id'] > 0 && $parentId === 0) {
                     if ($model->hasChildren($id)) {
-                        \Response::error('该分类下存在子分类，不能设为顶级');
+                        $this->response->error('该分类下存在子分类，不能设为顶级');
                     }
                 }
 
-                $slug = trim((string) \Input::post('slug', ''));
+                $slug = trim((string) $this->input->post('slug', ''));
                 if ($slug !== '' && $model->existsSlug($slug, $id)) {
-                    \Response::error('别名已存在');
+                    $this->response->error('别名已存在');
                 }
 
-                $sort = (int) \Input::post('sort', 100);
-                $status = \Input::post('status', '1') === '1' ? 1 : 0;
+                $sort = (int) $this->input->post('sort', 100);
+                $status = $this->input->post('status', '1') === '1' ? 1 : 0;
 
                 $rebateJson = $this->buildRebateJson();
 
@@ -164,49 +164,49 @@ final class GoodsCategoryController extends BaseAdminController
                     'parent_id' => $parentId,
                     'name' => $name,
                     'slug' => $slug,
-                    'description' => (string) \Input::post('description', ''),
-                    'icon' => (string) \Input::post('icon', ''),
-                    'cover_image' => (string) \Input::post('cover_image', ''),
+                    'description' => (string) $this->input->post('description', ''),
+                    'icon' => (string) $this->input->post('icon', ''),
+                    'cover_image' => (string) $this->input->post('cover_image', ''),
                     'sort' => $sort,
-                    'seo_title' => (string) \Input::post('seo_title', ''),
-                    'seo_keywords' => (string) \Input::post('seo_keywords', ''),
-                    'seo_description' => (string) \Input::post('seo_description', ''),
+                    'seo_title' => (string) $this->input->post('seo_title', ''),
+                    'seo_keywords' => (string) $this->input->post('seo_keywords', ''),
+                    'seo_description' => (string) $this->input->post('seo_description', ''),
                     'status' => $status,
                     'rebate_config' => $rebateJson,
                 ]);
 
-                $csrfToken = \Csrf::refresh();
-                \Response::success('分类更新成功', ['csrf_token' => $csrfToken]);
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success('分类更新成功', ['csrf_token' => $csrfToken]);
             }
 
             if ($action === 'delete') {
-                $id = (int) \Input::post('id', 0);
+                $id = (int) $this->input->post('id', 0);
                 if ($id <= 0) {
-                    \Response::error('无效的分类ID');
+                    $this->response->error('无效的分类ID');
                 }
                 if ($model->hasChildren($id)) {
-                    \Response::error('该分类下存在子分类，请先删除子分类');
+                    $this->response->error('该分类下存在子分类，请先删除子分类');
                 }
                 if (!$model->delete($id)) {
-                    \Response::error('删除失败');
+                    $this->response->error('删除失败');
                 }
-                $csrfToken = \Csrf::refresh();
-                \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
             }
 
             if ($action === 'batch_delete') {
                 // 批量删除：支持 ids[] 或逗号分隔字符串
-                $raw = \Input::post('ids', '');
+                $raw = $this->input->post('ids', '');
                 $ids = is_array($raw) ? $raw : array_filter(explode(',', (string) $raw));
                 $ids = array_values(array_unique(array_map('intval', $ids)));
                 $ids = array_filter($ids, fn($v) => $v > 0);
                 if (empty($ids)) {
-                    \Response::error('请选择要删除的分类');
+                    $this->response->error('请选择要删除的分类');
                 }
 
                 // 最多 5 轮循环：每轮删无子的（或子已被删的），最终剩下的就是"有非选中子分类"的
-                $prefix = \Database::prefix();
-                $all = \Database::query("SELECT id, parent_id, name FROM {$prefix}goods_category WHERE id IN (" . implode(',', $ids) . ")");
+                $prefix = $this->db->prefix();
+                $all = $this->db->query("SELECT id, parent_id, name FROM {$prefix}goods_category WHERE id IN (" . implode(',', $ids) . ")");
                 $byId = [];
                 foreach ($all as $r) $byId[(int) $r['id']] = $r;
 
@@ -237,44 +237,44 @@ final class GoodsCategoryController extends BaseAdminController
                 if ($skipped > 0) {
                     $msg .= "，跳过 {$skipped} 个：" . implode('、', array_slice($skippedNames, 0, 3)) . ($skipped > 3 ? '…' : '');
                 }
-                $csrfToken = \Csrf::refresh();
-                \Response::success($msg, ['csrf_token' => $csrfToken, 'deleted' => $deleted, 'skipped' => $skipped]);
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success($msg, ['csrf_token' => $csrfToken, 'deleted' => $deleted, 'skipped' => $skipped]);
             }
 
             if ($action === 'toggle_status') {
-                $id = (int) \Input::post('id', 0);
+                $id = (int) $this->input->post('id', 0);
                 if ($id <= 0) {
-                    \Response::error('无效的分类ID');
+                    $this->response->error('无效的分类ID');
                 }
 
                 $existing = $model->findById($id);
                 if ($existing === null) {
-                    \Response::error('分类不存在');
+                    $this->response->error('分类不存在');
                 }
 
                 $newStatus = ((int) $existing['status'] === 1) ? 0 : 1;
                 $model->update($id, ['status' => (string) $newStatus]);
 
-                $csrfToken = \Csrf::refresh();
-                \Response::success($newStatus === 1 ? '已启用' : '已禁用', ['csrf_token' => $csrfToken]);
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success($newStatus === 1 ? '已启用' : '已禁用', ['csrf_token' => $csrfToken]);
             }
 
             if ($action === 'image') {
                 if (empty($_FILES['file'])) {
-                    \Response::error('请选择图片文件');
+                    $this->response->error('请选择图片文件');
                 }
                 $uploader = new \UploadService();
                 $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'goods_category');
-                $csrfToken = \Csrf::refresh();
-                \Response::success('上传成功', [
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success('上传成功', [
                     'csrf_token' => $csrfToken,
                     'url' => $result['url'],
                 ]);
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
     }
 
@@ -289,8 +289,8 @@ final class GoodsCategoryController extends BaseAdminController
     private function buildRebateJson(): ?string
     {
         $rebateArr = [];
-        $l1Raw = trim((string) \Input::post('rebate_l1', ''));
-        $l2Raw = trim((string) \Input::post('rebate_l2', ''));
+        $l1Raw = trim((string) $this->input->post('rebate_l1', ''));
+        $l2Raw = trim((string) $this->input->post('rebate_l2', ''));
         $l1Pct = 0.0; $l2Pct = 0.0;
         if ($l1Raw !== '') {
             $l1Pct = max(0.0, min(100.0, (float) $l1Raw));
@@ -301,10 +301,10 @@ final class GoodsCategoryController extends BaseAdminController
             $rebateArr['l2'] = (int) round($l2Pct * 100);
         }
         if (($l1Pct + $l2Pct) > 30.0) {
-            \Response::error('返佣配置错误：一级 + 二级总返佣不得超过订单金额的 30%（当前 '
+            $this->response->error('返佣配置错误：一级 + 二级总返佣不得超过订单金额的 30%（当前 '
                 . rtrim(rtrim(number_format($l1Pct + $l2Pct, 2), '0'), '.') . '%）');
         }
-        $rebateMode = (string) \Input::post('rebate_mode', '');
+        $rebateMode = (string) $this->input->post('rebate_mode', '');
         if (!in_array($rebateMode, ['amount', 'profit', ''], true)) {
             $rebateMode = '';
         }
@@ -321,7 +321,7 @@ final class GoodsCategoryController extends BaseAdminController
      */
     private function renderPopup(\GoodsCategoryModel $model): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editCat = null;
 
         if ($editId > 0) {
@@ -339,7 +339,7 @@ final class GoodsCategoryController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('goods_category');
             echo '</div>';

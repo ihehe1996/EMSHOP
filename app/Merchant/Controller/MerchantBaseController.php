@@ -72,10 +72,10 @@ abstract class MerchantBaseController extends UserBaseController
      */
     private function deny(string $message, string $redirect): void
     {
-        if (\Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            \Response::error($message, ['redirect' => $redirect]);
+        if ($this->request->isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            $this->response->error($message, ['redirect' => $redirect]);
         }
-        \Response::redirect($redirect);
+        $this->response->redirect($redirect);
     }
 
     /**

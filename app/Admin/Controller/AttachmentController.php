@@ -19,7 +19,7 @@ final class AttachmentController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -33,13 +33,13 @@ final class AttachmentController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             // list 请求不需要 CSRF 验证
             if ($action !== 'list' && $action !== 'stats') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
@@ -49,11 +49,11 @@ final class AttachmentController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $page = max(1, (int) \Input::post('page', 1));
-                    $pageSize = max(1, min(100, (int) \Input::post('limit', 24)));
-                    $keyword = trim((string) \Input::post('keyword', ''));
-                    $context = trim((string) \Input::post('context', ''));
-                    $fileType = trim((string) \Input::post('file_type', '')); // image / file / all
+                    $page = max(1, (int) $this->input->post('page', 1));
+                    $pageSize = max(1, min(100, (int) $this->input->post('limit', 24)));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
+                    $context = trim((string) $this->input->post('context', ''));
+                    $fileType = trim((string) $this->input->post('file_type', '')); // image / file / all
 
                     $offset = ($page - 1) * $pageSize;
 
@@ -83,30 +83,30 @@ final class AttachmentController extends BaseAdminController
 
                     $sql = sprintf(
                         'SELECT * FROM `%s` WHERE %s ORDER BY `created_at` DESC LIMIT :limit OFFSET :offset',
-                        \Database::prefix() . 'attachment',
+                        $this->db->prefix() . 'attachment',
                         $where
                     );
-                    $rows = \Database::query($sql, $params);
+                    $rows = $this->db->query($sql, $params);
 
                     $countSql = sprintf(
                         'SELECT COUNT(*) as total FROM `%s` WHERE %s',
-                        \Database::prefix() . 'attachment',
+                        $this->db->prefix() . 'attachment',
                         $where
                     );
-                    $total = (int) \Database::fetchOne($countSql, $params)['total'];
+                    $total = (int) $this->db->fetchOne($countSql, $params)['total'];
 
                     // 计算统计数据
-                    $totalSize = (int) \Database::fetchOne(
-                        sprintf('SELECT COALESCE(SUM(`file_size`), 0) as total_size FROM `%s` WHERE `user_id` = :uid', \Database::prefix() . 'attachment'),
+                    $totalSize = (int) $this->db->fetchOne(
+                        sprintf('SELECT COALESCE(SUM(`file_size`), 0) as total_size FROM `%s` WHERE `user_id` = :uid', $this->db->prefix() . 'attachment'),
                         ['uid' => $userId]
                     )['total_size'];
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => $rows,
                         'total' => $total,
                         'page' => $page,
                         'limit' => $pageSize,
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                         'stats' => [
                             'total' => $total,
                             'total_size' => $totalSize,
@@ -116,24 +116,24 @@ final class AttachmentController extends BaseAdminController
                     break;
 
                 case 'stats':
-                    $prefix = \Database::prefix() . 'attachment';
+                    $prefix = $this->db->prefix() . 'attachment';
 
-                    $total = (int) \Database::fetchOne(
+                    $total = (int) $this->db->fetchOne(
                         sprintf('SELECT COUNT(*) as cnt FROM `%s` WHERE `user_id` = :uid', $prefix),
                         ['uid' => $userId]
                     )['cnt'];
 
-                    $totalSize = (int) \Database::fetchOne(
+                    $totalSize = (int) $this->db->fetchOne(
                         sprintf('SELECT COALESCE(SUM(`file_size`), 0) as sz FROM `%s` WHERE `user_id` = :uid', $prefix),
                         ['uid' => $userId]
                     )['sz'];
 
-                    $imageCount = (int) \Database::fetchOne(
+                    $imageCount = (int) $this->db->fetchOne(
                         sprintf("SELECT COUNT(*) as cnt FROM `%s` WHERE `user_id` = :uid AND `mime_type` LIKE 'image/%%'", $prefix),
                         ['uid' => $userId]
                     )['cnt'];
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'total' => $total,
                         'total_size' => $totalSize,
                         'total_size_fmt' => $this->formatFileSize($totalSize),
@@ -142,19 +142,19 @@ final class AttachmentController extends BaseAdminController
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的附件ID');
+                        $this->response->error('无效的附件ID');
                     }
 
                     $attachment = $model->findById($id);
                     if ($attachment === null) {
-                        \Response::error('附件不存在');
+                        $this->response->error('附件不存在');
                     }
 
                     // 验证归属
                     if ((int) $attachment['user_id'] !== $userId) {
-                        \Response::error('无权限操作该附件');
+                        $this->response->error('无权限操作该附件');
                     }
 
                     // 删除物理文件
@@ -166,25 +166,25 @@ final class AttachmentController extends BaseAdminController
                     // 删除数据库记录
                     $model->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'batchDelete':
-                    $idsRaw = \Input::post('ids', '');
+                    $idsRaw = $this->input->post('ids', '');
                     if ($idsRaw === '') {
-                        \Response::error('请选择要删除的附件');
+                        $this->response->error('请选择要删除的附件');
                     }
                     $ids = array_filter(array_map('intval', explode(',', (string) $idsRaw)));
                     if ($ids === []) {
-                        \Response::error('无效的附件ID');
+                        $this->response->error('无效的附件ID');
                     }
 
-                    $prefix = \Database::prefix() . 'attachment';
+                    $prefix = $this->db->prefix() . 'attachment';
 
                     // 查询待删除的附件
                     $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                    $attachments = \Database::query(
+                    $attachments = $this->db->query(
                         sprintf('SELECT * FROM `%s` WHERE `id` IN (%s) AND `user_id` = ?', $prefix, $placeholders),
                         array_merge($ids, [$userId])
                     );
@@ -198,22 +198,22 @@ final class AttachmentController extends BaseAdminController
                     }
 
                     // 批量删除数据库记录
-                    \Database::execute(
+                    $this->db->execute(
                         sprintf('DELETE FROM `%s` WHERE `id` IN (%s) AND `user_id` = ?', $prefix, $placeholders),
                         array_merge($ids, [$userId])
                     );
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('已删除 ' . count($attachments) . ' 个附件', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('已删除 ' . count($attachments) . ' 个附件', ['csrf_token' => $csrfToken]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -224,17 +224,17 @@ final class AttachmentController extends BaseAdminController
     {
         $admin = $this->user();
         $userId = (int) ($admin['id'] ?? 0);
-        $prefix = \Database::prefix() . 'attachment';
+        $prefix = $this->db->prefix() . 'attachment';
 
-        $total = (int) \Database::fetchOne(
+        $total = (int) $this->db->fetchOne(
             sprintf('SELECT COUNT(*) as cnt FROM `%s` WHERE `user_id` = ?', $prefix),
             [$userId]
         )['cnt'];
-        $totalSize = (int) \Database::fetchOne(
+        $totalSize = (int) $this->db->fetchOne(
             sprintf('SELECT COALESCE(SUM(`file_size`), 0) as sz FROM `%s` WHERE `user_id` = ?', $prefix),
             [$userId]
         )['sz'];
-        $imageCount = (int) \Database::fetchOne(
+        $imageCount = (int) $this->db->fetchOne(
             sprintf("SELECT COUNT(*) as cnt FROM `%s` WHERE `user_id` = ? AND `mime_type` LIKE 'image/%%'", $prefix),
             [$userId]
         )['cnt'];
@@ -246,7 +246,7 @@ final class AttachmentController extends BaseAdminController
             'image_count' => $imageCount,
         ];
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('attachment', ['stats' => $stats]);
             echo '</div>';

@@ -14,47 +14,47 @@ final class MediaController extends MerchantBaseController
         $frontUser = $this->user();
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
-        if (\Request::isGet()) {
+        if ($this->request->isGet()) {
             $this->render('media');
             return;
         }
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                $action = (string) \Input::post('action', '');
+                $action = (string) $this->input->post('action', '');
 
                 switch ($action) {
                     case 'list':
-                        $page = max(1, (int) \Input::post('page', 1));
-                        $pageSize = max(1, min(100, (int) \Input::post('limit', 20)));
-                        $context = (string) \Input::post('context', 'default');
+                        $page = max(1, (int) $this->input->post('page', 1));
+                        $pageSize = max(1, min(100, (int) $this->input->post('limit', 20)));
+                        $context = (string) $this->input->post('context', 'default');
 
                         $userId = (int) ($frontUser['id'] ?? 0);
-                        if ($userId <= 0) \Response::error('未登录');
+                        if ($userId <= 0) $this->response->error('未登录');
 
                         $offset = ($page - 1) * $pageSize;
-                        $attTable = \Database::prefix() . 'attachment';
+                        $attTable = $this->db->prefix() . 'attachment';
                         if ($context === 'all') {
-                            $rows = \Database::query(
+                            $rows = $this->db->query(
                                 "SELECT * FROM `{$attTable}` WHERE `user_id` = :user_id ORDER BY `created_at` DESC LIMIT :limit OFFSET :offset",
                                 ['user_id' => $userId, 'limit' => $pageSize, 'offset' => $offset]
                             );
-                            $total = (int) \Database::fetchOne(
+                            $total = (int) $this->db->fetchOne(
                                 "SELECT COUNT(*) AS total FROM `{$attTable}` WHERE `user_id` = :user_id",
                                 ['user_id' => $userId]
                             )['total'];
                         } else {
-                            $rows = \Database::query(
+                            $rows = $this->db->query(
                                 "SELECT * FROM `{$attTable}` WHERE `user_id` = :user_id AND `context` = :context ORDER BY `created_at` DESC LIMIT :limit OFFSET :offset",
                                 ['user_id' => $userId, 'context' => $context, 'limit' => $pageSize, 'offset' => $offset]
                             );
-                            $total = (int) \Database::fetchOne(
+                            $total = (int) $this->db->fetchOne(
                                 "SELECT COUNT(*) AS total FROM `{$attTable}` WHERE `user_id` = :user_id AND `context` = :context",
                                 ['user_id' => $userId, 'context' => $context]
                             )['total'];
                         }
 
-                        \Response::success('', [
+                        $this->response->success('', [
                             'data'  => $rows,
                             'total' => $total,
                             'page'  => $page,
@@ -63,15 +63,15 @@ final class MediaController extends MerchantBaseController
                         break;
 
                     default:
-                        \Response::error('未知操作');
+                        $this->response->error('未知操作');
                 }
             } catch (RuntimeException $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             } catch (\Throwable $e) {
-                \Response::error('系统繁忙，请稍后再试');
+                $this->response->error('系统繁忙，请稍后再试');
             }
         }
 
-        \Response::error('仅支持 POST 请求');
+        $this->response->error('仅支持 POST 请求');
     }
 }

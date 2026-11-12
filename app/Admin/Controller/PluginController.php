@@ -25,14 +25,14 @@ final class PluginController extends BaseAdminController
     public function index(): void
     {
         $model = new \PluginModel();
-        $isPopup = (string) \Input::get('_popup', '') === '1';
+        $isPopup = (string) $this->input->get('_popup', '') === '1';
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost($model);
             return;
         }
 
-        if (!$isPopup && (string) \Input::get('_action', '') === 'list') {
+        if (!$isPopup && (string) $this->input->get('_action', '') === 'list') {
             $this->outputList($model);
             return;
         }
@@ -52,77 +52,77 @@ final class PluginController extends BaseAdminController
     {
         try {
             // 本分支下的动作全部是写操作，且卸载会递归删除插件目录 —— 必须校验 CSRF
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
             $scope = self::SCOPE;
 
             if ($action === 'set_merchant_price') {
-                $marketId = (int) \Input::post('market_id', 0);
-                if (\Input::post('retail_price_micro', null) !== null) {
-                    $price = max(0, (int) \Input::post('retail_price_micro', 0));
+                $marketId = (int) $this->input->post('market_id', 0);
+                if ($this->input->post('retail_price_micro', null) !== null) {
+                    $price = max(0, (int) $this->input->post('retail_price_micro', 0));
                 } else {
-                    $yuan = (string) \Input::post('retail_price', '0');
+                    $yuan = (string) $this->input->post('retail_price', '0');
                     $price = (int) round(((float) $yuan) * 1000000);
                     if ($price < 0) {
                         $price = 0;
                     }
                 }
                 if ($marketId <= 0) {
-                    \Response::error('market_id 非法');
+                    $this->response->error('market_id 非法');
                 }
 
                 $marketModel = new \AppMarketModel();
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
-                    \Response::error('分站插件不存在');
+                    $this->response->error('分站插件不存在');
                 }
 
                 $service = new \MainAppPurchaseService();
                 $ok = $service->updateRetailPrice($marketId, $price);
                 if (!$ok) {
-                    \Response::error('价格未改动或目标不存在');
+                    $this->response->error('价格未改动或目标不存在');
                 }
-                \Response::success('售价已更新', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('售价已更新', ['csrf_token' => $this->csrf->refresh()]);
             }
 
             if ($action === 'set_merchant_listed') {
-                $marketId = (int) \Input::post('market_id', 0);
-                $listed = (int) \Input::post('is_listed', 0) === 1;
+                $marketId = (int) $this->input->post('market_id', 0);
+                $listed = (int) $this->input->post('is_listed', 0) === 1;
                 if ($marketId <= 0) {
-                    \Response::error('market_id 非法');
+                    $this->response->error('market_id 非法');
                 }
 
                 $marketModel = new \AppMarketModel();
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
-                    \Response::error('分站插件不存在');
+                    $this->response->error('分站插件不存在');
                 }
                 $appCode = (string) ($market['app_code'] ?? '');
-                $name = trim((string) \Input::post('name', ''));
+                $name = trim((string) $this->input->post('name', ''));
                 if ($name !== '' && $appCode !== '' && $name !== $appCode) {
-                    \Response::error('参数不匹配,请刷新页面后重试');
+                    $this->response->error('参数不匹配,请刷新页面后重试');
                 }
 
                 $service = new \MainAppPurchaseService();
                 $ok = $service->setListed($marketId, $listed);
                 if (!$ok) {
-                    \Response::error('状态未改动或目标不存在');
+                    $this->response->error('状态未改动或目标不存在');
                 }
-                \Response::success($listed ? '已上架' : '已下架', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success($listed ? '已上架' : '已下架', ['csrf_token' => $this->csrf->refresh()]);
             }
 
-            $name = trim((string) \Input::post('name', ''));
+            $name = trim((string) $this->input->post('name', ''));
             if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
-                \Response::error('非法插件名');
+                $this->response->error('非法插件名');
             }
 
             if ($action === 'save_config') {
                 // 保存配置 —— 优先调插件自带 plugin_setting()；无则把 POST 字段写入 Storage
                 if (!$model->existsOnDisk($name)) {
-                    \Response::error('磁盘上未找到该插件');
+                    $this->response->error('磁盘上未找到该插件');
                 }
 
                 $settingFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_setting.php';
@@ -137,23 +137,23 @@ final class PluginController extends BaseAdminController
 
                 // 通用兜底：全部 POST 字段（除框架字段）逐个写 Storage
                 $storage = \Storage::getInstance($name);
-                foreach (\Input::allPost() as $k => $v) {
+                foreach ($this->input->allPost() as $k => $v) {
                     if (in_array($k, ['_action', 'csrf_token', 'name'], true)) {
                         continue;
                     }
                     $storage->setValue($k, $v);
                 }
-                \Response::success('配置已保存', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('配置已保存', ['csrf_token' => $this->csrf->refresh()]);
             }
 
             switch ($action) {
                 // 启用 —— 每次启用都触发 callback_init，再加入 enabled_plugins 列表
                 case 'enable': {
                     if (!$model->existsOnDisk($name)) {
-                        \Response::error('磁盘上未找到该插件');
+                        $this->response->error('磁盘上未找到该插件');
                     }
                     if ($model->isEnabled($name, $scope)) {
-                        \Response::error('该插件已经是启用状态');
+                        $this->response->error('该插件已经是启用状态');
                     }
 
                     // 触发插件 callback_init 初始化私有数据（建表/资源等）
@@ -166,14 +166,14 @@ final class PluginController extends BaseAdminController
                     }
 
                     $model->enable($name, $scope);
-                    \Response::success('插件已启用', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('插件已启用', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
                 // 禁用 —— 若插件实现 callback_disable，则在禁用时触发
                 case 'disable': {
                     if (!$model->isEnabled($name, $scope)) {
-                        \Response::error('该插件已经是禁用状态');
+                        $this->response->error('该插件已经是禁用状态');
                     }
                     $callbackFile = EM_ROOT . '/content/plugin/' . $name . '/' . $name . '_callback.php';
                     if (is_file($callbackFile)) {
@@ -183,7 +183,7 @@ final class PluginController extends BaseAdminController
                         }
                     }
                     $model->disable($name, $scope);
-                    \Response::success('插件已禁用', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('插件已禁用', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
@@ -191,39 +191,39 @@ final class PluginController extends BaseAdminController
                 //   1) 主站插件：callback_rm 清私有数据 + 清 Storage 配置 + 递归删磁盘目录
                 //   2) 分站插件（传 market_id）：删除 em_app_market 记录（含流水）
                 case 'uninstall': {
-                    $marketId = (int) \Input::post('market_id', 0);
+                    $marketId = (int) $this->input->post('market_id', 0);
                     if ($marketId > 0) {
                         $marketModel = new \AppMarketModel();
                         $market = $marketModel->findById($marketId);
                         if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
-                            \Response::error('分站插件不存在');
+                            $this->response->error('分站插件不存在');
                         }
                         $appCode = (string) ($market['app_code'] ?? '');
                         if ($appCode !== '' && $appCode !== $name) {
-                            \Response::error('参数不匹配,请刷新页面后重试');
+                            $this->response->error('参数不匹配,请刷新页面后重试');
                         }
 
                         // 已售出（有购买记录/已扣配额）不允许卸载，避免已购分站数据悬空
                         $soldCount = (new \AppPurchaseModel())->countByMarket($marketId);
                         $consumedQuota = (int) ($market['consumed_quota'] ?? 0);
                         if ($soldCount > 0 || $consumedQuota > 0) {
-                            \Response::error('该分站插件已有分站购买记录,请改为下架');
+                            $this->response->error('该分站插件已有分站购买记录,请改为下架');
                         }
 
                         $ok = $marketModel->deleteById($marketId, true);
                         if (!$ok) {
-                            \Response::error('分站插件不存在或已卸载');
+                            $this->response->error('分站插件不存在或已卸载');
                         }
 
-                        \Response::success('分站插件已卸载', ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success('分站插件已卸载', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     if (!$model->existsOnDisk($name)) {
-                        \Response::error('磁盘上未找到该插件');
+                        $this->response->error('磁盘上未找到该插件');
                     }
                     if ($model->isEnabled($name, $scope)) {
-                        \Response::error('该插件正在启用中,请先禁用再卸载');
+                        $this->response->error('该插件正在启用中,请先禁用再卸载');
                     }
 
                     // 触发插件 callback_rm 清理它自己的私有数据
@@ -242,20 +242,20 @@ final class PluginController extends BaseAdminController
                     // 递归删磁盘目录：卸载 = 彻底移除
                     $dir = EM_ROOT . '/content/plugin/' . $name;
                     if (is_dir($dir) && !$this->rmDir($dir)) {
-                        \Response::error('磁盘文件删除失败,请检查目录权限');
+                        $this->response->error('磁盘文件删除失败,请检查目录权限');
                     }
 
-                    \Response::success('插件已卸载', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('插件已卸载', ['csrf_token' => $this->csrf->refresh()]);
                     break;
                 }
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
     }
 
@@ -268,8 +268,8 @@ final class PluginController extends BaseAdminController
 
         $merchantCodeSet = [];
         try {
-            $rows = \Database::query(
-                'SELECT `app_code` FROM `' . \Database::prefix() . 'app_market` WHERE `type` = ?',
+            $rows = $this->db->query(
+                'SELECT `app_code` FROM `' . $this->db->prefix() . 'app_market` WHERE `type` = ?',
                 ['plugin']
             );
             foreach ($rows as $r) {
@@ -282,15 +282,15 @@ final class PluginController extends BaseAdminController
             $merchantCodeSet = [];
         }
 
-        $listScope = (string) \Input::get('scope', 'main');
+        $listScope = (string) $this->input->get('scope', 'main');
         if (!in_array($listScope, ['main', 'merchant'], true)) {
             $listScope = 'main';
         }
 
         $merchantCount = 0;
         try {
-            $row = \Database::fetchOne(
-                'SELECT COUNT(*) AS c FROM `' . \Database::prefix() . 'app_market` WHERE `type` = ?',
+            $row = $this->db->fetchOne(
+                'SELECT COUNT(*) AS c FROM `' . $this->db->prefix() . 'app_market` WHERE `type` = ?',
                 ['plugin']
             );
             $merchantCount = (int) ($row['c'] ?? 0);
@@ -341,7 +341,7 @@ final class PluginController extends BaseAdminController
                 'msg'            => '',
                 'count'          => count($data),
                 'data'           => $data,
-                'csrf_token'     => \Csrf::token(),
+                'csrf_token'     => $this->csrf->token(),
                 'merchant_count' => $result['total'],
                 '_license_error' => '',
             ], JSON_UNESCAPED_UNICODE);
@@ -389,7 +389,7 @@ final class PluginController extends BaseAdminController
             'msg'            => '',
             'count'          => count($data),
             'data'           => $data,
-            'csrf_token'     => \Csrf::token(),
+            'csrf_token'     => $this->csrf->token(),
             'merchant_count' => $merchantCount,
             '_license_error' => $licenseError,
         ], JSON_UNESCAPED_UNICODE);
@@ -401,7 +401,7 @@ final class PluginController extends BaseAdminController
      */
     private function renderPopup(\PluginModel $model): void
     {
-        $pluginName = trim((string) \Input::get('name', ''));
+        $pluginName = trim((string) $this->input->get('name', ''));
         if ($pluginName === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $pluginName)) {
             exit('非法插件名');
         }
@@ -414,7 +414,7 @@ final class PluginController extends BaseAdminController
             exit('该插件暂无设置页面');
         }
 
-        $csrfToken = \Csrf::token();
+        $csrfToken = $this->csrf->token();
         $headerInfo = $model->parseHeader(EM_ROOT . '/content/plugin/' . $pluginName . '/' . $pluginName . '.php');
         $titleStr = (string) ($headerInfo['title'] ?? $pluginName);
         $pageTitle = '插件设置：' . htmlspecialchars($titleStr, ENT_QUOTES, 'UTF-8');
@@ -437,7 +437,7 @@ final class PluginController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('plugin');
             echo '</div>';

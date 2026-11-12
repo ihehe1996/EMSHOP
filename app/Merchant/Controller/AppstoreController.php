@@ -14,24 +14,24 @@ final class AppstoreController extends MerchantBaseController
         $frontUser = $this->user();
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
-        $csrfToken   = \Csrf::token();
+        $csrfToken   = $this->csrf->token();
         $merchantId  = (int) ($currentMerchant['id'] ?? 0);
         $merchantUid = (int) ($currentMerchant['user_id'] ?? 0);
 
-        if ((string) \Input::get('_action', '') === 'list') {
+        if ((string) $this->input->get('_action', '') === 'list') {
             try {
-                $prefix = \Database::prefix();
-                $page = max(1, (int) \Input::get('page', 1));
-                $pageSize = max(1, min(100, (int) \Input::get('limit', 12)));
+                $prefix = $this->db->prefix();
+                $page = max(1, (int) $this->input->get('page', 1));
+                $pageSize = max(1, min(100, (int) $this->input->get('limit', 12)));
                 $offset = ($page - 1) * $pageSize;
 
-                $type = (string) \Input::get('type', '');
-                $keyword = trim((string) \Input::get('keyword', ''));
-                $listMode = (string) \Input::get('list_mode', '');
+                $type = (string) $this->input->get('type', '');
+                $keyword = trim((string) $this->input->get('keyword', ''));
+                $listMode = (string) $this->input->get('list_mode', '');
                 if (!in_array($listMode, ['', 'purchased'], true)) $listMode = '';
 
                 $merchantCategories = \PluginModel::MERCHANT_PLUGIN_CATEGORIES;
-                $categoryId = (int) \Input::get('category_id', 0);
+                $categoryId = (int) $this->input->get('category_id', 0);
                 $categoryName = $categoryId > 0 ? (string) ($merchantCategories[$categoryId] ?? '') : '';
 
                 $params = [$merchantId];
@@ -56,10 +56,10 @@ final class AppstoreController extends MerchantBaseController
                         $params[] = $kw;
                     }
 
-                    $countRow = \Database::fetchOne('SELECT COUNT(*) AS c ' . $sqlBase, $params);
+                    $countRow = $this->db->fetchOne('SELECT COUNT(*) AS c ' . $sqlBase, $params);
                     $total = (int) ($countRow['c'] ?? 0);
 
-                    $rows = \Database::query(
+                    $rows = $this->db->query(
                         'SELECT p.id AS purchase_id, p.merchant_id, p.user_id, p.app_code, p.type,
                                 p.market_id, p.paid_amount, p.purchased_at,
                                 m.id, m.title, m.version, m.category, m.cover, m.description,
@@ -106,10 +106,10 @@ final class AppstoreController extends MerchantBaseController
                         $params[] = $kw;
                     }
 
-                    $countRow = \Database::fetchOne('SELECT COUNT(*) AS c ' . $sqlBase, $params);
+                    $countRow = $this->db->fetchOne('SELECT COUNT(*) AS c ' . $sqlBase, $params);
                     $total = (int) ($countRow['c'] ?? 0);
 
-                    $rows = \Database::query(
+                    $rows = $this->db->query(
                         'SELECT m.*, p.id AS purchase_id, p.purchased_at, p.paid_amount,
                                 IF(p.id IS NULL, 0, 1) AS is_purchased
                          ' . $sqlBase . '
@@ -128,30 +128,30 @@ final class AppstoreController extends MerchantBaseController
                     unset($row);
                 }
 
-                \Response::success('', [
+                $this->response->success('', [
                     'list'    => $rows,
                     'count'   => $total,
                     'page'    => $page,
                     'pageNum' => $pageSize,
                 ]);
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             }
         }
 
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'buy') {
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'buy') {
             try {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
-                $marketId = (int) \Input::post('market_id', 0);
-                if ($marketId <= 0) \Response::error('参数错误');
+                $marketId = (int) $this->input->post('market_id', 0);
+                if ($marketId <= 0) $this->response->error('参数错误');
 
                 $marketModel = new \AppMarketModel();
                 $purchaseModel = new \AppPurchaseModel();
 
-                \Database::begin();
+                $this->db->begin();
                 try {
                     $market = $marketModel->lockById($marketId);
                     if ($market === null) {
@@ -198,8 +198,8 @@ final class AppstoreController extends MerchantBaseController
                     $balanceLogId = 0;
 
                     // 锁站长余额并扣款
-                    $userTable = \Database::prefix() . 'user';
-                    $userRow = \Database::fetchOne(
+                    $userTable = $this->db->prefix() . 'user';
+                    $userRow = $this->db->fetchOne(
                         'SELECT `id`, `money` FROM `' . $userTable . '` WHERE `id` = ? FOR UPDATE',
                         [$merchantUid]
                     );
@@ -213,12 +213,12 @@ final class AppstoreController extends MerchantBaseController
                     }
 
                     if ($price > 0) {
-                        \Database::execute(
+                        $this->db->execute(
                             'UPDATE `' . $userTable . '` SET `money` = ? WHERE `id` = ?',
                             [$after, $merchantUid]
                         );
 
-                        \Database::insert('user_balance_log', [
+                        $this->db->insert('user_balance_log', [
                             'user_id'        => $merchantUid,
                             'type'           => 'decrease',
                             'amount'         => $price,
@@ -229,7 +229,7 @@ final class AppstoreController extends MerchantBaseController
                             'operator_name'  => (string) ($frontUser['nickname'] ?: $frontUser['username']),
                             'ip'             => $_SERVER['REMOTE_ADDR'] ?? '',
                         ]);
-                        $balanceLogId = (int) (\Database::fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
+                        $balanceLogId = (int) ($this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
                     } else {
                         $after = $before;
                     }
@@ -267,34 +267,34 @@ final class AppstoreController extends MerchantBaseController
                         'note'           => '商户端应用商店购买',
                     ]);
 
-                    \Database::commit();
+                    $this->db->commit();
 
                     // 同步会话余额
                     $frontUser['money'] = $after;
                     $_SESSION['em_front_user'] = $frontUser;
 
-                    \Response::success('购买成功', [
+                    $this->response->success('购买成功', [
                         'order_no'      => $appOrderNo,
                         'paid_amount'   => $price,
                         'after_balance' => $after,
-                        'after_balance_text' => \Currency::displayAmount($after),
-                        'csrf_token'    => \Csrf::refresh(),
+                        'after_balance_text' => $this->currency->displayAmount($after),
+                        'csrf_token'    => $this->csrf->refresh(),
                     ]);
                 } catch (\Throwable $e) {
-                    \Database::rollBack();
+                    $this->db->rollBack();
                     throw $e;
                 }
             } catch (RuntimeException $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage() ?: '购买失败，请稍后再试');
+                $this->response->error($e->getMessage() ?: '购买失败，请稍后再试');
             }
         }
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/appstore.php', $frontUser, $currentMerchant, $merchantLevel, [
             'csrfToken' => $csrfToken,
             'moneyRaw'  => (int) ($frontUser['money'] ?? 0),
-            'moneyText' => \Currency::displayAmount((int) ($frontUser['money'] ?? 0)),
+            'moneyText' => $this->currency->displayAmount((int) ($frontUser['money'] ?? 0)),
         ]);
     }
 }

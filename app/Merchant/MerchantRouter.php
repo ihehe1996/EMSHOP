@@ -142,7 +142,7 @@ final class MerchantRouter
         $class = $route['class'];
         $action = $route['action'];
         /** @var object $controller */
-        $controller = new $class();
+        $controller = \App\Core\Application::instance()->container()->make($class);
         $controller->{$action}();
     }
 

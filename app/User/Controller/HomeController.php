@@ -21,13 +21,13 @@ final class HomeController extends UserBaseController
             $displayMoney = bcdiv((string) $user['money'], '1000000', 2);
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('home', [
                 'frontUser'      => $user,
                 'displayMoney'   => $displayMoney,
-                'currencySymbol' => \Currency::visitorSymbol(),
-                'csrfToken'      => \Csrf::token(),
+                'currencySymbol' => $this->currency->visitorSymbol(),
+                'csrfToken'      => $this->csrf->token(),
             ]);
             echo '</div>';
             return;

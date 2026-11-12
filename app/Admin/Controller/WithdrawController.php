@@ -19,7 +19,7 @@ final class WithdrawController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -33,15 +33,15 @@ final class WithdrawController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
             $model = new \UserWithdrawModel();
 
             if ($action === 'list') {
-                $page = max(1, (int) \Input::post('page', 1));
-                $perPage = max(1, min(100, (int) \Input::post('limit', 20)));
+                $page = max(1, (int) $this->input->post('page', 1));
+                $perPage = max(1, min(100, (int) $this->input->post('limit', 20)));
                 $filter = [
-                    'status'  => (string) \Input::post('status', ''),
-                    'keyword' => trim((string) \Input::post('keyword', '')),
+                    'status'  => (string) $this->input->post('status', ''),
+                    'keyword' => trim((string) $this->input->post('keyword', '')),
                 ];
                 $result = $model->paginate($filter, $page, $perPage);
                 foreach ($result['list'] as &$r) {
@@ -49,43 +49,43 @@ final class WithdrawController extends BaseAdminController
                     $r['amount_display'] = number_format((float) bcdiv((string) $r['amount'], '1000000', 2), 2, '.', ',');
                 }
                 unset($r);
-                \Response::success('', [
+                $this->response->success('', [
                     'data'       => $result['list'],
                     'total'      => $result['total'],
-                    'csrf_token' => \Csrf::token(),
+                    'csrf_token' => $this->csrf->token(),
                 ]);
             }
 
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('令牌失效，请刷新后重试');
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('令牌失效，请刷新后重试');
             }
-            $id = (int) \Input::post('id', 0);
-            $remark = trim((string) \Input::post('remark', ''));
+            $id = (int) $this->input->post('id', 0);
+            $remark = trim((string) $this->input->post('remark', ''));
             $admin = $this->user();
             $aid = (int) ($admin['id'] ?? 0);
 
             if ($action === 'approve') {
                 if (!$model->approve($id, $aid, $remark)) {
-                    \Response::error('操作失败（状态可能已变）');
+                    $this->response->error('操作失败（状态可能已变）');
                 }
-                \Response::success('已审核通过');
+                $this->response->success('已审核通过');
             }
             if ($action === 'reject') {
                 $model->reject($id, $aid, $remark);
-                \Response::success('已驳回，金额已退回用户');
+                $this->response->success('已驳回，金额已退回用户');
             }
             if ($action === 'paid') {
                 if (!$model->markPaid($id, $aid, $remark)) {
-                    \Response::error('操作失败（状态可能已变）');
+                    $this->response->error('操作失败（状态可能已变）');
                 }
-                \Response::success('已标记打款');
+                $this->response->success('已标记打款');
             }
 
-            \Response::error('未知操作');
+            $this->response->error('未知操作');
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙：' . $e->getMessage());
+            $this->response->error('系统繁忙：' . $e->getMessage());
         }
     }
 
@@ -94,7 +94,7 @@ final class WithdrawController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('withdraw');
             echo '</div>';

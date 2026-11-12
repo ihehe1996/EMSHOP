@@ -13,9 +13,9 @@ final class AppstoreBuyController extends BaseAdminController
 {
     public function index(): void
     {
-        $appId = (int) \Input::get('id', 0);
+        $appId = (int) $this->input->get('id', 0);
 
-        $tab = (string) \Input::get('tab', 'main');
+        $tab = (string) $this->input->get('tab', 'main');
         if (!in_array($tab, ['main', 'merchant'], true)) {
             $tab = 'main';
         }
@@ -27,7 +27,7 @@ final class AppstoreBuyController extends BaseAdminController
             'appId'     => $appId,
             'tab'       => $tab,
             'assetHost' => $assetHost,
-            'csrfToken' => \Csrf::token(),
+            'csrfToken' => $this->csrf->token(),
         ]);
     }
 }

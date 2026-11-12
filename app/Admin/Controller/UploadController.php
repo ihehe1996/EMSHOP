@@ -14,21 +14,21 @@ final class UploadController extends BaseAdminController
 {
     public function index(): void
     {
-        if (!\Request::isPost()) {
-            \Response::error('请求方式无效');
+        if (!$this->request->isPost()) {
+            $this->response->error('请求方式无效');
         }
 
         // 图片上传会写 em_attachment 并落盘，属于写操作，必须校验 CSRF。
-        if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
         if (empty($_FILES['file'])) {
-            \Response::error('请选择图片文件');
+            $this->response->error('请选择图片文件');
         }
 
         $uploader = new \UploadService();
-        $context = (string) \Input::post('context', 'default');
+        $context = (string) $this->input->post('context', 'default');
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         if ($context === 'site_favicon') {
             $allowed[] = 'ico';
@@ -45,12 +45,12 @@ final class UploadController extends BaseAdminController
                 }
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
 
         // 不再在上传后刷新 token，避免用户在同一页面多次上传时 token 失效
-        $csrfToken = \Csrf::token();
-        \Response::success('上传成功', [
+        $csrfToken = $this->csrf->token();
+        $this->response->success('上传成功', [
             'csrf_token' => $csrfToken,
             'url' => $result['url'],
         ]);

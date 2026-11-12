@@ -11,22 +11,24 @@ namespace App\User\Controller;
  *   - 未登录：普通请求 302 到前台登录页，Pjax / AJAX 返回 JSON 错误
  *   - 已登录：从数据库刷新余额、昵称、头像等实时字段
  */
-abstract class UserBaseController
+abstract class UserBaseController extends \App\Core\AbstractController
 {
     /** @var array<string, mixed> */
     private $frontUser = [];
 
     public function __construct()
     {
+        parent::__construct();
+
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
         if (empty($_SESSION['em_front_user'])) {
-            if (\Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-                \Response::error('请先登录');
+            if ($this->request->isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                $this->response->error('请先登录');
             }
-            \Response::redirect('/?c=login');
+            $this->response->redirect('/?c=login');
         }
 
         $user = (array) $_SESSION['em_front_user'];

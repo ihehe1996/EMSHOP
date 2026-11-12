@@ -16,12 +16,12 @@ final class OrderController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        $popup = (string) \Input::get('_popup', '');
+        $popup = (string) $this->input->get('_popup', '');
         if ($popup === 'detail') {
             $this->renderDetailPopup();
             return;
@@ -31,10 +31,10 @@ final class OrderController extends BaseAdminController
             return;
         }
 
-        $primaryCurrency = \Currency::getInstance()->getPrimary();
+        $primaryCurrency = $this->currency->getPrimary();
         $currencySymbol = $primaryCurrency ? ($primaryCurrency['symbol'] ?? '¥') : '¥';
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('order', ['currencySymbol' => $currencySymbol]);
             echo '</div>';
@@ -50,16 +50,16 @@ final class OrderController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             if ($action !== 'list') {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
-            $prefix = \Database::prefix();
+            $prefix = $this->db->prefix();
 
             switch ($action) {
                 case 'list':
@@ -94,10 +94,10 @@ final class OrderController extends BaseAdminController
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\Throwable $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
     }
 
@@ -106,16 +106,16 @@ final class OrderController extends BaseAdminController
      */
     private function handleList(string $prefix): void
     {
-        $page = max(1, (int) \Input::post('page', 1));
-        $limit = (int) \Input::post('limit', 15);
+        $page = max(1, (int) $this->input->post('page', 1));
+        $limit = (int) $this->input->post('limit', 15);
         if ($limit < 1 || $limit > 100) {
             $limit = 15;
         }
 
-        $keyword = trim((string) \Input::post('keyword', ''));
-        $status = trim((string) \Input::post('status', ''));
+        $keyword = trim((string) $this->input->post('keyword', ''));
+        $status = trim((string) $this->input->post('status', ''));
         // 站点归属筛选：'' / 'main' / 'sub'
-        $scope = trim((string) \Input::post('scope', ''));
+        $scope = trim((string) $this->input->post('scope', ''));
 
         $where = '1=1';
         $params = [];
@@ -154,7 +154,7 @@ final class OrderController extends BaseAdminController
 
         // 总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}order o LEFT JOIN {$prefix}user u ON o.user_id = u.id WHERE {$where}";
-        $total = (int) (\Database::fetchOne($countSql, $params)['cnt'] ?? 0);
+        $total = (int) ($this->db->fetchOne($countSql, $params)['cnt'] ?? 0);
 
         // 数据
         $offset = ($page - 1) * $limit;
@@ -164,7 +164,7 @@ final class OrderController extends BaseAdminController
                 WHERE {$where}
                 ORDER BY o.id DESC
                 LIMIT {$limit} OFFSET {$offset}";
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
 
         // 支付方式 code → image 映射
         $paymentImageMap = [];
@@ -194,7 +194,7 @@ final class OrderController extends BaseAdminController
         if ($rows) {
             $orderIds = array_map(static fn($r) => (int) $r['id'], $rows);
             $ph = implode(',', array_fill(0, count($orderIds), '?'));
-            $goodsRows = \Database::query(
+            $goodsRows = $this->db->query(
                 "SELECT order_id, goods_title, spec_name, quantity, cover_image
                  FROM {$prefix}order_goods
                  WHERE order_id IN ({$ph})
@@ -218,10 +218,10 @@ final class OrderController extends BaseAdminController
             unset($row);
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'data' => array_values($rows),
             'total' => $total,
-            'csrf_token' => \Csrf::token(),
+            'csrf_token' => $this->csrf->token(),
         ]);
     }
 
@@ -231,7 +231,7 @@ final class OrderController extends BaseAdminController
     private function handleDelete(string $prefix, string $action): void
     {
         if ($action === 'batch_delete') {
-            $raw = \Input::post('ids', '');
+            $raw = $this->input->post('ids', '');
             $ids = [];
             if (is_array($raw)) {
                 foreach ($raw as $v) {
@@ -250,29 +250,29 @@ final class OrderController extends BaseAdminController
             }
             $ids = array_values(array_unique($ids));
         } else {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             $ids = $id > 0 ? [$id] : [];
         }
 
         if (!$ids) {
-            \Response::error('请选择要删除的订单');
+            $this->response->error('请选择要删除的订单');
         }
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            \Database::execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$placeholders})", $ids);
-            \Database::execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$placeholders})", $ids);
-            $deleted = \Database::execute("DELETE FROM {$prefix}order WHERE id IN ({$placeholders})", $ids);
-            \Database::commit();
+            $this->db->execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$placeholders})", $ids);
+            $this->db->execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$placeholders})", $ids);
+            $deleted = $this->db->execute("DELETE FROM {$prefix}order WHERE id IN ({$placeholders})", $ids);
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
-            \Response::error('删除失败：' . $e->getMessage());
+            $this->db->rollBack();
+            $this->response->error('删除失败：' . $e->getMessage());
         }
 
-        \Response::success('已删除 ' . (int) $deleted . ' 条订单', [
-            'csrf_token' => \Csrf::token(),
+        $this->response->success('已删除 ' . (int) $deleted . ' 条订单', [
+            'csrf_token' => $this->csrf->token(),
         ]);
     }
 
@@ -281,33 +281,33 @@ final class OrderController extends BaseAdminController
      */
     private function handleClearByStatus(string $prefix): void
     {
-        $status = trim((string) \Input::post('status', ''));
+        $status = trim((string) $this->input->post('status', ''));
         $allowed = ['pending' => '未支付', 'expired' => '已过期'];
         if (!isset($allowed[$status])) {
-            \Response::error('不支持清空该状态的订单');
+            $this->response->error('不支持清空该状态的订单');
         }
 
-        $idRows = \Database::query(
+        $idRows = $this->db->query(
             "SELECT id FROM {$prefix}order WHERE status = ?",
             [$status]
         );
         $ids = array_map(static fn($r) => (int) $r['id'], $idRows);
         if (!$ids) {
-            \Response::success('没有可清空的' . $allowed[$status] . '订单', [
+            $this->response->success('没有可清空的' . $allowed[$status] . '订单', [
                 'deleted' => 0,
-                'csrf_token' => \Csrf::token(),
+                'csrf_token' => $this->csrf->token(),
             ]);
         }
 
         $deleted = 0;
-        \Database::begin();
+        $this->db->begin();
         try {
             // 分批删除，避免一次 IN 列表过长
             foreach (array_chunk($ids, 500) as $chunk) {
                 $placeholders = implode(',', array_fill(0, count($chunk), '?'));
 
                 // 事务内加锁重查：SELECT 与删除之间订单可能已被支付回调改走
-                $locked = \Database::query(
+                $locked = $this->db->query(
                     "SELECT id FROM {$prefix}order
                       WHERE id IN ({$placeholders}) AND status = ?
                       FOR UPDATE",
@@ -319,19 +319,19 @@ final class OrderController extends BaseAdminController
                 }
 
                 $okPlaceholders = implode(',', array_fill(0, count($okIds), '?'));
-                \Database::execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$okPlaceholders})", $okIds);
-                \Database::execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$okPlaceholders})", $okIds);
-                $deleted += (int) \Database::execute("DELETE FROM {$prefix}order WHERE id IN ({$okPlaceholders})", $okIds);
+                $this->db->execute("DELETE FROM {$prefix}delivery_queue WHERE order_id IN ({$okPlaceholders})", $okIds);
+                $this->db->execute("DELETE FROM {$prefix}order_goods WHERE order_id IN ({$okPlaceholders})", $okIds);
+                $deleted += (int) $this->db->execute("DELETE FROM {$prefix}order WHERE id IN ({$okPlaceholders})", $okIds);
             }
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
-            \Response::error('清空失败：' . $e->getMessage());
+            $this->db->rollBack();
+            $this->response->error('清空失败：' . $e->getMessage());
         }
 
-        \Response::success('已清空 ' . $deleted . ' 条' . $allowed[$status] . '订单', [
+        $this->response->success('已清空 ' . $deleted . ' 条' . $allowed[$status] . '订单', [
             'deleted' => $deleted,
-            'csrf_token' => \Csrf::token(),
+            'csrf_token' => $this->csrf->token(),
         ]);
     }
 
@@ -340,10 +340,10 @@ final class OrderController extends BaseAdminController
      */
     private function handleDetail(string $prefix): void
     {
-        $orderId = (int) \Input::post('id', 0);
+        $orderId = (int) $this->input->post('id', 0);
         $order = \OrderModel::getById($orderId);
         if (!$order) {
-            \Response::error('订单不存在');
+            $this->response->error('订单不存在');
         }
 
         $order['goods_amount_fmt'] = bcdiv((string) ($order['goods_amount'] ?? 0), '1000000', 2);
@@ -364,17 +364,17 @@ final class OrderController extends BaseAdminController
         }
 
         // 队列任务状态
-        $queueTasks = \Database::query(
+        $queueTasks = $this->db->query(
             "SELECT * FROM {$prefix}delivery_queue WHERE order_id = ? ORDER BY id",
             [$orderId]
         );
 
-        \Response::success('', [
+        $this->response->success('', [
             'order'       => $order,
             'order_goods' => $orderGoods,
             'buyer'       => $buyer,
             'queue_tasks' => $queueTasks,
-            'csrf_token'  => \Csrf::token(),
+            'csrf_token'  => $this->csrf->token(),
         ]);
     }
 
@@ -383,29 +383,29 @@ final class OrderController extends BaseAdminController
      */
     private function handleMarkPaid(string $prefix): void
     {
-        $orderId = (int) \Input::post('id', 0);
+        $orderId = (int) $this->input->post('id', 0);
         if ($orderId <= 0) {
-            \Response::error('参数错误');
+            $this->response->error('参数错误');
         }
 
         $order = \OrderModel::getById($orderId);
         if (!$order) {
-            \Response::error('订单不存在');
+            $this->response->error('订单不存在');
         }
         if (!in_array((string) ($order['status'] ?? ''), ['pending', 'expired'], true)) {
-            \Response::error('仅待付款或已过期订单可执行此操作');
+            $this->response->error('仅待付款或已过期订单可执行此操作');
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
             \OrderModel::changeStatus($orderId, 'paid');
 
-            $hasSuccessPayment = \Database::fetchOne(
+            $hasSuccessPayment = $this->db->fetchOne(
                 "SELECT id FROM {$prefix}order_payment WHERE order_id = ? AND status = 'success' LIMIT 1",
                 [$orderId]
             );
             if (!$hasSuccessPayment) {
-                \Database::execute(
+                $this->db->execute(
                     "INSERT INTO {$prefix}order_payment
                      (order_id, payment_code, payment_plugin, trade_no, amount, status, paid_at, created_at)
                      VALUES (?, ?, ?, ?, ?, 'success', NOW(), NOW())",
@@ -419,34 +419,34 @@ final class OrderController extends BaseAdminController
                 );
             }
 
-            \Database::commit();
+            $this->db->commit();
         } catch (\OrderStatusConflictException $e) {
             // 并发下的重复标记：若订单已被并发改成已支付，按成功返回
-            \Database::rollBack();
-            $nowRow = \Database::fetchOne(
+            $this->db->rollBack();
+            $nowRow = $this->db->fetchOne(
                 "SELECT status FROM {$prefix}order WHERE id = ?",
                 [$orderId]
             );
             if ((string) ($nowRow['status'] ?? '') === 'paid') {
-                \Response::success('订单已是已支付状态', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('订单已是已支付状态', ['csrf_token' => $this->csrf->refresh()]);
             }
-            \Response::error('订单状态已被其他操作变更，请刷新后重试');
+            $this->response->error('订单状态已被其他操作变更，请刷新后重试');
         } catch (\Throwable $e) {
-            \Database::rollBack();
-            \Response::error('标记失败：' . $e->getMessage());
+            $this->db->rollBack();
+            $this->response->error('标记失败：' . $e->getMessage());
         }
 
         try {
             \OrderModel::triggerDelivery($orderId);
         } catch (\Throwable $e) {
             // 发货触发失败不影响"已支付"结果
-            \Response::success('订单已标记为已支付，但触发发货失败：' . $e->getMessage(), [
-                'csrf_token' => \Csrf::refresh(),
+            $this->response->success('订单已标记为已支付，但触发发货失败：' . $e->getMessage(), [
+                'csrf_token' => $this->csrf->refresh(),
             ]);
         }
 
-        \Response::success('订单已标记为已支付', [
-            'csrf_token' => \Csrf::refresh(),
+        $this->response->success('订单已标记为已支付', [
+            'csrf_token' => $this->csrf->refresh(),
         ]);
     }
 
@@ -455,29 +455,29 @@ final class OrderController extends BaseAdminController
      */
     private function handleShip(): void
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $ogId = (int) \Input::post('order_goods_id', 0);
+        $ogId = (int) $this->input->post('order_goods_id', 0);
         if ($ogId <= 0) {
-            \Response::error('参数错误');
+            $this->response->error('参数错误');
         }
 
-        $ogRow = \Database::fetchOne(
+        $ogRow = $this->db->fetchOne(
             "SELECT og.*, o.status AS order_status FROM {$prefix}order_goods og
              LEFT JOIN {$prefix}order o ON o.id = og.order_id
              WHERE og.id = ?",
             [$ogId]
         );
         if (!$ogRow) {
-            \Response::error('订单商品不存在');
+            $this->response->error('订单商品不存在');
         }
         if (\OrderModel::hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) {
-            \Response::error('该商品已发货');
+            $this->response->error('该商品已发货');
         }
 
         $goodsType = (string) ($ogRow['goods_type'] ?? '');
         if ($goodsType === '') {
-            \Response::error('商品类型缺失，无法发货');
+            $this->response->error('商品类型缺失，无法发货');
         }
 
         $result = \applyFilter(
@@ -487,10 +487,10 @@ final class OrderController extends BaseAdminController
         );
 
         if (is_string($result)) {
-            \Response::error($result);
+            $this->response->error($result);
         }
         if (!is_array($result) || !isset($result['delivery_content'])) {
-            \Response::error('该商品类型暂未提供发货处理，请联系插件开发者');
+            $this->response->error('该商品类型暂未提供发货处理，请联系插件开发者');
         }
 
         $deliveryContent = (string) $result['delivery_content'];
@@ -498,7 +498,7 @@ final class OrderController extends BaseAdminController
 
         \OrderModel::manualShipOrderGoods($ogId, $deliveryContent, $pluginData);
 
-        \Response::success('发货成功', ['csrf_token' => \Csrf::refresh()]);
+        $this->response->success('发货成功', ['csrf_token' => $this->csrf->refresh()]);
     }
 
     /**
@@ -506,11 +506,11 @@ final class OrderController extends BaseAdminController
      */
     private function renderDetailPopup(): void
     {
-        $prefix = \Database::prefix();
-        $primaryCurrency = \Currency::getInstance()->getPrimary();
+        $prefix = $this->db->prefix();
+        $primaryCurrency = $this->currency->getPrimary();
         $currencySymbol = $primaryCurrency ? ($primaryCurrency['symbol'] ?? '¥') : '¥';
 
-        $orderId = (int) \Input::get('id', 0);
+        $orderId = (int) $this->input->get('id', 0);
         $order = \OrderModel::getById($orderId);
         if (!$order) {
             http_response_code(404);
@@ -533,8 +533,8 @@ final class OrderController extends BaseAdminController
             $buyer = (new \UserListModel())->findById((int) $order['user_id']);
         }
 
-        $queueTasks = \Database::query(
-            "SELECT * FROM " . \Database::prefix() . "delivery_queue WHERE order_id = ? ORDER BY id",
+        $queueTasks = $this->db->query(
+            "SELECT * FROM " . $this->db->prefix() . "delivery_queue WHERE order_id = ? ORDER BY id",
             [$orderId]
         );
 
@@ -544,7 +544,7 @@ final class OrderController extends BaseAdminController
             'buyer'          => $buyer,
             'queueTasks'     => $queueTasks,
             'currencySymbol' => $currencySymbol,
-            'csrfToken'      => \Csrf::token(),
+            'csrfToken'      => $this->csrf->token(),
             'pageTitle'      => '订单详情 #' . $order['order_no'],
         ]);
     }
@@ -554,7 +554,7 @@ final class OrderController extends BaseAdminController
      */
     private function renderShipPopup(): void
     {
-        $orderId = (int) \Input::get('id', 0);
+        $orderId = (int) $this->input->get('id', 0);
         $order = \OrderModel::getById($orderId);
         if (!$order) {
             http_response_code(404);
@@ -566,7 +566,7 @@ final class OrderController extends BaseAdminController
         $data = [
             'order'         => $order,
             'shipSubmitUrl' => $shipSubmitUrl,
-            'csrfToken'     => \Csrf::token(),
+            'csrfToken'     => $this->csrf->token(),
         ];
 
         // 仅已付款/发货中的订单允许手动发货；状态机由核心掌控

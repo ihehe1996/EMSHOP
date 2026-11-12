@@ -20,27 +20,27 @@ final class GoodsTagController extends BaseAdminController
 {
     public function index(): void
     {
-        $action = (string) \Input::get('_action', '');
+        $action = (string) $this->input->get('_action', '');
         if ($action === '') {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
         }
 
         // 非 list 操作统一验证 CSRF（与旧页面一致，GET/POST 都接受）
         if ($action !== 'list' && $action !== '') {
-            $csrf = (string) \Input::post('csrf_token', '');
+            $csrf = (string) $this->input->post('csrf_token', '');
             if ($csrf === '') {
-                $csrf = (string) \Input::get('csrf_token', '');
+                $csrf = (string) $this->input->get('csrf_token', '');
             }
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
         }
 
         // 列表接口（供 layui table 使用）
         if ($action === 'list') {
-            $page    = (int) \Input::post('page', 1);
-            $limit   = (int) \Input::post('limit', 20);
-            $keyword = trim((string) \Input::post('keyword', ''));
+            $page    = (int) $this->input->post('page', 1);
+            $limit   = (int) $this->input->post('limit', 20);
+            $keyword = trim((string) $this->input->post('keyword', ''));
 
             $where = [];
             if ($keyword !== '') {
@@ -55,23 +55,23 @@ final class GoodsTagController extends BaseAdminController
                 'msg'        => '',
                 'count'      => $result['total'],
                 'data'       => $result['list'],
-                'csrf_token' => \Csrf::token(),
+                'csrf_token' => $this->csrf->token(),
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
 
         // 保存标签（新增/编辑）
         if ($action === 'save') {
-            $id   = (int) \Input::post('id', 0);
-            $name = trim((string) \Input::post('name', ''));
-            $sort = (int) \Input::post('sort', 0);
+            $id   = (int) $this->input->post('id', 0);
+            $name = trim((string) $this->input->post('name', ''));
+            $sort = (int) $this->input->post('sort', 0);
 
             if ($name === '') {
-                \Response::error('标签名不能为空');
+                $this->response->error('标签名不能为空');
             }
 
             if (\GoodsTagModel::nameExists($name, $id)) {
-                \Response::error('标签名已存在');
+                $this->response->error('标签名已存在');
             }
 
             $data = [
@@ -85,40 +85,40 @@ final class GoodsTagController extends BaseAdminController
                 $id = \GoodsTagModel::create($data);
             }
 
-            \Response::success('保存成功', ['id' => $id, 'csrf_token' => \Csrf::refresh()]);
+            $this->response->success('保存成功', ['id' => $id, 'csrf_token' => $this->csrf->refresh()]);
         }
 
         // 删除标签
         if ($action === 'delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             if ($id <= 0) {
-                \Response::error('参数错误');
+                $this->response->error('参数错误');
             }
             if (\GoodsTagModel::delete($id)) {
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // 批量删除
         if ($action === 'batch_delete') {
-            $ids = is_array(\Input::post('ids', null))
-                ? array_map('intval', \Input::post('ids', []))
-                : (json_decode((string) \Input::post('ids', '[]'), true) ?: []);
+            $ids = is_array($this->input->post('ids', null))
+                ? array_map('intval', $this->input->post('ids', []))
+                : (json_decode((string) $this->input->post('ids', '[]'), true) ?: []);
             if (empty($ids)) {
-                \Response::error('请选择标签');
+                $this->response->error('请选择标签');
             }
             foreach ($ids as $id) {
                 \GoodsTagModel::delete($id);
             }
-            \Response::success('批量删除成功', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('批量删除成功', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 刷新商品计数
         if ($action === 'refresh_counts') {
             \GoodsTagModel::refreshAllCounts();
-            \Response::success('计数已刷新', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('计数已刷新', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 默认：显示列表页面
@@ -130,7 +130,7 @@ final class GoodsTagController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('goods_tag');
             echo '</div>';

@@ -16,23 +16,23 @@ final class FinanceController extends MerchantBaseController
         $merchantLevel = $this->level();
         $merchantId = (int) $currentMerchant['id'];
 
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                $action = (string) \Input::post('_action', '');
+                $action = (string) $this->input->post('_action', '');
                 if ($action !== 'list' && $action !== 'summary') {
-                    if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                        \Response::error('请求已失效，请刷新页面后重试');
+                    if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                        $this->response->error('请求已失效，请刷新页面后重试');
                     }
                 }
 
-                $logTable = \Database::prefix() . 'merchant_balance_log';
+                $logTable = $this->db->prefix() . 'merchant_balance_log';
 
                 switch ($action) {
                     case 'list': {
-                        $type = trim((string) \Input::post('type', ''));
-                        $month = trim((string) \Input::post('month', ''));  // 'YYYY-MM'
-                        $page = max(1, (int) \Input::post('page', 1));
-                        $pageSize = max(1, min(100, (int) \Input::post('limit', 20)));
+                        $type = trim((string) $this->input->post('type', ''));
+                        $month = trim((string) $this->input->post('month', ''));  // 'YYYY-MM'
+                        $page = max(1, (int) $this->input->post('page', 1));
+                        $pageSize = max(1, min(100, (int) $this->input->post('limit', 20)));
                         $offset = ($page - 1) * $pageSize;
 
                         $conds = ['merchant_id = ?'];
@@ -50,7 +50,7 @@ final class FinanceController extends MerchantBaseController
                         }
                         $whereSql = 'WHERE ' . implode(' AND ', $conds);
 
-                        $count = \Database::fetchOne(
+                        $count = $this->db->fetchOne(
                             'SELECT COUNT(*) AS c FROM `' . $logTable . '` ' . $whereSql,
                             $params
                         );
@@ -59,13 +59,13 @@ final class FinanceController extends MerchantBaseController
                         $sql = 'SELECT * FROM `' . $logTable . '` ' . $whereSql . '
                                  ORDER BY `created_at` DESC, `id` DESC
                                  LIMIT ' . $pageSize . ' OFFSET ' . $offset;
-                        $rows = \Database::query($sql, $params);
+                        $rows = $this->db->query($sql, $params);
 
                         foreach ($rows as &$r) {
                             // 店铺余额类按访客当前币种展示（店铺资产语义 —— 和余额卡片、提现页同口径）
-                            $r['amount_view'] = \Currency::displayAmount((int) $r['amount']);
-                            $r['before_view'] = \Currency::displayAmount((int) $r['before_balance']);
-                            $r['after_view']  = \Currency::displayAmount((int) $r['after_balance']);
+                            $r['amount_view'] = $this->currency->displayAmount((int) $r['amount']);
+                            $r['before_view'] = $this->currency->displayAmount((int) $r['before_balance']);
+                            $r['after_view']  = $this->currency->displayAmount((int) $r['after_balance']);
                             // 正负号：increase/sub_rebate 为加；decrease/refund/withdraw/withdraw_fee 为减
                             $r['direction'] = in_array($r['type'], ['increase', 'sub_rebate', 'adjust'], true) && (int) $r['after_balance'] >= (int) $r['before_balance']
                                 ? '+' : '-';
@@ -75,10 +75,10 @@ final class FinanceController extends MerchantBaseController
                         }
                         unset($r);
 
-                        \Response::success('', [
+                        $this->response->success('', [
                             'data' => $rows,
                             'total' => $total,
-                            'csrf_token' => \Csrf::token(),
+                            'csrf_token' => $this->csrf->token(),
                         ]);
                         break;
                     }
@@ -89,22 +89,22 @@ final class FinanceController extends MerchantBaseController
                         $sums = [];
                         $types = ['increase', 'refund', 'withdraw', 'withdraw_fee', 'sub_rebate'];
                         foreach ($types as $t) {
-                            $row = \Database::fetchOne(
+                            $row = $this->db->fetchOne(
                                 'SELECT COALESCE(SUM(`amount`), 0) AS s FROM `' . $logTable . '`
                                   WHERE `merchant_id` = ? AND `type` = ? AND `created_at` >= ?',
                                 [$merchantId, $t, $monthStart]
                             );
-                            $sums[$t] = \Currency::displayAmount((int) ($row['s'] ?? 0));
+                            $sums[$t] = $this->currency->displayAmount((int) ($row['s'] ?? 0));
                         }
-                        \Response::success('', ['data' => $sums]);
+                        $this->response->success('', ['data' => $sums]);
                         break;
                     }
 
                     default:
-                        \Response::error('未知操作');
+                        $this->response->error('未知操作');
                 }
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage() ?: '系统繁忙，请稍后再试');
+                $this->response->error($e->getMessage() ?: '系统繁忙，请稍后再试');
             }
         }
 

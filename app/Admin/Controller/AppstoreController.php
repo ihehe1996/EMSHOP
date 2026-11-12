@@ -19,8 +19,8 @@ final class AppstoreController extends BaseAdminController
 {
     public function index(): void
     {
-        $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $csrfToken = \Csrf::token();
+        $siteName = (string) $this->config->get('sitename', 'EMSHOP');
+        $csrfToken = $this->csrf->token();
 
         // 应用商店的数据拉取必须带官方账号身份：没登录就锁页、不让拉
         $officialAccount  = \LicenseService::officialAccount();
@@ -33,21 +33,21 @@ final class AppstoreController extends BaseAdminController
         //
         // 一次拿到订单信息 + 收款页地址 + 可用支付通道，前端弹窗让用户挑通道，
         // 再把通道 id 拼到 pay_url 上（?channel={id}）跳收银台。
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'app_buy') {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'app_buy') {
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
-            $appId = (int) \Input::post('app_id', 0);
-            if ($appId <= 0) \Response::error('应用ID不能为空');
+            $appId = (int) $this->input->post('app_id', 0);
+            if ($appId <= 0) $this->response->error('应用ID不能为空');
 
             // 下单必须带授权码（应用列表不传也能看，买东西必须有）；未激活直接拦截，
             // 免得服务端兜底报一个看不懂的错误
             $licenseRow = \LicenseService::currentLicense();
             $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
             if ($emkey === '') {
-                \Response::error('请先激活正版授权');
+                $this->response->error('请先激活正版授权');
             }
-            $tab = (string) \Input::post('tab', 'main');
+            $tab = (string) $this->input->post('tab', 'main');
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
 
             // 有绑定过主授权域名就用它，否则回退当前 HTTP_HOST（与 app-list 一致）
@@ -60,14 +60,14 @@ final class AppstoreController extends BaseAdminController
 
                 $orderNo = trim((string) ($data['order_no'] ?? ''));
                 if ($orderNo === '') {
-                    \Response::error('订单创建失败：未返回订单号');
+                    $this->response->error('订单创建失败：未返回订单号');
                 }
 
                 // 收款页与通道 logo 都是授权服务器上的相对路径，这里统一补成绝对地址，
                 // 前端拿到即可直接跳转 / 直接渲染
                 $data['pay_url'] = $this->absolutizeRemoteUrl((string) ($data['pay_url'] ?? ''));
                 if ($data['pay_url'] === '') {
-                    \Response::error('订单创建失败：未返回收款页地址');
+                    $this->response->error('订单创建失败：未返回收款页地址');
                 }
                 if (!is_array($data['channels'] ?? null)) {
                     $data['channels'] = [];
@@ -79,65 +79,65 @@ final class AppstoreController extends BaseAdminController
                 }
                 unset($channel);
 
-                $data['csrf_token'] = \Csrf::refresh();
+                $data['csrf_token'] = $this->csrf->refresh();
                 $data['tab']        = $tab;
-                \Response::success('订单已创建', $data);
+                $this->response->success('订单已创建', $data);
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             }
         }
 
         // AJAX：站内扫码支付 —— 取这一单的支付宝当面付二维码
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'app_pay_qrcode') {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'app_pay_qrcode') {
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
-            $orderNo = trim((string) \Input::post('order_no', ''));
+            $orderNo = trim((string) $this->input->post('order_no', ''));
             if ($orderNo === '') {
-                \Response::error('订单号不能为空');
+                $this->response->error('订单号不能为空');
             }
-            $channelId = (int) \Input::post('channel_id', 0);
+            $channelId = (int) $this->input->post('channel_id', 0);
             try {
                 $data = \LicenseClient::appOrderQrcode($orderNo, $channelId);
-                $data['csrf_token'] = \Csrf::refresh();
-                \Response::success('', $data);
+                $data['csrf_token'] = $this->csrf->refresh();
+                $this->response->success('', $data);
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             }
         }
 
         // AJAX：站内扫码支付 —— 轮询支付结果（服务端会主动问一次支付宝）
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'app_order_status') {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'app_order_status') {
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
-            $orderNo = trim((string) \Input::post('order_no', ''));
+            $orderNo = trim((string) $this->input->post('order_no', ''));
             if ($orderNo === '') {
-                \Response::error('订单号不能为空');
+                $this->response->error('订单号不能为空');
             }
             try {
                 // 轮询很频繁，不轮换 CSRF（否则前端拿到的 token 会和并发的请求互相打脸）
-                \Response::success('', \LicenseClient::appOrderStatus($orderNo));
+                $this->response->success('', \LicenseClient::appOrderStatus($orderNo));
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             }
         }
 
         // AJAX：按 id 拉取单个应用详情 + 支付方式（/api/app_detail.php），购买弹窗一次拉齐
-        if ((string) \Input::get('_action', '') === 'app_detail') {
+        if ((string) $this->input->get('_action', '') === 'app_detail') {
             if (!$officialLoggedIn) {
-                \Response::error('请先登录官方账号后再使用应用商店');
+                $this->response->error('请先登录官方账号后再使用应用商店');
             }
 
-            $appId = (int) \Input::get('id', 0);
+            $appId = (int) $this->input->get('id', 0);
             if ($appId <= 0) {
-                \Response::error('应用ID不能为空');
+                $this->response->error('应用ID不能为空');
             }
             // 复用列表接口的身份注入逻辑（未激活时 emkey 为空，服务端会回退 VIP 价）
             $licenseRow = \LicenseService::currentLicense();
             $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
             $host  = \LicenseService::effectiveHost();
-            $tab   = (string) \Input::get('tab', 'main');
+            $tab   = (string) $this->input->get('tab', 'main');
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
             try {
                 // 阶段 8:走拆分后的 mainAppDetail / merchantAppDetail
@@ -145,9 +145,9 @@ final class AppstoreController extends BaseAdminController
                 $data = $tab === 'merchant'
                     ? \LicenseClient::merchantAppDetail($appId, $emkey, $host, $officialToken)
                     : \LicenseClient::mainAppDetail($appId, $emkey, $host, $officialToken);
-                \Response::success('', $data);
+                $this->response->success('', $data);
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage());
+                $this->response->error($e->getMessage());
             }
         }
 
@@ -156,9 +156,9 @@ final class AppstoreController extends BaseAdminController
         // tab=main     → scope=main,主站自己用,合并 em_plugin/em_template 已装状态
         // tab=merchant → scope=branch,主站为分站采购,合并 em_app_market 已上架状态
         // list_mode=purchased → 走同一条 app-list，带 purchased=1 让上游按已支付订单过滤
-        if ((string) \Input::get('_action', '') === 'list') {
+        if ((string) $this->input->get('_action', '') === 'list') {
             if (!$officialLoggedIn) {
-                \Response::error('请先登录官方账号后再使用应用商店');
+                $this->response->error('请先登录官方账号后再使用应用商店');
             }
 
             \LicenseService::revalidateCurrent(); // 获取最新授权状态
@@ -171,26 +171,26 @@ final class AppstoreController extends BaseAdminController
             // 有绑定过主授权域名就用它，否则回退当前 HTTP_HOST（适配未激活场景）
             $host  = \LicenseService::effectiveHost();
 
-            $tab = (string) \Input::get('tab', 'main');
+            $tab = (string) $this->input->get('tab', 'main');
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
-            $listMode = (string) \Input::get('list_mode', '');
+            $listMode = (string) $this->input->get('list_mode', '');
             if (!in_array($listMode, ['', 'purchased'], true)) $listMode = '';
             $isPurchasedList = ($listMode === 'purchased');
 
             // app-list 参数：domain + code + per_page（服务端上限 50）；
             // 「已购买」tab 也走同一条接口，只是多带 purchased=1
-            $page  = max(1, (int) \Input::get('page', 1));
-            $limit = max(1, (int) \Input::get('limit', $isPurchasedList ? 10 : 20));
+            $page  = max(1, (int) $this->input->get('page', 1));
+            $limit = max(1, (int) $this->input->get('limit', $isPurchasedList ? 10 : 20));
             $common = [
                 'page'    => $page,
-                'type'    => (string) \Input::get('type', ''),
-                'keyword' => (string) \Input::get('keyword', ''),
+                'type'    => (string) $this->input->get('type', ''),
+                'keyword' => (string) $this->input->get('keyword', ''),
             ];
             // category_id 必须"客户端传了才带"，不能在服务端补 0：
             //   「全部」  → 客户端不传 → 请求里也不能出现 category_id，否则服务端会当成"只看未归类"
             //   「未归类」→ 客户端传 0  → 原样带上
             // 所以取默认值 null 来区分"没传"和"传了 0"，不要用 (int) 兜底。
-            $categoryId = \Input::get('category_id', null);
+            $categoryId = $this->input->get('category_id', null);
             if ($categoryId !== null && $categoryId !== '') {
                 $common['category_id'] = (int) $categoryId;
             }
@@ -209,7 +209,7 @@ final class AppstoreController extends BaseAdminController
 
             // 已购买列表依赖 emkey；未激活时直接返回空页，避免打断页面
             if ($isPurchasedList && $emkey === '') {
-                \Response::success('', [
+                $this->response->success('', [
                     'license'    => [],
                     'categories' => [],
                     'meta'       => ['page' => $page, 'per_page' => $limit, 'total' => 0, 'last_page' => 0],
@@ -265,28 +265,28 @@ final class AppstoreController extends BaseAdminController
                     unset($app);
                 }
 
-                \Response::success('', $result);
+                $this->response->success('', $result);
             } catch (\Throwable $e) {
-                \Response::error($e->getMessage(), []);
+                $this->response->error($e->getMessage(), []);
             }
         }
 
         // 更新应用：下载远端 zip → 覆盖 content/plugin|template/{name}/
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'update') {
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'update') {
             try {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
-                $name = trim((string) \Input::post('name', ''));
-                $type = (string) \Input::post('type', 'plugin');
-                $filePath = trim((string) \Input::post('file_path', ''));
-                $version = trim((string) \Input::post('version', ''));
-                if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) \Response::error('非法应用名');
-                if (!in_array($type, ['plugin', 'template'], true)) \Response::error('未知应用类型');
-                if ($filePath === '') \Response::error('EM官方未提供下载地址');
+                $name = trim((string) $this->input->post('name', ''));
+                $type = (string) $this->input->post('type', 'plugin');
+                $filePath = trim((string) $this->input->post('file_path', ''));
+                $version = trim((string) $this->input->post('version', ''));
+                if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) $this->response->error('非法应用名');
+                if (!in_array($type, ['plugin', 'template'], true)) $this->response->error('未知应用类型');
+                if ($filePath === '') $this->response->error('EM官方未提供下载地址');
                 $targetRoot = $type === 'template' ? EM_ROOT . '/content/template' : EM_ROOT . '/content/plugin';
                 $targetDir = $targetRoot . '/' . $name;
-                if (!is_dir($targetDir)) \Response::error('应用尚未安装，无法更新');
+                if (!is_dir($targetDir)) $this->response->error('应用尚未安装，无法更新');
 
                 $tmpRoot = EM_ROOT . '/content/uploads/.appstore_tmp';
                 $this->requireWritablePath($tmpRoot);
@@ -300,26 +300,26 @@ final class AppstoreController extends BaseAdminController
                 if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
                     @unlink($tmpZip);
                     if($dl['error'] == 'Recv failure: Connection was reset'){
-                        \Response::error('下载失败，服务端线路被墙，请重试~');
+                        $this->response->error('下载失败，服务端线路被墙，请重试~');
                     }
-                    \Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
+                    $this->response->error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
                 }
 
                 if (!class_exists('ZipArchive')) {
                     @unlink($tmpZip);
-                    \Response::error('PHP ZipArchive 扩展未启用');
+                    $this->response->error('PHP ZipArchive 扩展未启用');
                 }
                 $zip = new \ZipArchive();
                 if ($zip->open($tmpZip) !== true) {
                     @unlink($tmpZip);
-                    \Response::error('zip 打开失败');
+                    $this->response->error('zip 打开失败');
                 }
                 $extractTmp = $tmpRoot . '/x_u_' . uniqid();
                 @mkdir($extractTmp, 0755, true);
                 if (!$zip->extractTo($extractTmp)) {
                     $zip->close();
                     @unlink($tmpZip);
-                    \Response::error('解压失败');
+                    $this->response->error('解压失败');
                 }
                 $zip->close();
                 @unlink($tmpZip);
@@ -349,20 +349,20 @@ final class AppstoreController extends BaseAdminController
 
                 if (!$rmTree($targetDir)) {
                     $rmTree($extractTmp);
-                    \Response::error('清理旧版本失败，请检查目录权限');
+                    $this->response->error('清理旧版本失败，请检查目录权限');
                 }
                 if (!@mkdir($targetDir, 0755, true)) {
                     $rmTree($extractTmp);
-                    \Response::error('创建目标目录失败，请检查目录权限');
+                    $this->response->error('创建目标目录失败，请检查目录权限');
                 }
                 if (!$copyTree($srcRoot, $targetDir)) {
                     $rmTree($extractTmp);
-                    \Response::error('写入新版本文件失败，请检查目录权限');
+                    $this->response->error('写入新版本文件失败，请检查目录权限');
                 }
                 $rmTree($extractTmp);
 
-                if ($type === 'plugin' && !is_file($targetDir . '/' . $name . '.php')) \Response::error('更新后插件主文件缺失：' . $name . '.php');
-                if ($type === 'template' && !is_file($targetDir . '/header.php')) \Response::error('更新后模板 header.php 缺失');
+                if ($type === 'plugin' && !is_file($targetDir . '/' . $name . '.php')) $this->response->error('更新后插件主文件缺失：' . $name . '.php');
+                if ($type === 'template' && !is_file($targetDir . '/header.php')) $this->response->error('更新后模板 header.php 缺失');
 
                 // 插件更新回调：用于版本升级后的数据迁移/兼容处理。
                 if ($type === 'plugin') {
@@ -375,39 +375,39 @@ final class AppstoreController extends BaseAdminController
                     }
                 }
 
-                \Response::success('更新完成：' . $name . ($version !== '' ? (' v' . $version) : ''), ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('更新完成：' . $name . ($version !== '' ? (' v' . $version) : ''), ['csrf_token' => $this->csrf->refresh()]);
             } catch (\Throwable $e) {
-                \Response::error('更新异常：' . $e->getMessage());
+                $this->response->error('更新异常：' . $e->getMessage());
             }
         }
 
         // 安装应用：下载远端 zip → 解压到 content/plugin|template/{name}/ → 注册到本地
-        if (\Request::isPost() && (string) \Input::post('_action', '') === 'install') {
+        if ($this->request->isPost() && (string) $this->input->post('_action', '') === 'install') {
             try {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
-                $name    = trim((string) \Input::post('name', ''));
-                $type    = (string) \Input::post('type', 'plugin');
+                $name    = trim((string) $this->input->post('name', ''));
+                $type    = (string) $this->input->post('type', 'plugin');
                 // 应用包地址来自 app-list 的 package_url（可能是相对路径）
-                $packageUrl = trim((string) \Input::post('package_url', ''));
+                $packageUrl = trim((string) $this->input->post('package_url', ''));
                 // tab=main      → 主站自用,装到 content/plugin|template/{name}/(磁盘=装,无 DB 行)
                 // tab=merchant  → 主站为分站采购,下载解压共用,注册落 em_app_market(走 MainAppPurchaseService)
-                $tab = (string) \Input::post('tab', 'main');
+                $tab = (string) $this->input->post('tab', 'main');
                 if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
 
                 if ($name === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $name)) {
-                    \Response::error('非法应用名');
+                    $this->response->error('非法应用名');
                 }
                 if (!in_array($type, ['plugin', 'template'], true)) {
-                    \Response::error('未知应用类型');
+                    $this->response->error('未知应用类型');
                 }
 
                 // 应用要求的主程序最低版本：本地太低就别装，装上也是坏的
-                $minVersion = trim((string) \Input::post('min_version', ''));
+                $minVersion = trim((string) $this->input->post('min_version', ''));
                 if ($minVersion !== '' && defined('EM_VERSION') && version_compare((string) EM_VERSION, $minVersion, '<')) {
-                    \Response::error('该应用要求 EMSHOP ' . $minVersion . ' 及以上，当前版本 ' . EM_VERSION . ' 过低，请先升级主程序');
+                    $this->response->error('该应用要求 EMSHOP ' . $minVersion . ' 及以上，当前版本 ' . EM_VERSION . ' 过低，请先升级主程序');
                 }
 
                 $targetRoot = $type === 'template' ? EM_ROOT . '/content/template' : EM_ROOT . '/content/plugin';
@@ -438,20 +438,20 @@ final class AppstoreController extends BaseAdminController
                 if (!$dl['ok'] || $dl['http'] !== 200 || filesize($tmpZip) < 16) {
                     @unlink($tmpZip);
                     if($dl['error'] == 'Recv failure: Connection was reset'){
-                        \Response::error('下载失败，服务端线路被墙，请重试~');
+                        $this->response->error('下载失败，服务端线路被墙，请重试~');
                     }
-                    \Response::error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
+                    $this->response->error('下载失败：' . ($dl['error'] !== '' ? $dl['error'] : 'HTTP ' . $dl['http']));
                 }
 
                 // 解压：若 zip 顶层只有一个目录（通常等于 name），则把它内部内容铺平到 targetDir
                 if (!class_exists('ZipArchive')) {
                     @unlink($tmpZip);
-                    \Response::error('PHP ZipArchive 扩展未启用');
+                    $this->response->error('PHP ZipArchive 扩展未启用');
                 }
                 $zip = new \ZipArchive();
                 if ($zip->open($tmpZip) !== true) {
                     @unlink($tmpZip);
-                    \Response::error('zip 打开失败');
+                    $this->response->error('zip 打开失败');
                 }
 
                 // 探测顶层
@@ -484,7 +484,7 @@ final class AppstoreController extends BaseAdminController
                         $zip->close();
                         @unlink($tmpZip);
                         $rmTree($extractTmp);
-                        \Response::error('解压失败');
+                        $this->response->error('解压失败');
                     }
                     $zip->close();
 
@@ -506,14 +506,14 @@ final class AppstoreController extends BaseAdminController
                     $rmTree($extractTmp);
                     if (!$moved) {
                         @unlink($tmpZip);
-                        \Response::error('移动解压文件到目标目录失败（请检查 content/plugin 或 content/template 目录写权限）');
+                        $this->response->error('移动解压文件到目标目录失败（请检查 content/plugin 或 content/template 目录写权限）');
                     }
                 } else {
                     @mkdir($targetDir, 0755, true);
                     if (!$zip->extractTo($targetDir)) {
                         $zip->close();
                         @unlink($tmpZip);
-                        \Response::error('解压失败');
+                        $this->response->error('解压失败');
                     }
                     $zip->close();
                 }
@@ -525,7 +525,7 @@ final class AppstoreController extends BaseAdminController
                     // 已上架的应用不允许再次安装
                     $existingMarket = (new \AppMarketModel())->findByAppCode($name, $type);
                     if ($existingMarket !== null) {
-                        \Response::error('应用已安装，无需重复安装');
+                        $this->response->error('应用已安装，无需重复安装');
                     }
 
                     // tab=merchant:主站为分站采购 → 落 em_app_market + 写流水(走 MainAppPurchaseService)
@@ -554,13 +554,13 @@ final class AppstoreController extends BaseAdminController
                         }
                     }
 
-                    $costPerUnit = max(0, (int) \Input::post('cost_per_unit', 0));
+                    $costPerUnit = max(0, (int) $this->input->post('cost_per_unit', 0));
                     $service = new \MainAppPurchaseService();
                     $result = $service->registerPurchase([
                         'app_code'        => $name,
                         'type'            => $type,
                         'cost_per_unit'   => $costPerUnit,
-                        'remote_app_id'   => ((int) \Input::post('remote_app_id', 0)) ?: null,
+                        'remote_app_id'   => ((int) $this->input->post('remote_app_id', 0)) ?: null,
                         'title'           => $title,
                         'version'         => $version,
                         'category'        => $category,
@@ -568,46 +568,46 @@ final class AppstoreController extends BaseAdminController
                         'description'     => $description,
                         // upsert 时 retail_price 仅在"新建 market 行"时生效
                         'retail_price'    => $costPerUnit,
-                        'remote_order_no' => (string) \Input::post('remote_order_no', ''),
+                        'remote_order_no' => (string) $this->input->post('remote_order_no', ''),
                         'remark'          => '主站首次采购',
                     ]);
-                    \Response::success(
+                    $this->response->success(
                         '已为分站采购上架',
-                        ['csrf_token' => \Csrf::refresh(), 'market_id' => $result['market_id'], 'log_id' => $result['log_id']]
+                        ['csrf_token' => $this->csrf->refresh(), 'market_id' => $result['market_id'], 'log_id' => $result['log_id']]
                     );
                 } elseif ($type === 'plugin') {
                     // 磁盘 = 装,不再写 DB 行 —— 插件管理页 enable 时会触发 callback_init
                     // 这里只校验磁盘文件就绪
                     if (!is_file($targetDir . '/' . $name . '.php')) {
-                        \Response::error('插件主文件缺失：' . $name . '.php');
+                        $this->response->error('插件主文件缺失：' . $name . '.php');
                     }
-                    \Response::success(
+                    $this->response->success(
                         '插件已安装,请到插件管理页启用',
-                        ['csrf_token' => \Csrf::refresh()]
+                        ['csrf_token' => $this->csrf->refresh()]
                     );
                 } else {
                     // 模板:磁盘 = 装,同样不写 DB —— activate_pc / activate_mobile 时 lazy-create
                     if (!is_file($targetDir . '/header.php')) {
-                        \Response::error('模板 header.php 缺失');
+                        $this->response->error('模板 header.php 缺失');
                     }
-                    \Response::success(
+                    $this->response->success(
                         '模板已安装,请到模板管理页启用',
-                        ['csrf_token' => \Csrf::refresh()]
+                        ['csrf_token' => $this->csrf->refresh()]
                     );
                 }
             } catch (\Throwable $e) {
-                \Response::error('安装异常：' . $e->getMessage());
+                $this->response->error('安装异常：' . $e->getMessage());
             }
         }
 
         // 主站 / 分站应用商店物理拆分：tab=merchant 走分站视图，默认 / main 走主站视图
-        $appstoreTab = (string) \Input::get('tab', 'main');
+        $appstoreTab = (string) $this->input->get('tab', 'main');
         if (!in_array($appstoreTab, ['main', 'merchant'], true)) $appstoreTab = 'main';
         $appstoreView = $appstoreTab === 'merchant'
             ? dirname(__DIR__) . '/View/appstore_merchant.php'
             : dirname(__DIR__) . '/View/appstore.php';
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             require $appstoreView;
             return;
         }
@@ -631,7 +631,7 @@ final class AppstoreController extends BaseAdminController
                 return;
             }
         }
-        \Response::error('下载地址非法（必须与授权服务器同一域名）');
+        $this->response->error('下载地址非法（必须与授权服务器同一域名）');
     }
 
     /**
@@ -644,14 +644,14 @@ final class AppstoreController extends BaseAdminController
     private function resolveDownloadUrl(string $url): string
     {
         if ($url === '') {
-            \Response::error('EM官方未提供下载地址');
+            $this->response->error('EM官方未提供下载地址');
         }
         if (stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) {
             $this->assertDownloadUrl($url);
             return $url;
         }
         if (!\LicenseClient::lines()) {
-            \Response::error('未配置授权服务器地址');
+            $this->response->error('未配置授权服务器地址');
         }
         return rtrim(\LicenseClient::currentBaseUrl(), '/') . '/' . ltrim($url, '/');
     }
@@ -739,7 +739,7 @@ final class AppstoreController extends BaseAdminController
         $path = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
         $path = rtrim($path, DIRECTORY_SEPARATOR);
         if ($path === '') {
-            \Response::error('网站目录权限不足，请设置网站目录权限为755');
+            $this->response->error('网站目录权限不足，请设置网站目录权限为755');
         }
         if (is_file($path)) {
             $path = dirname($path);
@@ -756,7 +756,7 @@ final class AppstoreController extends BaseAdminController
         }
 
         if (!is_dir($probe) || !is_writable($probe)) {
-            \Response::error('网站目录权限不足，请设置网站目录权限为755');
+            $this->response->error('网站目录权限不足，请设置网站目录权限为755');
         }
     }
 }

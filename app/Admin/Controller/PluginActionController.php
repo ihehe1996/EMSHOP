@@ -15,12 +15,12 @@ final class PluginActionController extends BaseAdminController
     public function index(): void
     {
         // 与旧入口一致：GET 优先，没有再取 POST
-        $action = (string) (\Input::get('_action', null) ?? \Input::post('_action', ''));
+        $action = (string) ($this->input->get('_action', null) ?? $this->input->post('_action', ''));
 
         if ($action !== '') {
             doAction('admin_plugin_action_' . $action);
         }
 
-        \Response::error('未知操作');
+        $this->response->error('未知操作');
     }
 }

@@ -20,7 +20,7 @@ final class RechargeController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -34,23 +34,23 @@ final class RechargeController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
             $model = new \UserRechargeModel();
-            $rechargeTable = \Database::prefix() . 'user_recharge';
+            $rechargeTable = $this->db->prefix() . 'user_recharge';
 
             // 写操作校验 CSRF（list / summary 只读，免校验）
             if (!in_array($action, ['list', 'summary'], true)) {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('令牌失效，请刷新后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('令牌失效，请刷新后重试');
                 }
             }
 
             if ($action === 'list') {
-                $page = max(1, (int) \Input::post('page', 1));
-                $perPage = max(1, min(100, (int) \Input::post('limit', 20)));
+                $page = max(1, (int) $this->input->post('page', 1));
+                $perPage = max(1, min(100, (int) $this->input->post('limit', 20)));
                 $filter = [
-                    'status'  => (string) \Input::post('status', ''),
-                    'keyword' => trim((string) \Input::post('keyword', '')),
+                    'status'  => (string) $this->input->post('status', ''),
+                    'keyword' => trim((string) $this->input->post('keyword', '')),
                 ];
                 $result = $model->paginate($filter, $page, $perPage);
 
@@ -80,7 +80,7 @@ final class RechargeController extends BaseAdminController
                 unset($r);
 
                 // 顺手把状态分桶计数也算了，省一次往返（前端 tabs 上显示徽章）
-                $countRows = \Database::query(
+                $countRows = $this->db->query(
                     "SELECT status, COUNT(*) AS cnt FROM `{$rechargeTable}` GROUP BY status"
                 );
                 $statusCounts = ['all' => 0, 'pending' => 0, 'paid' => 0, 'cancelled' => 0];
@@ -93,11 +93,11 @@ final class RechargeController extends BaseAdminController
                     }
                 }
 
-                \Response::success('', [
+                $this->response->success('', [
                     'data'          => $result['list'],
                     'total'         => $result['total'],
                     'status_counts' => $statusCounts,
-                    'csrf_token'    => \Csrf::token(),
+                    'csrf_token'    => $this->csrf->token(),
                 ]);
             }
 
@@ -106,19 +106,19 @@ final class RechargeController extends BaseAdminController
                 $today = date('Y-m-d');
                 $monthStart = date('Y-m-01 00:00:00');
 
-                $todayRow = \Database::fetchOne(
+                $todayRow = $this->db->fetchOne(
                     "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ? AND DATE(paid_at) = ?",
                     [\UserRechargeModel::STATUS_PAID, $today]
                 );
-                $monthRow = \Database::fetchOne(
+                $monthRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ? AND paid_at >= ?",
                     [\UserRechargeModel::STATUS_PAID, $monthStart]
                 );
-                $totalRow = \Database::fetchOne(
+                $totalRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ?",
@@ -127,7 +127,7 @@ final class RechargeController extends BaseAdminController
 
                 $fmt = static fn(int $bigint): string => bcdiv((string) $bigint, '1000000', 2);
 
-                \Response::success('', ['data' => [
+                $this->response->success('', ['data' => [
                     'today_count'   => (int) ($todayRow['cnt'] ?? 0),
                     'today_amount'  => $fmt((int) ($todayRow['amt'] ?? 0)),
                     'month_amount'  => $fmt((int) ($monthRow['amt'] ?? 0)),
@@ -137,39 +137,39 @@ final class RechargeController extends BaseAdminController
 
             if ($action === 'cancel') {
                 // 管理员手动取消 pending 单（只改状态，不退款——pending 单本就没扣过钱）
-                $id = (int) \Input::post('id', 0);
+                $id = (int) $this->input->post('id', 0);
                 $row = $model->findById($id);
                 if (!$row) {
-                    \Response::error('记录不存在');
+                    $this->response->error('记录不存在');
                 }
                 if ($row['status'] !== \UserRechargeModel::STATUS_PENDING) {
-                    \Response::error('仅待支付的充值单可取消');
+                    $this->response->error('仅待支付的充值单可取消');
                 }
-                \Database::execute(
-                    'UPDATE ' . \Database::prefix() . 'user_recharge SET status = ? WHERE id = ? AND status = ?',
+                $this->db->execute(
+                    'UPDATE ' . $this->db->prefix() . 'user_recharge SET status = ? WHERE id = ? AND status = ?',
                     [\UserRechargeModel::STATUS_CANCELLED, $id, \UserRechargeModel::STATUS_PENDING]
                 );
-                \Response::success('已取消', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('已取消', ['csrf_token' => $this->csrf->refresh()]);
             }
 
             // 删除单条：仅删充值记录，已到账余额不回滚
             if ($action === 'delete') {
-                $id = (int) \Input::post('id', 0);
+                $id = (int) $this->input->post('id', 0);
                 if ($id <= 0) {
-                    \Response::error('无效的记录');
+                    $this->response->error('无效的记录');
                 }
                 if ($model->findById($id) === null) {
-                    \Response::error('记录不存在');
+                    $this->response->error('记录不存在');
                 }
                 if (!$model->delete($id)) {
-                    \Response::error('删除失败');
+                    $this->response->error('删除失败');
                 }
-                \Response::success('删除成功', ['csrf_token' => \Csrf::refresh()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->refresh()]);
             }
 
             // 批量删除
             if ($action === 'batch_delete') {
-                $raw = \Input::post('ids', '');
+                $raw = $this->input->post('ids', '');
                 $ids = [];
                 if (is_array($raw)) {
                     foreach ($raw as $v) {
@@ -188,19 +188,19 @@ final class RechargeController extends BaseAdminController
                 }
                 $ids = array_values(array_unique($ids));
                 if ($ids === []) {
-                    \Response::error('请选择要删除的充值单');
+                    $this->response->error('请选择要删除的充值单');
                 }
 
                 $deleted = $model->deleteBatch($ids);
-                \Response::success('已删除 ' . $deleted . ' 条', [
+                $this->response->success('已删除 ' . $deleted . ' 条', [
                     'deleted'    => $deleted,
-                    'csrf_token' => \Csrf::refresh(),
+                    'csrf_token' => $this->csrf->refresh(),
                 ]);
             }
 
-            \Response::error('未知操作');
+            $this->response->error('未知操作');
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙：' . $e->getMessage());
+            $this->response->error('系统繁忙：' . $e->getMessage());
         }
     }
 
@@ -209,7 +209,7 @@ final class RechargeController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('recharge');
             echo '</div>';

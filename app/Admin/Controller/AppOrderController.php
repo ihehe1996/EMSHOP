@@ -16,12 +16,12 @@ final class AppOrderController extends BaseAdminController
 {
     public function index(): void
     {
-        if ((string) \Input::get('_action', '') === 'list') {
+        if ((string) $this->input->get('_action', '') === 'list') {
             $this->outputList();
             return;
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             // 旧页面 Pjax 分支就是直接 include 视图（视图自带内容区结构），保持一致
             $this->render('app_order');
             return;
@@ -38,12 +38,12 @@ final class AppOrderController extends BaseAdminController
         try {
             $model = new \AppOrderModel();
             $result = $model->paginateForAdmin([
-                'page'        => max(1, (int) \Input::get('page', 1)),
-                'page_size'   => max(1, min(100, (int) \Input::get('limit', 20))),
-                'keyword'     => (string) \Input::get('keyword', ''),
-                'merchant_id' => (int) \Input::get('merchant_id', 0),
-                'type'        => (string) \Input::get('type', ''),
-                'status'      => (string) \Input::get('status', ''),
+                'page'        => max(1, (int) $this->input->get('page', 1)),
+                'page_size'   => max(1, min(100, (int) $this->input->get('limit', 20))),
+                'keyword'     => (string) $this->input->get('keyword', ''),
+                'merchant_id' => (int) $this->input->get('merchant_id', 0),
+                'type'        => (string) $this->input->get('type', ''),
+                'status'      => (string) $this->input->get('status', ''),
             ]);
 
             $rows = $result['data'];
@@ -54,14 +54,14 @@ final class AppOrderController extends BaseAdminController
             }
             unset($row);
 
-            \Response::success('', [
+            $this->response->success('', [
                 'list'    => $rows,
                 'count'   => (int) ($result['total'] ?? 0),
-                'page'    => max(1, (int) \Input::get('page', 1)),
-                'pageNum' => max(1, min(100, (int) \Input::get('limit', 20))),
+                'page'    => max(1, (int) $this->input->get('page', 1)),
+                'pageNum' => max(1, min(100, (int) $this->input->get('limit', 20))),
             ]);
         } catch (\Throwable $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
     }
 }

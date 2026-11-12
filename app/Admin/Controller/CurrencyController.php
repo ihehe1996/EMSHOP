@@ -18,7 +18,7 @@ final class CurrencyController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -31,15 +31,15 @@ final class CurrencyController extends BaseAdminController
      */
     private function handlePost(): void
     {
-        $currencyModel = \Currency::getInstance();
+        $currencyModel = $this->currency;
 
         // 统一用 _action 参数（和项目其他页面保持一致）
-        $apiAction = (string) \Input::post('_action', '');
-        $csrf = (string) \Input::post('csrf_token', '');
+        $apiAction = (string) $this->input->post('_action', '');
+        $csrf = (string) $this->input->post('csrf_token', '');
 
         // list 请求不需要 CSRF 校验（layui 表格刷新时不带 csrf）
         if ($apiAction === 'list') {
-            $keyword = trim((string) \Input::post('keyword', ''));
+            $keyword = trim((string) $this->input->post('keyword', ''));
             $items = $currencyModel->all();
             $primary = $currencyModel->getPrimary();
             $primaryCode = $primary ? (string) $primary['code'] : '';
@@ -67,8 +67,8 @@ final class CurrencyController extends BaseAdminController
                     'enabled' => (int) ($item['enabled'] ?? 1) === 1 ? 'y' : 'n',
                 ];
             }
-            \Response::success('ok', [
-                'csrf_token' => \Csrf::refresh(),
+            $this->response->success('ok', [
+                'csrf_token' => $this->csrf->refresh(),
                 'primary_code' => $primaryCode,
                 'primary_locked' => $primaryLocked,
                 'data' => $formatted,
@@ -76,132 +76,132 @@ final class CurrencyController extends BaseAdminController
         }
 
         // 其它操作需要完整 CSRF 校验
-        if (!\Csrf::validate($csrf)) {
-            \Response::error('请求已失效，请刷新页面后重试', ['csrf_token' => \Csrf::refresh()]);
+        if (!$this->csrf->validate($csrf)) {
+            $this->response->error('请求已失效，请刷新页面后重试', ['csrf_token' => $this->csrf->refresh()]);
         }
-        $newToken = \Csrf::refresh();
+        $newToken = $this->csrf->refresh();
 
         // ---------- 添加货币 ----------
         if ($apiAction === 'add') {
-            $code = strtoupper(trim((string) \Input::post('code', '')));
-            $name = trim((string) \Input::post('name', ''));
-            $symbol = trim((string) \Input::post('symbol', ''));
-            $rate = max(0.0, (float) \Input::post('rate', 1));
+            $code = strtoupper(trim((string) $this->input->post('code', '')));
+            $name = trim((string) $this->input->post('name', ''));
+            $symbol = trim((string) $this->input->post('symbol', ''));
+            $rate = max(0.0, (float) $this->input->post('rate', 1));
 
             if ($code === '' || !preg_match('/^[A-Z]{3}$/', $code)) {
-                \Response::error('货币代码必须为 3 位大写字母，如 USD', ['csrf_token' => $newToken]);
+                $this->response->error('货币代码必须为 3 位大写字母，如 USD', ['csrf_token' => $newToken]);
             }
             if ($name === '') {
-                \Response::error('货币名称不能为空', ['csrf_token' => $newToken]);
+                $this->response->error('货币名称不能为空', ['csrf_token' => $newToken]);
             }
             if ($rate <= 0) {
-                \Response::error('汇率必须大于 0', ['csrf_token' => $newToken]);
+                $this->response->error('汇率必须大于 0', ['csrf_token' => $newToken]);
             }
             if ($currencyModel->getByCode($code) !== null) {
-                \Response::error('货币代码已存在', ['csrf_token' => $newToken]);
+                $this->response->error('货币代码已存在', ['csrf_token' => $newToken]);
             }
 
             if ($currencyModel->add($code, $name, $symbol, $rate)) {
-                \Response::success('货币已添加', ['csrf_token' => $newToken]);
+                $this->response->success('货币已添加', ['csrf_token' => $newToken]);
             }
-            \Response::error('添加货币失败', ['csrf_token' => $newToken]);
+            $this->response->error('添加货币失败', ['csrf_token' => $newToken]);
         }
 
         // ---------- 更新货币 ----------
         if ($apiAction === 'edit') {
-            $id = (int) \Input::post('id', 0);
-            $name = trim((string) \Input::post('name', ''));
-            $symbol = trim((string) \Input::post('symbol', ''));
-            $rate = max(0.0, (float) \Input::post('rate', 1));
+            $id = (int) $this->input->post('id', 0);
+            $name = trim((string) $this->input->post('name', ''));
+            $symbol = trim((string) $this->input->post('symbol', ''));
+            $rate = max(0.0, (float) $this->input->post('rate', 1));
 
             if ($id <= 0) {
-                \Response::error('无效的货币 ID', ['csrf_token' => $newToken]);
+                $this->response->error('无效的货币 ID', ['csrf_token' => $newToken]);
             }
             if ($name === '') {
-                \Response::error('货币名称不能为空', ['csrf_token' => $newToken]);
+                $this->response->error('货币名称不能为空', ['csrf_token' => $newToken]);
             }
 
             $editCurrency = $currencyModel->getById($id);
             if ($editCurrency === null) {
-                \Response::error('货币不存在', ['csrf_token' => $newToken]);
+                $this->response->error('货币不存在', ['csrf_token' => $newToken]);
             }
             // 主货币只允许改名称和符号；rate 恒为 1 不能改
             if ((int) $editCurrency['is_primary'] === 1) {
                 $data = ['name' => $name, 'symbol' => $symbol];
             } else {
                 if ($rate <= 0) {
-                    \Response::error('汇率必须大于 0', ['csrf_token' => $newToken]);
+                    $this->response->error('汇率必须大于 0', ['csrf_token' => $newToken]);
                 }
                 $data = ['name' => $name, 'symbol' => $symbol, 'rate' => $rate];
             }
 
             if ($currencyModel->update($id, $data)) {
-                \Response::success('货币已更新', ['csrf_token' => $newToken]);
+                $this->response->success('货币已更新', ['csrf_token' => $newToken]);
             }
-            \Response::error('更新货币失败', ['csrf_token' => $newToken]);
+            $this->response->error('更新货币失败', ['csrf_token' => $newToken]);
         }
 
         // ---------- 删除货币 ----------
         if ($apiAction === 'delete') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             if ($id <= 0) {
-                \Response::error('无效的货币 ID', ['csrf_token' => $newToken]);
+                $this->response->error('无效的货币 ID', ['csrf_token' => $newToken]);
             }
             if (!$currencyModel->delete($id)) {
-                \Response::error('删除失败，主货币不可删除', ['csrf_token' => $newToken]);
+                $this->response->error('删除失败，主货币不可删除', ['csrf_token' => $newToken]);
             }
-            \Response::success('货币已删除', ['csrf_token' => $newToken]);
+            $this->response->success('货币已删除', ['csrf_token' => $newToken]);
         }
 
         // ---------- 切换启用状态 ----------
         if ($apiAction === 'toggle') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             if ($id <= 0) {
-                \Response::error('无效的货币 ID', ['csrf_token' => $newToken]);
+                $this->response->error('无效的货币 ID', ['csrf_token' => $newToken]);
             }
             try {
                 if (!$currencyModel->toggle($id)) {
-                    \Response::error('切换状态失败，主货币不可禁用', ['csrf_token' => $newToken]);
+                    $this->response->error('切换状态失败，主货币不可禁用', ['csrf_token' => $newToken]);
                 }
             } catch (\RuntimeException $e) {
-                \Response::error($e->getMessage(), ['csrf_token' => $newToken]);
+                $this->response->error($e->getMessage(), ['csrf_token' => $newToken]);
             }
-            \Response::success('状态已更新', ['csrf_token' => $newToken]);
+            $this->response->success('状态已更新', ['csrf_token' => $newToken]);
         }
 
         // ---------- 设置"前台默认" ----------
         // 访客首次进来没选过币种时展示这个币；和主货币（记账基准）解耦
         if ($apiAction === 'set_frontend_default') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             if ($id <= 0) {
-                \Response::error('无效的货币 ID', ['csrf_token' => $newToken]);
+                $this->response->error('无效的货币 ID', ['csrf_token' => $newToken]);
             }
             try {
                 if (!$currencyModel->setFrontendDefault($id)) {
-                    \Response::error('设置失败', ['csrf_token' => $newToken]);
+                    $this->response->error('设置失败', ['csrf_token' => $newToken]);
                 }
             } catch (\RuntimeException $e) {
-                \Response::error($e->getMessage(), ['csrf_token' => $newToken]);
+                $this->response->error($e->getMessage(), ['csrf_token' => $newToken]);
             }
-            \Response::success('已设为前台默认', ['csrf_token' => $newToken]);
+            $this->response->success('已设为前台默认', ['csrf_token' => $newToken]);
         }
 
         // ---------- 初始化主货币 ----------
         if ($apiAction === 'init_primary') {
-            $id = (int) \Input::post('id', 0);
+            $id = (int) $this->input->post('id', 0);
             if ($id <= 0) {
-                \Response::error('无效的货币 ID', ['csrf_token' => $newToken]);
+                $this->response->error('无效的货币 ID', ['csrf_token' => $newToken]);
             }
             if ($currencyModel->getPrimary() !== null) {
-                \Response::error('主货币已初始化，不可再切换', ['csrf_token' => $newToken]);
+                $this->response->error('主货币已初始化，不可再切换', ['csrf_token' => $newToken]);
             }
             if (!$currencyModel->setPrimary($id)) {
-                \Response::error('初始化主货币失败', ['csrf_token' => $newToken]);
+                $this->response->error('初始化主货币失败', ['csrf_token' => $newToken]);
             }
-            \Response::success('主货币已初始化', ['csrf_token' => $newToken]);
+            $this->response->success('主货币已初始化', ['csrf_token' => $newToken]);
         }
 
-        \Response::error('未知操作', ['csrf_token' => $newToken]);
+        $this->response->error('未知操作', ['csrf_token' => $newToken]);
     }
 
     /**
@@ -209,7 +209,7 @@ final class CurrencyController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $currencyModel = \Currency::getInstance();
+        $currencyModel = $this->currency;
 
         // 兜底：如果表里还没有主货币（InstallService 会写，理论上不会进这里），补一条 CNY
         $primary = $currencyModel->getPrimary();
@@ -221,7 +221,7 @@ final class CurrencyController extends BaseAdminController
             }
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('currency');
             echo '</div>';

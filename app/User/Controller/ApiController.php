@@ -12,8 +12,8 @@ final class ApiController extends UserBaseController
     public function index(): void
     {
         $frontUser = $this->user();
-        $siteName = \Config::get('sitename', 'EMSHOP');
-        $csrfToken = \Csrf::token();
+        $siteName = $this->config->get('sitename', 'EMSHOP');
+        $csrfToken = $this->csrf->token();
         $displayMoney = '0.00';
         if (!empty($frontUser['money'])) {
             $displayMoney = bcdiv((string) $frontUser['money'], '1000000', 2);
@@ -29,13 +29,13 @@ final class ApiController extends UserBaseController
         $secret = $frontUser['secret'] ?? null;
 
         // 处理 POST 提交
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                $action = (string) \Input::post('action', '');
-                $csrf = (string) \Input::post('csrf_token', '');
+                $action = (string) $this->input->post('action', '');
+                $csrf = (string) $this->input->post('csrf_token', '');
 
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
                 $userModel = new \UserListModel();
@@ -53,22 +53,22 @@ final class ApiController extends UserBaseController
                         $frontUser['secret'] = $newSecret;
                         $_SESSION['em_front_user'] = $frontUser;
 
-                        $csrfToken = \Csrf::refresh();
-                        \Response::success('生成成功', [
+                        $csrfToken = $this->csrf->refresh();
+                        $this->response->success('生成成功', [
                             'secret'     => $newSecret,
                             'csrf_token' => $csrfToken,
                         ]);
                         break;
 
                     default:
-                        \Response::error('未知操作');
+                        $this->response->error('未知操作');
                 }
             } catch (\Throwable $e) {
-                \Response::error('操作失败：' . $e->getMessage());
+                $this->response->error('操作失败：' . $e->getMessage());
             }
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('api', get_defined_vars());
             echo '</div>';

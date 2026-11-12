@@ -15,27 +15,27 @@ final class PageEditController extends MerchantBaseController
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
         $merchantId = (int) $currentMerchant['id'];
-        $action = (string) (\Input::post('_action', '') ?: \Input::get('_action', ''));
+        $action = (string) ($this->input->post('_action', '') ?: $this->input->get('_action', ''));
 
         // 保存
         if ($action === 'save') {
-            if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $id = (int) \Input::post('id', 0);
-            $title = trim((string) \Input::post('title', ''));
-            $slug = trim((string) \Input::post('slug', ''));
-            $content = (string) \Input::post('content', '');
-            $status = (int) \Input::post('status', 1) === 1 ? 1 : 0;
-            $templateName = trim((string) \Input::post('template_name', ''));
-            $sort = (int) \Input::post('sort', 100);
-            $seoTitle = trim((string) \Input::post('seo_title', ''));
-            $seoKeywords = trim((string) \Input::post('seo_keywords', ''));
-            $seoDescription = trim((string) \Input::post('seo_description', ''));
+            $id = (int) $this->input->post('id', 0);
+            $title = trim((string) $this->input->post('title', ''));
+            $slug = trim((string) $this->input->post('slug', ''));
+            $content = (string) $this->input->post('content', '');
+            $status = (int) $this->input->post('status', 1) === 1 ? 1 : 0;
+            $templateName = trim((string) $this->input->post('template_name', ''));
+            $sort = (int) $this->input->post('sort', 100);
+            $seoTitle = trim((string) $this->input->post('seo_title', ''));
+            $seoKeywords = trim((string) $this->input->post('seo_keywords', ''));
+            $seoDescription = trim((string) $this->input->post('seo_description', ''));
 
-            if ($title === '') \Response::error('页面标题不能为空');
-            if (mb_strlen($title) > 200) \Response::error('标题最多 200 字符');
+            if ($title === '') $this->response->error('页面标题不能为空');
+            if (mb_strlen($title) > 200) $this->response->error('标题最多 200 字符');
 
             if ($slug === '') {
                 $slug = strtolower($title);
@@ -46,7 +46,7 @@ final class PageEditController extends MerchantBaseController
                 }
             } else {
                 if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $slug)) {
-                    \Response::error('URL 别名只能包含字母、数字、中划线和下划线');
+                    $this->response->error('URL 别名只能包含字母、数字、中划线和下划线');
                 }
                 $slug = strtolower($slug);
             }
@@ -54,13 +54,13 @@ final class PageEditController extends MerchantBaseController
             // 保留字黑名单（避免和系统路由冲突）
             $reserved = ['admin', 'user', 'blog', 'goods', 'order', 'login', 'logout', 'api', 'install', 'content', 'p'];
             if (in_array($slug, $reserved, true)) {
-                \Response::error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
+                $this->response->error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
             }
             if (PageModel::slugExists($slug, $id, $merchantId)) {
-                \Response::error('URL 别名 "' . $slug . '" 在本店已被占用');
+                $this->response->error('URL 别名 "' . $slug . '" 在本店已被占用');
             }
             if ($templateName !== '' && !preg_match('/^[a-z0-9_\-]+$/', $templateName)) {
-                \Response::error('模板名只能包含小写字母、数字、中划线和下划线');
+                $this->response->error('模板名只能包含小写字母、数字、中划线和下划线');
             }
 
             $data = [
@@ -79,7 +79,7 @@ final class PageEditController extends MerchantBaseController
                 if ($id) {
                     $existing = PageModel::getById($id);
                     if (!$existing || (int) $existing['merchant_id'] !== $merchantId) {
-                        \Response::error('页面不存在');
+                        $this->response->error('页面不存在');
                     }
                     PageModel::update($id, $data);
                     $pageId = $id;
@@ -87,22 +87,22 @@ final class PageEditController extends MerchantBaseController
                     $data['merchant_id'] = $merchantId;
                     $pageId = PageModel::create($data);
                 }
-                if (!$pageId) \Response::error('保存失败');
+                if (!$pageId) $this->response->error('保存失败');
             } catch (\Throwable $e) {
-                \Response::error('保存失败：' . $e->getMessage());
+                $this->response->error('保存失败：' . $e->getMessage());
             }
 
-            \Response::success('保存成功', ['id' => $pageId, 'csrf_token' => \Csrf::refresh()]);
+            $this->response->success('保存成功', ['id' => $pageId, 'csrf_token' => $this->csrf->refresh()]);
         }
 
         // 渲染弹窗
-        $id = (int) \Input::get('id', 0);
+        $id = (int) $this->input->get('id', 0);
         $pageRow = $id ? PageModel::getById($id) : null;
         if ($pageRow && (int) $pageRow['merchant_id'] !== $merchantId) {
             $pageRow = null;
         }
 
-        if (\Input::get('_popup', '') === '1') {
+        if ($this->input->get('_popup', '') === '1') {
             $this->render('popup/page_edit', get_defined_vars());
             return;
         }

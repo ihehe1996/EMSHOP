@@ -12,8 +12,8 @@ final class OrderController extends UserBaseController
     public function index(): void
     {
         $frontUser = $this->user();
-        $siteName = \Config::get('sitename', 'EMSHOP');
-        $csrfToken = \Csrf::token();
+        $siteName = $this->config->get('sitename', 'EMSHOP');
+        $csrfToken = $this->csrf->token();
         $displayMoney = '0.00';
         if (!empty($frontUser['money'])) {
             $displayMoney = bcdiv((string) $frontUser['money'], '1000000', 2);
@@ -21,15 +21,15 @@ final class OrderController extends UserBaseController
         // 筛选与分页
         // status 允许值：all / pending / paid / delivered / completed / refunding / refunded
         $allowedStatus = ['all', 'pending', 'paid', 'delivering', 'delivered', 'completed', 'refunding', 'refunded', 'cancelled'];
-        $status = (string) \Input::get('status', 'all');
+        $status = (string) $this->input->get('status', 'all');
         if (!in_array($status, $allowedStatus, true)) {
             $status = 'all';
         }
-        $page = max(1, (int) \Input::get('page', 1));
+        $page = max(1, (int) $this->input->get('page', 1));
         $perPage = 10;
         $offset = ($page - 1) * $perPage;
 
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $userId = (int) $frontUser['id'];
 
         // 组装 WHERE
@@ -42,7 +42,7 @@ final class OrderController extends UserBaseController
         $whereSql = implode(' AND ', $where);
 
         // 总数
-        $countRow = \Database::fetchOne(
+        $countRow = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$prefix}order WHERE {$whereSql}",
             $params
         );
@@ -54,7 +54,7 @@ final class OrderController extends UserBaseController
         }
 
         // 列表（简要字段）—— 带展示货币快照字段，供视图按订单冻结币种渲染
-        $orders = \Database::query(
+        $orders = $this->db->query(
             "SELECT id, order_no, pay_amount, status, payment_name, pay_time, created_at,
                     display_currency_code, display_rate
              FROM {$prefix}order
@@ -69,7 +69,7 @@ final class OrderController extends UserBaseController
         $orderGoodsMap = [];
         if (!empty($orderIds)) {
             $in = implode(',', array_fill(0, count($orderIds), '?'));
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT order_id, goods_title, spec_name, cover_image, price, quantity
                  FROM {$prefix}order_goods
                  WHERE order_id IN ({$in})
@@ -96,7 +96,7 @@ final class OrderController extends UserBaseController
 
         // tab 计数：按当前用户分组统计每种状态的订单数，一条 SQL 拿回全部
         $statusCounts = array_fill_keys(array_keys($statusTabs), 0);
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT status, COUNT(*) AS cnt FROM {$prefix}order WHERE user_id = ? GROUP BY status",
             [$userId]
         );
@@ -111,7 +111,7 @@ final class OrderController extends UserBaseController
         $statusCounts['all'] = $totalAll;
 
         // 异步发货轮询：全账号「待队列发货」订单快照（与 order_poll.php pending_snapshot 算法一致）
-        $pendingSnapRows = \Database::query(
+        $pendingSnapRows = $this->db->query(
             "SELECT `order_no`, `status` FROM `{$prefix}order`
              WHERE `user_id` = ? AND `status` IN ('paid','delivering')
              ORDER BY `id` ASC",
@@ -123,7 +123,7 @@ final class OrderController extends UserBaseController
         }
         $pendingDeliveryHash = $pendingSnapPairs === [] ? 'empty' : md5(implode("\n", $pendingSnapPairs));
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';
             $this->render('order', get_defined_vars());
             echo '</div>';

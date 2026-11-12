@@ -22,21 +22,21 @@ final class GoodsEditController extends BaseAdminController
     public function index(): void
     {
         // 与迁移前一致：GET 优先（哪怕为空串），没有再取 POST 的 _action
-        $action = (string) (\Input::get('_action', null) ?? \Input::post('_action', ''));
+        $action = (string) ($this->input->get('_action', null) ?? $this->input->post('_action', ''));
         // 用户搜索（规格"用户专属价"弹窗内联搜索用）
         // GET /admin/goods_edit.php?_action=search_users&q=keyword
         // 按用户名 / 昵称 / 邮箱模糊匹配，status=1，最多 10 条。
         // 不按 role 过滤：这里是给买家设专属价，管理账号也能在前台下单，一样要能设。
         if ($action === 'search_users') {
-            $q = trim((string) \Input::get('q', ''));
+            $q = trim((string) $this->input->get('q', ''));
             if ($q === '' || mb_strlen($q) < 1) {
-                \Response::success('', ['list' => []]);
+                $this->response->success('', ['list' => []]);
             }
             $like = '%' . $q . '%';
             try {
-                $rows = \Database::query(
+                $rows = $this->db->query(
                     'SELECT `id`, `username`, `nickname`, `email`, `avatar`
-                       FROM `' . \Database::prefix() . 'user`
+                       FROM `' . $this->db->prefix() . 'user`
                       WHERE `status` = 1
                         AND (`username` LIKE ? OR `nickname` LIKE ? OR `email` LIKE ? OR `id` = ?)
                       LIMIT 10',
@@ -45,7 +45,7 @@ final class GoodsEditController extends BaseAdminController
             } catch (\Throwable $e) {
                 $rows = [];
             }
-            \Response::success('', ['list' => $rows]);
+            $this->response->success('', ['list' => $rows]);
         }
 
         // 获取商品类型插件表单（用于 AJAX 动态加载）
@@ -59,35 +59,35 @@ final class GoodsEditController extends BaseAdminController
             doAction("goods_type_{$goodsType}_create_form", $goods);
             $html = ob_get_clean();
 
-            \Response::success('', ['html' => $html, 'csrf_token' => \Csrf::token()]);
+            $this->response->success('', ['html' => $html, 'csrf_token' => $this->csrf->token()]);
         }
 
         // 物理删除单个规格
         if ($action === 'remove_spec') {
             $specId = (int)($_POST['spec_id'] ?? 0);
             if (!$specId) {
-                \Response::error('规格ID不能为空');
+                $this->response->error('规格ID不能为空');
             }
             $csrf = (string)($_POST['csrf_token'] ?? '');
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
             // 先查询该规格所属商品ID，用于后续更新缓存
-            $specRow = \Database::query("SELECT goods_id FROM " . \Database::prefix() . "goods_spec WHERE id = ? LIMIT 1", [$specId]);
+            $specRow = $this->db->query("SELECT goods_id FROM " . $this->db->prefix() . "goods_spec WHERE id = ? LIMIT 1", [$specId]);
             $goodsId = !empty($specRow) ? (int)$specRow[0]['goods_id'] : 0;
 
             if ($goodsId > 0) {
                 $blockMsg = applyFilter('goods_spec_before_remove', '', ['spec_id' => $specId, 'goods_id' => $goodsId]);
                 if (is_string($blockMsg) && $blockMsg !== '') {
-                    \Response::error($blockMsg);
+                    $this->response->error($blockMsg);
                 }
             }
 
             // 物理删除规格，同步清除 combo 映射记录和规格级专属价（等级/用户）
-            $result = \Database::execute("DELETE FROM " . \Database::prefix() . "goods_spec WHERE id = ?", [$specId]);
-            \Database::execute("DELETE FROM " . \Database::prefix() . "goods_spec_combo WHERE spec_id = ?", [$specId]);
-            \Database::execute("DELETE FROM " . \Database::prefix() . "goods_price_level WHERE spec_id = ?", [$specId]);
-            \Database::execute("DELETE FROM " . \Database::prefix() . "goods_price_user WHERE spec_id = ?", [$specId]);
+            $result = $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_spec WHERE id = ?", [$specId]);
+            $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_spec_combo WHERE spec_id = ?", [$specId]);
+            $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_price_level WHERE spec_id = ?", [$specId]);
+            $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_price_user WHERE spec_id = ?", [$specId]);
 
             // 更新商品价格/库存缓存
             if ($goodsId > 0) {
@@ -95,17 +95,17 @@ final class GoodsEditController extends BaseAdminController
             }
 
             if ($result !== false) {
-                \Response::success('删除成功', ['csrf_token' => \Csrf::token()]);
+                $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
-                \Response::error('删除失败');
+                $this->response->error('删除失败');
             }
         }
 
         // 保存商品
         if ($action === 'save') {
             $csrf = (string)($_POST['csrf_token'] ?? '');
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
             $id = (int)($_POST['id'] ?? 0);
             $title = trim($_POST['title'] ?? '');
@@ -138,10 +138,10 @@ final class GoodsEditController extends BaseAdminController
                     if ($fTitle === '' && $fName === '') continue;
                     // 只填了一个则提示
                     if ($fTitle === '') {
-                        \Response::error('附加选项第' . ($idx + 1) . '行：字段名称不能为空');
+                        $this->response->error('附加选项第' . ($idx + 1) . '行：字段名称不能为空');
                     }
                     if ($fName === '') {
-                        \Response::error('附加选项第' . ($idx + 1) . '行：字段标识不能为空');
+                        $this->response->error('附加选项第' . ($idx + 1) . '行：字段标识不能为空');
                     }
                     $extraFields[] = [
                         'title' => $fTitle,
@@ -162,8 +162,8 @@ final class GoodsEditController extends BaseAdminController
             // 返佣配置：前端按"百分比"输入（5 = 5%），落库转成万分位（500）
             // 空 = 未设置（不记该字段），0 = 明确"不返佣"（记 0），区分两种含义
             $rebate = [];
-            $rebateL1Raw = trim((string) \Input::post('rebate_l1', ''));
-            $rebateL2Raw = trim((string) \Input::post('rebate_l2', ''));
+            $rebateL1Raw = trim((string) $this->input->post('rebate_l1', ''));
+            $rebateL2Raw = trim((string) $this->input->post('rebate_l2', ''));
             $rebateL1Pct = 0.0; $rebateL2Pct = 0.0;
             if ($rebateL1Raw !== '') {
                 $rebateL1Pct = max(0.0, min(100.0, (float) $rebateL1Raw));
@@ -175,12 +175,12 @@ final class GoodsEditController extends BaseAdminController
             }
             // 总返佣上限校验：l1 + l2 不得超过订单金额的 30%
             if (($rebateL1Pct + $rebateL2Pct) > 30.0) {
-                \Response::error('返佣配置错误：一级 + 二级总返佣不得超过订单金额的 30%（当前 '
+                $this->response->error('返佣配置错误：一级 + 二级总返佣不得超过订单金额的 30%（当前 '
                     . rtrim(rtrim(number_format($rebateL1Pct + $rebateL2Pct, 2), '0'), '.')
                     . '%）');
             }
             // 计算方式：amount / profit / 空串（= 跟随系统）
-            $rebateMode = (string) \Input::post('rebate_mode', '');
+            $rebateMode = (string) $this->input->post('rebate_mode', '');
             if (!in_array($rebateMode, ['amount', 'profit', ''], true)) {
                 $rebateMode = '';
             }
@@ -195,7 +195,7 @@ final class GoodsEditController extends BaseAdminController
             // SEO 配置：title / keywords / description 存入 configs.seo
             $seo = [];
             foreach (['title' => 'seo_title', 'keywords' => 'seo_keywords', 'description' => 'seo_description'] as $k => $inputName) {
-                $v = trim((string) \Input::post($inputName, ''));
+                $v = trim((string) $this->input->post($inputName, ''));
                 if ($v !== '') $seo[$k] = $v;
             }
             if ($seo !== []) {
@@ -210,21 +210,21 @@ final class GoodsEditController extends BaseAdminController
             // 验证必填（按步骤顺序）
             // ① 商品类型
             if (empty($goods_type)) {
-                \Response::error('请选择商品类型');
+                $this->response->error('请选择商品类型');
             }
             // ② 插件类型配置必填项校验（通过 filter 钩子，插件返回错误信息字符串则中断）
             $pluginData = $_POST['plugin_data'] ?? [];
             $pluginValidateError = applyFilter("goods_type_{$goods_type}_validate", '', $pluginData);
             if (!empty($pluginValidateError)) {
-                \Response::error($pluginValidateError);
+                $this->response->error($pluginValidateError);
             }
             // ③ 商品分类
             if (empty($category_id)) {
-                \Response::error('请选择商品分类');
+                $this->response->error('请选择商品分类');
             }
             // ④ 商品标题
             if (empty($title)) {
-                \Response::error('商品标题不能为空');
+                $this->response->error('商品标题不能为空');
             }
 
             $data = [
@@ -264,7 +264,7 @@ final class GoodsEditController extends BaseAdminController
                 }
 
                 if (!$result) {
-                    \Response::error('保存失败，请检查是否填写了所有必填项');
+                    $this->response->error('保存失败，请检查是否填写了所有必填项');
                 }
 
                 // 插件可在处理规格前修正 $_POST（如对接商品强制规格名与库一致）；无挂载时为 no-op
@@ -272,7 +272,7 @@ final class GoodsEditController extends BaseAdminController
 
                 // 处理规格（统一逻辑：通过"/"分隔自动识别多维规格）
                 $specs = $_POST['specs'] ?? [];
-                $prefix = \Database::prefix();
+                $prefix = $this->db->prefix();
                 // 维度名称：用户在表头输入如"颜色/款式"，按"/"拆分
                 $specDimNameRaw = trim($_POST['spec_dim_name'] ?? '');
                 $specDimNames = $specDimNameRaw !== '' ? array_map('trim', explode('/', $specDimNameRaw)) : [];
@@ -305,7 +305,7 @@ final class GoodsEditController extends BaseAdminController
                     if (count($uniqueCounts) > 1) {
                         $min = min($uniqueCounts);
                         $max = max($uniqueCounts);
-                        \Response::error("规格维度数量不一致：部分规格有{$min}个维度，部分有{$max}个维度。请确保所有规格使用相同数量的\"/\"分隔");
+                        $this->response->error("规格维度数量不一致：部分规格有{$min}个维度，部分有{$max}个维度。请确保所有规格使用相同数量的\"/\"分隔");
                     }
                     $dimCount = reset($uniqueCounts);
                 } else {
@@ -319,7 +319,7 @@ final class GoodsEditController extends BaseAdminController
 
                 // 1. 查询旧规格，建立 name => row 映射
                 $oldSpecMap = []; // name => {id, stock, sold_count}
-                $oldSpecs = \Database::query(
+                $oldSpecs = $this->db->query(
                     "SELECT id, name, stock, sold_count FROM {$prefix}goods_spec WHERE goods_id = ?",
                     [$goodsId]
                 );
@@ -342,19 +342,19 @@ final class GoodsEditController extends BaseAdminController
                     if (!in_array($oldName, $newSpecNames, true)) {
                         $oldId = $oldInfo['id'];
                         // 清理该规格关联的组合映射
-                        \Database::execute("DELETE FROM {$prefix}goods_spec_combo WHERE spec_id = ?", [$oldId]);
+                        $this->db->execute("DELETE FROM {$prefix}goods_spec_combo WHERE spec_id = ?", [$oldId]);
                         // 清理等级价格和用户专属价格
-                        \Database::execute("DELETE FROM {$prefix}goods_price_level WHERE spec_id = ?", [$oldId]);
-                        \Database::execute("DELETE FROM {$prefix}goods_price_user WHERE spec_id = ?", [$oldId]);
+                        $this->db->execute("DELETE FROM {$prefix}goods_price_level WHERE spec_id = ?", [$oldId]);
+                        $this->db->execute("DELETE FROM {$prefix}goods_price_user WHERE spec_id = ?", [$oldId]);
                         // 卡密不删除，仅清除 spec_id 关联（卡密内容仍有保留价值）
                         try {
-                            \Database::execute(
+                            $this->db->execute(
                                 "UPDATE {$prefix}goods_virtual_card SET spec_id = NULL WHERE spec_id = ?",
                                 [$oldId]
                             );
                         } catch (\Throwable $e) {} // 插件表可能不存在
                         // 删除规格本身
-                        \Database::execute("DELETE FROM {$prefix}goods_spec WHERE id = ?", [$oldId]);
+                        $this->db->execute("DELETE FROM {$prefix}goods_spec WHERE id = ?", [$oldId]);
                     }
                 }
 
@@ -423,7 +423,7 @@ final class GoodsEditController extends BaseAdminController
                     if (isset($oldSpecMap[$specName])) {
                         // 已有规格：就地 UPDATE，保留 id / stock
                         $existingId = $oldSpecMap[$specName]['id'];
-                        \Database::update('goods_spec', $updateData, $existingId);
+                        $this->db->update('goods_spec', $updateData, $existingId);
                         $specIdMap[$index] = $existingId;
                         $specIdForPrices = $existingId;
                     } else {
@@ -433,15 +433,15 @@ final class GoodsEditController extends BaseAdminController
                             'name' => $specName,
                             'stock' => 0,
                         ]);
-                        $specIdMap[$index] = \Database::insert('goods_spec', $insertData);
+                        $specIdMap[$index] = $this->db->insert('goods_spec', $insertData);
                         $specIdForPrices = $specIdMap[$index];
                     }
 
                     // 同步用户等级专属价：先按 spec_id 全删，再按当前配置全插
                     // 价格按项目统一约定 ×1000000 存 BIGINT（和 em_goods_spec.price 保持一致）
-                    \Database::execute("DELETE FROM {$prefix}goods_price_level WHERE spec_id = ?", [$specIdForPrices]);
+                    $this->db->execute("DELETE FROM {$prefix}goods_price_level WHERE spec_id = ?", [$specIdForPrices]);
                     foreach ($pendingLevelPrices as $lvlId => $priceYuan) {
-                        \Database::insert('goods_price_level', [
+                        $this->db->insert('goods_price_level', [
                             'spec_id'  => $specIdForPrices,
                             'level_id' => $lvlId,
                             'price'    => \GoodsModel::moneyToDb($priceYuan),
@@ -449,9 +449,9 @@ final class GoodsEditController extends BaseAdminController
                     }
 
                     // 同步用户专属价
-                    \Database::execute("DELETE FROM {$prefix}goods_price_user WHERE spec_id = ?", [$specIdForPrices]);
+                    $this->db->execute("DELETE FROM {$prefix}goods_price_user WHERE spec_id = ?", [$specIdForPrices]);
                     foreach ($pendingUserPrices as $uid => $priceYuan) {
-                        \Database::insert('goods_price_user', [
+                        $this->db->insert('goods_price_user', [
                             'spec_id' => $specIdForPrices,
                             'user_id' => $uid,
                             'price'   => \GoodsModel::moneyToDb($priceYuan),
@@ -464,13 +464,13 @@ final class GoodsEditController extends BaseAdminController
                 doAction('goods_spec_saved', $goodsId, $specIdMap);
 
                 // 5. 重建维度/维度值/组合映射（这些是轻量级展示数据，安全重建）
-                \Database::execute("DELETE FROM {$prefix}goods_spec_combo WHERE goods_id = ?", [$goodsId]);
-                \Database::execute("DELETE FROM {$prefix}goods_spec_value WHERE goods_id = ?", [$goodsId]);
-                \Database::execute("DELETE FROM {$prefix}goods_spec_dim WHERE goods_id = ?", [$goodsId]);
+                $this->db->execute("DELETE FROM {$prefix}goods_spec_combo WHERE goods_id = ?", [$goodsId]);
+                $this->db->execute("DELETE FROM {$prefix}goods_spec_value WHERE goods_id = ?", [$goodsId]);
+                $this->db->execute("DELETE FROM {$prefix}goods_spec_dim WHERE goods_id = ?", [$goodsId]);
 
                 // 单维规格
                 if ($dimCount == 1 && !empty($specRows)) {
-                    \Database::insert('goods_spec_dim', [
+                    $this->db->insert('goods_spec_dim', [
                         'goods_id' => $goodsId,
                         'name' => $specDimNames[0] ?? '规格',
                         'sort' => 0,
@@ -496,13 +496,13 @@ final class GoodsEditController extends BaseAdminController
 
                     $valueIdMap = [];
                     for ($i = 0; $i < $dimCount; $i++) {
-                        $dimId = \Database::insert('goods_spec_dim', [
+                        $dimId = $this->db->insert('goods_spec_dim', [
                             'goods_id' => $goodsId,
                             'name' => $specDimNames[$i] ?? ('规格' . ($i + 1)),
                             'sort' => $i,
                         ]);
                         foreach ($dimValues[$i] as $valSort => $valName) {
-                            $valId = \Database::insert('goods_spec_value', [
+                            $valId = $this->db->insert('goods_spec_value', [
                                 'dim_id' => $dimId,
                                 'goods_id' => $goodsId,
                                 'name' => $valName,
@@ -519,7 +519,7 @@ final class GoodsEditController extends BaseAdminController
                             $valueIds[] = $valueIdMap[$dimIdx . '|' . $val];
                         }
                         $comboHash = md5(implode('|', $valueIds));
-                        \Database::insert('goods_spec_combo', [
+                        $this->db->insert('goods_spec_combo', [
                             'goods_id' => $goodsId,
                             'spec_id' => $specIdMap[$index],
                             'combo_hash' => $comboHash,
@@ -534,7 +534,7 @@ final class GoodsEditController extends BaseAdminController
                     if (isset($oldSpecMap['默认规格'])) {
                         // 默认规格已存在，保持不动（stock/sold_count 不变）
                     } else {
-                        \Database::insert('goods_spec', [
+                        $this->db->insert('goods_spec', [
                             'goods_id' => $goodsId,
                             'name' => '默认规格',
                             'price' => 0,
@@ -568,22 +568,22 @@ final class GoodsEditController extends BaseAdminController
                 $errorMsg = $e->getMessage();
                 // 字段不能为 NULL：提取具体字段名，如 "Column 'title' cannot be null"
                 if (preg_match("/Column '(\w+)' cannot be null/i", $errorMsg, $m)) {
-                    \Response::error('保存失败：字段「' . $m[1] . '」不能为空');
+                    $this->response->error('保存失败：字段「' . $m[1] . '」不能为空');
                 }
                 // 字段无默认值：如 "Field 'category_id' doesn't have a default value"
                 if (preg_match("/Field '(\w+)' doesn't have a default/i", $errorMsg, $m)) {
-                    \Response::error('保存失败：字段「' . $m[1] . '」未填写');
+                    $this->response->error('保存失败：字段「' . $m[1] . '」未填写');
                 }
                 if (stripos($errorMsg, 'Duplicate entry') !== false) {
-                    \Response::error('保存失败：商品编码重复，请更换编码');
+                    $this->response->error('保存失败：商品编码重复，请更换编码');
                 }
-                \Response::error('保存失败：' . $errorMsg);
+                $this->response->error('保存失败：' . $errorMsg);
             }
 
             // 保存成功后刷新 token（重要操作后更换 token）
-            $newToken = \Csrf::refresh();
+            $newToken = $this->csrf->refresh();
 
-            \Response::success('保存成功', ['id' => $goodsId, 'csrf_token' => $newToken]);
+            $this->response->success('保存成功', ['id' => $goodsId, 'csrf_token' => $newToken]);
         }
 
         // 插件专属 action（card_list/card_import/card_delete/card_export/card_manager）
@@ -612,17 +612,17 @@ final class GoodsEditController extends BaseAdminController
         // 库存保存（AJAX）
         if ($action === 'save_stock') {
             $csrf = (string)($_POST['csrf_token'] ?? '');
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
             $goodsId = (int)($_POST['goods_id'] ?? 0);
             if (!$goodsId) {
-                \Response::error('商品ID不能为空');
+                $this->response->error('商品ID不能为空');
             }
             // 库存保存只是 ACL 校验，价格不参与，但保持和库存弹窗同口径用 raw
             $goods = \GoodsModel::getById($goodsId, false);
             if (!$goods) {
-                \Response::error('商品不存在');
+                $this->response->error('商品不存在');
             }
 
             // 保存规格库存（必须为非负整数）
@@ -630,7 +630,7 @@ final class GoodsEditController extends BaseAdminController
             if (is_array($specStocks)) {
                 foreach ($specStocks as $specId => $stock) {
                     $stockVal = max(0, (int)$stock);
-                    \Database::update('goods_spec', ['stock' => $stockVal], (int)$specId);
+                    $this->db->update('goods_spec', ['stock' => $stockVal], (int)$specId);
                 }
             }
 
@@ -640,19 +640,19 @@ final class GoodsEditController extends BaseAdminController
             // 同步更新商品价格/库存缓存字段
             \GoodsModel::updatePriceStockCache($goodsId);
 
-            \Response::success('库存已保存', ['csrf_token' => \Csrf::token()]);
+            $this->response->success('库存已保存', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 获取商品规格列表（JSON，供 AJAX 刷新）
         if ($action === 'get_specs_json') {
             $goodsId = (int)($_GET['id'] ?? 0);
             if (!$goodsId) {
-                \Response::error('商品ID不能为空');
+                $this->response->error('商品ID不能为空');
             }
             // 编辑表单"刷新规格"AJAX 端点：必须返回 raw 价
             // （specs[i].configs 原样返回，插件自己负责把自己写进去的键转成表单可编辑的形态）
             $specs = \GoodsModel::getSpecsByGoodsId($goodsId, false);
-            \Response::success('', ['specs' => $specs]);
+            $this->response->success('', ['specs' => $specs]);
         }
 
         // 默认：显示编辑页面
@@ -666,17 +666,17 @@ final class GoodsEditController extends BaseAdminController
             $goods = \GoodsModel::getById($id, false);
             $specs = \GoodsModel::getSpecsByGoodsId($id, false);
             // 查询维度名称用于回显到规格类型输入框
-            $specDimNames = \Database::query(
-                "SELECT name FROM " . \Database::prefix() . "goods_spec_dim WHERE goods_id = ? ORDER BY sort ASC",
+            $specDimNames = $this->db->query(
+                "SELECT name FROM " . $this->db->prefix() . "goods_spec_dim WHERE goods_id = ? ORDER BY sort ASC",
                 [$id]
             );
         }
 
-        $categories = \Database::query("SELECT * FROM " . \Database::prefix() . "goods_category WHERE status = 1 ORDER BY parent_id ASC, sort ASC");
+        $categories = $this->db->query("SELECT * FROM " . $this->db->prefix() . "goods_category WHERE status = 1 ORDER BY parent_id ASC, sort ASC");
         $goodsTypes = \GoodsTypeManager::getTypes();
 
         // 弹窗模式判断
-        $isPopup = \Input::get('_popup', '') === '1';
+        $isPopup = $this->input->get('_popup', '') === '1';
         if ($isPopup) {
             $isEdit = isset($goods) && !empty($goods);
             $pageTitle = $isEdit ? '编辑商品' : '添加商品';
@@ -705,8 +705,8 @@ final class GoodsEditController extends BaseAdminController
                     $placeholders = implode(',', array_fill(0, count($specIds), '?'));
                     // 等级价（DB 存 ×1M BIGINT → 给前端转回元）
                     try {
-                        $rows = \Database::query(
-                            "SELECT `spec_id`, `level_id`, `price` FROM " . \Database::prefix() . "goods_price_level WHERE `spec_id` IN ({$placeholders})",
+                        $rows = $this->db->query(
+                            "SELECT `spec_id`, `level_id`, `price` FROM " . $this->db->prefix() . "goods_price_level WHERE `spec_id` IN ({$placeholders})",
                             $specIds
                         );
                         foreach ($rows as $r) {
@@ -715,10 +715,10 @@ final class GoodsEditController extends BaseAdminController
                     } catch (\Throwable $e) { /* 表可能还没建 */ }
                     // 用户价 + JOIN em_user 取展示用的昵称 / 用户名
                     try {
-                        $rows = \Database::query(
+                        $rows = $this->db->query(
                             "SELECT p.`spec_id`, p.`user_id`, p.`price`, u.`username`, u.`nickname`
-                               FROM " . \Database::prefix() . "goods_price_user p
-                               LEFT JOIN " . \Database::prefix() . "user u ON u.id = p.user_id
+                               FROM " . $this->db->prefix() . "goods_price_user p
+                               LEFT JOIN " . $this->db->prefix() . "user u ON u.id = p.user_id
                               WHERE p.`spec_id` IN ({$placeholders})",
                             $specIds
                         );

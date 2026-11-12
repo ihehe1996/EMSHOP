@@ -74,6 +74,50 @@ final class Container
             return ($this->bindings[$id])($this);
         }
 
-        throw new \RuntimeException('Container: 未注册的服务 ' . $id);
+        // 未注册但真实存在的类：按构造函数参数类型自动解析（依赖注入）
+        return $this->build($id);
+    }
+
+    /**
+     * 反射构建类实例；构造函数参数按类型从容器解析，取不到时用默认值。
+     *
+     * @return mixed
+     */
+    private function build(string $class)
+    {
+        if (!class_exists($class)) {
+            throw new \RuntimeException('Container: 未注册的服务 ' . $class);
+        }
+
+        $reflection = new \ReflectionClass($class);
+        $constructor = $reflection->getConstructor();
+        if ($constructor === null) {
+            return $reflection->newInstance();
+        }
+
+        $args = [];
+        foreach ($constructor->getParameters() as $parameter) {
+            $type = $parameter->getType();
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin() && !$type->allowsNull()) {
+                $args[] = $this->make($type->getName());
+                continue;
+            }
+
+            if ($parameter->isDefaultValueAvailable()) {
+                $args[] = $parameter->getDefaultValue();
+                continue;
+            }
+
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+                $args[] = $this->make($type->getName());
+                continue;
+            }
+
+            throw new \RuntimeException(
+                'Container: 无法解析 ' . $class . '::$' . $parameter->getName() . ' 的依赖'
+            );
+        }
+
+        return $reflection->newInstanceArgs($args);
     }
 }

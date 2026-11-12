@@ -14,29 +14,29 @@ final class EditorDemoController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             try {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
-                $content = \Input::post('content', '');
+                $content = $this->input->post('content', '');
                 if ($content === '') {
-                    \Response::error('内容不能为空');
+                    $this->response->error('内容不能为空');
                 }
 
-                $csrfToken = \Csrf::refresh();
-                \Response::success('内容保存成功（演示模式，仅返回内容长度）', [
+                $csrfToken = $this->csrf->refresh();
+                $this->response->success('内容保存成功（演示模式，仅返回内容长度）', [
                     'csrf_token' => $csrfToken,
                     'content_length' => mb_strlen((string) $content),
                 ]);
             } catch (\Throwable $e) {
-                \Response::error('系统繁忙，请稍后再试');
+                $this->response->error('系统繁忙，请稍后再试');
             }
         }
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('editor_demo');
             echo '</div>';

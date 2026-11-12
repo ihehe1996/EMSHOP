@@ -30,15 +30,15 @@ final class FindOrderController extends UserPublicBaseController
          * 列表页不展示它，带上会让响应体随卡密数量线性膨胀（详情接口按需取完整内容）。
          */
 
-        $siteName = \Config::get('sitename', 'EMSHOP');
-        $siteLogoType = (string) (\Config::get('site_logo_type') ?? 'text');
-        $siteLogo     = (string) (\Config::get('site_logo') ?? '');
+        $siteName = $this->config->get('sitename', 'EMSHOP');
+        $siteLogoType = (string) ($this->config->get('site_logo_type') ?? 'text');
+        $siteLogo     = (string) ($this->config->get('site_logo') ?? '');
         // 访客当前展示币种符号；下方 JS 里用它拼金额
-        $currencySymbol = \Currency::visitorSymbol();
+        $currencySymbol = $this->currency->visitorSymbol();
 
         // 游客查单模式配置（开关/占位提示等）
         $gfConfig = \GuestFindModel::getConfig();
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         /**
          * 订单列白名单：对外返回的字段，避免泄漏 order_password / admin_remark / payment 内部字段。
@@ -73,8 +73,8 @@ final class FindOrderController extends UserPublicBaseController
             // 金额按下单时冻结的展示货币 + 汇率渲染，历史不漂移
             $dispCode = (string) ($row['display_currency_code'] ?? '');
             $dispRate = (int) ($row['display_rate'] ?? 0);
-            $out['pay_amount_display'] = \Currency::displaySnapshot((int) ($row['pay_amount'] ?? 0), $dispCode, $dispRate, false);
-            $out['goods_amount_display'] = \Currency::displaySnapshot((int) ($row['goods_amount'] ?? 0), $dispCode, $dispRate, false);
+            $out['pay_amount_display'] = $this->currency->displaySnapshot((int) ($row['pay_amount'] ?? 0), $dispCode, $dispRate, false);
+            $out['goods_amount_display'] = $this->currency->displaySnapshot((int) ($row['goods_amount'] ?? 0), $dispCode, $dispRate, false);
             // 供视图层单独取符号拼接用
             $out['_disp_code'] = $dispCode;
             $out['_disp_rate'] = $dispRate;
@@ -85,11 +85,11 @@ final class FindOrderController extends UserPublicBaseController
         };
 
         // ------------------------- AJAX 查询处理 -------------------------
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             header('Content-Type: application/json; charset=utf-8');
 
-            $mode = (string) \Input::post('mode', '');
-            $action = (string) \Input::post('action', '');
+            $mode = (string) $this->input->post('mode', '');
+            $action = (string) $this->input->post('action', '');
 
             // —— 子动作：刷新算术验证码（用户点"换一题"时调用）
             // 不计入限流（仅签发新题，不查订单）
@@ -101,10 +101,10 @@ final class FindOrderController extends UserPublicBaseController
                 exit;
             }
 
-            $orderNo = trim((string) \Input::post('order_no', ''));
-            $contactQuery = trim((string) \Input::post('contact_query', ''));
-            $orderPassword = trim((string) \Input::post('order_password', ''));
-            $captchaInput = trim((string) \Input::post('captcha', ''));
+            $orderNo = trim((string) $this->input->post('order_no', ''));
+            $contactQuery = trim((string) $this->input->post('contact_query', ''));
+            $orderPassword = trim((string) $this->input->post('order_password', ''));
+            $captchaInput = trim((string) $this->input->post('captcha', ''));
 
             try {
                 $result = [];
@@ -140,7 +140,7 @@ final class FindOrderController extends UserPublicBaseController
                     // 只认 v2 签名 Cookie，忽略 POST 里的 guest_token：
                     // 旧 token 没有签名，无法再借此列出订单。
                     $guestToken = \GuestToken::get();
-                    $rows = \Database::query(
+                    $rows = $this->db->query(
                         "SELECT * FROM {$prefix}order WHERE guest_token = ? ORDER BY id DESC LIMIT 10",
                         [$guestToken]
                     );
@@ -181,7 +181,7 @@ final class FindOrderController extends UserPublicBaseController
 
                     // echo $sql;die;
 
-                    $rows = \Database::query($sql, $params);
+                    $rows = $this->db->query($sql, $params);
                     if (empty($rows)) {
                         throw new \RuntimeException('未找到匹配订单');
                     }
@@ -205,7 +205,7 @@ final class FindOrderController extends UserPublicBaseController
                     if ($orderNo === '') {
                         throw new \RuntimeException('请输入订单编号');
                     }
-                    $row = \Database::fetchOne(
+                    $row = $this->db->fetchOne(
                         "SELECT * FROM {$prefix}order WHERE order_no = ? LIMIT 1",
                         [$orderNo]
                     );
@@ -300,7 +300,7 @@ final class FindOrderController extends UserPublicBaseController
         // 走 URL 参数而不是单页 tab，是为了让"刷新页面"能停在用户当前所在的查询方式，
         // 同时配合 PJAX 切 tab 不整页刷新
         $validTabs = ['token', 'credentials', 'orderno'];
-        $currentTab = (string) \Input::get('tab', 'token');
+        $currentTab = (string) $this->input->get('tab', 'token');
         if (!in_array($currentTab, $validTabs, true)) $currentTab = 'token';
 
         // credentials/orderno tab 没在配置开启时降级到 token
@@ -326,14 +326,14 @@ final class FindOrderController extends UserPublicBaseController
         $detailGoods = [];
         $detailExtraPairs = [];
         $detailDenied = false;
-        $detailOrderNo = trim((string) \Input::get('order_no', ''));
+        $detailOrderNo = trim((string) $this->input->get('order_no', ''));
         if ($detailOrderNo !== '') {
             if (session_status() === PHP_SESSION_NONE) @session_start();
             $visible = $_SESSION['em_find_order_visible'] ?? [];
             if (!isset($visible[$detailOrderNo])) {
                 $detailDenied = true;
             } else {
-                $row = \Database::fetchOne(
+                $row = $this->db->fetchOne(
                     "SELECT * FROM {$prefix}order WHERE order_no = ? LIMIT 1",
                     [$detailOrderNo]
                 );

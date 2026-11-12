@@ -16,7 +16,7 @@ final class ProfileController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -30,11 +30,11 @@ final class ProfileController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('action', '');
-            $csrf = (string) \Input::post('csrf_token', '');
+            $action = (string) $this->input->post('action', '');
+            $csrf = (string) $this->input->post('csrf_token', '');
 
-            if (!\Csrf::validate($csrf)) {
-                \Response::error('请求已失效，请刷新页面后重试');
+            if (!$this->csrf->validate($csrf)) {
+                $this->response->error('请求已失效，请刷新页面后重试');
             }
 
             $userModel = new \UserModel();
@@ -44,38 +44,38 @@ final class ProfileController extends BaseAdminController
 
             switch ($action) {
                 case 'profile':
-                    $username = (string) \Input::post('username', '');
-                    $nickname = (string) \Input::post('nickname', '');
-                    $email = (string) \Input::post('email', '');
-                    $mobile = trim((string) \Input::post('mobile', ''));
+                    $username = (string) $this->input->post('username', '');
+                    $nickname = (string) $this->input->post('nickname', '');
+                    $email = (string) $this->input->post('email', '');
+                    $mobile = trim((string) $this->input->post('mobile', ''));
 
                     if ($username === '') {
-                        \Response::error('账号不能为空');
+                        $this->response->error('账号不能为空');
                     }
 
                     if (!preg_match('/^[a-zA-Z0-9_]{3,30}$/', $username)) {
-                        \Response::error('账号只能包含字母、数字和下划线，长度3-30个字符');
+                        $this->response->error('账号只能包含字母、数字和下划线，长度3-30个字符');
                     }
 
                     if ($userModel->isUsernameTaken($username, $userId)) {
-                        \Response::error('该账号已被其他用户使用');
+                        $this->response->error('该账号已被其他用户使用');
                     }
 
                     $nicknameErr = \DisplayName::validate($nickname, '昵称');
                     if ($nicknameErr !== null) {
-                        \Response::error($nicknameErr);
+                        $this->response->error($nicknameErr);
                     }
 
                     if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                        \Response::error('请输入有效的邮箱地址');
+                        $this->response->error('请输入有效的邮箱地址');
                     }
 
                     if ($userModel->isEmailTaken($email, $userId)) {
-                        \Response::error('该邮箱已被其他用户使用');
+                        $this->response->error('该邮箱已被其他用户使用');
                     }
 
                     if ($userModel->isMobileTaken($mobile, $userId)) {
-                        \Response::error('该手机号已被其他用户使用');
+                        $this->response->error('该手机号已被其他用户使用');
                     }
 
                     $userModel->updateProfile($userId, [
@@ -90,8 +90,8 @@ final class ProfileController extends BaseAdminController
                         $auth->refreshSession($freshUser);
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('资料更新成功', [
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('资料更新成功', [
                         'csrf_token' => $csrfToken,
                         'user' => [
                             'username' => $freshUser !== null ? $freshUser['username'] : $username,
@@ -105,7 +105,7 @@ final class ProfileController extends BaseAdminController
 
                 case 'avatar':
                     if (empty($_FILES['avatar_file'])) {
-                        \Response::error('请选择头像文件');
+                        $this->response->error('请选择头像文件');
                     }
 
                     $uploader = new \UploadService();
@@ -120,8 +120,8 @@ final class ProfileController extends BaseAdminController
                         $auth->refreshSession($freshUser);
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('头像更新成功', [
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('头像更新成功', [
                         'csrf_token' => $csrfToken,
                         'avatar' => $result['url'],
                     ]);
@@ -139,18 +139,18 @@ final class ProfileController extends BaseAdminController
                         $auth->refreshSession($freshUser);
                     }
 
-                    $csrfToken = \Csrf::refresh();
+                    $csrfToken = $this->csrf->refresh();
                     $defaultAvatar = defined('EM_AVATAR') ? EM_AVATAR : '/content/static/img/avatar.jpeg';
-                    \Response::success('已恢复默认头像', [
+                    $this->response->success('已恢复默认头像', [
                         'csrf_token' => $csrfToken,
                         'avatar' => $defaultAvatar,
                     ]);
                     break;
 
                 case 'avatar_pick':
-                    $avatarUrl = (string) \Input::post('avatar_url', '');
+                    $avatarUrl = (string) $this->input->post('avatar_url', '');
                     if ($avatarUrl === '') {
-                        \Response::error('请选择头像地址');
+                        $this->response->error('请选择头像地址');
                     }
 
                     $userModel->updateProfile($userId, [
@@ -162,20 +162,20 @@ final class ProfileController extends BaseAdminController
                         $auth->refreshSession($freshUser);
                     }
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('头像已更新', [
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('头像已更新', [
                         'csrf_token' => $csrfToken,
                         'avatar' => $avatarUrl,
                     ]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -187,11 +187,11 @@ final class ProfileController extends BaseAdminController
         $admin = $this->user();
         $userFull = (new \UserModel())->findById((int) ($admin['id'] ?? 0));
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('profile', [
                 'userFull'  => $userFull,
-                'csrfToken' => \Csrf::token(),
+                'csrfToken' => $this->csrf->token(),
             ]);
             echo '</div>';
             return;

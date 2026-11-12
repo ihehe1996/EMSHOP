@@ -17,7 +17,7 @@ final class SystemLogController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
@@ -31,13 +31,13 @@ final class SystemLogController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             // list/stats 请求不需要 CSRF 验证
             if (!in_array($action, ['list', 'stats'], true)) {
-                $csrf = (string) \Input::post('csrf_token', '');
-                if (!\Csrf::validate($csrf)) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                $csrf = (string) $this->input->post('csrf_token', '');
+                if (!$this->csrf->validate($csrf)) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
@@ -45,21 +45,21 @@ final class SystemLogController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $page = max(1, (int) \Input::post('page', 1));
-                    $pageSize = max(1, min(100, (int) \Input::post('limit', 20)));
-                    $level = trim((string) \Input::post('level', ''));
-                    $type = trim((string) \Input::post('type', ''));
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $page = max(1, (int) $this->input->post('page', 1));
+                    $pageSize = max(1, min(100, (int) $this->input->post('limit', 20)));
+                    $level = trim((string) $this->input->post('level', ''));
+                    $type = trim((string) $this->input->post('type', ''));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
 
                     $rows = $model->list($level, $type, $keyword, $page, $pageSize);
                     $total = $model->count($level, $type, $keyword);
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => array_values($rows),
                         'total' => $total,
                         'page' => $page,
                         'limit' => $pageSize,
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
@@ -67,21 +67,21 @@ final class SystemLogController extends BaseAdminController
                     $statsByType = $model->statsByType();
                     $totalCount = $model->count();
 
-                    \Response::success('', [
+                    $this->response->success('', [
                         'total' => $totalCount,
                         'by_type' => $statsByType,
                     ]);
                     break;
 
                 case 'view':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的日志ID');
+                        $this->response->error('无效的日志ID');
                     }
 
                     $log = $model->findById($id);
                     if ($log === null) {
-                        \Response::error('日志不存在');
+                        $this->response->error('日志不存在');
                     }
 
                     // 解析 detail JSON
@@ -89,52 +89,52 @@ final class SystemLogController extends BaseAdminController
                         $log['detail_parsed'] = json_decode($log['detail'], true);
                     }
 
-                    \Response::success('', ['data' => $log]);
+                    $this->response->success('', ['data' => $log]);
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0) {
-                        \Response::error('无效的日志ID');
+                        $this->response->error('无效的日志ID');
                     }
 
                     $model->delete($id);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('删除成功', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('删除成功', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'batchDelete':
-                    $idsRaw = \Input::post('ids', '');
+                    $idsRaw = $this->input->post('ids', '');
                     if ($idsRaw === '') {
-                        \Response::error('请选择要删除的日志');
+                        $this->response->error('请选择要删除的日志');
                     }
                     $ids = array_filter(array_map('intval', explode(',', (string) $idsRaw)));
                     if ($ids === []) {
-                        \Response::error('无效的日志ID');
+                        $this->response->error('无效的日志ID');
                     }
 
                     $deleted = $model->batchDelete($ids);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('已删除 ' . $deleted . ' 条日志', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('已删除 ' . $deleted . ' 条日志', ['csrf_token' => $csrfToken]);
                     break;
 
                 case 'cleanup':
-                    $days = max(1, (int) \Input::post('days', 30));
+                    $days = max(1, (int) $this->input->post('days', 30));
                     $deleted = $model->cleanup($days);
 
-                    $csrfToken = \Csrf::refresh();
-                    \Response::success('已清理 ' . $deleted . ' 条 ' . $days . ' 天前的日志', ['csrf_token' => $csrfToken]);
+                    $csrfToken = $this->csrf->refresh();
+                    $this->response->success('已清理 ' . $deleted . ' 条 ' . $days . ' 天前的日志', ['csrf_token' => $csrfToken]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('系统繁忙，请稍后再试');
+            $this->response->error('系统繁忙，请稍后再试');
         }
     }
 
@@ -156,7 +156,7 @@ final class SystemLogController extends BaseAdminController
             'warning' => 0,
         ];
 
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('system_log', ['stats' => $stats]);
             echo '</div>';

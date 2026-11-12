@@ -23,12 +23,12 @@ final class MerchantLevelController extends BaseAdminController
 {
     public function index(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handlePost();
             return;
         }
 
-        if ((string) \Input::get('_popup', '') === '1') {
+        if ((string) $this->input->get('_popup', '') === '1') {
             $this->renderPopup();
             return;
         }
@@ -42,11 +42,11 @@ final class MerchantLevelController extends BaseAdminController
     private function handlePost(): void
     {
         try {
-            $action = (string) \Input::post('_action', '');
+            $action = (string) $this->input->post('_action', '');
 
             if ($action !== 'list') {
-                if (!\Csrf::validate((string) \Input::post('csrf_token', ''))) {
-                    \Response::error('请求已失效，请刷新页面后重试');
+                if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+                    $this->response->error('请求已失效，请刷新页面后重试');
                 }
             }
 
@@ -54,104 +54,104 @@ final class MerchantLevelController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $keyword = trim((string) \Input::post('keyword', ''));
+                    $keyword = trim((string) $this->input->post('keyword', ''));
                     $rows = $model->getAll($keyword);
                     $rows = array_map([$this, 'rowForView'], $rows);
-                    \Response::success('', [
+                    $this->response->success('', [
                         'data' => array_values($rows),
                         'total' => count($rows),
-                        'csrf_token' => \Csrf::token(),
+                        'csrf_token' => $this->csrf->token(),
                     ]);
                     break;
 
                 case 'create':
                 case 'update':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     $isEdit = $action === 'update';
 
-                    $name = trim((string) \Input::post('name', ''));
+                    $name = trim((string) $this->input->post('name', ''));
                     if ($name === '' || mb_strlen($name) > 64) {
-                        \Response::error('等级名称长度需在 1~64 字符');
+                        $this->response->error('等级名称长度需在 1~64 字符');
                     }
                     if ($model->existsName($name, $isEdit ? $id : 0)) {
-                        \Response::error('等级名称已被占用');
+                        $this->response->error('等级名称已被占用');
                     }
 
                     $data = [
                         'name' => $name,
-                        'price' => $this->priceToDb(\Input::post('price', 0)),
-                        'self_goods_fee_rate' => $this->rateToDb(\Input::post('self_goods_fee_rate', 0)),
-                        'withdraw_fee_rate' => $this->rateToDb(\Input::post('withdraw_fee_rate', 0)),
-                        'allow_subdomain' => (int) \Input::post('allow_subdomain', 0) === 1 ? 1 : 0,
-                        'allow_custom_domain' => (int) \Input::post('allow_custom_domain', 0) === 1 ? 1 : 0,
-                        'allow_self_goods' => (int) \Input::post('allow_self_goods', 0) === 1 ? 1 : 0,
-                        'sort' => (int) \Input::post('sort', 100),
-                        'is_enabled' => (int) \Input::post('is_enabled', 1) === 1 ? 1 : 0,
+                        'price' => $this->priceToDb($this->input->post('price', 0)),
+                        'self_goods_fee_rate' => $this->rateToDb($this->input->post('self_goods_fee_rate', 0)),
+                        'withdraw_fee_rate' => $this->rateToDb($this->input->post('withdraw_fee_rate', 0)),
+                        'allow_subdomain' => (int) $this->input->post('allow_subdomain', 0) === 1 ? 1 : 0,
+                        'allow_custom_domain' => (int) $this->input->post('allow_custom_domain', 0) === 1 ? 1 : 0,
+                        'allow_self_goods' => (int) $this->input->post('allow_self_goods', 0) === 1 ? 1 : 0,
+                        'sort' => (int) $this->input->post('sort', 100),
+                        'is_enabled' => (int) $this->input->post('is_enabled', 1) === 1 ? 1 : 0,
                     ];
 
                     if ($isEdit) {
                         if ($model->findById($id) === null) {
-                            \Response::error('等级不存在');
+                            $this->response->error('等级不存在');
                         }
                         $model->update($id, $data);
-                        \Response::success('更新成功', ['csrf_token' => \Csrf::refresh()]);
+                        $this->response->success('更新成功', ['csrf_token' => $this->csrf->refresh()]);
                     } else {
                         $newId = $model->create($data);
-                        \Response::success('创建成功', [
+                        $this->response->success('创建成功', [
                             'id' => $newId,
-                            'csrf_token' => \Csrf::refresh(),
+                            'csrf_token' => $this->csrf->refresh(),
                         ]);
                     }
                     break;
 
                 case 'delete':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     if ($id <= 0 || $model->findById($id) === null) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
                     if ($model->countMerchants($id) > 0) {
-                        \Response::error('该等级下还有商户，无法删除');
+                        $this->response->error('该等级下还有商户，无法删除');
                     }
                     $model->softDelete($id);
-                    \Response::success('删除成功', ['csrf_token' => \Csrf::refresh()]);
+                    $this->response->success('删除成功', ['csrf_token' => $this->csrf->refresh()]);
                     break;
 
                 case 'toggle':
-                    $id = (int) \Input::post('id', 0);
+                    $id = (int) $this->input->post('id', 0);
                     $newVal = $model->toggle($id);
                     if ($newVal < 0) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
-                    \Response::success('状态已更新', ['csrf_token' => \Csrf::refresh(), 'enabled' => $newVal]);
+                    $this->response->success('状态已更新', ['csrf_token' => $this->csrf->refresh(), 'enabled' => $newVal]);
                     break;
 
                 // 单个权限字段的点击切换（列表页标签互动）
                 // field 必须在白名单内，防止写入任意列
                 case 'toggle_perm':
-                    $id = (int) \Input::post('id', 0);
-                    $field = (string) \Input::post('field', '');
+                    $id = (int) $this->input->post('id', 0);
+                    $field = (string) $this->input->post('field', '');
                     $allowedFields = ['allow_subdomain', 'allow_custom_domain', 'allow_self_goods'];
                     if (!in_array($field, $allowedFields, true)) {
-                        \Response::error('不支持的权限字段');
+                        $this->response->error('不支持的权限字段');
                     }
                     $row = $model->findById($id);
                     if ($row === null) {
-                        \Response::error('等级不存在');
+                        $this->response->error('等级不存在');
                     }
                     $new = (int) ($row[$field] ?? 0) === 1 ? 0 : 1;
                     $model->update($id, [$field => $new]);
-                    \Response::success('已更新', [
-                        'csrf_token' => \Csrf::refresh(),
+                    $this->response->success('已更新', [
+                        'csrf_token' => $this->csrf->refresh(),
                         'field' => $field,
                         'value' => $new,
                     ]);
                     break;
 
                 default:
-                    \Response::error('未知操作');
+                    $this->response->error('未知操作');
             }
         } catch (\Throwable $e) {
-            \Response::error($e->getMessage() ?: '系统繁忙，请稍后再试');
+            $this->response->error($e->getMessage() ?: '系统繁忙，请稍后再试');
         }
     }
 
@@ -218,7 +218,7 @@ final class MerchantLevelController extends BaseAdminController
      */
     private function renderPopup(): void
     {
-        $editId = (int) \Input::get('id', 0);
+        $editId = (int) $this->input->get('id', 0);
         $editLevel = null;
         if ($editId > 0) {
             $editLevel = (new \MerchantLevelModel())->findById($editId);
@@ -238,7 +238,7 @@ final class MerchantLevelController extends BaseAdminController
      */
     private function renderList(): void
     {
-        if (\Request::isPjax()) {
+        if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';
             $this->render('merchant_level');
             echo '</div>';
