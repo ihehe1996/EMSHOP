@@ -82,6 +82,10 @@ final class DashboardController extends BaseAdminController
         }
         $latency = $data !== null ? (int) round((microtime(true) - $start) * 1000) : -1;
 
+        // 已装插件 / 模板的新版本检测（与插件管理、模板管理页同一套逻辑）。
+        // 中心不可达时 AppUpdateService 内部静默降级为空数组。
+        $appUpdates = $this->collectAppUpdates();
+
         // 这里的 authorized / license_type 只作为展示数据回给前端，不用来改本地授权状态
         $this->response->success('', ($data ?? [
             'authorized'       => null,
@@ -102,7 +106,74 @@ final class DashboardController extends BaseAdminController
             'latency_ms'      => $latency,
             'error'           => $error,
             'current_version' => EM_VERSION,
+            'app_updates'     => $appUpdates,
         ]);
+    }
+
+    /**
+     * 检测已装插件 / 模板是否有新版本（后台首页弹窗用）。
+     *
+     * 复用插件管理页 / 模板管理页的 AppUpdateService::checkInstalled()：
+     * 只保留确实版本更高、且中心给了下载地址的条目 —— 未授权时中心只回"有新版本"
+     * 但 package_url 为空，那种条目点更新必然失败，不能列出来。
+     * 中心不可达 / 未激活时静默降级为空，不影响首页其它数据。
+     *
+     * @return array{plugins: list<array<string,string>>, templates: list<array<string,string>>}
+     */
+    private function collectAppUpdates(): array
+    {
+        $out = ['plugins' => [], 'templates' => []];
+
+        // 未激活：中心只会回「未授权、无下载地址」，两次请求纯属浪费
+        $licenseRow = app(\App\Service\LicenseService::class)->currentLicense();
+        if (!$licenseRow || (string) ($licenseRow['license_code'] ?? '') === '') {
+            return $out;
+        }
+
+        try {
+            $plugins = app(\App\Model\PluginModel::class)->scanWithStatus('main');
+            // 首页的检测是"顺便"，单次上游超时压到 8 秒，避免拖垮首页数据
+            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($plugins, 'plugin', 8);
+            foreach ($updates as $slug => $row) {
+                $current = (string) ($plugins[$slug]['version'] ?? '1.0.0');
+                $latest = (string) ($row['version'] ?? '');
+                if ($latest === '' || !version_compare($latest, $current, '>')) {
+                    continue;
+                }
+                $out['plugins'][] = [
+                    'name'           => (string) $slug,
+                    'title'          => (string) ($plugins[$slug]['title'] ?? $slug),
+                    'version'        => $current,
+                    'latest_version' => $latest,
+                    'file_path'      => (string) ($row['file_path'] ?? ''),
+                ];
+            }
+        } catch (\Throwable $e) {
+            // 检测失败不影响首页其它数据
+        }
+
+        try {
+            $templates = app(\App\Model\TemplateModel::class)->scanTemplates();
+            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($templates, 'template', 8);
+            foreach ($updates as $slug => $row) {
+                $current = (string) ($templates[$slug]['version'] ?? '1.0.0');
+                $latest = (string) ($row['version'] ?? '');
+                if ($latest === '' || !version_compare($latest, $current, '>')) {
+                    continue;
+                }
+                $out['templates'][] = [
+                    'name'           => (string) $slug,
+                    'title'          => (string) ($templates[$slug]['title'] ?? $slug),
+                    'version'        => $current,
+                    'latest_version' => $latest,
+                    'file_path'      => (string) ($row['file_path'] ?? ''),
+                ];
+            }
+        } catch (\Throwable $e) {
+            // 同上
+        }
+
+        return $out;
     }
 
     /**

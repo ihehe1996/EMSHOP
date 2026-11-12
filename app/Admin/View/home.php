@@ -1698,6 +1698,104 @@ $__officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
     font-size: 12px;
 }
 
+/* ---------- 应用更新弹窗（插件 / 模板） ---------- */
+/* 首页不引 popup.css，这里内联本弹窗依赖的布局（与 dash-update-modal 同一套） */
+.layui-layer.dash-appupd-modal .layui-layer-content { padding: 0 !important; height: 100% !important; }
+.layui-layer.dash-appupd-modal .popup-wrap {
+    display: flex; flex-direction: column;
+    height: 100%;
+}
+.layui-layer.dash-appupd-modal .popup-inner {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    padding: 16px 20px 8px;
+    -webkit-overflow-scrolling: touch;
+}
+.layui-layer.dash-appupd-modal .popup-footer {
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    box-sizing: border-box;
+}
+
+.dash-appupd__head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%);
+    border: 1px solid #e0e7ff;
+    border-radius: 10px;
+}
+.dash-appupd__hero-ico {
+    flex-shrink: 0;
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #4f46e5; color: #fff; font-size: 16px;
+    box-shadow: 0 3px 8px rgba(79, 70, 229, 0.25);
+}
+.dash-appupd__hero-main { flex: 1; min-width: 0; }
+.dash-appupd__hero-title {
+    font-size: 13.5px; font-weight: 600; color: #1e293b;
+    line-height: 1.5;
+}
+.dash-appupd__hero-title b { color: #4f46e5; margin: 0 2px; }
+.dash-appupd__hero-sub { margin-top: 2px; font-size: 11.5px; color: #64748b; }
+
+.dash-appupd__list { display: flex; flex-direction: column; }
+.dash-appupd__item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 6px;
+    border-bottom: 1px solid #f3f4f6;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+.dash-appupd__item:hover { background: #fafbfc; }
+.dash-appupd__item:last-child { border-bottom: none; }
+.dash-appupd__item.is-done { opacity: 0.55; }
+.dash-appupd__item.is-fail { background: #fef2f2; }
+.dash-appupd__tag {
+    flex-shrink: 0;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+}
+.dash-appupd__tag.is-plugin { background: #eef2ff; color: #4f46e5; }
+.dash-appupd__tag.is-template { background: #ecfdf5; color: #059669; }
+.dash-appupd__main { flex: 1; min-width: 0; }
+.dash-appupd__name {
+    font-size: 14px; font-weight: 500; color: #111827;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dash-appupd__ver {
+    display: flex; align-items: center; gap: 3px;
+    margin-top: 3px; font-size: 12px; color: #9ca3af;
+}
+.dash-appupd__ver b { color: #059669; font-weight: 600; }
+.dash-appupd__btn {
+    flex-shrink: 0;
+    height: 30px; padding: 0 14px;
+    border: 1px solid #c7d2fe; border-radius: 6px;
+    background: #fff; color: #4f46e5;
+    font-size: 12.5px; font-weight: 500; cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dash-appupd__btn:hover:not(:disabled) { background: #eef2ff; border-color: #a5b4fc; }
+.dash-appupd__btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.dash-appupd__done {
+    flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: #059669;
+}
+
+@media (max-width: 640px) {
+    .layui-layer.dash-appupd-modal .popup-inner { padding: 12px 14px 6px; }
+    .layui-layer.dash-appupd-modal .popup-footer { padding: 10px 14px; }
+    .layui-layer.dash-appupd-modal .popup-footer .dash-wizard__btn {
+        flex: 1 1 auto; min-width: 0; justify-content: center;
+    }
+    .dash-appupd__item { padding: 11px 4px; gap: 10px; }
+}
+
 /* ---------- 空状态 ---------- */
 .dash-empty {
     padding: 30px 20px;
@@ -1978,6 +2076,157 @@ $(function () {
         $('#dashNoticeList').html(dashRetryHtml());
         $('#dashAdList').html(dashRetryHtml());
     }
+    // ------------------------------------------------------------------
+    // 应用更新弹窗（插件 / 模板）
+    // 数据来自 admin_index_data 的 app_updates；每次进入首页最多自动弹一次，
+    // 关闭后即使点「检查更新」重拉数据也不再弹。
+    // ------------------------------------------------------------------
+    var __dashAppUpdShown = false;
+
+    function maybeShowAppUpdates(updates) {
+        if (__dashAppUpdShown) return;
+        var rows = [];
+        ['plugins', 'templates'].forEach(function (key) {
+            (updates && updates[key] || []).forEach(function (row) {
+                rows.push($.extend({ type: key === 'plugins' ? 'plugin' : 'template' }, row));
+            });
+        });
+        if (!rows.length) return;
+        __dashAppUpdShown = true;
+        openAppUpdatesPopup(rows);
+    }
+
+    function openAppUpdatesPopup(rows) {
+        var TYPE_LABEL = { plugin: '插件', template: '模板' };
+        var listHtml = rows.map(function (r, i) {
+            return '<div class="dash-appupd__item" data-idx="' + i + '">' +
+                '<span class="dash-appupd__tag is-' + r.type + '">' + TYPE_LABEL[r.type] + '</span>' +
+                '<div class="dash-appupd__main">' +
+                    '<div class="dash-appupd__name" title="' + escapeHtml(r.title || r.name) + '">' + escapeHtml(r.title || r.name) + '</div>' +
+                    '<div class="dash-appupd__ver">v' + escapeHtml(r.version || '') +
+                        '<i class="fa fa-long-arrow-right"></i><b>v' + escapeHtml(r.latest_version || '') + '</b></div>' +
+                '</div>' +
+                '<button type="button" class="dash-appupd__btn" data-idx="' + i + '">更新</button>' +
+            '</div>';
+        }).join('');
+
+        var html = '<div class="popup-wrap">' +
+            '<div class="popup-inner">' +
+                '<div class="dash-appupd__head">' +
+                    '<span class="dash-appupd__hero-ico"><i class="fa fa-arrow-circle-up"></i></span>' +
+                    '<div class="dash-appupd__hero-main">' +
+                        '<div class="dash-appupd__hero-title">发现 <b>' + rows.length + '</b> 个插件 / 模板有新版本</div>' +
+                        '<div class="dash-appupd__hero-sub">更新会下载并覆盖当前版本的文件</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="dash-appupd__list" id="dashAppUpdList">' + listHtml + '</div>' +
+            '</div>' +
+            '<div class="popup-footer">' +
+                '<button type="button" class="dash-wizard__btn dash-wizard__btn--left" id="dashAppUpdLater">稍后再说</button>' +
+                '<button type="button" class="dash-wizard__btn dash-wizard__btn--primary" id="dashAppUpdAll">' +
+                    '<i class="fa fa-cloud-download"></i> 全部更新</button>' +
+            '</div>' +
+        '</div>';
+
+        // 高度按条目数算，避免内容少时底部一大片空白；条目多时由 .popup-inner 内部滚动
+        var bodyH = 156 + rows.length * 62 + 58;
+        var areaH = window.innerHeight >= 640
+            ? Math.min(Math.round(window.innerHeight * 0.8), bodyH) + 'px'
+            : '85%';
+
+        var idx = layui.layer.open({
+            type: 1,
+            title: '应用更新',
+            skin: 'admin-modal dash-appupd-modal',
+            area: [window.innerWidth >= 640 ? '540px' : '94%', areaH],
+            shadeClose: true,
+            content: html
+        });
+
+        function itemOf(i) { return $('#dashAppUpdList .dash-appupd__item[data-idx="' + i + '"]'); }
+        function btnOf(i) { return itemOf(i).find('.dash-appupd__btn'); }
+
+        // 单个更新：复用应用商店的 update action（{入口}/appstore）
+        function updateOne(i) {
+            return $.Deferred(function (dfd) {
+                var row = rows[i];
+                if (!row || row.__done || row.__updating) { dfd.resolve(); return; }
+                if (!row.file_path) { dfd.reject(new Error('没有下载地址')); return; }
+                row.__updating = true;
+                btnOf(i).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 更新中');
+                $.ajax({
+                    url: '<?= EM_ADMIN_PATH ?>/appstore',
+                    method: 'POST',
+                    dataType: 'json',
+                    timeout: 180000,
+                    data: {
+                        csrf_token: window.adminCsrfToken || '',
+                        _action: 'update',
+                        name: row.name,
+                        type: row.type,
+                        file_path: row.file_path,
+                        version: row.latest_version
+                    }
+                }).done(function (res) {
+                    if (res && (res.code === 0 || res.code === 200)) {
+                        // 服务端成功后会刷新 csrf_token，必须同步，否则后续请求全部失效
+                        if (res.data && res.data.csrf_token) window.adminCsrfToken = res.data.csrf_token;
+                        row.__done = true;
+                        itemOf(i).addClass('is-done');
+                        btnOf(i).replaceWith('<span class="dash-appupd__done"><i class="fa fa-check"></i> 已更新</span>');
+                        dfd.resolve();
+                    } else {
+                        itemOf(i).addClass('is-fail');
+                        btnOf(i).prop('disabled', false).text('重试');
+                        dfd.reject(new Error((res && res.msg) || '更新失败'));
+                    }
+                }).fail(function () {
+                    itemOf(i).addClass('is-fail');
+                    btnOf(i).prop('disabled', false).text('重试');
+                    dfd.reject(new Error('网络异常'));
+                }).always(function () {
+                    row.__updating = false;
+                });
+            }).promise();
+        }
+
+        $(document).off('click.dashHome', '#dashAppUpdLater').on('click.dashHome', '#dashAppUpdLater', function () {
+            layui.layer.close(idx);
+        });
+
+        $(document).off('click.dashHome', '#dashAppUpdList .dash-appupd__btn').on('click.dashHome', '#dashAppUpdList .dash-appupd__btn', function () {
+            var i = parseInt($(this).attr('data-idx'), 10);
+            updateOne(i).fail(function (err) {
+                layui.layer.msg(err && err.message ? err.message : '更新失败');
+            });
+        });
+
+        // 全部更新：串行执行，避免同时下载多个包
+        $(document).off('click.dashHome', '#dashAppUpdAll').on('click.dashHome', '#dashAppUpdAll', function () {
+            var $all = $(this);
+            var failed = [];
+            $all.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 更新中…');
+            var chain = $.Deferred().resolve();
+            rows.forEach(function (row, i) {
+                chain = chain.then(function () {
+                    if (row.__done) return;
+                    return updateOne(i).fail(function (err) {
+                        failed.push((row.title || row.name) + '：' + (err && err.message ? err.message : '更新失败'));
+                    });
+                });
+            });
+            chain.always(function () {
+                $all.prop('disabled', false).html('<i class="fa fa-cloud-download"></i> 全部更新');
+                if (failed.length === 0) {
+                    layui.layer.msg('全部更新完成');
+                    layui.layer.close(idx);
+                } else {
+                    layui.layer.msg('部分更新失败：' + failed.join('；'));
+                }
+            });
+        });
+    }
+
     // 返回 jqXHR，调用方（激活码 / 下载卡片）可在失败后等它重试完再决定弹不弹
     function loadDashIndex() {
         if (__dashIndexLoading) return __dashIndexXhr;
@@ -2004,6 +2253,7 @@ $(function () {
             renderNoticeList(resp.data);
             renderAdList(resp.data);
             renderVersion(resp.data);
+            maybeShowAppUpdates(resp.data.app_updates);
         }).fail(function () {
             renderDashFail();
         }).always(function () {

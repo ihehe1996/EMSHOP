@@ -804,7 +804,7 @@ final class LicenseClient
      * @return array{license:array<string,mixed>,data:array<int,array>}
      * @throws \RuntimeException
      */
-    public function appUpdateCheck(array $apps, string $domain, string $code): array
+    public function appUpdateCheck(array $apps, string $domain, string $code, int $timeout = 15): array
     {
         if ($apps === []) {
             return ['license' => [], 'data' => []];
@@ -814,7 +814,7 @@ final class LicenseClient
             'domain' => $domain,
             'code'   => $code,
             'apps'   => array_values($apps),
-        ]);
+        ], $timeout);
 
         return [
             'license' => is_array($data['license'] ?? null) ? $data['license'] : [],

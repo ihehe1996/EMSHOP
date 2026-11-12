@@ -35,10 +35,11 @@ final class AppUpdateService extends BaseService
      *
      * @param array<string, array{version?:string}> $installed 以 name_en（slug = 目录名）为 key
      * @param string $type 'plugin' / 'template'
+     * @param int $timeout 单次上游请求超时（秒）；首页这类"顺便检测"可传更短
      * @return array<string, array{version:string, file_path:string, min_version:string}>
      *         只含"有更新"的条目，key 与入参一致
      */
-    public function checkInstalled(array $installed, string $type): array
+    public function checkInstalled(array $installed, string $type, int $timeout = 15): array
     {
         if (!in_array($type, ['plugin', 'template'], true) || $installed === []) {
             return [];
@@ -67,7 +68,7 @@ final class AppUpdateService extends BaseService
         $out = [];
         foreach (array_chunk($apps, self::BATCH_SIZE) as $batch) {
             try {
-                $res = $this->licenseClient->appUpdateCheck($batch, $domain, $code);
+                $res = $this->licenseClient->appUpdateCheck($batch, $domain, $code, $timeout);
             } catch (\Throwable $e) {
                 // 中心不可达：静默降级，别让插件/模板列表页整体报错
                 continue;
