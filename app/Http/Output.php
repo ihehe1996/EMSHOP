@@ -8,7 +8,7 @@ namespace App\Http;
  * 输出响应服务（实例实现，Response 的兼容别名）。
  *
  * 无状态：方法直接转调 Response 门面并以 exit 结束请求。
- * 兼容门面见 include/lib/Output.php。
+ * 兼容门面见 app/Facade/Output.php。
  */
 final class Output
 {

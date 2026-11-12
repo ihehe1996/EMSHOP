@@ -8,7 +8,7 @@ namespace App\Support;
  * 商户（分站）上下文识别服务（实例实现）。
  *
  * 有状态：进程内保存当前商户、是否已解析与拦截原因。兼容门面见
- * include/lib/MerchantContext.php，门面持有单例，请求内语义与原来一致。
+ * app/Facade/MerchantContext.php，门面持有单例，请求内语义与原来一致。
  *
  * 在 init.php 中调用 resolve() 一次，后续代码通过静态方法读取当前商户。
  *

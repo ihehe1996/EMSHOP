@@ -3,7 +3,7 @@
  * 商品类型管理器（实例实现）
  * 负责商品类型的注册、钩子分发和类型切换
  *
- * 有状态：进程内保存已注册类型表。兼容门面见 include/lib/GoodsTypeManager.php。
+ * 有状态：进程内保存已注册类型表。兼容门面见 app/Facade/GoodsTypeManager.php。
  *
  * @package EM\Core\Class
  */

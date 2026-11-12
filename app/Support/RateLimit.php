@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 通用限流服务（实例实现）：基于 Cache 做"按 key 计数"的固定窗口限流。
  *
- * 无自有状态：计数存在 Cache 中。兼容门面见 include/lib/RateLimit.php。
+ * 无自有状态：计数存在 Cache 中。兼容门面见 app/Facade/RateLimit.php。
  *
  * 设计：
  *   - 每个 key 一个计数器 + 窗口重置时间。窗口内计数累加；窗口过期则归零重计。

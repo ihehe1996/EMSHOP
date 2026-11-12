@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 昵称 / 店铺名等展示名称的输入校验（实例实现）。
  *
- * 无状态。兼容门面见 include/lib/DisplayName.php。
+ * 无状态。兼容门面见 app/Facade/DisplayName.php。
  *
  * 只做「拒绝」，不改写用户输入；输出侧仍必须 htmlspecialchars / emEsc。
  */

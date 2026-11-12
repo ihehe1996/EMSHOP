@@ -8,7 +8,7 @@ namespace App\Support;
  * 邮件发送服务（实例实现）。
  *
  * 有状态：进程内保存最近一次发送失败的错误描述。兼容门面见
- * include/lib/Mailer.php，门面单例保证 lastError() 语义不变。
+ * app/Facade/Mailer.php，门面单例保证 lastError() 语义不变。
  *
  * 邮件发送业务类（基于底层 Smtp RFC821 类做业务封装）。
  *

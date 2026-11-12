@@ -8,7 +8,7 @@ namespace App\Support;
  * 文件缓存服务（实例实现）。
  *
  * 原来 Cache 的静态状态（目录、前缀、默认 TTL）搬到这里成为实例属性。
- * 兼容门面见 include/lib/Cache.php；现有 Cache:: 调用点不需要改。
+ * 兼容门面见 app/Facade/Cache.php；现有 Cache:: 调用点不需要改。
  */
 final class Cache
 {

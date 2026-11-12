@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 下载地址白名单校验服务（实例实现）。
  *
- * 无状态。兼容门面见 include/lib/DownloadUrlGuard.php。
+ * 无状态。兼容门面见 app/Facade/DownloadUrlGuard.php。
  * 应用商店 / 在线升级共用。
  *
  * 为什么不能用字符串前缀比较：

@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 日志脱敏服务（实例实现）。
  *
- * 无状态。兼容门面见 include/lib/LogSanitizer.php。
+ * 无状态。兼容门面见 app/Facade/LogSanitizer.php。
  *
  * 背景：日志文件（content/server/server.log、worker.*.log）落在 web 根内，任何
  * 能访问站点的人都能直接下载。因此日志里不能出现「拿到就能冒充或接管」的东西 ——

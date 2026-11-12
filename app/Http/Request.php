@@ -7,7 +7,7 @@ namespace App\Http;
 /**
  * 请求服务（实例实现）。
  *
- * 无状态：每次调用直接读 $_SERVER。兼容门面见 include/lib/Request.php。
+ * 无状态：每次调用直接读 $_SERVER。兼容门面见 app/Facade/Request.php。
  */
 final class Request
 {

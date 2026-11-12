@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * Key-Value 配置存储服务（实例实现）。
  *
- * 有状态：进程内缓存 + 延迟落库的脏标记。兼容门面见 include/lib/Option.php，
+ * 有状态：进程内缓存 + 延迟落库的脏标记。兼容门面见 app/Facade/Option.php，
  * 门面单例保证「请求结束时 shutdown 里 flush」读写的是同一份内存状态。
  *
  * 提供简单的 get/set/delete 接口，内部复用 config 表。

@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 系统配置服务（实例实现）。
  *
- * 有状态：进程内缓存 em_config 表内容。兼容门面见 include/lib/Config.php，
+ * 有状态：进程内缓存 em_config 表内容。兼容门面见 app/Facade/Config.php，
  * 门面持有单例，缓存语义与原来一致。
  */
 final class Config

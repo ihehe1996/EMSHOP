@@ -1292,11 +1292,10 @@ class OrderModel
             if (!defined('EM_ROOT')) {
                 return;
             }
-            require_once EM_ROOT . '/include/model/SystemLogModel.php';
             if (!class_exists('SystemLogModel')) {
                 return;
             }
-            $m = new SystemLogModel();
+            $m = new \App\Model\SystemLogModel();
             if ($level === 'error') {
                 $m->error('system', $action, $message, $detail);
             } elseif ($level === 'warning' || $level === 'warn') {

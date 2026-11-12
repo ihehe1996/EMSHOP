@@ -8,7 +8,7 @@ namespace App\Support;
  * 前台视图渲染服务（实例实现）。
  *
  * 有状态：主题、视图数据、标题、是否已渲染、PJAX 标记。兼容门面见
- * include/lib/View.php，门面保留 getInstance() 并代理实例方法。
+ * app/Facade/View.php，门面保留 getInstance() 并代理实例方法。
  *
  * 负责页面整体渲染：
  * - 加载 header.php / footer.php 布局文件

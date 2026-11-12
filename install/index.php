@@ -16,10 +16,15 @@ if (session_status() === PHP_SESSION_NONE) {
 
 define('EM_ROOT', dirname(__DIR__));
 
-require_once EM_ROOT . '/include/lib/Autoloader.php';
+require_once EM_ROOT . '/bootstrap/Env.php';
+require_once EM_ROOT . '/bootstrap/Autoloader.php';
 Autoloader::register([
-    EM_ROOT . '/include/lib',
+    EM_ROOT . '/app/Vendor',
 ]);
+
+// 全局短名 → App\Facade\* 别名（安装过程里 InstallService 会用到 Database / Config）
+require_once EM_ROOT . '/bootstrap/aliases.php';
+em_register_facade_aliases();
 
 // 读 .env 里的后台入口（EM_APP_ADMIN_ENTRY）；没有就让 Env 用默认值 admin
 Env::load(EM_ROOT);

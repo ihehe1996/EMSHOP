@@ -7,7 +7,7 @@ namespace App\Support;
  * - error：错误/异常场景
  * - info：操作指引、前置条件提示等
  *
- * 兼容门面见 include/lib/Emmsg.php。
+ * 兼容门面见 app/Facade/Emmsg.php。
  */
 class Emmsg
 {

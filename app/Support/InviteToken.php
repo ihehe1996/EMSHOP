@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 推广归因 Cookie 服务（实例实现）。
  *
- * 无自有状态：邀请码存在 Cookie 中。兼容门面见 include/lib/InviteToken.php。
+ * 无自有状态：邀请码存在 Cookie 中。兼容门面见 app/Facade/InviteToken.php。
  *
  * 访客通过推广链接 `?r=XXX` 进入时写一个 10 年长期 Cookie；
  * 注册或下单时读取 Cookie，完成归因绑定。

@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 富文本 HTML 清洗服务（实例实现）。
  *
- * 有状态：进程内按内容哈希缓存清洗结果。兼容门面见 include/lib/HtmlSanitizer.php。
+ * 有状态：进程内按内容哈希缓存清洗结果。兼容门面见 app/Facade/HtmlSanitizer.php。
  *
  * 允许常见排版、图片、表格、音视频标签；去掉脚本、事件属性、伪协议 URL、
  * SVG / MathML / 表单等可执行或可钓鱼的内容。用于商户公告、商品详情、

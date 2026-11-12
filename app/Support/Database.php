@@ -8,7 +8,7 @@ namespace App\Support;
  * 数据库访问服务（实例实现）。
  *
  * 有状态：进程内缓存连接、驱动、事务状态与最近一次 SQL 上下文。兼容门面见
- * include/lib/Database.php，门面持有单例，缓存与事务语义与原来一致。
+ * app/Facade/Database.php，门面持有单例，缓存与事务语义与原来一致。
  *
  * 优先使用 mysqli，若环境不支持则自动回退到 PDO MySQL。
  * 这样可以兼容更多 PHP 7.4 ~ 8.5 环境。

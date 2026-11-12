@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 货币服务（实例实现）。
  *
- * 有状态：进程内缓存 em_currency 表内容。兼容门面见 include/lib/Currency.php，
+ * 有状态：进程内缓存 em_currency 表内容。兼容门面见 app/Facade/Currency.php，
  * 门面保留 getInstance() 与静态辅助方法，实例与静态两种调用方式都不变。
  *
  * 数据表：em_currency

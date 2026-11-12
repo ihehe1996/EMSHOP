@@ -8,7 +8,7 @@ namespace App\Http;
  * 统一响应服务（实例实现）。
  *
  * 负责 JSON 输出和页面跳转，避免入口文件中重复写 header + exit。
- * 兼容门面见 include/lib/Response.php。
+ * 兼容门面见 app/Facade/Response.php。
  *
  * 与 Request 不同，本服务的方法以 exit 结束请求 —— 这是原有契约的一部分。
  */

@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 输入接收服务（实例实现）。
  *
- * 无状态：每次调用直接读 $_GET / $_POST。兼容门面见 include/lib/Input.php。
+ * 无状态：每次调用直接读 $_GET / $_POST。兼容门面见 app/Facade/Input.php。
  */
 final class Input
 {

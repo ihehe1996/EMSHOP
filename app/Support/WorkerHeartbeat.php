@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 后台任务心跳服务（实例实现）。
  *
- * 有状态：进程内缓存运行目录。兼容门面见 include/lib/WorkerHeartbeat.php。
+ * 有状态：进程内缓存运行目录。兼容门面见 app/Facade/WorkerHeartbeat.php。
  *
  * 两层心跳语义不同，**不要混用**：
  *

@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * CSRF cookie 签名密钥服务（实例实现）。
  *
- * 有状态：进程内缓存解析结果。兼容门面见 include/lib/CsrfSecret.php。
+ * 有状态：进程内缓存解析结果。兼容门面见 app/Facade/CsrfSecret.php。
  *
  * 新装在安装时已把随机密钥写进 config.php 的 EM_AUTH_SECRET 常量；没有这一项时，
  * 由本服务在后台首次访问时生成并写回 config.php，此后所有请求共用同一密钥。

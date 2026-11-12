@@ -49,7 +49,7 @@ if (php_sapi_name() !== 'cli' && !is_file(EM_ROOT . '/install/install.lock')) {
 
 // 开发环境配置覆盖：项目根目录 .env（不存在就用 config.php 默认值）。
 // 必须在 require config.php 之前加载，config.php 里的 define 会优先读环境变量。
-require_once EM_ROOT . '/include/lib/Env.php';
+require_once EM_ROOT . '/bootstrap/Env.php';
 Env::load(EM_ROOT);
 
 // 加载站点配置（包含 db / auth 等），config.php 一律是常量定义格式。
@@ -128,11 +128,15 @@ if (php_sapi_name() !== 'cli' && session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once EM_ROOT . '/include/lib/Autoloader.php';
+require_once EM_ROOT . '/bootstrap/Autoloader.php';
 
 Autoloader::register([
-    EM_ROOT . '/include/lib',
+    EM_ROOT . '/app/Vendor',
 ]);
+
+// 全局短名（Cache / Config / Database …）→ App\Facade\* 的别名（Laravel 的 AliasLoader 对应物）
+require_once EM_ROOT . '/bootstrap/aliases.php';
+em_register_facade_aliases();
 
 // 后台入口路径：默认 /admin，可在 .env 里用 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。
 // 后台路由与后台所有链接（视图 / 控制器 / JS 全局）都读这个常量。
@@ -221,7 +225,7 @@ if ($emTimezone !== '' && @date_default_timezone_set($emTimezone) === false) {
 Cache::init();
 
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
-require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
+require_once EM_ROOT . '/app/helpers/template.php';
 
 // 商户（分站）上下文识别：提前到插件/模板加载之前，让后面能按商户 scope 隔离
 //   - 命中 /s/{slug}/ 模式会同步改写 $_SERVER['REQUEST_URI']/PATH_INFO，让 Dispatcher 按正常路径解析

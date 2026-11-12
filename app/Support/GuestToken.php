@@ -8,7 +8,7 @@ namespace App\Support;
  * 游客身份标识服务（实例实现）。
  *
  * 有状态：进程内缓存签名密钥，避免每次请求都读配置。兼容门面见
- * include/lib/GuestToken.php，门面持有单例，缓存语义与原来一致。
+ * app/Facade/GuestToken.php，门面持有单例，缓存语义与原来一致。
  *
  * v2：签名 Cookie。
  *

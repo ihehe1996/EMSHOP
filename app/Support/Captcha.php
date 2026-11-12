@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * 算术验证码服务（实例实现）。
  *
- * 无自有状态：题目与答案存在 session 中。兼容门面见 include/lib/Captcha.php。
+ * 无自有状态：题目与答案存在 session 中。兼容门面见 app/Facade/Captcha.php。
  *
  * 用法：
  *   $expr = Captcha::issue('find_order');   // 返回 "3 + 5"，同时写入 session

@@ -27,7 +27,7 @@ final class AdminShell
         }
 
         // 后台翻译函数 t() 与语言列表
-        require_once EM_ROOT . '/include/lib/AdminLang.php';
+        require_once EM_ROOT . '/app/helpers/admin_lang.php';
 
         if ($user === []) {
             $user = (new \App\Service\AuthService())->user() ?? [];

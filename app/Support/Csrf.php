@@ -7,7 +7,7 @@ namespace App\Support;
 /**
  * CSRF 防护服务（实例实现）。
  *
- * 无自有状态：token 存在 session / cookie 中。兼容门面见 include/lib/Csrf.php。
+ * 无自有状态：token 存在 session / cookie 中。兼容门面见 app/Facade/Csrf.php。
  *
  * 设计原则：
  * - 主验证基于 Session token（稳定，会话期间不变）

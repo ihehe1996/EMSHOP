@@ -1311,7 +1311,6 @@ class ApiController extends BaseController
     private function writeSystemLog(string $level, string $action, string $message, array $detail = []): void
     {
         try {
-            require_once EM_ROOT . '/include/model/SystemLogModel.php';
             if (!class_exists('SystemLogModel')) {
                 return;
             }

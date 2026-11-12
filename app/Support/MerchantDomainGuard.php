@@ -8,7 +8,7 @@ namespace App\Support;
  * 商户域名校验服务（实例实现）。
  *
  * 无自有状态：规则读取 Config 与 em_merchant。兼容门面见
- * include/lib/MerchantDomainGuard.php。
+ * app/Facade/MerchantDomainGuard.php。
  *
  * 规则：
  *   - 主站域名（site_url / main_domain，含 www 变体）永远不能被商户绑定；
