@@ -35,7 +35,7 @@ final class RechargeController extends BaseAdminController
     {
         try {
             $action = (string) $this->input->post('_action', '');
-            $model = new \UserRechargeModel();
+            $model = new \App\Model\UserRechargeModel();
             $rechargeTable = $this->db->prefix() . 'user_recharge';
 
             // 写操作校验 CSRF（list / summary 只读，免校验）
@@ -110,19 +110,19 @@ final class RechargeController extends BaseAdminController
                     "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ? AND DATE(paid_at) = ?",
-                    [\UserRechargeModel::STATUS_PAID, $today]
+                    [\App\Model\UserRechargeModel::STATUS_PAID, $today]
                 );
                 $monthRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ? AND paid_at >= ?",
-                    [\UserRechargeModel::STATUS_PAID, $monthStart]
+                    [\App\Model\UserRechargeModel::STATUS_PAID, $monthStart]
                 );
                 $totalRow = $this->db->fetchOne(
                     "SELECT COALESCE(SUM(amount), 0) AS amt
                        FROM `{$rechargeTable}`
                       WHERE status = ?",
-                    [\UserRechargeModel::STATUS_PAID]
+                    [\App\Model\UserRechargeModel::STATUS_PAID]
                 );
 
                 $fmt = static fn(int $bigint): string => bcdiv((string) $bigint, '1000000', 2);
@@ -142,12 +142,12 @@ final class RechargeController extends BaseAdminController
                 if (!$row) {
                     $this->response->error('记录不存在');
                 }
-                if ($row['status'] !== \UserRechargeModel::STATUS_PENDING) {
+                if ($row['status'] !== \App\Model\UserRechargeModel::STATUS_PENDING) {
                     $this->response->error('仅待支付的充值单可取消');
                 }
                 $this->db->execute(
                     'UPDATE ' . $this->db->prefix() . 'user_recharge SET status = ? WHERE id = ? AND status = ?',
-                    [\UserRechargeModel::STATUS_CANCELLED, $id, \UserRechargeModel::STATUS_PENDING]
+                    [\App\Model\UserRechargeModel::STATUS_CANCELLED, $id, \App\Model\UserRechargeModel::STATUS_PENDING]
                 );
                 $this->response->success('已取消', ['csrf_token' => $this->csrf->refresh()]);
             }

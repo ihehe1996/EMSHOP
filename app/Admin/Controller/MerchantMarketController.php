@@ -17,8 +17,8 @@ final class MerchantMarketController extends BaseAdminController
 {
     public function index(): void
     {
-        $marketModel = new \AppMarketModel();
-        $purchaseModel = new \AppPurchaseModel();
+        $marketModel = new \App\Model\AppMarketModel();
+        $purchaseModel = new \App\Model\AppPurchaseModel();
 
         if ($this->request->isPost()) {
             $this->handlePost();
@@ -112,7 +112,7 @@ final class MerchantMarketController extends BaseAdminController
     /**
      * 分页列表。
      */
-    private function outputList(\AppMarketModel $marketModel, \AppPurchaseModel $purchaseModel): void
+    private function outputList(\App\Model\AppMarketModel $marketModel, \App\Model\AppPurchaseModel $purchaseModel): void
     {
         header('Content-Type: application/json; charset=utf-8');
 

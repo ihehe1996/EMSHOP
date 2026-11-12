@@ -30,7 +30,7 @@ final class BlogEditController extends MerchantBaseController
 
             $categoryId = (int) $this->input->post('category_id', 0);
             if ($categoryId > 0) {
-                $cat = (new \BlogCategoryModel())->findById($categoryId);
+                $cat = (new \App\Model\BlogCategoryModel())->findById($categoryId);
                 if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                     $this->response->error('请选择本店的分类');
                 }
@@ -49,17 +49,17 @@ final class BlogEditController extends MerchantBaseController
 
             try {
                 if ($id > 0) {
-                    $existing = BlogModel::getById($id);
+                    $existing = \App\Model\BlogModel::getById($id);
                     if (!$existing || (int) $existing['merchant_id'] !== $merchantId) {
                         $this->response->error('文章不存在');
                     }
-                    BlogModel::update($id, $data);
+                    \App\Model\BlogModel::update($id, $data);
                     $articleId = $id;
                 } else {
                     $data['user_id']     = (int) ($frontUser['id'] ?? 0);
                     $data['created_by']  = (int) ($frontUser['id'] ?? 0);
                     $data['merchant_id'] = $merchantId;
-                    $articleId = BlogModel::create($data);
+                    $articleId = \App\Model\BlogModel::create($data);
                 }
 
                 if (!$articleId) $this->response->error('保存失败');
@@ -70,10 +70,10 @@ final class BlogEditController extends MerchantBaseController
                 $tagIds = [];
                 foreach ($tagNames as $name) {
                     if ($name === '') continue;
-                    $tagIds[] = BlogTagModel::findOrCreate($name, $merchantId);
+                    $tagIds[] = \App\Model\BlogTagModel::findOrCreate($name, $merchantId);
                 }
-                BlogTagModel::syncBlogTags($articleId, $tagIds);
-                BlogTagModel::refreshAllCounts();
+                \App\Model\BlogTagModel::syncBlogTags($articleId, $tagIds);
+                \App\Model\BlogTagModel::refreshAllCounts();
             } catch (\Throwable $e) {
                 $this->response->error('保存失败：' . $e->getMessage());
             }
@@ -85,12 +85,12 @@ final class BlogEditController extends MerchantBaseController
         $id = (int) $this->input->get('id', 0);
         $article = null;
         if ($id > 0) {
-            $article = BlogModel::getById($id);
+            $article = \App\Model\BlogModel::getById($id);
             if ($article && (int) $article['merchant_id'] !== $merchantId) {
                 $article = null;
             }
         }
-        $categories = (new \BlogCategoryModel())->getAll($merchantId);
+        $categories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
 
         if ($this->input->get('_popup', '') === '1') {
             $this->render('popup/blog_edit', get_defined_vars());

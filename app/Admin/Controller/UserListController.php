@@ -83,7 +83,7 @@ final class UserListController extends BaseAdminController
                         $limit = 15;
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     $result = $model->getAll($page, $limit, $keyword, $sortField, $sortOrder);
 
                     $this->response->success('', [
@@ -129,7 +129,7 @@ final class UserListController extends BaseAdminController
                     $status = $this->input->post('status', '1');
                     $status = $status === '1' ? 1 : 0;
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
 
                     if ($model->existsUsername($username)) {
                         $this->response->error('该用户名已被占用');
@@ -173,7 +173,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     $existing = $model->findById($id);
                     if ($existing === null) {
                         $this->response->error('用户不存在');
@@ -232,7 +232,7 @@ final class UserListController extends BaseAdminController
 
                     // 改的是自己：同步刷新当前会话（含密码指纹），避免下一次请求被踢下线
                     if ($id === $currentAdminId) {
-                        $freshUser = (new \UserModel())->findById($id);
+                        $freshUser = (new \App\Model\UserModel())->findById($id);
                         if ($freshUser !== null) {
                             $auth = new \AuthService();
                             $auth->refreshSession($freshUser);
@@ -253,7 +253,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能禁用当前登录的账号');
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     if ($model->findById($id) === null) {
                         $this->response->error('用户不存在');
                     }
@@ -275,7 +275,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能删除当前登录的账号');
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     if ($model->findById($id) === null) {
                         $this->response->error('用户不存在');
                     }
@@ -304,7 +304,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('不能删除当前登录的账号');
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     $deleted = $model->deleteBatch($ids, $currentAdminId);
 
                     $csrfToken = $this->csrf->refresh();
@@ -334,7 +334,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $userModel = new \UserListModel();
+                    $userModel = new \App\Model\UserListModel();
                     $u = $userModel->findById($userId);
                     if ($u === null) {
                         $this->response->error('用户不存在');
@@ -347,7 +347,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('该用户已开通商户分站');
                     }
 
-                    $levelModel = new \MerchantLevelModel();
+                    $levelModel = new \App\Model\MerchantLevelModel();
                     $levelId = (int) $this->input->post('level_id', 0);
                     $merchantLevelRow = $levelId > 0 ? $levelModel->findById($levelId) : null;
                     if ($merchantLevelRow === null) {
@@ -379,7 +379,7 @@ final class UserListController extends BaseAdminController
                         }
                     }
 
-                    $merchantModel = new \MerchantModel();
+                    $merchantModel = new \App\Model\MerchantModel();
                     if ($merchantModel->existsSubdomain($subdomain)) {
                         $this->response->error('二级域名已被占用');
                     }
@@ -424,7 +424,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('无效的用户ID');
                     }
 
-                    $model = new \UserListModel();
+                    $model = new \App\Model\UserListModel();
                     $existing = $model->findById($userId);
                     if ($existing === null) {
                         $this->response->error('用户不存在');
@@ -432,7 +432,7 @@ final class UserListController extends BaseAdminController
 
                     $levelId = (int) $this->input->post('level_id', 0);
                     if ($levelId > 0) {
-                        $lvRow = (new \UserLevelModel())->findById($levelId);
+                        $lvRow = (new \App\Model\UserLevelModel())->findById($levelId);
                         if ($lvRow === null || (string) ($lvRow['enabled'] ?? 'y') !== 'y') {
                             $this->response->error('用户等级不存在或已被禁用');
                         }
@@ -466,7 +466,7 @@ final class UserListController extends BaseAdminController
                         $this->response->error('请输入有效的金额');
                     }
 
-                    $balanceLog = new \UserBalanceLogModel();
+                    $balanceLog = new \App\Model\UserBalanceLogModel();
                     $operatorId = (int) ($admin['id'] ?? 0);
                     $operatorName = (string) ($admin['nickname'] ?? $admin['username'] ?? '管理员');
 
@@ -481,7 +481,7 @@ final class UserListController extends BaseAdminController
                     }
 
                     // 返回最新余额
-                    $freshUser = (new \UserListModel())->findById($userId);
+                    $freshUser = (new \App\Model\UserListModel())->findById($userId);
                     $newBalance = $freshUser ? bcdiv((string) ($freshUser['money'] ?? 0), '1000000', 2) : '0.00';
 
                     $this->response->success('操作成功', [
@@ -507,7 +507,7 @@ final class UserListController extends BaseAdminController
     private function renderBalancePopup(): void
     {
         $userId = (int) $this->input->get('id', 0);
-        $balanceUser = (new \UserListModel())->findById($userId);
+        $balanceUser = (new \App\Model\UserListModel())->findById($userId);
         if (!$balanceUser) {
             exit('用户不存在');
         }
@@ -525,12 +525,12 @@ final class UserListController extends BaseAdminController
     private function renderLevelPopup(): void
     {
         $userId = (int) $this->input->get('id', 0);
-        $levelUser = (new \UserListModel())->findById($userId);
+        $levelUser = (new \App\Model\UserListModel())->findById($userId);
         if ($levelUser === null) {
             exit('用户不存在');
         }
 
-        $allLevels = (new \UserLevelModel())->getAll();
+        $allLevels = (new \App\Model\UserLevelModel())->getAll();
         $userLevels = array_values(array_filter($allLevels, static fn($l) => (string) ($l['enabled'] ?? 'y') === 'y'));
 
         $this->render('popup/user_level_change', [
@@ -546,7 +546,7 @@ final class UserListController extends BaseAdminController
     private function renderMerchantOpenPopup(): void
     {
         $userId = (int) $this->input->get('user_id', 0);
-        $presetUser = (new \UserListModel())->findById($userId);
+        $presetUser = (new \App\Model\UserListModel())->findById($userId);
         if ($presetUser === null) {
             exit('用户不存在');
         }
@@ -554,7 +554,7 @@ final class UserListController extends BaseAdminController
             exit('该用户已开通商户');
         }
 
-        $levels = (new \MerchantLevelModel())->getEnabledList();
+        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
         if ($levels === []) {
             exit('请先在「商户等级」中创建并启用至少一个等级');
         }
@@ -572,7 +572,7 @@ final class UserListController extends BaseAdminController
     private function renderMerchantDetailPopup(): void
     {
         $userId = (int) $this->input->get('user_id', 0);
-        $merchantDetail = (new \MerchantModel())->findByUserId($userId);
+        $merchantDetail = (new \App\Model\MerchantModel())->findByUserId($userId);
         if (!$merchantDetail) {
             exit('该用户未开通商户');
         }
@@ -606,7 +606,7 @@ final class UserListController extends BaseAdminController
         $editUser = null;
 
         if ($editId > 0) {
-            $editUser = (new \UserListModel())->findById($editId);
+            $editUser = (new \App\Model\UserListModel())->findById($editId);
         }
 
         $this->render('popup/user_edit', [

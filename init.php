@@ -133,7 +133,6 @@ require_once EM_ROOT . '/include/lib/Autoloader.php';
 Autoloader::register([
     EM_ROOT . '/include/cli',
     EM_ROOT . '/include/lib',
-    EM_ROOT . '/include/model',
     EM_ROOT . '/include/service',
 ]);
 
@@ -149,6 +148,24 @@ define('EM_ADMIN_PATH', '/' . \App\Admin\AdminRouter::normalizeEntry((string) EM
 spl_autoload_register(static function (string $class): void {
     if ($class === 'PaymentCallbackController') {
         class_alias(\App\Home\Controller\PaymentCallbackController::class, 'PaymentCallbackController');
+    }
+});
+
+// 老代码 / 第三方插件仍按全局类名引用模型（new GoodsModel() 等）；
+// 实现已迁到 app/Model，这里在类不存在时按需转成别名，避免外部扩展直接报错。
+spl_autoload_register(static function (string $class): void {
+    static $models = null;
+    if ($models === null) {
+        $models = [];
+        foreach (glob(EM_ROOT . '/app/Model/*Model.php') ?: [] as $file) {
+            $name = basename($file, '.php');
+            if (str_ends_with($name, 'Model')) {
+                $models[$name] = true;
+            }
+        }
+    }
+    if (isset($models[$class])) {
+        class_alias('\\App\\Model\\' . $class, $class);
     }
 });
 
@@ -220,7 +237,7 @@ $GLOBALS['__em_current_scope'] = $emCurrentScope;
 // 禁用商品类型的副作用（已有该类型商品在前台没类型配置、无法下单）由 OrderModel 统一报错拦截。
 $emHooks = [];
 try {
-    $pluginModel = new PluginModel();
+    $pluginModel = new \App\Model\PluginModel();
     $activePlugins = $pluginModel->getRuntimeNames($emCurrentScope);
 
     if (is_array($activePlugins) && $activePlugins !== []) {
@@ -246,7 +263,7 @@ try {
 
 // 加载当前启用模板的系统挂载文件（按当前 scope）
 try {
-    $templateModel = new TemplateModel();
+    $templateModel = new \App\Model\TemplateModel();
     $activeTemplates = array_filter([
         $templateModel->getEffectiveTheme('pc', $emCurrentScope),
         $templateModel->getEffectiveTheme('mobile', $emCurrentScope),

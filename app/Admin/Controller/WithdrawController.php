@@ -34,7 +34,7 @@ final class WithdrawController extends BaseAdminController
     {
         try {
             $action = (string) $this->input->post('_action', '');
-            $model = new \UserWithdrawModel();
+            $model = new \App\Model\UserWithdrawModel();
 
             if ($action === 'list') {
                 $page = max(1, (int) $this->input->post('page', 1));

@@ -53,7 +53,7 @@ final class GoodsEditController extends BaseAdminController
             $goodsType = trim($_POST['goods_type'] ?? '');
             $goodsId = (int)($_POST['goods_id'] ?? 0);
             // 编辑面板的"按类型加载表单"钩子读 raw 价
-            $goods = $goodsId ? \GoodsModel::getById($goodsId, false) : null;
+            $goods = $goodsId ? \App\Model\GoodsModel::getById($goodsId, false) : null;
 
             ob_start();
             doAction("goods_type_{$goodsType}_create_form", $goods);
@@ -91,7 +91,7 @@ final class GoodsEditController extends BaseAdminController
 
             // 更新商品价格/库存缓存
             if ($goodsId > 0) {
-                \GoodsModel::updatePriceStockCache($goodsId);
+                \App\Model\GoodsModel::updatePriceStockCache($goodsId);
             }
 
             if ($result !== false) {
@@ -204,7 +204,7 @@ final class GoodsEditController extends BaseAdminController
 
             // 更新时合并对接类 configs 命名空间（见 \GoodsModel::mergeConfigsOnSave）
             if ($id > 0) {
-                $configs = \GoodsModel::mergeConfigsOnSave($id, $configs);
+                $configs = \App\Model\GoodsModel::mergeConfigsOnSave($id, $configs);
             }
 
             // 验证必填（按步骤顺序）
@@ -255,11 +255,11 @@ final class GoodsEditController extends BaseAdminController
             try {
                 if ($id) {
                     // 更新
-                    $result = \GoodsModel::update($id, $data);
+                    $result = \App\Model\GoodsModel::update($id, $data);
                     $goodsId = $id;
                 } else {
                     // 创建
-                    $goodsId = \GoodsModel::create($data);
+                    $goodsId = \App\Model\GoodsModel::create($data);
                     $result = $goodsId ? true : false;
                 }
 
@@ -407,9 +407,9 @@ final class GoodsEditController extends BaseAdminController
 
                     $updateData = [
                         'spec_no' => $spec['spec_no'] ?? '',
-                        'price' => \GoodsModel::moneyToDb($spec['price'] ?? 0),
-                        'cost_price' => !empty($spec['cost_price']) ? \GoodsModel::moneyToDb($spec['cost_price']) : null,
-                        'market_price' => !empty($spec['market_price']) ? \GoodsModel::moneyToDb($spec['market_price']) : null,
+                        'price' => \App\Model\GoodsModel::moneyToDb($spec['price'] ?? 0),
+                        'cost_price' => !empty($spec['cost_price']) ? \App\Model\GoodsModel::moneyToDb($spec['cost_price']) : null,
+                        'market_price' => !empty($spec['market_price']) ? \App\Model\GoodsModel::moneyToDb($spec['market_price']) : null,
                         'tags' => $tags,
                         'configs' => $specConfigsJson,
                         // 空串 → NULL（不限制）；有值才取整；min_buy 最小 1、max_buy 最小 0
@@ -444,7 +444,7 @@ final class GoodsEditController extends BaseAdminController
                         $this->db->insert('goods_price_level', [
                             'spec_id'  => $specIdForPrices,
                             'level_id' => $lvlId,
-                            'price'    => \GoodsModel::moneyToDb($priceYuan),
+                            'price'    => \App\Model\GoodsModel::moneyToDb($priceYuan),
                         ]);
                     }
 
@@ -454,7 +454,7 @@ final class GoodsEditController extends BaseAdminController
                         $this->db->insert('goods_price_user', [
                             'spec_id' => $specIdForPrices,
                             'user_id' => $uid,
-                            'price'   => \GoodsModel::moneyToDb($priceYuan),
+                            'price'   => \App\Model\GoodsModel::moneyToDb($priceYuan),
                         ]);
                     }
                 }
@@ -546,7 +546,7 @@ final class GoodsEditController extends BaseAdminController
                 }
 
                 // 更新价格缓存
-                \GoodsModel::updatePriceStockCache($goodsId);
+                \App\Model\GoodsModel::updatePriceStockCache($goodsId);
 
                 // 保存商品标签关联
                 $goodsTagsStr = trim($_POST['goods_tags'] ?? '');
@@ -554,11 +554,11 @@ final class GoodsEditController extends BaseAdminController
                 $goodsTagIds = [];
                 foreach ($goodsTagNames as $tagName) {
                     if ($tagName !== '') {
-                        $goodsTagIds[] = \GoodsTagModel::findOrCreate($tagName);
+                        $goodsTagIds[] = \App\Model\GoodsTagModel::findOrCreate($tagName);
                     }
                 }
-                \GoodsTagModel::syncGoodsTags($goodsId, $goodsTagIds);
-                \GoodsTagModel::refreshAllCounts();
+                \App\Model\GoodsTagModel::syncGoodsTags($goodsId, $goodsTagIds);
+                \App\Model\GoodsTagModel::refreshAllCounts();
 
                 // 触发商品类型保存钩子
                 $postData = $_POST;
@@ -597,11 +597,11 @@ final class GoodsEditController extends BaseAdminController
                 exit('商品ID不能为空');
             }
             // 库存管理弹窗：用 raw 价，避免库存面板里展示的价被买家折扣污染
-            $goods = \GoodsModel::getById($goodsId, false);
+            $goods = \App\Model\GoodsModel::getById($goodsId, false);
             if (!$goods) {
                 exit('商品不存在');
             }
-            $specs = \GoodsModel::getSpecsByGoodsId($goodsId, false);
+            $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId, false);
             $pageTitle = '库存管理';
             include dirname(__DIR__) . '/View/popup/header.php';
             include dirname(__DIR__) . '/View/popup/stock_manager.php';
@@ -620,7 +620,7 @@ final class GoodsEditController extends BaseAdminController
                 $this->response->error('商品ID不能为空');
             }
             // 库存保存只是 ACL 校验，价格不参与，但保持和库存弹窗同口径用 raw
-            $goods = \GoodsModel::getById($goodsId, false);
+            $goods = \App\Model\GoodsModel::getById($goodsId, false);
             if (!$goods) {
                 $this->response->error('商品不存在');
             }
@@ -638,7 +638,7 @@ final class GoodsEditController extends BaseAdminController
             doAction("goods_type_{$goods['goods_type']}_stock_save", $goods, $_POST);
 
             // 同步更新商品价格/库存缓存字段
-            \GoodsModel::updatePriceStockCache($goodsId);
+            \App\Model\GoodsModel::updatePriceStockCache($goodsId);
 
             $this->response->success('库存已保存', ['csrf_token' => $this->csrf->token()]);
         }
@@ -651,7 +651,7 @@ final class GoodsEditController extends BaseAdminController
             }
             // 编辑表单"刷新规格"AJAX 端点：必须返回 raw 价
             // （specs[i].configs 原样返回，插件自己负责把自己写进去的键转成表单可编辑的形态）
-            $specs = \GoodsModel::getSpecsByGoodsId($goodsId, false);
+            $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId, false);
             $this->response->success('', ['specs' => $specs]);
         }
 
@@ -663,8 +663,8 @@ final class GoodsEditController extends BaseAdminController
         if ($id) {
             // 编辑表单初始加载：用 raw 价，把"成交价配置"原值显示给运营，
             // 不能被当前登录管理员账号的买家折扣污染（曾经报过 9.9 元的 bug）
-            $goods = \GoodsModel::getById($id, false);
-            $specs = \GoodsModel::getSpecsByGoodsId($id, false);
+            $goods = \App\Model\GoodsModel::getById($id, false);
+            $specs = \App\Model\GoodsModel::getSpecsByGoodsId($id, false);
             // 查询维度名称用于回显到规格类型输入框
             $specDimNames = $this->db->query(
                 "SELECT name FROM " . $this->db->prefix() . "goods_spec_dim WHERE goods_id = ? ORDER BY sort ASC",
@@ -687,7 +687,7 @@ final class GoodsEditController extends BaseAdminController
             $userLevels = [];
             if (class_exists('UserLevelModel')) {
                 try {
-                    $userLevels = (new \UserLevelModel())->getAll();
+                    $userLevels = (new \App\Model\UserLevelModel())->getAll();
                 } catch (\Throwable $e) {
                     $userLevels = [];
                 }
@@ -710,7 +710,7 @@ final class GoodsEditController extends BaseAdminController
                             $specIds
                         );
                         foreach ($rows as $r) {
-                            $specLevelPricesBySpec[(int) $r['spec_id']][(int) $r['level_id']] = \GoodsModel::moneyFromDb((int) $r['price']);
+                            $specLevelPricesBySpec[(int) $r['spec_id']][(int) $r['level_id']] = \App\Model\GoodsModel::moneyFromDb((int) $r['price']);
                         }
                     } catch (\Throwable $e) { /* 表可能还没建 */ }
                     // 用户价 + JOIN em_user 取展示用的昵称 / 用户名
@@ -728,7 +728,7 @@ final class GoodsEditController extends BaseAdminController
                             $uname = (string) ($r['username'] ?? '');
                             $label = $nick !== '' ? $nick : ($uname !== '' ? $uname : ('#' . $uid));
                             $specUserPricesBySpec[(int) $r['spec_id']][$uid] = [
-                                'price' => \GoodsModel::moneyFromDb((int) $r['price']),
+                                'price' => \App\Model\GoodsModel::moneyFromDb((int) $r['price']),
                                 'label' => $label . ' (#' . $uid . ')',
                             ];
                         }

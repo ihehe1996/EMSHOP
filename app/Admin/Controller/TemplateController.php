@@ -24,7 +24,7 @@ final class TemplateController extends BaseAdminController
 
     public function index(): void
     {
-        $model = new \TemplateModel();
+        $model = new \App\Model\TemplateModel();
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -50,7 +50,7 @@ final class TemplateController extends BaseAdminController
     /**
      * 启用/配置/卸载。
      */
-    private function handlePost(\TemplateModel $model): void
+    private function handlePost(\App\Model\TemplateModel $model): void
     {
         try {
             if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
@@ -135,7 +135,7 @@ final class TemplateController extends BaseAdminController
     /**
      * 输出模板列表 JSON。
      */
-    private function outputList(\TemplateModel $model): void
+    private function outputList(\App\Model\TemplateModel $model): void
     {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -194,7 +194,7 @@ final class TemplateController extends BaseAdminController
     /**
      * 模板设置弹窗：header + 模板 setting.php 渲染 + footer。
      */
-    private function renderPopup(\TemplateModel $model): void
+    private function renderPopup(\App\Model\TemplateModel $model): void
     {
         $name = $this->validateName((string) $this->input->get('name', ''));
         if (!$model->existsOnDisk($name)) {
@@ -263,7 +263,7 @@ final class TemplateController extends BaseAdminController
     /**
      * 调模板生命周期回调（callback.php 里的指定函数）。
      */
-    private function callCallback(\TemplateModel $model, string $name, string $callback): void
+    private function callCallback(\App\Model\TemplateModel $model, string $name, string $callback): void
     {
         $callbackFile = $model->getCallbackFilePath($name);
         if (!is_file($callbackFile)) {

@@ -55,8 +55,8 @@ final class MerchantController extends BaseAdminController
                 }
             }
 
-            $model = new \MerchantModel();
-            $levelModel = new \MerchantLevelModel();
+            $model = new \App\Model\MerchantModel();
+            $levelModel = new \App\Model\MerchantLevelModel();
 
             switch ($action) {
                 case 'list':
@@ -242,7 +242,7 @@ final class MerchantController extends BaseAdminController
      */
     private function renderOpenPopup(): void
     {
-        $levels = (new \MerchantLevelModel())->getEnabledList();
+        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
 
         $this->render('popup/merchant_open', [
             'levels'    => $levels,
@@ -256,14 +256,14 @@ final class MerchantController extends BaseAdminController
     private function renderEditPopup(): void
     {
         $editId = (int) $this->input->get('id', 0);
-        $editRow = $editId > 0 ? (new \MerchantModel())->findById($editId) : null;
+        $editRow = $editId > 0 ? (new \App\Model\MerchantModel())->findById($editId) : null;
         if ($editRow === null) {
             echo '<div style="padding:30px;text-align:center;color:#999">商户不存在</div>';
             return;
         }
 
         $this->render('popup/merchant_edit', [
-            'levels'    => (new \MerchantLevelModel())->getEnabledList(),
+            'levels'    => (new \App\Model\MerchantLevelModel())->getEnabledList(),
             'editRow'   => $editRow,
             'pageTitle' => '编辑商户：' . $editRow['name'],
         ]);
@@ -274,7 +274,7 @@ final class MerchantController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $levels = (new \MerchantLevelModel())->getEnabledList();
+        $levels = (new \App\Model\MerchantLevelModel())->getEnabledList();
 
         if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';

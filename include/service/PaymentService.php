@@ -148,13 +148,13 @@ class PaymentService
 
         // 充值订单号约定以 R 开头，走 user_recharge
         if (strncmp($orderNo, 'R', 1) === 0) {
-            $recharge = (new UserRechargeModel())->findByOrderNo($orderNo);
+            $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
             $plugin = trim((string) ($recharge['payment_plugin'] ?? ''));
             return preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin) ? $plugin : '';
         }
 
         // 普通商品订单走 order 表
-        $order = OrderModel::getByOrderNo($orderNo);
+        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
         $plugin = trim((string) ($order['payment_plugin'] ?? ''));
         return preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin) ? $plugin : '';
     }
@@ -214,7 +214,7 @@ class PaymentService
      */
     private static function collectMainPluginMethods(): array
     {
-        $pm = new PluginModel();
+        $pm = new \App\Model\PluginModel();
         $rows = $pm->getEnabledByCategory('支付插件', 'main');
         if ($rows === []) {
             return [];

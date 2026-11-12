@@ -36,7 +36,7 @@ final class AppOrderController extends BaseAdminController
     private function outputList(): void
     {
         try {
-            $model = new \AppOrderModel();
+            $model = new \App\Model\AppOrderModel();
             $result = $model->paginateForAdmin([
                 'page'        => max(1, (int) $this->input->get('page', 1)),
                 'page_size'   => max(1, min(100, (int) $this->input->get('limit', 20))),

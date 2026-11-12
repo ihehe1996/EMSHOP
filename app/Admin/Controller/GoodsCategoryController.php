@@ -20,7 +20,7 @@ final class GoodsCategoryController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \GoodsCategoryModel();
+        $model = new \App\Model\GoodsCategoryModel();
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -38,7 +38,7 @@ final class GoodsCategoryController extends BaseAdminController
     /**
      * 处理后台 AJAX 动作。
      */
-    private function handlePost(\GoodsCategoryModel $model): void
+    private function handlePost(\App\Model\GoodsCategoryModel $model): void
     {
         $action = (string) $this->input->get('action', '');
         if ($action === '') {
@@ -319,7 +319,7 @@ final class GoodsCategoryController extends BaseAdminController
     /**
      * 添加/编辑弹窗（iframe）。
      */
-    private function renderPopup(\GoodsCategoryModel $model): void
+    private function renderPopup(\App\Model\GoodsCategoryModel $model): void
     {
         $editId = (int) $this->input->get('id', 0);
         $editCat = null;

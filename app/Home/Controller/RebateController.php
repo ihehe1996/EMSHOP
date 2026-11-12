@@ -85,7 +85,7 @@ class RebateController extends BaseController
         $filter = [];
         if ($status !== '') $filter['status'] = $status;
 
-        $result = (new \CommissionLogModel())->paginateByUser($userId, $filter, $page, $perPage);
+        $result = (new \App\Model\CommissionLogModel())->paginateByUser($userId, $filter, $page, $perPage);
         \Response::success('', [
             'data'  => $result['list'],
             'total' => $result['total'],

@@ -76,7 +76,7 @@ class CouponController extends BaseController
         $couponId = (int) \Input::post('coupon_id', 0);
         if ($couponId <= 0) \Response::error('参数错误');
 
-        $couponModel = new \CouponModel();
+        $couponModel = new \App\Model\CouponModel();
         $coupon = $couponModel->findById($couponId);
         if (!$coupon) \Response::error('优惠券不存在');
         if (!$coupon['is_enabled']) \Response::error('优惠券已下架');
@@ -97,7 +97,7 @@ class CouponController extends BaseController
             \Response::error('优惠券已被领完');
         }
 
-        $userCouponModel = new \UserCouponModel();
+        $userCouponModel = new \App\Model\UserCouponModel();
         try {
             $userCouponModel->claim($identity['user_id'], $couponId);
         } catch (\RuntimeException $e) {
@@ -171,8 +171,8 @@ class CouponController extends BaseController
             \Response::success('', ['coupons' => []]);
         }
 
-        $userCouponModel = new \UserCouponModel();
-        $list = $userCouponModel->listByView($identity['user_id'], \UserCouponModel::VIEW_UNUSED, 50);
+        $userCouponModel = new \App\Model\UserCouponModel();
+        $list = $userCouponModel->listByView($identity['user_id'], \App\Model\UserCouponModel::VIEW_UNUSED, 50);
 
         $out = [];
         foreach ($list as $row) {

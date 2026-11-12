@@ -23,7 +23,7 @@ $virtualCardAssertGoodsAccess = static function (int $goodsId, bool $asPage = fa
     if (!isset($virtualCardRequireOwnerId)) {
         return;
     }
-    $goods = GoodsModel::getById($goodsId, false);
+    $goods = \App\Model\GoodsModel::getById($goodsId, false);
     if ($goods === null || (int) ($goods['owner_id'] ?? -1) !== (int) $virtualCardRequireOwnerId) {
         if ($asPage) {
             exit('商品不存在或无权限');
@@ -41,7 +41,7 @@ function virtualCardAuditExport(string $action, array $detail, int $count): void
         $admin = $_SESSION['em_admin_auth'] ?? null;
         $front = $_SESSION['em_front_user'] ?? null;
         $operator = is_array($admin) ? $admin : (is_array($front) ? $front : []);
-        (new SystemLogModel())->info(
+        (new \App\Model\SystemLogModel())->info(
             'admin_operation',
             $action,
             '导出卡密 ' . $count . ' 条',
@@ -363,11 +363,11 @@ if ($action === 'card_import_page') {
         exit('商品ID不能为空');
     }
     $virtualCardAssertGoodsAccess($goodsId, true);
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if (!$goods) {
         exit('商品不存在');
     }
-    $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+    $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '导入卡密';
     // 若入口未预设（主站），保持 header 默认 /admin/plugin_action
@@ -405,7 +405,7 @@ if ($action === 'card_import') {
         Response::error('请输入卡密内容');
     }
 
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if (!$goods) {
         Response::error('商品不存在');
     }
@@ -585,7 +585,7 @@ if ($action === 'card_clear_available') {
     }
     $virtualCardAssertGoodsAccess($goodsId);
 
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if (!$goods) {
         Response::error('商品不存在');
     }
@@ -622,7 +622,7 @@ if ($action === 'card_export') {
     }
     $virtualCardAssertGoodsAccess($goodsId, true);
 
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if (!$goods) {
         exit('商品不存在');
     }
@@ -855,12 +855,12 @@ if ($action === 'card_manager') {
     }
     $virtualCardAssertGoodsAccess($goodsId, true);
 
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if (!$goods) {
         exit('商品不存在');
     }
 
-    $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+    $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '卡密管理';
     if (!isset($popupCardActionBase)) {
@@ -966,7 +966,7 @@ if ($action === 'order_export_cards') {
     } else {
         // 回退：按旧逻辑从订单发货内容展开
         foreach ($rows as $row) {
-            $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
+            $content = trim(\App\Model\OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
             if ($content === '') {
                 continue;
             }

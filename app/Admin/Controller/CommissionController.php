@@ -50,7 +50,7 @@ final class CommissionController extends BaseAdminController
                         $filter['user_id'] = $uid;
                     }
 
-                    $result = (new \CommissionWithdrawModel())->paginate($filter, $page, $perPage);
+                    $result = (new \App\Model\CommissionWithdrawModel())->paginate($filter, $page, $perPage);
                 } else {
                     // 佣金流水：按 user_id / status / level 过滤
                     $status = (string) $this->input->post('status', '');

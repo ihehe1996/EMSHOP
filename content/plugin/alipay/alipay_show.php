@@ -45,13 +45,13 @@ function alipay_status_text(string $status, bool $isRecharge): string
 {
     if ($isRecharge) {
         $map = [
-            UserRechargeModel::STATUS_PENDING => '待支付',
-            UserRechargeModel::STATUS_PAID => '已支付',
-            UserRechargeModel::STATUS_CANCELLED => '已取消',
+            \App\Model\UserRechargeModel::STATUS_PENDING => '待支付',
+            \App\Model\UserRechargeModel::STATUS_PAID => '已支付',
+            \App\Model\UserRechargeModel::STATUS_CANCELLED => '已取消',
         ];
         return $map[$status] ?? ($status !== '' ? $status : '未知状态');
     }
-    return OrderModel::statusName($status);
+    return \App\Model\OrderModel::statusName($status);
 }
 
 function alipay_load_trade_context(string $orderNo): array
@@ -65,7 +65,7 @@ function alipay_load_trade_context(string $orderNo): array
 
     $isRecharge = strncmp($orderNo, 'R', 1) === 0;
     if ($isRecharge) {
-        $recharge = (new UserRechargeModel())->findByOrderNo($orderNo);
+        $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
         if (!$recharge) {
             throw new RuntimeException('充值订单不存在');
         }
@@ -91,7 +91,7 @@ function alipay_load_trade_context(string $orderNo): array
         ];
     }
 
-    $order = OrderModel::getByOrderNo($orderNo);
+    $order = \App\Model\OrderModel::getByOrderNo($orderNo);
     if (!$order) {
         throw new RuntimeException('订单不存在');
     }
@@ -110,7 +110,7 @@ function alipay_load_trade_context(string $orderNo): array
     }
 
     $orderItems = [];
-    foreach (OrderModel::getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
+    foreach (\App\Model\OrderModel::getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
         $orderItems[] = [
             'title'    => (string) ($og['goods_title'] ?? ''),
             'spec'     => (string) ($og['spec_name'] ?? ''),
@@ -155,7 +155,7 @@ $title = (string) ($ctx['title'] ?? ('订单支付 ' . $orderNo));
 $createdAt = (string) ($ctx['created_at'] ?? '');
 $orderItems = is_array($ctx['order_items'] ?? null) ? $ctx['order_items'] : [];
 $isPaid = $isRecharge
-    ? $status === UserRechargeModel::STATUS_PAID
+    ? $status === \App\Model\UserRechargeModel::STATUS_PAID
     : !in_array($status, ['pending', 'failed'], true);
 
 if (trim((string) ($_GET['action'] ?? '')) === 'status') {
@@ -188,7 +188,7 @@ if (!$isPaid) {
             $payError = '支付宝配置不完整，请联系管理员。';
         } elseif ($amountRaw <= 0) {
             $payError = '订单金额异常，无法发起支付。';
-        } elseif ($status !== 'pending' && !($isRecharge && $status === UserRechargeModel::STATUS_PENDING)) {
+        } elseif ($status !== 'pending' && !($isRecharge && $status === \App\Model\UserRechargeModel::STATUS_PENDING)) {
             $payError = '当前订单状态不可发起支付：' . $status;
         } else {
             try {

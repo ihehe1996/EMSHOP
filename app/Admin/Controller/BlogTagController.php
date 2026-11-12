@@ -47,7 +47,7 @@ final class BlogTagController extends BaseAdminController
                 $where['keyword'] = $keyword;
             }
 
-            $result = \BlogTagModel::getAdminList($where, $page, $limit);
+            $result = \App\Model\BlogTagModel::getAdminList($where, $page, $limit);
 
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -71,7 +71,7 @@ final class BlogTagController extends BaseAdminController
             }
 
             // 检查重名（主站标签池内）
-            if (\BlogTagModel::nameExists($name, $id, 0)) {
+            if (\App\Model\BlogTagModel::nameExists($name, $id, 0)) {
                 $this->response->error('标签名已存在');
             }
 
@@ -81,17 +81,17 @@ final class BlogTagController extends BaseAdminController
             ];
 
             if ($id > 0) {
-                $existing = \BlogTagModel::getById($id);
+                $existing = \App\Model\BlogTagModel::getById($id);
                 if (!$existing) {
                     $this->response->error('标签不存在');
                 }
                 if ((int) $existing['merchant_id'] !== 0) {
                     $this->response->error('无权操作商户标签');
                 }
-                \BlogTagModel::update($id, $data);
+                \App\Model\BlogTagModel::update($id, $data);
             } else {
                 $data['merchant_id'] = 0; // 主站后台创建的标签固定归主站池
-                $id = \BlogTagModel::create($data);
+                $id = \App\Model\BlogTagModel::create($data);
             }
 
             $this->response->success('保存成功', ['id' => $id, 'csrf_token' => $this->csrf->refresh()]);
@@ -103,14 +103,14 @@ final class BlogTagController extends BaseAdminController
             if ($id <= 0) {
                 $this->response->error('参数错误');
             }
-            $existing = \BlogTagModel::getById($id);
+            $existing = \App\Model\BlogTagModel::getById($id);
             if (!$existing) {
                 $this->response->error('标签不存在');
             }
             if ((int) $existing['merchant_id'] !== 0) {
                 $this->response->error('无权删除商户标签');
             }
-            if (\BlogTagModel::delete($id)) {
+            if (\App\Model\BlogTagModel::delete($id)) {
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -130,14 +130,14 @@ final class BlogTagController extends BaseAdminController
                 "SELECT id FROM {$prefix}blog_tag WHERE merchant_id = 0 AND id IN (" . implode(',', array_map('intval', $ids)) . ")"
             );
             foreach ($allowedRows as $row) {
-                \BlogTagModel::delete((int) $row['id']);
+                \App\Model\BlogTagModel::delete((int) $row['id']);
             }
             $this->response->success('批量删除成功', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 刷新文章计数
         if ($action === 'refresh_counts') {
-            \BlogTagModel::refreshAllCounts();
+            \App\Model\BlogTagModel::refreshAllCounts();
             $this->response->success('计数已刷新', ['csrf_token' => $this->csrf->token()]);
         }
 

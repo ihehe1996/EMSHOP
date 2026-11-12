@@ -75,7 +75,7 @@ final class SettingsController extends MerchantBaseController
                                     $this->response->error('二级域名格式不合法（仅字母/数字/短横线）');
                                 }
                                 // 唯一性
-                                $merchantModel = new \MerchantModel();
+                                $merchantModel = new \App\Model\MerchantModel();
                                 if ($merchantModel->existsSubdomain($subdomain, $merchantId)) {
                                     $this->response->error('二级域名已被占用');
                                 }
@@ -97,7 +97,7 @@ final class SettingsController extends MerchantBaseController
                                 if (!preg_match('/^[a-z0-9]([a-z0-9\-\.]{1,199})$/', $customDomain)) {
                                     $this->response->error('自定义域名格式不合法');
                                 }
-                                $merchantModel = new \MerchantModel();
+                                $merchantModel = new \App\Model\MerchantModel();
                                 if ($merchantModel->existsCustomDomain($customDomain, $merchantId)) {
                                     $this->response->error('该域名已被占用');
                                 }

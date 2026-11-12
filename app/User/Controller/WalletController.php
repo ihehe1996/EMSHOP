@@ -30,7 +30,7 @@ final class WalletController extends UserBaseController
         $displayMaxWithdraw = $this->currency->displayAmount($cfgMaxWithdraw, null, false);
 
         // 最近 5 条余额变动记录
-        $balanceLogModel = new \UserBalanceLogModel();
+        $balanceLogModel = new \App\Model\UserBalanceLogModel();
         $recentLogsResult = $balanceLogModel->getListByUser((int) $frontUser['id'], 1, 5);
         $recentLogs = $recentLogsResult['list'];
 

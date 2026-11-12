@@ -27,14 +27,14 @@ final class PasswordResetService
 
     private const RESET_IP_WINDOW = 60;
 
-    private PasswordResetModel $resetModel;
+    private \App\Model\PasswordResetModel $resetModel;
 
-    private UserListModel $userModel;
+    private \App\Model\UserListModel $userModel;
 
     public function __construct()
     {
-        $this->resetModel = new PasswordResetModel();
-        $this->userModel = new UserListModel();
+        $this->resetModel = new \App\Model\PasswordResetModel();
+        $this->userModel = new \App\Model\UserListModel();
     }
 
     /**
@@ -226,7 +226,7 @@ final class PasswordResetService
     {
         try {
             if (class_exists('SystemLogModel')) {
-                (new SystemLogModel())->error(
+                (new \App\Model\SystemLogModel())->error(
                     'system',
                     '重置密码邮件发送失败',
                     'Mailer::send 返回 false，用户未收到重置邮件（对外仍返回统一提示，避免账号枚举）',
@@ -291,7 +291,7 @@ final class PasswordResetService
     {
         try {
             if (class_exists('SystemLogModel')) {
-                (new SystemLogModel())->error(
+                (new \App\Model\SystemLogModel())->error(
                     'system',
                     '重置密码链接无法生成',
                     'site_url / main_domain 均未配置，已跳过发送',

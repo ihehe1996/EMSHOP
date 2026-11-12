@@ -68,7 +68,7 @@ class RechargeController extends BaseController
 
         try {
             // —— 创建 pending 充值单
-            $model = new \UserRechargeModel();
+            $model = new \App\Model\UserRechargeModel();
             $created = $model->create($userId, $amountRaw, $paymentCode, (string) $payment['plugin']);
 
             // —— 组装"伪订单"结构给 payment_create filter（字段与 em_order 同名，

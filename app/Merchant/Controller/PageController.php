@@ -36,13 +36,13 @@ final class PageController extends MerchantBaseController
                         if ($keyword !== '') $where['keyword'] = $keyword;
                         if ($status !== '')  $where['status'] = (int) $status;
 
-                        $result = \PageModel::getList($where, $page, $limit);
+                        $result = \App\Model\PageModel::getList($where, $page, $limit);
 
                         $countWhere = ['merchant_id' => $merchantId];
                         if ($keyword !== '') $countWhere['keyword'] = $keyword;
-                        $countAll       = \PageModel::getList($countWhere, 1, 1)['total'];
-                        $countPublished = \PageModel::getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
-                        $countDraft     = \PageModel::getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
+                        $countAll       = \App\Model\PageModel::getList($countWhere, 1, 1)['total'];
+                        $countPublished = \App\Model\PageModel::getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
+                        $countDraft     = \App\Model\PageModel::getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
 
                         header('Content-Type: application/json; charset=utf-8');
                         echo json_encode([
@@ -63,11 +63,11 @@ final class PageController extends MerchantBaseController
                     // 设为本店首页
                     case 'set_homepage': {
                         $id = (int) $this->input->post('id', 0);
-                        $row = \PageModel::getById($id);
+                        $row = \App\Model\PageModel::getById($id);
                         if (!$row || (int) $row['merchant_id'] !== $merchantId) {
                             $this->response->error('页面不存在');
                         }
-                        if (\PageModel::setHomepage($id, $merchantId)) {
+                        if (\App\Model\PageModel::setHomepage($id, $merchantId)) {
                             $this->response->success('已设为本店首页', ['csrf_token' => $this->csrf->refresh()]);
                         } else {
                             $this->response->error('设置失败');
@@ -78,34 +78,34 @@ final class PageController extends MerchantBaseController
                     // 取消本店首页
                     case 'clear_homepage': {
                         $id = (int) $this->input->post('id', 0);
-                        $row = \PageModel::getById($id);
+                        $row = \App\Model\PageModel::getById($id);
                         if (!$row || (int) $row['merchant_id'] !== $merchantId) {
                             $this->response->error('页面不存在');
                         }
-                        \PageModel::clearHomepage($merchantId, $id);
+                        \App\Model\PageModel::clearHomepage($merchantId, $id);
                         $this->response->success('已取消本店首页', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     case 'toggle_status': {
                         $id = (int) $this->input->post('id', 0);
-                        $row = \PageModel::getById($id);
+                        $row = \App\Model\PageModel::getById($id);
                         if (!$row || (int) $row['merchant_id'] !== $merchantId) {
                             $this->response->error('页面不存在');
                         }
                         $next = (int) $row['status'] === 1 ? 0 : 1;
-                        \PageModel::update($id, ['status' => $next]);
+                        \App\Model\PageModel::update($id, ['status' => $next]);
                         $this->response->success('状态已更新', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     case 'delete': {
                         $id = (int) $this->input->post('id', 0);
-                        $row = \PageModel::getById($id);
+                        $row = \App\Model\PageModel::getById($id);
                         if (!$row || (int) $row['merchant_id'] !== $merchantId) {
                             $this->response->error('页面不存在');
                         }
-                        if (\PageModel::delete($id)) {
+                        if (\App\Model\PageModel::delete($id)) {
                             $this->response->success('已删除', ['csrf_token' => $this->csrf->refresh()]);
                         } else {
                             $this->response->error('删除失败');
@@ -133,9 +133,9 @@ final class PageController extends MerchantBaseController
                         $failed = count($ids) - count($allowedIds);
                         foreach ($allowedIds as $id) {
                             try {
-                                if ($batchAction === 'publish')   \PageModel::update($id, ['status' => 1]);
-                                elseif ($batchAction === 'draft') \PageModel::update($id, ['status' => 0]);
-                                elseif ($batchAction === 'delete') \PageModel::delete($id);
+                                if ($batchAction === 'publish')   \App\Model\PageModel::update($id, ['status' => 1]);
+                                elseif ($batchAction === 'draft') \App\Model\PageModel::update($id, ['status' => 0]);
+                                elseif ($batchAction === 'delete') \App\Model\PageModel::delete($id);
                                 else { $this->response->error('未知批量操作'); }
                             } catch (\Throwable $e) {
                                 $failed++;

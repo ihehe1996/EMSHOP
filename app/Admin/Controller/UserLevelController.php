@@ -50,7 +50,7 @@ final class UserLevelController extends BaseAdminController
             switch ($action) {
                 case 'list':
                     $keyword = trim((string) $this->input->post('keyword', ''));
-                    $model = new \UserLevelModel();
+                    $model = new \App\Model\UserLevelModel();
                     $levels = $model->getAll($keyword);
 
                     $this->response->success('', [
@@ -74,7 +74,7 @@ final class UserLevelController extends BaseAdminController
                         $this->response->error('等级不能为空');
                     }
 
-                    $model = new \UserLevelModel();
+                    $model = new \App\Model\UserLevelModel();
                     if ($model->existsName($name)) {
                         $this->response->error('等级名称已被占用');
                     }
@@ -114,7 +114,7 @@ final class UserLevelController extends BaseAdminController
                         $this->response->error('无效的等级ID');
                     }
 
-                    $model = new \UserLevelModel();
+                    $model = new \App\Model\UserLevelModel();
                     $existing = $model->findById($id);
                     if ($existing === null) {
                         $this->response->error('等级不存在');
@@ -172,7 +172,7 @@ final class UserLevelController extends BaseAdminController
                         $this->response->error('无效的等级ID');
                     }
 
-                    $model = new \UserLevelModel();
+                    $model = new \App\Model\UserLevelModel();
                     if ($model->findById($id) === null) {
                         $this->response->error('等级不存在');
                     }
@@ -189,7 +189,7 @@ final class UserLevelController extends BaseAdminController
                         $this->response->error('无效的等级ID');
                     }
 
-                    $model = new \UserLevelModel();
+                    $model = new \App\Model\UserLevelModel();
                     $level = $model->findById($id);
                     if ($level === null) {
                         $this->response->error('等级不存在');
@@ -221,7 +221,7 @@ final class UserLevelController extends BaseAdminController
         $editLevel = null;
 
         if ($editId > 0) {
-            $editLevel = (new \UserLevelModel())->findById($editId);
+            $editLevel = (new \App\Model\UserLevelModel())->findById($editId);
         }
 
         $this->render('popup/user_level', [

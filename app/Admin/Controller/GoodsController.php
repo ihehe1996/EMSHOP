@@ -68,7 +68,7 @@ final class GoodsController extends BaseAdminController
             // 仅显示当前管理员所属 owner_id（主站管理员可看所有，这里简化）
             $where['owner_id'] = 0;
 
-            $result = \GoodsModel::getList($where, $page, $limit, 'sort ASC, id DESC');
+            $result = \App\Model\GoodsModel::getList($where, $page, $limit, 'sort ASC, id DESC');
 
             // 获取类型注册信息中的默认发货类型
             $registeredTypes = \GoodsTypeManager::getTypes();
@@ -102,9 +102,9 @@ final class GoodsController extends BaseAdminController
             $countWhereOff = array_merge($countWhere, ['is_on_sale' => 0]);
 
             $tabCounts = [
-                'all' => \GoodsModel::getList($countWhereAll, 1, 1)['total'],
-                'on_sale' => \GoodsModel::getList($countWhereOn, 1, 1)['total'],
-                'off_sale' => \GoodsModel::getList($countWhereOff, 1, 1)['total'],
+                'all' => \App\Model\GoodsModel::getList($countWhereAll, 1, 1)['total'],
+                'on_sale' => \App\Model\GoodsModel::getList($countWhereOn, 1, 1)['total'],
+                'off_sale' => \App\Model\GoodsModel::getList($countWhereOff, 1, 1)['total'],
             ];
 
             header('Content-Type: application/json; charset=utf-8');
@@ -122,12 +122,12 @@ final class GoodsController extends BaseAdminController
         // 切换上架状态（走 GoodsModel 以触发钩子和变更日志）
         if ($action === 'toggle_sale') {
             $id = (int) $this->input->post('id', 0);
-            $goods = \GoodsModel::getById($id);
+            $goods = \App\Model\GoodsModel::getById($id);
             if (!$goods) {
                 $this->response->error('商品不存在');
             }
             $newStatus = $goods['is_on_sale'] ? 0 : 1;
-            $result = \GoodsModel::update($id, ['is_on_sale' => $newStatus]);
+            $result = \App\Model\GoodsModel::update($id, ['is_on_sale' => $newStatus]);
             if ($result) {
                 $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
             } else {
@@ -138,12 +138,12 @@ final class GoodsController extends BaseAdminController
         // 切换推荐状态
         if ($action === 'toggle_recommend') {
             $id = (int) $this->input->post('id', 0);
-            $goods = \GoodsModel::getById($id);
+            $goods = \App\Model\GoodsModel::getById($id);
             if (!$goods) {
                 $this->response->error('商品不存在');
             }
             $newStatus = $goods['is_recommended'] ? 0 : 1;
-            $result = \GoodsModel::update($id, ['is_recommended' => $newStatus]);
+            $result = \App\Model\GoodsModel::update($id, ['is_recommended' => $newStatus]);
             if ($result) {
                 $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
             } else {
@@ -154,10 +154,10 @@ final class GoodsController extends BaseAdminController
         // 删除商品（逻辑删除）
         if ($action === 'delete') {
             $id = (int) $this->input->post('id', 0);
-            $result = \GoodsModel::delete($id);
+            $result = \App\Model\GoodsModel::delete($id);
             if ($result) {
                 // 自动同步标签计数（软删除后商品被排除，goods_count 需要重算）
-                \GoodsTagModel::refreshAllCounts();
+                \App\Model\GoodsTagModel::refreshAllCounts();
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -167,9 +167,9 @@ final class GoodsController extends BaseAdminController
         // 物理删除商品
         if ($action === 'physical_delete') {
             $id = (int) $this->input->post('id', 0);
-            $result = \GoodsModel::forceDelete($id);
+            $result = \App\Model\GoodsModel::forceDelete($id);
             if ($result) {
-                \GoodsTagModel::refreshAllCounts();
+                \App\Model\GoodsTagModel::refreshAllCounts();
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -202,21 +202,21 @@ final class GoodsController extends BaseAdminController
             foreach ($ids as $id) {
                 try {
                     if ($batchAction === 'on_sale') {
-                        \GoodsModel::update($id, ['is_on_sale' => 1]);
+                        \App\Model\GoodsModel::update($id, ['is_on_sale' => 1]);
                     } elseif ($batchAction === 'off_sale') {
-                        \GoodsModel::update($id, ['is_on_sale' => 0]);
+                        \App\Model\GoodsModel::update($id, ['is_on_sale' => 0]);
                     } elseif ($batchAction === 'delete') {
-                        \GoodsModel::delete($id);
+                        \App\Model\GoodsModel::delete($id);
                     } elseif ($batchAction === 'physical_delete') {
-                        \GoodsModel::forceDelete($id);
+                        \App\Model\GoodsModel::forceDelete($id);
                     } elseif ($batchAction === 'recommend') {
-                        \GoodsModel::setRecommended($id, 1);
+                        \App\Model\GoodsModel::setRecommended($id, 1);
                     } elseif ($batchAction === 'unrecommend') {
-                        \GoodsModel::setRecommended($id, 0);
+                        \App\Model\GoodsModel::setRecommended($id, 0);
                     } elseif ($batchAction === 'top_category') {
-                        \GoodsModel::setTopCategory($id, 1);
+                        \App\Model\GoodsModel::setTopCategory($id, 1);
                     } elseif ($batchAction === 'untop_category') {
-                        \GoodsModel::setTopCategory($id, 0);
+                        \App\Model\GoodsModel::setTopCategory($id, 0);
                     } else {
                         $failed++;
                         break;
@@ -227,7 +227,7 @@ final class GoodsController extends BaseAdminController
             }
             // 涉及删除类操作时同步刷新标签计数（排除已删商品的 goods_count 要重算）
             if (in_array($batchAction, ['delete', 'physical_delete'], true)) {
-                \GoodsTagModel::refreshAllCounts();
+                \App\Model\GoodsTagModel::refreshAllCounts();
             }
             if ($failed === 0) {
                 $this->response->success('操作成功', ['csrf_token' => $this->csrf->token()]);
@@ -239,10 +239,10 @@ final class GoodsController extends BaseAdminController
         // 克隆商品
         if ($action === 'clone') {
             $id = (int) $this->input->post('id', 0);
-            $newId = \GoodsModel::clone($id);
+            $newId = \App\Model\GoodsModel::clone($id);
             if ($newId) {
                 // 克隆会复制 tag 关联 → goods_count 增加，自动刷新一次
-                \GoodsTagModel::refreshAllCounts();
+                \App\Model\GoodsTagModel::refreshAllCounts();
                 $this->response->success('克隆成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('克隆失败');

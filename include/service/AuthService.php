@@ -33,7 +33,7 @@ final class AuthService
             'remember_days_default' => EM_AUTH_REMEMBER_DAYS_DEFAULT,
             'remember_days_checked' => EM_AUTH_REMEMBER_DAYS_CHECKED,
         ];
-        $this->users = new UserModel();
+        $this->users = new \App\Model\UserModel();
         $this->hasher = new PasswordHash(8, true);
     }
 

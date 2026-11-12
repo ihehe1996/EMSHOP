@@ -19,7 +19,7 @@ final class NaviController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \NaviModel();
+        $model = new \App\Model\NaviModel();
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -37,7 +37,7 @@ final class NaviController extends BaseAdminController
     /**
      * 处理后台 AJAX 动作；所有写操作校验 CSRF。
      */
-    private function handlePost(\NaviModel $model): void
+    private function handlePost(\App\Model\NaviModel $model): void
     {
         try {
             $action = (string) $this->input->post('_action', '');
@@ -109,7 +109,7 @@ final class NaviController extends BaseAdminController
                         if ($pageId <= 0) {
                             $this->response->error('请选择要链接的页面');
                         }
-                        $pageRow = \PageModel::getById($pageId);
+                        $pageRow = \App\Model\PageModel::getById($pageId);
                         if ($pageRow === null || (int) $pageRow['status'] !== 1 || (int) $pageRow['merchant_id'] !== 0) {
                             $this->response->error('所选页面不存在或不属于主站');
                         }
@@ -196,7 +196,7 @@ final class NaviController extends BaseAdminController
                         if ($pageId <= 0) {
                             $this->response->error('请选择要链接的页面');
                         }
-                        $pageRow = \PageModel::getById($pageId);
+                        $pageRow = \App\Model\PageModel::getById($pageId);
                         if ($pageRow === null || (int) $pageRow['status'] !== 1 || (int) $pageRow['merchant_id'] !== 0) {
                             $this->response->error('所选页面不存在或不属于主站');
                         }
@@ -317,7 +317,7 @@ final class NaviController extends BaseAdminController
     /**
      * 编辑弹窗（iframe）。
      */
-    private function renderPopup(\NaviModel $model): void
+    private function renderPopup(\App\Model\NaviModel $model): void
     {
         $editId = (int) $this->input->get('id', 0);
         $editItem = null;
@@ -332,9 +332,9 @@ final class NaviController extends BaseAdminController
         $this->render('popup/navi', [
             'editItem'        => $editItem,
             'topLevelItems'   => $model->getTopLevel(0),
-            'goodsCategories' => (new \GoodsCategoryModel())->getAll(),
-            'blogCategories'  => (new \BlogCategoryModel())->getAll(0),
-            'publishedPages'  => \PageModel::getPublishedSimple(0),
+            'goodsCategories' => (new \App\Model\GoodsCategoryModel())->getAll(),
+            'blogCategories'  => (new \App\Model\BlogCategoryModel())->getAll(0),
+            'publishedPages'  => \App\Model\PageModel::getPublishedSimple(0),
         ]);
     }
 

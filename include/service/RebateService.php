@@ -177,7 +177,7 @@ class RebateService
         $calcMode    = self::calculateMode();
         $freezeDays  = self::freezeDays();
         $freezeUntil = $freezeDays > 0 ? date('Y-m-d H:i:s', time() + $freezeDays * 86400) : null;
-        $logModel    = new CommissionLogModel();
+        $logModel    = new \App\Model\CommissionLogModel();
 
         Database::begin();
         try {
@@ -196,7 +196,7 @@ class RebateService
             // （此刻在事务内且持有订单行锁，判断可靠；原先在事务外，是 check-then-write 竞态）
             $exist = Database::fetchOne(
                 "SELECT id FROM {$prefix}commission_log WHERE order_id = ? AND status != ? LIMIT 1",
-                [$orderId, CommissionLogModel::STATUS_REVERTED]
+                [$orderId, \App\Model\CommissionLogModel::STATUS_REVERTED]
             );
             if ($exist) {
                 Database::commit();
@@ -280,7 +280,7 @@ class RebateService
         $order = Database::find('order', $orderId);
         if ($order !== null && (int) ($order['merchant_id'] ?? 0) > 0) return;
 
-        (new CommissionLogModel())->revertByOrder($orderId);
+        (new \App\Model\CommissionLogModel())->revertByOrder($orderId);
     }
 
     /**
@@ -298,11 +298,11 @@ class RebateService
         }
 
         // 先惰性把到期 frozen 转 available
-        (new CommissionLogModel())->promoteMatured($userId);
+        (new \App\Model\CommissionLogModel())->promoteMatured($userId);
 
         $prefix = Database::prefix();
-        $logModel = new CommissionLogModel();
-        $withdrawModel = new CommissionWithdrawModel();
+        $logModel = new \App\Model\CommissionLogModel();
+        $withdrawModel = new \App\Model\CommissionWithdrawModel();
 
         Database::begin();
         try {
@@ -356,7 +356,7 @@ class RebateService
                     "UPDATE {$prefix}commission_log
                      SET status = ?, withdraw_id = ?, updated_at = NOW()
                      WHERE id IN ({$in}) AND status = ?",
-                    array_merge([CommissionLogModel::STATUS_WITHDRAWN, $withdrawId], $fullIds, [CommissionLogModel::STATUS_AVAILABLE])
+                    array_merge([\App\Model\CommissionLogModel::STATUS_WITHDRAWN, $withdrawId], $fullIds, [\App\Model\CommissionLogModel::STATUS_AVAILABLE])
                 );
             }
             if ($partial !== null) {
@@ -370,7 +370,7 @@ class RebateService
                 [$amountRaw, $userId]
             );
 
-            $ok = (new UserBalanceLogModel())->increase(
+            $ok = (new \App\Model\UserBalanceLogModel())->increase(
                 $userId,
                 $amountRaw,
                 '佣金提现',

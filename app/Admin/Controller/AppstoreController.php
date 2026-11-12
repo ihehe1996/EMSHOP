@@ -236,11 +236,11 @@ final class AppstoreController extends BaseAdminController
                     //   插件:磁盘有目录 = 已装(version 走 parseHeader);em_plugin 表已废弃,启用列表在 em_config
                     //   模板:仍按 em_template 表(scope='main')
                     $installedPlugins = [];
-                    foreach ((new \PluginModel())->scanPlugins() as $slug => $info) {
+                    foreach ((new \App\Model\PluginModel())->scanPlugins() as $slug => $info) {
                         $installedPlugins[$slug] = (string) ($info['version'] ?? '');
                     }
                     $installedThemes = [];
-                    foreach ((new \TemplateModel())->scanTemplates() as $slug => $info) {
+                    foreach ((new \App\Model\TemplateModel())->scanTemplates() as $slug => $info) {
                         $installedThemes[$slug] = (string) ($info['version'] ?? '');
                     }
                     // 主站应用商店只标记是否已安装;installed_version 不再注入,is_installed 仅用于显示"已安装"灰按钮
@@ -253,7 +253,7 @@ final class AppstoreController extends BaseAdminController
                     unset($app);
                 } else {
                     // tab=merchant:主站为分站采购,应用商店只需要合并是否已上架
-                    $marketModel = new \AppMarketModel();
+                    $marketModel = new \App\Model\AppMarketModel();
                     foreach ($result['data'] as &$app) {
                         $slug = (string) ($app['name_en'] ?? '');
                         $type = (string) ($app['type'] ?? '');
@@ -523,7 +523,7 @@ final class AppstoreController extends BaseAdminController
                 // 注册到本地数据库
                 if ($tab === 'merchant') {
                     // 已上架的应用不允许再次安装
-                    $existingMarket = (new \AppMarketModel())->findByAppCode($name, $type);
+                    $existingMarket = (new \App\Model\AppMarketModel())->findByAppCode($name, $type);
                     if ($existingMarket !== null) {
                         $this->response->error('应用已安装，无需重复安装');
                     }
@@ -534,7 +534,7 @@ final class AppstoreController extends BaseAdminController
                     $title = $name; $version = ''; $category = ''; $cover = ''; $description = '';
                     if ($type === 'plugin') {
                         $mainFile = $targetDir . '/' . $name . '.php';
-                        $headerInfo = is_file($mainFile) ? (new \PluginModel())->parseHeader($mainFile) : null;
+                        $headerInfo = is_file($mainFile) ? (new \App\Model\PluginModel())->parseHeader($mainFile) : null;
                         if ($headerInfo) {
                             $title       = (string) ($headerInfo['title']       ?: $name);
                             $version     = (string) ($headerInfo['version']     ?? '');
@@ -544,7 +544,7 @@ final class AppstoreController extends BaseAdminController
                         if (is_file($targetDir . '/icon.png'))      $cover = '/content/plugin/' . $name . '/icon.png';
                         elseif (is_file($targetDir . '/icon.gif'))  $cover = '/content/plugin/' . $name . '/icon.gif';
                     } else {
-                        $scanned = (new \TemplateModel())->scanTemplates();
+                        $scanned = (new \App\Model\TemplateModel())->scanTemplates();
                         if (isset($scanned[$name])) {
                             $tInfo = $scanned[$name];
                             $title       = (string) ($tInfo['title']       ?: $name);

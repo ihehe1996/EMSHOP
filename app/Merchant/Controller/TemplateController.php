@@ -18,8 +18,8 @@ final class TemplateController extends MerchantBaseController
         $merchantId    = (int) ($currentMerchant['id'] ?? 0);
         $scope         = 'merchant_' . $merchantId;
 
-        $templateModel = new \TemplateModel();
-        $purchaseModel = new \AppPurchaseModel();
+        $templateModel = new \App\Model\TemplateModel();
+        $purchaseModel = new \App\Model\AppPurchaseModel();
 
         // 系统模板白名单 —— 这些模板对所有商户免费可用,首次启用时自动 install 到本 scope
         // 不在白名单的模板,商户必须从插件市场购买后才能用

@@ -705,7 +705,7 @@ final class Dispatcher
             // 优先级 1：页面首页 —— 主站和商户各自的 em_page.is_homepage 行
             $homepagePage = null;
             if (class_exists('PageModel')) {
-                $homepagePage = \PageModel::getHomepage(\MerchantContext::currentId());
+                $homepagePage = \App\Model\PageModel::getHomepage(\MerchantContext::currentId());
             }
             if ($homepagePage !== null && !empty($homepagePage['slug'])) {
                 $this->controller = 'page';
@@ -799,7 +799,7 @@ final class Dispatcher
             $scope = \MerchantContext::currentId() > 0
                 ? 'merchant_' . \MerchantContext::currentId()
                 : 'main';
-            $templateModel = new \TemplateModel();
+            $templateModel = new \App\Model\TemplateModel();
             return (string) ($templateModel->getEffectiveTheme($deviceType, $scope) ?? '');
         } catch (\Throwable $e) {
             return '';
@@ -811,7 +811,7 @@ final class Dispatcher
      */
     private function detectDeviceType(): string
     {
-        return \TemplateModel::detectClientFromRequest();
+        return \App\Model\TemplateModel::detectClientFromRequest();
     }
 
     /**
@@ -890,7 +890,7 @@ final class Dispatcher
         // 因此前台展示页也要按“运行时名单”校验，而不是仅看商户显式 enabled 列表。
         $merchantId = class_exists('MerchantContext') ? \MerchantContext::currentId() : 0;
         $scope = $merchantId > 0 ? 'merchant_' . $merchantId : 'main';
-        $model = new \PluginModel();
+        $model = new \App\Model\PluginModel();
         $runtimeNames = $model->getRuntimeNames($scope);
         if (!in_array($slug, $runtimeNames, true)) {
             $this->render404('插件未启用');

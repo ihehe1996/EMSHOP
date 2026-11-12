@@ -30,7 +30,7 @@ final class AppstoreController extends MerchantBaseController
                 $listMode = (string) $this->input->get('list_mode', '');
                 if (!in_array($listMode, ['', 'purchased'], true)) $listMode = '';
 
-                $merchantCategories = \PluginModel::MERCHANT_PLUGIN_CATEGORIES;
+                $merchantCategories = \App\Model\PluginModel::MERCHANT_PLUGIN_CATEGORIES;
                 $categoryId = (int) $this->input->get('category_id', 0);
                 $categoryName = $categoryId > 0 ? (string) ($merchantCategories[$categoryId] ?? '') : '';
 
@@ -85,7 +85,7 @@ final class AppstoreController extends MerchantBaseController
                                    ON p.merchant_id = ? AND p.app_code = m.app_code AND p.type = m.type
                                 WHERE m.is_listed = 1";
                     // 商户端应用商店不展示主站统管插件（支付/商品类型/共享店铺）
-                    $sysCats = array_values(\PluginModel::SYSTEM_PLUGINS);
+                    $sysCats = array_values(\App\Model\PluginModel::SYSTEM_PLUGINS);
                     if ($sysCats !== []) {
                         $sqlBase .= ' AND NOT (m.type = \'plugin\' AND m.category IN (' . implode(',', array_fill(0, count($sysCats), '?')) . '))';
                         foreach ($sysCats as $c) $params[] = $c;
@@ -148,8 +148,8 @@ final class AppstoreController extends MerchantBaseController
                 $marketId = (int) $this->input->post('market_id', 0);
                 if ($marketId <= 0) $this->response->error('参数错误');
 
-                $marketModel = new \AppMarketModel();
-                $purchaseModel = new \AppPurchaseModel();
+                $marketModel = new \App\Model\AppMarketModel();
+                $purchaseModel = new \App\Model\AppPurchaseModel();
 
                 $this->db->begin();
                 try {
@@ -173,7 +173,7 @@ final class AppstoreController extends MerchantBaseController
                     }
 
                     // 主站统管插件由主站继承，不允许在商户端购买
-                    if ($type === 'plugin' && in_array((string) ($market['category'] ?? ''), array_values(\PluginModel::SYSTEM_PLUGINS), true)) {
+                    if ($type === 'plugin' && in_array((string) ($market['category'] ?? ''), array_values(\App\Model\PluginModel::SYSTEM_PLUGINS), true)) {
                         throw new \RuntimeException('该应用由主站统一管理，无需购买');
                     }
 
@@ -183,11 +183,11 @@ final class AppstoreController extends MerchantBaseController
 
                     // 文件存在校验：主站采购上架后物理文件应该已准备好
                     if ($type === 'plugin') {
-                        if (!(new \PluginModel())->existsOnDisk($appCode)) {
+                        if (!(new \App\Model\PluginModel())->existsOnDisk($appCode)) {
                             throw new \RuntimeException('主站文件未就绪，请联系主站管理员检查插件文件');
                         }
                     } else {
-                        if (!(new \TemplateModel())->existsOnDisk($appCode)) {
+                        if (!(new \App\Model\TemplateModel())->existsOnDisk($appCode)) {
                             throw new \RuntimeException('主站文件未就绪，请联系主站管理员检查模板文件');
                         }
                     }
@@ -250,7 +250,7 @@ final class AppstoreController extends MerchantBaseController
 
                     // 写应用订单
                     $appOrderNo = 'AO' . date('YmdHis') . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-                    (new \AppOrderModel())->create([
+                    (new \App\Model\AppOrderModel())->create([
                         'order_no'       => $appOrderNo,
                         'merchant_id'    => $merchantId,
                         'user_id'        => $merchantUid,

@@ -33,7 +33,7 @@ abstract class MerchantBaseController extends UserBaseController
             $this->deny('尚未开通商户', '/user/merchant/apply');
         }
 
-        $merchant = (new \MerchantModel())->findById($merchantId);
+        $merchant = (new \App\Model\MerchantModel())->findById($merchantId);
         if ($merchant === null || (int) ($merchant['status'] ?? 0) !== 1) {
             $this->deny('商户已停用', '/user/home');
         }
@@ -43,7 +43,7 @@ abstract class MerchantBaseController extends UserBaseController
         $GLOBALS['__em_current_scope'] = 'merchant_' . $merchantId;
         \MerchantContext::rememberLastMerchant($this->merchant);
 
-        $level = (new \MerchantLevelModel())->findById((int) ($merchant['level_id'] ?? 0));
+        $level = (new \App\Model\MerchantLevelModel())->findById((int) ($merchant['level_id'] ?? 0));
         $this->level = is_array($level) ? $level : null;
     }
 

@@ -144,16 +144,16 @@ final class FrontDataService
 
         $rows = Database::query($sql, $params);
         $list = [];
-        [$buyerId] = GoodsModel::resolveBuyerIdentity();
+        [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
-            $minPrice = (float) GoodsModel::moneyFromDb($row['min_price']);
+            $minPrice = (float) \App\Model\GoodsModel::moneyFromDb($row['min_price']);
             if ($buyerId > 0) {
                 $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
             }
             $marketPrice = $row['default_market_price']
-                ? (float) GoodsModel::moneyFromDb($row['default_market_price'])
+                ? (float) \App\Model\GoodsModel::moneyFromDb($row['default_market_price'])
                 : null;
 
             $covers = json_decode($row['cover_images'] ?? '[]', true) ?: [];
@@ -314,16 +314,16 @@ final class FrontDataService
 
         $rows = Database::query($sql, $params);
         $list = [];
-        [$buyerId] = GoodsModel::resolveBuyerIdentity();
+        [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
-            $minPrice = (float) GoodsModel::moneyFromDb($row['min_price']);
+            $minPrice = (float) \App\Model\GoodsModel::moneyFromDb($row['min_price']);
             if ($buyerId > 0) {
                 $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
             }
             $marketPrice = $row['default_market_price']
-                ? (float) GoodsModel::moneyFromDb($row['default_market_price'])
+                ? (float) \App\Model\GoodsModel::moneyFromDb($row['default_market_price'])
                 : null;
 
             $covers = json_decode($row['cover_images'] ?? '[]', true) ?: [];
@@ -418,7 +418,7 @@ final class FrontDataService
      */
     private function rewritePriceFactor(array &$row): void
     {
-        $buyerDiscount = GoodsModel::resolveBuyerDiscountRate();
+        $buyerDiscount = \App\Model\GoodsModel::resolveBuyerDiscountRate();
         $factor = $buyerDiscount;
 
         $merchantId = MerchantContext::currentId();
@@ -466,7 +466,7 @@ final class FrontDataService
         if (isset($cache[$goodsId])) {
             return $cache[$goodsId];
         }
-        $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+        $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
         if ($specs === []) {
             return $cache[$goodsId] = $fallback;
         }
@@ -541,7 +541,7 @@ final class FrontDataService
 
         // 批量加载标签
         if ($blogIds) {
-            $tagMap = BlogTagModel::getTagsByBlogIds($blogIds);
+            $tagMap = \App\Model\BlogTagModel::getTagsByBlogIds($blogIds);
             foreach ($list as &$item) {
                 $item['tags'] = $tagMap[$item['id']] ?? [];
             }
@@ -643,7 +643,7 @@ final class FrontDataService
 
         // 批量加载标签
         if ($blogIds) {
-            $tagMap = BlogTagModel::getTagsByBlogIds($blogIds);
+            $tagMap = \App\Model\BlogTagModel::getTagsByBlogIds($blogIds);
             foreach ($list as &$item) {
                 $item['tags'] = $tagMap[$item['id']] ?? [];
             }
@@ -744,7 +744,7 @@ final class FrontDataService
 
         return [
             'goods_categories' => $tree,
-            'popular_tags'     => GoodsTagModel::getPopularTags(20),
+            'popular_tags'     => \App\Model\GoodsTagModel::getPopularTags(20),
         ];
     }
 
@@ -815,7 +815,7 @@ final class FrontDataService
 
         return [
             'blog_categories'   => $tree,
-            'popular_blog_tags' => BlogTagModel::getPopularTags(20, $merchantId),
+            'popular_blog_tags' => \App\Model\BlogTagModel::getPopularTags(20, $merchantId),
         ];
     }
 

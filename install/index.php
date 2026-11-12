@@ -19,7 +19,6 @@ define('EM_ROOT', dirname(__DIR__));
 require_once EM_ROOT . '/include/lib/Autoloader.php';
 Autoloader::register([
     EM_ROOT . '/include/lib',
-    EM_ROOT . '/include/model',
     EM_ROOT . '/include/service',
 ]);
 

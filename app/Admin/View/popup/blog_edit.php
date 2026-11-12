@@ -57,7 +57,7 @@ include __DIR__ . '/header.php';
                                         <?php
                                         $articleTags = [];
                                         if ($isEdit) {
-                                            $articleTags = BlogTagModel::getTagsByBlogId((int) $article['id']);
+                                            $articleTags = \App\Model\BlogTagModel::getTagsByBlogId((int) $article['id']);
                                             foreach ($articleTags as $t):
                                         ?>
                                         <span class="blog-tag-token" data-id="<?= (int) $t['id'] ?>">
@@ -292,7 +292,7 @@ $(function() {
         // 标签输入
         // ============================================================
         (function() {
-            var allTags = <?= json_encode(BlogTagModel::getAll(0), JSON_UNESCAPED_UNICODE) ?>;
+            var allTags = <?= json_encode(\App\Model\BlogTagModel::getAll(0), JSON_UNESCAPED_UNICODE) ?>;
             var $wrap = $('#tagInputWrap');
             var $tokens = $('#tagTokens');
             var $input = $('#tagTextInput');

@@ -148,7 +148,7 @@ final class DeliveryQueueService
                 [$taskId]
             );
 
-            OrderModel::notifyDeliveryCallback($orderGoodsId);
+            \App\Model\OrderModel::notifyDeliveryCallback($orderGoodsId);
 
             // 「发货完成」通知。两条路径的处理方式**刻意不同**：
             //
@@ -172,7 +172,7 @@ final class DeliveryQueueService
                 }
             }
 
-            OrderModel::checkDeliveryComplete($orderId);
+            \App\Model\OrderModel::checkDeliveryComplete($orderId);
             return true;
 
         } catch (Throwable $e) {
@@ -311,7 +311,7 @@ final class DeliveryQueueService
         }
 
         try {
-            OrderModel::changeStatus($orderId, 'delivery_failed');
+            \App\Model\OrderModel::changeStatus($orderId, 'delivery_failed');
         } catch (Throwable $e) {
             // 状态已不是 delivering（或已是终态）时不强推，避免把正常订单改成失败
         }

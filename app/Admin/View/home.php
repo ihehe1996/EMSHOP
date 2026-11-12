@@ -68,8 +68,8 @@ $sysInfo = [
 try {
     $__r = Database::fetchOne('SELECT VERSION() AS v');
     if ($__r !== null) $sysInfo['db'] = 'MySQL ' . (string) ($__r['v'] ?? '-');
-    $sysInfo['template_count'] = count((new TemplateModel())->scanTemplates());
-    $mainPlugins = (new PluginModel())->scanPlugins();
+    $sysInfo['template_count'] = count((new \App\Model\TemplateModel())->scanTemplates());
+    $mainPlugins = (new \App\Model\PluginModel())->scanPlugins();
     $merchantCodes = [];
     $__rows = Database::query('SELECT `app_code` FROM `' . $__prefix . 'app_market` WHERE `type` = ?', ['plugin']);
     foreach ($__rows as $__row) {

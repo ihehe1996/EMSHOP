@@ -24,7 +24,7 @@ final class PluginController extends BaseAdminController
 
     public function index(): void
     {
-        $model = new \PluginModel();
+        $model = new \App\Model\PluginModel();
         $isPopup = (string) $this->input->get('_popup', '') === '1';
 
         if ($this->request->isPost()) {
@@ -48,7 +48,7 @@ final class PluginController extends BaseAdminController
     /**
      * POST 处理。
      */
-    private function handlePost(\PluginModel $model): void
+    private function handlePost(\App\Model\PluginModel $model): void
     {
         try {
             // 本分支下的动作全部是写操作，且卸载会递归删除插件目录 —— 必须校验 CSRF
@@ -74,7 +74,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('market_id 非法');
                 }
 
-                $marketModel = new \AppMarketModel();
+                $marketModel = new \App\Model\AppMarketModel();
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                     $this->response->error('分站插件不存在');
@@ -95,7 +95,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('market_id 非法');
                 }
 
-                $marketModel = new \AppMarketModel();
+                $marketModel = new \App\Model\AppMarketModel();
                 $market = $marketModel->findById($marketId);
                 if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                     $this->response->error('分站插件不存在');
@@ -193,7 +193,7 @@ final class PluginController extends BaseAdminController
                 case 'uninstall': {
                     $marketId = (int) $this->input->post('market_id', 0);
                     if ($marketId > 0) {
-                        $marketModel = new \AppMarketModel();
+                        $marketModel = new \App\Model\AppMarketModel();
                         $market = $marketModel->findById($marketId);
                         if ($market === null || (string) ($market['type'] ?? '') !== 'plugin') {
                             $this->response->error('分站插件不存在');
@@ -204,7 +204,7 @@ final class PluginController extends BaseAdminController
                         }
 
                         // 已售出（有购买记录/已扣配额）不允许卸载，避免已购分站数据悬空
-                        $soldCount = (new \AppPurchaseModel())->countByMarket($marketId);
+                        $soldCount = (new \App\Model\AppPurchaseModel())->countByMarket($marketId);
                         $consumedQuota = (int) ($market['consumed_quota'] ?? 0);
                         if ($soldCount > 0 || $consumedQuota > 0) {
                             $this->response->error('该分站插件已有分站购买记录,请改为下架');
@@ -262,7 +262,7 @@ final class PluginController extends BaseAdminController
     /**
      * 输出插件列表 JSON。
      */
-    private function outputList(\PluginModel $model): void
+    private function outputList(\App\Model\PluginModel $model): void
     {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -300,7 +300,7 @@ final class PluginController extends BaseAdminController
 
         if ($listScope === 'merchant') {
             try {
-                $result = (new \AppMarketModel())->paginate([
+                $result = (new \App\Model\AppMarketModel())->paginate([
                     'type'      => 'plugin',
                     'page'      => 1,
                     'page_size' => 100,
@@ -399,7 +399,7 @@ final class PluginController extends BaseAdminController
     /**
      * 插件设置弹窗：header + 插件 setting.php 渲染 + footer。
      */
-    private function renderPopup(\PluginModel $model): void
+    private function renderPopup(\App\Model\PluginModel $model): void
     {
         $pluginName = trim((string) $this->input->get('name', ''));
         if ($pluginName === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $pluginName)) {

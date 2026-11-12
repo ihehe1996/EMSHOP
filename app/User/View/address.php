@@ -7,7 +7,7 @@
  */
 $csrfToken = $csrfToken ?? Csrf::token();
 $addressList = $addressList ?? [];
-$maxPerUser = UserAddressModel::MAX_PER_USER;
+$maxPerUser = \App\Model\UserAddressModel::MAX_PER_USER;
 $esc = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 ?>
 

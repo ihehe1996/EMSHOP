@@ -349,7 +349,7 @@ $csrfToken = $csrfToken ?? Csrf::token();
         <a class="em-tabs__item is-active" data-filter='{"type":"all","id":0}'>
             <i class="fa fa-th-large"></i>全部<em class="em-tabs__count"></em>
         </a>
-        <?php foreach (PluginModel::MAIN_PLUGIN_CATEGORIES as $__cid => $__cname): ?>
+        <?php foreach (\App\Model\PluginModel::MAIN_PLUGIN_CATEGORIES as $__cid => $__cname): ?>
         <a class="em-tabs__item" data-filter='<?= htmlspecialchars(json_encode(['cat' => 1, 'id' => (int) $__cid]), ENT_QUOTES, 'UTF-8') ?>'>
             <i class="fa fa-folder-o"></i><?= htmlspecialchars((string) $__cname, ENT_QUOTES, 'UTF-8') ?><em class="em-tabs__count"></em>
         </a>

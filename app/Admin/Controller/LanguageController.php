@@ -48,7 +48,7 @@ final class LanguageController extends BaseAdminController
 
             switch ($action) {
                 case 'list':
-                    $model = new \LanguageModel();
+                    $model = new \App\Model\LanguageModel();
                     $keyword = trim((string) $this->input->post('keyword', ''));
 
                     // 获取所有语言数据
@@ -88,7 +88,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('语言代码最多20个字符');
                     }
 
-                    $model = new \LanguageModel();
+                    $model = new \App\Model\LanguageModel();
                     if ($model->existsName($name)) {
                         $this->response->error('语言名称已被占用');
                     }
@@ -116,7 +116,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \LanguageModel();
+                    $model = new \App\Model\LanguageModel();
                     $existing = $model->findById($id);
                     if ($existing === null) {
                         $this->response->error('语言不存在');
@@ -166,7 +166,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \LanguageModel();
+                    $model = new \App\Model\LanguageModel();
                     if ($model->findById($id) === null) {
                         $this->response->error('语言不存在');
                     }
@@ -188,7 +188,7 @@ final class LanguageController extends BaseAdminController
                         $this->response->error('无效的语言ID');
                     }
 
-                    $model = new \LanguageModel();
+                    $model = new \App\Model\LanguageModel();
                     $lang = $model->findById($id);
                     if ($lang === null) {
                         $this->response->error('语言不存在');
@@ -224,7 +224,7 @@ final class LanguageController extends BaseAdminController
         $editLang = null;
 
         if ($editId > 0) {
-            $editLang = (new \LanguageModel())->findById($editId);
+            $editLang = (new \App\Model\LanguageModel())->findById($editId);
         }
 
         $this->render('popup/language', [

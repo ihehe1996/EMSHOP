@@ -446,7 +446,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     $paymentCode = '';
 
     if ($isRecharge) {
-        $recharge = (new UserRechargeModel())->findByOrderNo($orderNo);
+        $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
         if (!$recharge) {
             echo 'fail';
             exit;
@@ -458,14 +458,14 @@ addAction('payment_notify_mpay', function (array $data): void {
         }
 
         // 幂等短路：已支付 = 网关重复投递，按成功处理
-        if ((string) ($recharge['status'] ?? '') === UserRechargeModel::STATUS_PAID) {
+        if ((string) ($recharge['status'] ?? '') === \App\Model\UserRechargeModel::STATUS_PAID) {
             echo 'success';
             exit;
         }
         // 非 pending 且未支付（如 cancelled）：客户已经付了钱，但充值单不在可入账状态。
         // 不能静默当成功 —— 那会让网关停止重投、款项被吞掉且余额永不入账。
         // 回 fail 让网关继续重投并留下告警，由人工对账。
-        if ((string) ($recharge['status'] ?? '') !== UserRechargeModel::STATUS_PENDING) {
+        if ((string) ($recharge['status'] ?? '') !== \App\Model\UserRechargeModel::STATUS_PENDING) {
             mpay_log('充值单 #' . (int) $recharge['id'] . ' 当前状态 ' . ($recharge['status'] ?? '')
                 . '，但收到支付成功通知，需人工对账');
             echo 'fail';
@@ -475,7 +475,7 @@ addAction('payment_notify_mpay', function (array $data): void {
         $paymentCode = (string) ($recharge['payment_code'] ?? '');
         $tradeAmount = (int) ($recharge['amount'] ?? 0);
     } else {
-        $order = OrderModel::getByOrderNo($orderNo);
+        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
         if (!$order) {
             echo 'fail';
             exit;
@@ -536,7 +536,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     $tradeNo = (string) ($data['trade_no'] ?? '');
 
     if ($isRecharge) {
-        $ok = (new UserRechargeModel())->markPaid((int) $recharge['id'], $tradeNo);
+        $ok = (new \App\Model\UserRechargeModel())->markPaid((int) $recharge['id'], $tradeNo);
         echo $ok ? 'success' : 'fail';
         exit;
     }
@@ -544,7 +544,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     try {
         Database::begin();
 
-        OrderModel::changeStatus((int) $order['id'], 'paid');
+        \App\Model\OrderModel::changeStatus((int) $order['id'], 'paid');
 
         Database::execute(
             'INSERT INTO `' . Database::prefix() . 'order_payment`
@@ -569,7 +569,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     }
 
     try {
-        OrderModel::triggerDelivery((int) $order['id']);
+        \App\Model\OrderModel::triggerDelivery((int) $order['id']);
     } catch (Throwable $e) {
         mpay_log('trigger delivery failed: ' . $e->getMessage());
     }

@@ -17,7 +17,7 @@ final class PluginController extends MerchantBaseController
         $csrfToken    = $this->csrf->token();
         $merchantId   = (int) ($currentMerchant['id'] ?? 0);
         $scope        = 'merchant_' . $merchantId;
-        $pluginModel  = new \PluginModel();
+        $pluginModel  = new \App\Model\PluginModel();
 
         // ============================================================
         // POST 处理:enable / disable / save_config
@@ -38,7 +38,7 @@ final class PluginController extends MerchantBaseController
                 $selfEnabled = $pluginModel->isEnabled($name, $scope);
                 $header = $pluginModel->parseHeader(EM_ROOT . '/content/plugin/' . $name . '/' . $name . '.php');
                 $isSystemPlugin = $header !== null
-                    && in_array((string) ($header['category'] ?? ''), array_values(\PluginModel::SYSTEM_PLUGINS), true);
+                    && in_array((string) ($header['category'] ?? ''), array_values(\App\Model\PluginModel::SYSTEM_PLUGINS), true);
 
                 // 兼容部分插件 setting.php 历史硬编码 name 错误:
                 // save_config 时优先回退到弹窗 URL 的 ?name=xxx 再校验权限
@@ -61,7 +61,7 @@ final class PluginController extends MerchantBaseController
                         $selfEnabled = $pluginModel->isEnabled($name, $scope);
                         $header = $pluginModel->parseHeader(EM_ROOT . '/content/plugin/' . $name . '/' . $name . '.php');
                         $isSystemPlugin = $header !== null
-                            && in_array((string) ($header['category'] ?? ''), array_values(\PluginModel::SYSTEM_PLUGINS), true);
+                            && in_array((string) ($header['category'] ?? ''), array_values(\App\Model\PluginModel::SYSTEM_PLUGINS), true);
                     }
                 }
 
@@ -132,7 +132,7 @@ final class PluginController extends MerchantBaseController
             $popupSelfEnabled = $pluginModel->isEnabled($name, $scope);
             $popupHeader = $pluginModel->parseHeader(EM_ROOT . '/content/plugin/' . $name . '/' . $name . '.php');
             $popupSystem = $popupHeader !== null
-                && in_array((string) ($popupHeader['category'] ?? ''), array_values(\PluginModel::SYSTEM_PLUGINS), true);
+                && in_array((string) ($popupHeader['category'] ?? ''), array_values(\App\Model\PluginModel::SYSTEM_PLUGINS), true);
             if ($popupSystem) {
                 exit('该插件由主站统一管理,商户端不可配置');
             }
@@ -169,7 +169,7 @@ final class PluginController extends MerchantBaseController
         // 元数据全部来自 parseHeader(磁盘),DB 只查 is_enabled / 已购
         // ============================================================
         $disk          = $pluginModel->scanPlugins();                        // 磁盘所有插件 + parseHeader 元数据
-        $purchaseModel = new \AppPurchaseModel();
+        $purchaseModel = new \App\Model\AppPurchaseModel();
         $ownedCodes    = $purchaseModel->purchasedCodes($merchantId, 'plugin'); // 商户已购 app_code 列表
         $ownedSet      = array_flip($ownedCodes);
 
@@ -178,7 +178,7 @@ final class PluginController extends MerchantBaseController
 
         $plugins = [];
         foreach ($disk as $name => $info) {
-            if (in_array((string) ($info['category'] ?? ''), array_values(\PluginModel::SYSTEM_PLUGINS), true)) {
+            if (in_array((string) ($info['category'] ?? ''), array_values(\App\Model\PluginModel::SYSTEM_PLUGINS), true)) {
                 continue;
             }
             $hasOwned = isset($ownedSet[$name]);

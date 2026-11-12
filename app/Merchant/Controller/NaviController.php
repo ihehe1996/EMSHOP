@@ -15,7 +15,7 @@ final class NaviController extends MerchantBaseController
         $currentMerchant = $this->merchant();
         $merchantLevel = $this->level();
         $merchantId = (int) $currentMerchant['id'];
-        $model = new \NaviModel();
+        $model = new \App\Model\NaviModel();
 
         if ($this->request->isPost()) {
             try {
@@ -62,7 +62,7 @@ final class NaviController extends MerchantBaseController
                         if ($type === 'blog_cat') {
                             $catId = (int) $this->input->post('type_ref_id', 0);
                             if ($catId <= 0) $this->response->error('请选择博客分类');
-                            $cat = (new \BlogCategoryModel())->findById($catId);
+                            $cat = (new \App\Model\BlogCategoryModel())->findById($catId);
                             if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                                 $this->response->error('博客分类无效或不属于本店');
                             }
@@ -71,7 +71,7 @@ final class NaviController extends MerchantBaseController
                         } elseif ($type === 'page') {
                             $pageId = (int) $this->input->post('type_ref_id', 0);
                             if ($pageId <= 0) $this->response->error('请选择页面');
-                            $pageRow = \PageModel::getById($pageId);
+                            $pageRow = \App\Model\PageModel::getById($pageId);
                             if ($pageRow === null
                                 || (int) $pageRow['status'] !== 1
                                 || (int) $pageRow['merchant_id'] !== $merchantId) {
@@ -142,7 +142,7 @@ final class NaviController extends MerchantBaseController
                         if ($type === 'blog_cat') {
                             $catId = (int) $this->input->post('type_ref_id', 0);
                             if ($catId <= 0) $this->response->error('请选择博客分类');
-                            $cat = (new \BlogCategoryModel())->findById($catId);
+                            $cat = (new \App\Model\BlogCategoryModel())->findById($catId);
                             if ($cat === null || (int) $cat['merchant_id'] !== $merchantId) {
                                 $this->response->error('博客分类无效或不属于本店');
                             }
@@ -151,7 +151,7 @@ final class NaviController extends MerchantBaseController
                         } elseif ($type === 'page') {
                             $pageId = (int) $this->input->post('type_ref_id', 0);
                             if ($pageId <= 0) $this->response->error('请选择页面');
-                            $pageRow = \PageModel::getById($pageId);
+                            $pageRow = \App\Model\PageModel::getById($pageId);
                             if ($pageRow === null
                                 || (int) $pageRow['status'] !== 1
                                 || (int) $pageRow['merchant_id'] !== $merchantId) {
@@ -240,8 +240,8 @@ final class NaviController extends MerchantBaseController
         }
 
         // 渲染页面 —— 提前把本店博客分类、页面传给 view（用于"博客分类 / 页面"类型下拉）
-        $blogCategories = (new \BlogCategoryModel())->getAll($merchantId);
-        $publishedPages = \PageModel::getPublishedSimple($merchantId);
+        $blogCategories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
+        $publishedPages = \App\Model\PageModel::getPublishedSimple($merchantId);
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/navi.php', $frontUser, $currentMerchant, $merchantLevel, [
             'blogCategories' => $blogCategories,

@@ -35,7 +35,7 @@ class CouponService
             throw new RuntimeException('请输入优惠券码');
         }
 
-        $couponModel = new CouponModel();
+        $couponModel = new \App\Model\CouponModel();
         $coupon = $couponModel->findByCode($code);
         if (!$coupon) {
             throw new RuntimeException('优惠券不存在');
@@ -93,14 +93,14 @@ class CouponService
      */
     public function apply(array $coupon, int $userId, int $orderId): void
     {
-        $couponModel = new CouponModel();
+        $couponModel = new \App\Model\CouponModel();
         if (!$couponModel->incrementUsedCount((int) $coupon['id'])) {
             throw new RuntimeException('优惠券已被领完');
         }
 
         // 若用户已领取该券，标记为已使用
         if ($userId > 0) {
-            $userCouponModel = new UserCouponModel();
+            $userCouponModel = new \App\Model\UserCouponModel();
             $row = $userCouponModel->findByUserAndCoupon($userId, (int) $coupon['id']);
             if ($row && ($row['status'] ?? '') === 'unused') {
                 $userCouponModel->markUsed((int) $row['id'], $orderId);
@@ -114,20 +114,20 @@ class CouponService
     private function matchScope(array $coupon, array $goodsItems): bool
     {
         $scope = (string) ($coupon['apply_scope'] ?? 'all');
-        if ($scope === CouponModel::SCOPE_ALL) return true;
+        if ($scope === \App\Model\CouponModel::SCOPE_ALL) return true;
 
         $ids = is_array($coupon['apply_ids'] ?? null) ? $coupon['apply_ids'] : [];
         if (empty($ids)) return false; // 指定范围但无目标 = 无可用
 
         foreach ($goodsItems as $item) {
             switch ($scope) {
-                case CouponModel::SCOPE_GOODS:
+                case \App\Model\CouponModel::SCOPE_GOODS:
                     if (in_array((int) ($item['goods_id'] ?? 0), $ids, true)) return true;
                     break;
-                case CouponModel::SCOPE_CATEGORY:
+                case \App\Model\CouponModel::SCOPE_CATEGORY:
                     if (in_array((int) ($item['category_id'] ?? 0), $ids, true)) return true;
                     break;
-                case CouponModel::SCOPE_GOODS_TYPE:
+                case \App\Model\CouponModel::SCOPE_GOODS_TYPE:
                     if (in_array((string) ($item['goods_type'] ?? ''), array_map('strval', $ids), true)) return true;
                     break;
             }
@@ -144,9 +144,9 @@ class CouponService
         $type = (string) ($coupon['type'] ?? '');
         $discountRaw = 0;
 
-        if ($type === CouponModel::TYPE_FIXED_AMOUNT) {
+        if ($type === \App\Model\CouponModel::TYPE_FIXED_AMOUNT) {
             $discountRaw = (int) ($coupon['value_raw'] ?? 0);
-        } elseif ($type === CouponModel::TYPE_PERCENT) {
+        } elseif ($type === \App\Model\CouponModel::TYPE_PERCENT) {
             // value 存整数 0-100（如 85 = 8.5折，即减 15%）
             $percent = (int) ($coupon['value_raw'] ?? 0);
             if ($percent >= 100) return 0;
@@ -156,7 +156,7 @@ class CouponService
             if ($maxRaw > 0 && $discountRaw > $maxRaw) {
                 $discountRaw = $maxRaw;
             }
-        } elseif ($type === CouponModel::TYPE_FREE_SHIPPING) {
+        } elseif ($type === \App\Model\CouponModel::TYPE_FREE_SHIPPING) {
             // 免邮券：暂不涉及运费，留作插件扩展接入；这里按 value 当作抵扣金额处理（若有）
             $discountRaw = (int) ($coupon['value_raw'] ?? 0);
         }

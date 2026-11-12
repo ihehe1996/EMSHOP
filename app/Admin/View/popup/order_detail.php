@@ -342,7 +342,7 @@ $showMarkPaidBtn = in_array((string) $order['status'], ['pending', 'expired'], t
             </div>
         </div>
         <?php
-        $buyerFields = OrderModel::parseBuyerContactFields($order);
+        $buyerFields = \App\Model\OrderModel::parseBuyerContactFields($order);
         $adminGuestContact = $buyerFields['guest_contact'];
         $adminExtraPairs = $buyerFields['extra_pairs'];
         $adminOrderPassword = $buyerFields['order_password'];

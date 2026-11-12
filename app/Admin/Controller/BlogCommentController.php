@@ -51,8 +51,8 @@ final class BlogCommentController extends BaseAdminController
                 $where['status'] = $status;
             }
 
-            $result = \BlogCommentModel::getAdminList($where, $page, $limit);
-            $counts = \BlogCommentModel::getStatusCounts(0);
+            $result = \App\Model\BlogCommentModel::getAdminList($where, $page, $limit);
+            $counts = \App\Model\BlogCommentModel::getStatusCounts(0);
 
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -70,7 +70,7 @@ final class BlogCommentController extends BaseAdminController
         if ($action === 'approve') {
             $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
-            \BlogCommentModel::updateStatus($id, 1);
+            \App\Model\BlogCommentModel::updateStatus($id, 1);
             $this->response->success('已通过', ['csrf_token' => $this->csrf->token()]);
         }
 
@@ -78,7 +78,7 @@ final class BlogCommentController extends BaseAdminController
         if ($action === 'reject') {
             $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
-            \BlogCommentModel::updateStatus($id, 2);
+            \App\Model\BlogCommentModel::updateStatus($id, 2);
             $this->response->success('已拒绝', ['csrf_token' => $this->csrf->token()]);
         }
 
@@ -86,7 +86,7 @@ final class BlogCommentController extends BaseAdminController
         if ($action === 'delete') {
             $id = (int) $this->input->post('id', 0);
             $this->assertMainComment($id);
-            if (\BlogCommentModel::delete($id)) {
+            if (\App\Model\BlogCommentModel::delete($id)) {
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -117,11 +117,11 @@ final class BlogCommentController extends BaseAdminController
             }
 
             if ($batchAction === 'approve') {
-                \BlogCommentModel::batchUpdateStatus($allowedIds, 1);
+                \App\Model\BlogCommentModel::batchUpdateStatus($allowedIds, 1);
             } elseif ($batchAction === 'reject') {
-                \BlogCommentModel::batchUpdateStatus($allowedIds, 2);
+                \App\Model\BlogCommentModel::batchUpdateStatus($allowedIds, 2);
             } elseif ($batchAction === 'delete') {
-                \BlogCommentModel::batchDelete($allowedIds);
+                \App\Model\BlogCommentModel::batchDelete($allowedIds);
             } else {
                 $this->response->error('未知操作');
             }

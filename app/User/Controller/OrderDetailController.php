@@ -25,7 +25,7 @@ final class OrderDetailController extends UserPublicBaseController
         $orderGoods = [];
 
         if ($orderNo !== '') {
-            $order = \OrderModel::getByOrderNo($orderNo);
+            $order = \App\Model\OrderModel::getByOrderNo($orderNo);
 
             if ($order) {
                 // 权限校验
@@ -48,9 +48,9 @@ final class OrderDetailController extends UserPublicBaseController
                 if (!$isOwner) {
                     $order = null;
                 } else {
-                    $orderGoods = \OrderModel::getOrderGoods((int) $order['id']);
-                    if (\OrderModel::isPurchasedStatus((string) $order['status'])) {
-                        $orderGoods = \OrderModel::attachGoodsGuides($orderGoods);
+                    $orderGoods = \App\Model\OrderModel::getOrderGoods((int) $order['id']);
+                    if (\App\Model\OrderModel::isPurchasedStatus((string) $order['status'])) {
+                        $orderGoods = \App\Model\OrderModel::attachGoodsGuides($orderGoods);
                     }
                 }
             }

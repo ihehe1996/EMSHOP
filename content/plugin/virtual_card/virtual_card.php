@@ -23,9 +23,9 @@ function virtualCardSyncCardStock(int $goodsId): void
 {
     $prefix = Database::prefix();
 
-    $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+    $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
     if (empty($specs)) {
-        GoodsModel::updatePriceStockCache($goodsId);
+        \App\Model\GoodsModel::updatePriceStockCache($goodsId);
         return;
     }
 
@@ -50,7 +50,7 @@ function virtualCardSyncCardStock(int $goodsId): void
         Database::update('goods_spec', ['stock' => $newStock], $specId);
     }
 
-    GoodsModel::updatePriceStockCache($goodsId);
+    \App\Model\GoodsModel::updatePriceStockCache($goodsId);
 }
 
 /**
@@ -248,7 +248,7 @@ addAction('goods_type_virtual_card_save', function ($goodsId, $postData) {
     $pluginData = $postData['plugin_data'] ?? [];
 
     // 读取旧数据合并（避免覆盖未提交的字段）
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     $oldData = [];
     if ($goods && !empty($goods['plugin_data'])) {
         $oldData = json_decode($goods['plugin_data'], true) ?: [];
@@ -371,7 +371,7 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
     // 幂等短路：这一行已经发过货就直接返回。
     // 队列任务重试、僵尸任务回收都会重跑本钩子，而下面的取卡与写明细都不幂等 ——
     // 少了这道短路，重跑会再消耗一批卡密，并把上一批发给买家的内容冲掉。
-    if (OrderModel::hasDeliveryContent((int) $orderGoodsId)) {
+    if (\App\Model\OrderModel::hasDeliveryContent((int) $orderGoodsId)) {
         return;
     }
 
@@ -460,7 +460,7 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
             $deliveryContent = implode("\n", $deliveryLines);
 
             // 写入发货内容（仅明细表）
-            $stored = OrderModel::persistDeliveryContent((int) $orderGoodsId, $deliveryContent);
+            $stored = \App\Model\OrderModel::persistDeliveryContent((int) $orderGoodsId, $deliveryContent);
             if (!$stored) {
                 throw new RuntimeException('[virtual_card] 发货内容写入明细表失败，请先执行升级迁移');
             }
@@ -479,7 +479,7 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
         }
 
         // 递增规格已售数量（放进事务，与取卡 / 扣库存同生共死）
-        GoodsModel::incrementSoldCount($specId, $qty);
+        \App\Model\GoodsModel::incrementSoldCount($specId, $qty);
 
         Database::commit();
     } catch (Throwable $e) {
@@ -495,7 +495,7 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
         virtualCardSyncCardStock($goodsId);
     } else {
         // 与自动发货路径 virtualCardSyncCardStock 一致：刷新 goods 表 total_stock / 价格区间缓存
-        GoodsModel::updatePriceStockCache($goodsId);
+        \App\Model\GoodsModel::updatePriceStockCache($goodsId);
     }
 });
 
@@ -515,7 +515,7 @@ addAction('goods_type_virtual_card_admin_order_detail', function ($orderId) {
     }
 
     $og = $orderGoods[0];
-    $deliveryContent = OrderModel::getDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''));
+    $deliveryContent = \App\Model\OrderModel::getDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''));
     $pluginDataJson = $og['plugin_data'] ?? '{}';
     $pluginData = json_decode($pluginDataJson, true) ?: [];
     ?>
@@ -1007,7 +1007,7 @@ addFilter('admin_order_goods_delivery_html', function ($html, $og) {
 
 addAction('goods_type_virtual_card_switch_to', function ($goodsId) {
     // 确保 plugin_data 中有默认值
-    $goods = GoodsModel::getById($goodsId);
+    $goods = \App\Model\GoodsModel::getById($goodsId);
     if ($goods) {
         $data = [];
         if (!empty($goods['plugin_data'])) {

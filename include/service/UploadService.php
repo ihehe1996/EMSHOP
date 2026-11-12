@@ -54,7 +54,7 @@ final class UploadService
         $resultUrl = '';
 
         if (in_array($context, ['default', 'avatar'], true)) {
-            $attachmentModel = new AttachmentModel();
+            $attachmentModel = new \App\Model\AttachmentModel();
             $existing = $attachmentModel->findByMd5($md5);
             if ($existing !== null) {
                 $isDuplicate = true;
@@ -104,7 +104,7 @@ final class UploadService
             }
 
             // 写入附件记录
-            $attachmentModel = new AttachmentModel();
+            $attachmentModel = new \App\Model\AttachmentModel();
             $attachmentId = $attachmentModel->insert([
                 'user_id' => $uploaderId > 0 ? $uploaderId : null,
                 'file_name' => $originalName,

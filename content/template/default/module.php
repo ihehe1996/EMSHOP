@@ -52,7 +52,7 @@ $navSearchUrl = url_search();
 // 4. 从数据库加载导航（NaviModel）—— 按当前 MerchantContext 过滤：
 //    主站只看主站导航 + 系统导航；商户看自己的自定义 + 系统导航
 // ============================================================
-$naviModel = new NaviModel();
+$naviModel = new \App\Model\NaviModel();
 $naviTree = $naviModel->getEnabledTree(MerchantContext::currentId());
 
 // 系统导航的链接根据首页模式动态调整
@@ -182,7 +182,7 @@ foreach ($navItems as $item) {
 // ============================================================
 $frontUser = $_SESSION['em_front_user'] ?? null;
 if ($frontUser && !empty($frontUser['id'])) {
-    $freshUser = (new UserListModel())->findById((int) $frontUser['id']);
+    $freshUser = (new \App\Model\UserListModel())->findById((int) $frontUser['id']);
     if ($freshUser) {
         $frontUser['money']    = (int) ($freshUser['money'] ?? 0);
         $frontUser['nickname'] = (string) ($freshUser['nickname'] ?: $freshUser['username']);
@@ -259,7 +259,7 @@ if (in_array($controller, ['goods_list', 'goods_index'], true)) {
     // 页面标题：标签优先，其次分类名，都没有就是「全部商品」
     $title = '全部商品';
     if ($tagId > 0) {
-        $tag = GoodsTagModel::getById($tagId);
+        $tag = \App\Model\GoodsTagModel::getById($tagId);
         if ($tag) {
             $title = '标签：' . $tag['name'];
         }
@@ -304,7 +304,7 @@ if (in_array($controller, ['blog_list', 'blog_index'], true)) {
     // （判断规则与 template_blog_list_data() 的筛选保持一致：标签要属于当前 scope）
     $title = '全部文章';
     if ($tagId > 0) {
-        $tag = BlogTagModel::getById($tagId);
+        $tag = \App\Model\BlogTagModel::getById($tagId);
         if ($tag && (int) $tag['merchant_id'] === MerchantContext::currentId()) {
             $title = '标签：' . $tag['name'];
         }
@@ -604,15 +604,15 @@ function template_goods_form_sections(array $configs, bool $isGuest): array
 
     // —— 查单模式字段（仅未登录用户）
     if ($isGuest) {
-        $gf = GuestFindModel::getConfig();
+        $gf = \App\Model\GuestFindModel::getConfig();
 
         if (!empty($gf['contact_enabled'])) {
             $contactIconMap = [
-                GuestFindModel::CONTACT_TYPE_PHONE => 'fa-mobile',
-                GuestFindModel::CONTACT_TYPE_EMAIL => 'fa-envelope-o',
-                GuestFindModel::CONTACT_TYPE_QQ    => 'fa-qq',
+                \App\Model\GuestFindModel::CONTACT_TYPE_PHONE => 'fa-mobile',
+                \App\Model\GuestFindModel::CONTACT_TYPE_EMAIL => 'fa-envelope-o',
+                \App\Model\GuestFindModel::CONTACT_TYPE_QQ    => 'fa-qq',
             ];
-            $contactType = (string) ($gf['contact_type'] ?? GuestFindModel::CONTACT_TYPE_ANY);
+            $contactType = (string) ($gf['contact_type'] ?? \App\Model\GuestFindModel::CONTACT_TYPE_ANY);
             $sections[] = [
                 'id'     => 'guestFindContactSection',
                 'group'  => 'guest_find_contact',
@@ -677,7 +677,7 @@ function template_goods_content_data(?array $row): array
     $specsJson = "[]";
     if ($row !== null) {
                     // 获取所有规格（价格已自动转换）
-                    $rawSpecs = GoodsModel::getSpecsByGoodsId($id);
+                    $rawSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($id);
                     $defaultSpec = null;
                     foreach ($rawSpecs as $s) {
                         if ((int) $s['is_default'] === 1) {
@@ -748,7 +748,7 @@ function template_goods_content_data(?array $row): array
                     // 获取分类名
                     $categoryName = '';
                     if ((int) $row['category_id'] > 0) {
-                        $catModel = new GoodsCategoryModel();
+                        $catModel = new \App\Model\GoodsCategoryModel();
                         $cat = $catModel->findById((int) $row['category_id']);
                         $categoryName = $cat ? $cat['name'] : '';
                     }
@@ -794,7 +794,7 @@ function template_goods_content_data(?array $row): array
                         'sku'            => $row['code'],
                         'description'    => $row['intro'] ?: '',
                         'content'        => $row['content'] ?: '',
-                        'tags'           => GoodsTagModel::getTagsByGoodsId($id),
+                        'tags'           => \App\Model\GoodsTagModel::getTagsByGoodsId($id),
                         'configs'        => $configs,
                         'unit'           => $row['unit'] ?: '件',
                         'total_sold'     => array_sum(array_column($specs, 'sold_count')),
@@ -846,7 +846,7 @@ function template_goods_content_data(?array $row): array
         $defaultAddressId = 0;
         $buyerId = (int) ($GLOBALS['frontUser']['id'] ?? $_SESSION['em_front_user']['id'] ?? 0);
         if ($needsAddress && $buyerId > 0) {
-            $userAddresses = UserAddressModel::listByUserId($buyerId);
+            $userAddresses = \App\Model\UserAddressModel::listByUserId($buyerId);
             foreach ($userAddresses as $addr) {
                 if ((int) ($addr['is_default'] ?? 0) === 1) {
                     $defaultAddressId = (int) $addr['id'];
@@ -899,7 +899,7 @@ function template_blog_list_data(array $q): array
     $where = [];
     // 标签筛选 —— 标签 ID 必须属于当前 scope
     if ($tagId > 0) {
-        $tag = BlogTagModel::getById($tagId);
+        $tag = \App\Model\BlogTagModel::getById($tagId);
         if ($tag && (int) $tag['merchant_id'] === MerchantContext::currentId()) {
             $where['tag_id'] = $tagId;
         }
@@ -958,7 +958,7 @@ function template_blog_content_data(?array $row): array
         $id = (int) $row['id'];
 
         // 递增浏览量：页面上显示的阅读数取「递增后」的值（与搬走前一致）
-        BlogModel::incrementViews($id);
+        \App\Model\BlogModel::incrementViews($id);
 
         $article = [
             'id'       => $id,
@@ -968,11 +968,11 @@ function template_blog_content_data(?array $row): array
             'author'   => $row['author'] ?: '管理员',
             'category' => $row['category_name'] ?: '未分类',
             'views'    => (int) $row['views_count'] + 1,
-            'tags'     => BlogTagModel::getTagsByBlogId($id),
+            'tags'     => \App\Model\BlogTagModel::getTagsByBlogId($id),
         ];
 
         // 上下篇（限定 scope 内）
-        $nav = BlogModel::getPrevNextId($id, MerchantContext::currentId());
+        $nav = \App\Model\BlogModel::getPrevNextId($id, MerchantContext::currentId());
         $prevId    = $nav['prev_id'];
         $prevTitle = $nav['prev_title'];
         $nextId    = $nav['next_id'];
@@ -989,7 +989,7 @@ function template_blog_content_data(?array $row): array
         'prev_title'        => $prevTitle,
         'next_id'           => $nextId,
         'next_title'        => $nextTitle,
-        'comment_count'     => $article !== null ? BlogCommentModel::getCountByBlog((int) $article['id']) : 0,
+        'comment_count'     => $article !== null ? \App\Model\BlogCommentModel::getCountByBlog((int) $article['id']) : 0,
         'recent_articles'   => $fs->queryArticleList([], 5),
         'blog_categories'   => $sidebarData['blog_categories'] ?? [],
         'popular_blog_tags' => $sidebarData['popular_blog_tags'] ?? [],
@@ -1051,7 +1051,7 @@ function template_search_data(array $q): array
 function template_coupon_data(): array
 {
     // 可领取的券：启用中 + 前台展示 + 在有效期内 + 未领完（条件在 CouponModel 里）
-    $coupons = (new CouponModel())->getPubliclyClaimable(100);
+    $coupons = (new \App\Model\CouponModel())->getPubliclyClaimable(100);
 
     // 登录态：已登录才需要查「哪些券领过」，用于按钮显示「已领取」；
     // 会话由 init.php 统一启动，这里只读不启

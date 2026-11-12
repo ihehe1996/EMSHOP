@@ -111,7 +111,7 @@ include __DIR__ . '/header.php';
                                     <?php
                                     $goodsTags = [];
                                     if ($isEdit) {
-                                        $goodsTags = GoodsTagModel::getTagsByGoodsId((int) $goods['id']);
+                                        $goodsTags = \App\Model\GoodsTagModel::getTagsByGoodsId((int) $goods['id']);
                                         foreach ($goodsTags as $t):
                                     ?>
                                     <span class="goods-tag-token" data-id="<?php echo (int) $t['id']; ?>">
@@ -1771,7 +1771,7 @@ $(function() {
 
 // 商品标签输入
 (function(){
-    var allTags = <?= json_encode(GoodsTagModel::getAll(), JSON_UNESCAPED_UNICODE) ?>;
+    var allTags = <?= json_encode(\App\Model\GoodsTagModel::getAll(), JSON_UNESCAPED_UNICODE) ?>;
     var $wrap = $('#goodsTagInputWrap');
     var $tokens = $('#goodsTagTokens');
     var $input = $('#goodsTagTextInput');

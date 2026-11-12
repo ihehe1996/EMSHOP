@@ -62,12 +62,12 @@ class WithdrawController extends BaseController
         $accountNo    = trim((string) \Input::post('account_no', ''));
         $bankName     = trim((string) \Input::post('bank_name', ''));
 
-        if (!in_array($channel, \UserWithdrawModel::ALLOWED_CHANNELS, true)) {
+        if (!in_array($channel, \App\Model\UserWithdrawModel::ALLOWED_CHANNELS, true)) {
             \Response::error('请选择收款方式');
         }
 
         try {
-            $id = (new \UserWithdrawModel())->create(
+            $id = (new \App\Model\UserWithdrawModel())->create(
                 $userId,
                 $amountRaw,
                 $channel,

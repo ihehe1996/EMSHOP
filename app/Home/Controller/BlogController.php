@@ -43,7 +43,7 @@ class BlogController extends BaseController
 
         // —— 「这一页能不能打开」+ 页面标题：两者都必须在任何输出之前完成，所以留在控制器 ——
         // 详情读取限定到当前 scope（主站只看主站文章，商户只看自己文章）
-        $row = $id > 0 ? \BlogModel::getByIdForScope($id, \MerchantContext::currentId()) : null;
+        $row = $id > 0 ? \App\Model\BlogModel::getByIdForScope($id, \MerchantContext::currentId()) : null;
         if ($row && (int) $row['status'] !== 1) {
             $row = null;
         }

@@ -26,7 +26,7 @@ final class RebateController extends UserBaseController
         $userId = (int) $frontUser['id'];
 
         // 懒执行：把到期 frozen 转为 available
-        (new \CommissionLogModel())->promoteMatured($userId);
+        (new \App\Model\CommissionLogModel())->promoteMatured($userId);
 
         // 最新用户数据
         $row = $this->db->find('user', $userId);

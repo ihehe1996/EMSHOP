@@ -707,7 +707,7 @@ addAction('payment_notify_alipay', function (array $data): void {
     $isRecharge = strncmp($orderNo, 'R', 1) === 0;
 
     if ($isRecharge) {
-        $recharge = (new UserRechargeModel())->findByOrderNo($orderNo);
+        $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
         if (!$recharge) {
             echo 'fail';
             exit;
@@ -718,14 +718,14 @@ addAction('payment_notify_alipay', function (array $data): void {
         }
 
         // 幂等短路：已支付 = 网关重复投递，按成功处理
-        if ((string) $recharge['status'] === UserRechargeModel::STATUS_PAID) {
+        if ((string) $recharge['status'] === \App\Model\UserRechargeModel::STATUS_PAID) {
             echo 'success';
             exit;
         }
         // 非 pending 且未支付（如 cancelled）：客户已经付了钱，但充值单不在可入账状态。
         // 不能静默当成功 —— 那会让网关停止重投、款项被吞掉且余额永不入账。
         // 回 fail 让网关继续重投并留下告警，由人工对账。
-        if ((string) $recharge['status'] !== UserRechargeModel::STATUS_PENDING) {
+        if ((string) $recharge['status'] !== \App\Model\UserRechargeModel::STATUS_PENDING) {
             alipay_log('充值单 #' . (int) $recharge['id'] . ' 当前状态 ' . $recharge['status']
                 . '，但收到支付成功通知，需人工对账');
             echo 'fail';
@@ -738,12 +738,12 @@ addAction('payment_notify_alipay', function (array $data): void {
             exit;
         }
 
-        $ok = (new UserRechargeModel())->markPaid((int) $recharge['id'], $tradeNo);
+        $ok = (new \App\Model\UserRechargeModel())->markPaid((int) $recharge['id'], $tradeNo);
         echo $ok ? 'success' : 'fail';
         exit;
     }
 
-    $order = OrderModel::getByOrderNo($orderNo);
+    $order = \App\Model\OrderModel::getByOrderNo($orderNo);
     if (!$order) {
         echo 'fail';
         exit;
@@ -778,7 +778,7 @@ addAction('payment_notify_alipay', function (array $data): void {
     try {
         Database::begin();
 
-        OrderModel::changeStatus((int) $order['id'], 'paid');
+        \App\Model\OrderModel::changeStatus((int) $order['id'], 'paid');
 
         $sql = 'INSERT INTO `' . Database::prefix() . 'order_payment`
                 (order_id, payment_code, payment_plugin, trade_no, amount, status, paid_at, created_at)
@@ -801,7 +801,7 @@ addAction('payment_notify_alipay', function (array $data): void {
     }
 
     try {
-        OrderModel::triggerDelivery((int) $order['id']);
+        \App\Model\OrderModel::triggerDelivery((int) $order['id']);
     } catch (Throwable $e) {
         alipay_log('trigger delivery failed: ' . $e->getMessage());
     }

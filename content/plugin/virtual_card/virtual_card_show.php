@@ -105,7 +105,7 @@ if ($action === 'export_order_cards') {
         }
     } else {
         foreach ($rows as $row) {
-            $content = trim(OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
+            $content = trim(\App\Model\OrderModel::getDeliveryContent((int) ($row['id'] ?? 0), (string) ($row['delivery_content'] ?? '')));
             if ($content === '') {
                 continue;
             }

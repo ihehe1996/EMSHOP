@@ -37,7 +37,7 @@ final class FindOrderController extends UserPublicBaseController
         $currencySymbol = $this->currency->visitorSymbol();
 
         // 游客查单模式配置（开关/占位提示等）
-        $gfConfig = \GuestFindModel::getConfig();
+        $gfConfig = \App\Model\GuestFindModel::getConfig();
         $prefix = $this->db->prefix();
 
         /**
@@ -221,7 +221,7 @@ final class FindOrderController extends UserPublicBaseController
                 // 统一批量补订单商品行：一次 IN 查询覆盖本次所有命中订单（替代原先每单一次的
                 // getOrderGoods）。第二个参数 false = 不查发货内容（卡密），列表不展示它，
                 // 带上会让响应体随卡密数量线性膨胀；详情分支会单独按需取完整的。
-                $goodsMap = \OrderModel::getOrderGoodsBatch(array_column($result, 'id'), false);
+                $goodsMap = \App\Model\OrderModel::getOrderGoodsBatch(array_column($result, 'id'), false);
                 foreach ($result as &$r) {
                     $r['order_goods'] = $goodsMap[(int) ($r['id'] ?? 0)] ?? [];
                 }
@@ -338,7 +338,7 @@ final class FindOrderController extends UserPublicBaseController
                     [$detailOrderNo]
                 );
                 if ($row) {
-                    $detailExtraPairs = \OrderModel::parseBuyerContactFields($row)['extra_pairs'];
+                    $detailExtraPairs = \App\Model\OrderModel::parseBuyerContactFields($row)['extra_pairs'];
 
                     // 卡密内容只给「已验证身份」：登录本人 / v2 签名 Cookie 匹配 / 凭据换来的 60 秒 grant。
                     // 仅凭订单号 + 验证码命中 session 白名单，只能看状态和金额，看不到卡密。
@@ -357,7 +357,7 @@ final class FindOrderController extends UserPublicBaseController
                         }
                     }
 
-                    $detailGoodsRaw = \OrderModel::getOrderGoods((int) $row['id']);
+                    $detailGoodsRaw = \App\Model\OrderModel::getOrderGoods((int) $row['id']);
                     if (!$cardAllowed) {
                         // 未验证身份：剥离发货内容，模板/插件就不会渲染卡密和导出按钮
                         foreach ($detailGoodsRaw as &$g) {
@@ -368,8 +368,8 @@ final class FindOrderController extends UserPublicBaseController
 
                     $detailOrder = $sanitizeOrder($row, $detailGoodsRaw);
                     $detailGoods = $detailOrder['order_goods'] ?? [];
-                    if ($cardAllowed && \OrderModel::isPurchasedStatus((string) ($detailOrder['status'] ?? ''))) {
-                        $detailGoods = \OrderModel::attachGoodsGuides($detailGoods);
+                    if ($cardAllowed && \App\Model\OrderModel::isPurchasedStatus((string) ($detailOrder['status'] ?? ''))) {
+                        $detailGoods = \App\Model\OrderModel::attachGoodsGuides($detailGoods);
                     }
                 } else {
                     // 白名单写入后订单又被删除的边角情况：也走拒绝分支，对外表现一致

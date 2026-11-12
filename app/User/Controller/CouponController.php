@@ -28,23 +28,23 @@ final class CouponController extends UserBaseController
         }
         // tab 白名单
         $allowed = [
-            \UserCouponModel::VIEW_UNUSED,
-            \UserCouponModel::VIEW_USED,
-            \UserCouponModel::VIEW_EXPIRED,
-            \UserCouponModel::VIEW_INVALID,
+            \App\Model\UserCouponModel::VIEW_UNUSED,
+            \App\Model\UserCouponModel::VIEW_USED,
+            \App\Model\UserCouponModel::VIEW_EXPIRED,
+            \App\Model\UserCouponModel::VIEW_INVALID,
         ];
-        $view = (string) $this->input->get('view', \UserCouponModel::VIEW_UNUSED);
-        if (!in_array($view, $allowed, true)) $view = \UserCouponModel::VIEW_UNUSED;
+        $view = (string) $this->input->get('view', \App\Model\UserCouponModel::VIEW_UNUSED);
+        if (!in_array($view, $allowed, true)) $view = \App\Model\UserCouponModel::VIEW_UNUSED;
 
-        $userCouponModel = new \UserCouponModel();
+        $userCouponModel = new \App\Model\UserCouponModel();
         $coupons = $userCouponModel->listByView((int) $frontUser['id'], $view, 200);
         $counts  = $userCouponModel->countByViews((int) $frontUser['id']);
 
         $viewTabs = [
-            \UserCouponModel::VIEW_UNUSED  => '未使用',
-            \UserCouponModel::VIEW_USED    => '已使用',
-            \UserCouponModel::VIEW_EXPIRED => '已过期',
-            \UserCouponModel::VIEW_INVALID => '已失效',
+            \App\Model\UserCouponModel::VIEW_UNUSED  => '未使用',
+            \App\Model\UserCouponModel::VIEW_USED    => '已使用',
+            \App\Model\UserCouponModel::VIEW_EXPIRED => '已过期',
+            \App\Model\UserCouponModel::VIEW_INVALID => '已失效',
         ];
 
         if ($this->request->isPjax()) {

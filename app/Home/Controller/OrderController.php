@@ -75,7 +75,7 @@ class OrderController extends BaseController
         }
 
         // —— 读取商品，用于附加选项/规格校验
-        $goodsRow = \GoodsModel::getById($goodsId);
+        $goodsRow = \App\Model\GoodsModel::getById($goodsId);
         if (!$goodsRow
             || (int) $goodsRow['status'] !== 1
             || (int) $goodsRow['is_on_sale'] !== 1
@@ -89,7 +89,7 @@ class OrderController extends BaseController
         }
 
         // —— 规格校验：多规格商品必须显式选中一个
-        $allSpecs = \GoodsModel::getSpecsByGoodsId($goodsId);
+        $allSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
         if (count($allSpecs) > 1 && $specId <= 0) {
             \Response::error('请选择规格');
         }
@@ -115,13 +115,13 @@ class OrderController extends BaseController
         $orderPassword = trim((string) \Input::post('guest_find_password_query', ''));
 
         if ($isGuest) {
-            if (\GuestFindModel::isContactEnabled()) {
-                $contactError = \GuestFindModel::validateContactQuery($contactQuery);
+            if (\App\Model\GuestFindModel::isContactEnabled()) {
+                $contactError = \App\Model\GuestFindModel::validateContactQuery($contactQuery);
                 if ($contactError !== null) {
                     \Response::error($contactError);
                 }
             }
-            if (\GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
+            if (\App\Model\GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
                 \Response::error('请设置订单密码');
             }
         }
@@ -167,7 +167,7 @@ class OrderController extends BaseController
 
             // 附加选项 → contact_info（含 title 快照）；游客联系方式 → guest_contact
             if (!empty($extraFields)) {
-                $createData['contact_info'] = \OrderModel::packExtraContactInfo(
+                $createData['contact_info'] = \App\Model\OrderModel::packExtraContactInfo(
                     $goodsConfigs['extra_fields'] ?? [],
                     $extraFields
                 );
@@ -194,7 +194,7 @@ class OrderController extends BaseController
                     //   不能直接 Database::find 查 raw 表（那样只有 price 字段，拿不到带重写的价格）。
                     //   走 GoodsModel 保证和详情页展示价 / OrderModel::create 实扣价三端一致。
                     $priceRaw = 0;
-                    foreach (\GoodsModel::getSpecsByGoodsId($goodsId) as $_s) {
+                    foreach (\App\Model\GoodsModel::getSpecsByGoodsId($goodsId) as $_s) {
                         if ((int) $_s['id'] === $specId) {
                             $priceRaw = (int) ($_s['price_raw'] ?? $_s['price']);
                             break;
@@ -226,17 +226,17 @@ class OrderController extends BaseController
             if ($in2) $createData['inviter_l2'] = $in2;
 
             // create() 抛出的 RuntimeException 由外层 catch 统一响应
-            $result = \OrderModel::create($createData, [
+            $result = \App\Model\OrderModel::create($createData, [
                 ['goods_id' => $goodsId, 'spec_id' => $specId, 'quantity' => $quantity],
             ]);
 
             // 0 元订单：直接标记已支付，不走任何支付插件
             $paidNow = false;
             if ((int) $result['pay_amount'] <= 0) {
-                \OrderModel::payFreeOrder((int) $result['order_id']);
+                \App\Model\OrderModel::payFreeOrder((int) $result['order_id']);
                 $paidNow = true;
             } elseif ($paymentCode === 'balance' && $identity['user_id'] > 0) {
-                \OrderModel::payWithBalance($result['order_id'], $identity['user_id']);
+                \App\Model\OrderModel::payWithBalance($result['order_id'], $identity['user_id']);
                 $paidNow = true;
             }
 
@@ -245,7 +245,7 @@ class OrderController extends BaseController
             // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
             $payPayload = ['pay_url' => '', 'qrcode' => ''];
             if (!$paidNow) {
-                $orderRow = \OrderModel::getById((int) $result['order_id']);
+                $orderRow = \App\Model\OrderModel::getById((int) $result['order_id']);
                 $payPayload = \PaymentService::createPaymentPayload($orderRow, $payment);
             }
 

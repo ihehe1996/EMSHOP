@@ -930,7 +930,7 @@ final class UpdateService
         try {
             $admin = $_SESSION['em_admin_auth'] ?? null;
             $operator = is_array($admin) ? $admin : [];
-            (new SystemLogModel())->info(
+            (new \App\Model\SystemLogModel())->info(
                 'admin_operation',
                 $action,
                 '在线升级：' . $action,

@@ -47,7 +47,7 @@ final class FriendLinkController extends BaseAdminController
                 }
             }
 
-            $model = new \FriendLinkModel();
+            $model = new \App\Model\FriendLinkModel();
 
             switch ($action) {
                 case 'list':
@@ -245,7 +245,7 @@ final class FriendLinkController extends BaseAdminController
         $editLink = null;
 
         if ($editId > 0) {
-            $editLink = (new \FriendLinkModel())->findById($editId);
+            $editLink = (new \App\Model\FriendLinkModel())->findById($editId);
         }
 
         $this->render('popup/friend_link', [

@@ -27,7 +27,7 @@ final class BlogEditController extends BaseAdminController
         $id = (int) $this->input->get('id', 0);
         $article = null;
         if ($id) {
-            $article = \BlogModel::getById($id);
+            $article = \App\Model\BlogModel::getById($id);
             if ($article && (int) $article['merchant_id'] !== 0) {
                 $article = null; // 主站后台不展示商户文章
             }
@@ -85,20 +85,20 @@ final class BlogEditController extends BaseAdminController
         try {
             if ($id) {
                 // 更新前 ACL 校验
-                $existing = \BlogModel::getById($id);
+                $existing = \App\Model\BlogModel::getById($id);
                 if (!$existing) {
                     $this->response->error('文章不存在');
                 }
                 if ((int) $existing['merchant_id'] !== 0) {
                     $this->response->error('无权操作商户文章');
                 }
-                \BlogModel::update($id, $data);
+                \App\Model\BlogModel::update($id, $data);
                 $articleId = $id;
             } else {
                 $data['user_id'] = $_SESSION['em_admin_auth']['id'] ?? 0;
                 $data['created_by'] = $data['user_id'];
                 $data['merchant_id'] = 0; // 主站后台创建的文章固定归主站
-                $articleId = \BlogModel::create($data);
+                $articleId = \App\Model\BlogModel::create($data);
             }
 
             if (!$articleId) {
@@ -111,11 +111,11 @@ final class BlogEditController extends BaseAdminController
             $tagIds = [];
             foreach ($tagNames as $tagName) {
                 if ($tagName !== '') {
-                    $tagIds[] = \BlogTagModel::findOrCreate($tagName, 0);
+                    $tagIds[] = \App\Model\BlogTagModel::findOrCreate($tagName, 0);
                 }
             }
-            \BlogTagModel::syncBlogTags($articleId, $tagIds);
-            \BlogTagModel::refreshAllCounts();
+            \App\Model\BlogTagModel::syncBlogTags($articleId, $tagIds);
+            \App\Model\BlogTagModel::refreshAllCounts();
         } catch (\Throwable $e) {
             $this->response->error('保存失败：' . $e->getMessage());
         }

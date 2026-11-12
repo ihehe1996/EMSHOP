@@ -39,15 +39,15 @@ final class BlogController extends MerchantBaseController
                         if ($categoryId > 0)   $where['category_id'] = $categoryId;
                         if ($status !== '')    $where['status'] = (int) $status;
 
-                        $result = \BlogModel::getList($where, $page, $limit, 'a.is_top DESC, a.sort ASC, a.id DESC');
+                        $result = \App\Model\BlogModel::getList($where, $page, $limit, 'a.is_top DESC, a.sort ASC, a.id DESC');
 
                         $countWhere = ['merchant_id' => $merchantId];
                         if ($keyword !== '')   $countWhere['keyword'] = $keyword;
                         if ($categoryId > 0)   $countWhere['category_id'] = $categoryId;
 
-                        $countAll       = \BlogModel::getList($countWhere, 1, 1)['total'];
-                        $countPublished = \BlogModel::getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
-                        $countDraft     = \BlogModel::getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
+                        $countAll       = \App\Model\BlogModel::getList($countWhere, 1, 1)['total'];
+                        $countPublished = \App\Model\BlogModel::getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
+                        $countDraft     = \App\Model\BlogModel::getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
 
                         header('Content-Type: application/json; charset=utf-8');
                         echo json_encode([
@@ -68,13 +68,13 @@ final class BlogController extends MerchantBaseController
                     // 切换发布状态
                     case 'toggle_status': {
                         $id = (int) $this->input->post('id', 0);
-                        $article = \BlogModel::getById($id);
+                        $article = \App\Model\BlogModel::getById($id);
                         if (!$article || (int) $article['merchant_id'] !== $merchantId) {
                             $this->response->error('文章不存在');
                         }
                         $next = (int) $article['status'] === 1 ? 0 : 1;
-                        \BlogModel::update($id, ['status' => $next]);
-                        \BlogTagModel::refreshAllCounts();
+                        \App\Model\BlogModel::update($id, ['status' => $next]);
+                        \App\Model\BlogTagModel::refreshAllCounts();
                         $this->response->success('状态已更新', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
@@ -82,12 +82,12 @@ final class BlogController extends MerchantBaseController
                     // 切换置顶
                     case 'toggle_top': {
                         $id = (int) $this->input->post('id', 0);
-                        $article = \BlogModel::getById($id);
+                        $article = \App\Model\BlogModel::getById($id);
                         if (!$article || (int) $article['merchant_id'] !== $merchantId) {
                             $this->response->error('文章不存在');
                         }
                         $next = (int) $article['is_top'] === 1 ? 0 : 1;
-                        \BlogModel::update($id, ['is_top' => $next]);
+                        \App\Model\BlogModel::update($id, ['is_top' => $next]);
                         $this->response->success('已更新', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
@@ -95,12 +95,12 @@ final class BlogController extends MerchantBaseController
                     // 单条删除（逻辑删除）
                     case 'delete': {
                         $id = (int) $this->input->post('id', 0);
-                        $article = \BlogModel::getById($id);
+                        $article = \App\Model\BlogModel::getById($id);
                         if (!$article || (int) $article['merchant_id'] !== $merchantId) {
                             $this->response->error('文章不存在');
                         }
-                        if (\BlogModel::delete($id)) {
-                            \BlogTagModel::refreshAllCounts();
+                        if (\App\Model\BlogModel::delete($id)) {
+                            \App\Model\BlogTagModel::refreshAllCounts();
                             $this->response->success('已删除', ['csrf_token' => $this->csrf->refresh()]);
                         } else {
                             $this->response->error('删除失败');
@@ -136,11 +136,11 @@ final class BlogController extends MerchantBaseController
                         foreach ($allowedIds as $id) {
                             try {
                                 if ($batchAction === 'publish') {
-                                    \BlogModel::update($id, ['status' => 1]);
+                                    \App\Model\BlogModel::update($id, ['status' => 1]);
                                 } elseif ($batchAction === 'draft') {
-                                    \BlogModel::update($id, ['status' => 0]);
+                                    \App\Model\BlogModel::update($id, ['status' => 0]);
                                 } elseif ($batchAction === 'delete') {
-                                    \BlogModel::delete($id);
+                                    \App\Model\BlogModel::delete($id);
                                 } else {
                                     $this->response->error('未知批量操作');
                                 }
@@ -148,7 +148,7 @@ final class BlogController extends MerchantBaseController
                                 $failed++;
                             }
                         }
-                        \BlogTagModel::refreshAllCounts();
+                        \App\Model\BlogTagModel::refreshAllCounts();
                         if ($failed === 0) {
                             $this->response->success('批量操作成功', ['csrf_token' => $this->csrf->refresh()]);
                         } else {
@@ -166,7 +166,7 @@ final class BlogController extends MerchantBaseController
         }
 
         // 列表页：本店分类下拉
-        $categories = (new \BlogCategoryModel())->getAll($merchantId);
+        $categories = (new \App\Model\BlogCategoryModel())->getAll($merchantId);
 
         \App\Merchant\MerchantShell::render(dirname(__DIR__) . '/View/blog.php', $frontUser, $currentMerchant, $merchantLevel, [
             'categories' => $categories,

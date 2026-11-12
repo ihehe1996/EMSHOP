@@ -10,7 +10,7 @@ $esc = function (?string $s): string {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
 };
 
-$buyerFields = OrderModel::parseBuyerContactFields($order);
+$buyerFields = \App\Model\OrderModel::parseBuyerContactFields($order);
 $guestContact = $buyerFields['guest_contact'];
 $contactPairs = $buyerFields['extra_pairs'];
 

@@ -28,7 +28,7 @@ final class ProfileController extends UserBaseController
                     $this->response->error('请求已失效，请刷新页面后重试');
                 }
 
-                $userModel = new \UserListModel();
+                $userModel = new \App\Model\UserListModel();
                 $userId = (int) $frontUser['id'];
 
                 switch ($action) {

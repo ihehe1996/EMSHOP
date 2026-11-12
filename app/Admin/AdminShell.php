@@ -37,7 +37,7 @@ final class AdminShell
         extract($vars, EXTR_SKIP);
 
         $siteName = (string) \Config::get('sitename', 'EMSHOP');
-        $languages = (new \LanguageModel())->getEnabled();
+        $languages = (new \App\Model\LanguageModel())->getEnabled();
         $emServerHardRestartPending = is_file(EM_ROOT . '/.server') && \WorkerHeartbeat::hostAlive();
 
         $adminContentView = $contentView;

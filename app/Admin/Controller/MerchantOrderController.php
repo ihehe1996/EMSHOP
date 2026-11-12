@@ -115,7 +115,7 @@ final class MerchantOrderController extends BaseAdminController
                 foreach ($rows as &$row) {
                     $row['goods_amount_fmt'] = number_format((float) bcdiv((string) ($row['goods_amount'] ?? 0), '1000000', 2), 2, '.', ',');
                     $row['pay_amount_fmt'] = number_format((float) bcdiv((string) ($row['pay_amount'] ?? 0), '1000000', 2), 2, '.', ',');
-                    $row['status_name'] = \OrderModel::statusName((string) $row['status']);
+                    $row['status_name'] = \App\Model\OrderModel::statusName((string) $row['status']);
                     $row['payment_image'] = $paymentImageMap[(string) ($row['payment_code'] ?? '')] ?? '';
                     $row['goods'] = [];
                     $row['goods_count'] = 0;

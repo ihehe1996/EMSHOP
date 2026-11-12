@@ -47,7 +47,7 @@ class GoodsController extends BaseController
 
         // —— 「这一页能不能打开」的判断：重定向 / 404 必须在任何输出之前完成，所以留在控制器 ——
         // 主站前台只看 owner_id=0；商户前台只看本店自建或主站引用
-        $row = $id > 0 ? \GoodsModel::getById($id) : null;
+        $row = $id > 0 ? \App\Model\GoodsModel::getById($id) : null;
         if ($row && !\MerchantContext::isGoodsVisibleToCurrentScope($row)) {
             $row = null;
         }

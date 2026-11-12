@@ -50,7 +50,7 @@ final class MerchantLevelController extends BaseAdminController
                 }
             }
 
-            $model = new \MerchantLevelModel();
+            $model = new \App\Model\MerchantLevelModel();
 
             switch ($action) {
                 case 'list':
@@ -221,7 +221,7 @@ final class MerchantLevelController extends BaseAdminController
         $editId = (int) $this->input->get('id', 0);
         $editLevel = null;
         if ($editId > 0) {
-            $editLevel = (new \MerchantLevelModel())->findById($editId);
+            $editLevel = (new \App\Model\MerchantLevelModel())->findById($editId);
             if ($editLevel !== null) {
                 $editLevel = $this->rowForView($editLevel);
             }

@@ -355,7 +355,7 @@ final class SettingsController extends BaseAdminController
             }
 
             $this->config->reload();
-            \GuestFindModel::clearCache();
+            \App\Model\GuestFindModel::clearCache();
             $csrfToken = $this->csrf->refresh();
             $this->response->success("已保存 {$saved} 项配置", ['csrf_token' => $csrfToken]);
         } catch (\RuntimeException $e) {

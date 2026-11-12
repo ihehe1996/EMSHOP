@@ -17,11 +17,11 @@ declare(strict_types=1);
  */
 final class MainAppPurchaseService
 {
-    private AppMarketModel $marketModel;
+    private \App\Model\AppMarketModel $marketModel;
 
     public function __construct()
     {
-        $this->marketModel = new AppMarketModel();
+        $this->marketModel = new \App\Model\AppMarketModel();
     }
 
     /**

@@ -37,7 +37,7 @@ final class ProfileController extends BaseAdminController
                 $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $userModel = new \UserModel();
+            $userModel = new \App\Model\UserModel();
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
             $auth = new \AuthService();
@@ -185,7 +185,7 @@ final class ProfileController extends BaseAdminController
     private function renderPage(): void
     {
         $admin = $this->user();
-        $userFull = (new \UserModel())->findById((int) ($admin['id'] ?? 0));
+        $userFull = (new \App\Model\UserModel())->findById((int) ($admin['id'] ?? 0));
 
         if ($this->request->isPjax()) {
             echo '<div id="adminContent" class="admin-content">';

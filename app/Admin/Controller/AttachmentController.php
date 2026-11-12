@@ -43,7 +43,7 @@ final class AttachmentController extends BaseAdminController
                 }
             }
 
-            $model = new \AttachmentModel();
+            $model = new \App\Model\AttachmentModel();
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
 

@@ -41,7 +41,7 @@ final class SystemLogController extends BaseAdminController
                 }
             }
 
-            $model = new \SystemLogModel();
+            $model = new \App\Model\SystemLogModel();
 
             switch ($action) {
                 case 'list':
@@ -143,7 +143,7 @@ final class SystemLogController extends BaseAdminController
      */
     private function renderList(): void
     {
-        $model = new \SystemLogModel();
+        $model = new \App\Model\SystemLogModel();
         $statsByType = $model->statsByType();
         $totalCount = $model->count();
 

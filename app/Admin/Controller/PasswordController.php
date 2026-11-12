@@ -35,7 +35,7 @@ final class PasswordController extends BaseAdminController
                 $this->response->error('请求已失效，请刷新页面后重试');
             }
 
-            $userModel = new \UserModel();
+            $userModel = new \App\Model\UserModel();
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
             $oldPassword = (string) $this->input->post('old_password', '');

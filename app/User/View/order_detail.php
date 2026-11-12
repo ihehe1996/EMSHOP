@@ -7,7 +7,7 @@ if (!defined('EM_ROOT')) {
     <?php if (!empty($order)): ?>
     <?php
     $isPaid = !in_array($order['status'], ['pending', 'expired', 'cancelled', 'failed']);
-    $statusName = OrderModel::statusName($order['status']);
+    $statusName = \App\Model\OrderModel::statusName($order['status']);
     // 订单金额用下单时锁定的货币+汇率快照展示，历史不会因当前汇率变动而漂移
     $orderDispCode = (string) ($order['display_currency_code'] ?? '');
     $orderDispRate = (int) ($order['display_rate'] ?? 0);
@@ -15,7 +15,7 @@ if (!defined('EM_ROOT')) {
 
     <?php
     $awaitAsyncDelivery = in_array((string) $order['status'], ['paid', 'delivering'], true);
-    $extraPairs = OrderModel::parseBuyerContactFields($order)['extra_pairs'];
+    $extraPairs = \App\Model\OrderModel::parseBuyerContactFields($order)['extra_pairs'];
     ?>
     <div class="uc-ems-poll-root" hidden data-ems-order-detail="1" data-awaiting="<?= $awaitAsyncDelivery ? '1' : '0' ?>"
          data-order-no="<?= htmlspecialchars((string) $order['order_no'], ENT_QUOTES, 'UTF-8') ?>"

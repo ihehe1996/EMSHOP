@@ -16,7 +16,7 @@ final class CouponController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \CouponModel();
+        $model = new \App\Model\CouponModel();
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -34,7 +34,7 @@ final class CouponController extends BaseAdminController
     /**
      * 后台 AJAX 动作；list 免 CSRF。
      */
-    private function handlePost(\CouponModel $model): void
+    private function handlePost(\App\Model\CouponModel $model): void
     {
         try {
             $action = (string) $this->input->post('_action', '');
@@ -79,10 +79,10 @@ final class CouponController extends BaseAdminController
                     if ($data['type'] === '') {
                         $this->response->error('请选择类型');
                     }
-                    if (!in_array($data['type'], array_keys(\CouponModel::typeOptions()), true)) {
+                    if (!in_array($data['type'], array_keys(\App\Model\CouponModel::typeOptions()), true)) {
                         $this->response->error('未知类型');
                     }
-                    if (!in_array($data['apply_scope'], array_keys(\CouponModel::scopeOptions()), true)) {
+                    if (!in_array($data['apply_scope'], array_keys(\App\Model\CouponModel::scopeOptions()), true)) {
                         $this->response->error('未知适用范围');
                     }
 
@@ -277,7 +277,7 @@ final class CouponController extends BaseAdminController
     /**
      * 新增/编辑弹窗。
      */
-    private function renderPopup(\CouponModel $model): void
+    private function renderPopup(\App\Model\CouponModel $model): void
     {
         $editId = (int) $this->input->get('id', 0);
         $editRow = $editId > 0 ? $model->findById($editId) : null;

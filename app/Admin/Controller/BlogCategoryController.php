@@ -17,7 +17,7 @@ final class BlogCategoryController extends BaseAdminController
 {
     public function index(): void
     {
-        $model = new \BlogCategoryModel();
+        $model = new \App\Model\BlogCategoryModel();
 
         if ($this->request->isPost()) {
             $this->handlePost($model);
@@ -35,7 +35,7 @@ final class BlogCategoryController extends BaseAdminController
     /**
      * 处理后台 AJAX 动作；除 list 外都校验 CSRF。
      */
-    private function handlePost(\BlogCategoryModel $model): void
+    private function handlePost(\App\Model\BlogCategoryModel $model): void
     {
         try {
             $action = (string) $this->input->post('_action', '');
@@ -312,7 +312,7 @@ final class BlogCategoryController extends BaseAdminController
     /**
      * 添加/编辑弹窗（iframe）。
      */
-    private function renderPopup(\BlogCategoryModel $model): void
+    private function renderPopup(\App\Model\BlogCategoryModel $model): void
     {
         $editId = (int) $this->input->get('id', 0);
         $editCat = null;
