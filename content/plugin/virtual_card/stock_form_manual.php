@@ -129,7 +129,7 @@ $(function () {
             $btn.find('i').attr('class', 'fa fa-refresh admin-spin mr-5');
             $btn.prop('disabled', true);
             $.ajax({
-                // URL 由 popup header 注入到 iframe 自身 window（主站默认 /admin/goods_edit，商户覆盖 /user/merchant/goods）
+                // URL 由 popup header 注入到 iframe 自身 window（主站默认 {入口}/goods_edit，商户覆盖 /user/merchant/goods）
                 url: window.STOCK_SAVE_URL || '<?= EM_ADMIN_PATH ?>/goods_edit?_action=save_stock',
                 type: 'POST',
                 dataType: 'json',

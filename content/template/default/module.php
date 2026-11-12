@@ -52,7 +52,7 @@ $navSearchUrl = url_search();
 // 4. 从数据库加载导航（NaviModel）—— 按当前 MerchantContext 过滤：
 //    主站只看主站导航 + 系统导航；商户看自己的自定义 + 系统导航
 // ============================================================
-$naviModel = new \App\Model\NaviModel();
+$naviModel = app(\App\Model\NaviModel::class);
 $naviTree = $naviModel->getEnabledTree(MerchantContext::currentId());
 
 // 系统导航的链接根据首页模式动态调整
@@ -182,7 +182,7 @@ foreach ($navItems as $item) {
 // ============================================================
 $frontUser = $_SESSION['em_front_user'] ?? null;
 if ($frontUser && !empty($frontUser['id'])) {
-    $freshUser = (new \App\Model\UserListModel())->findById((int) $frontUser['id']);
+    $freshUser = app(\App\Model\UserListModel::class)->findById((int) $frontUser['id']);
     if ($freshUser) {
         $frontUser['money']    = (int) ($freshUser['money'] ?? 0);
         $frontUser['nickname'] = (string) ($freshUser['nickname'] ?: $freshUser['username']);
@@ -388,7 +388,7 @@ $this->assign([
  */
 function template_home_data(): array
 {
-    $fs  = new \App\Service\FrontDataService();
+    $fs  = app(\App\Service\FrontDataService::class);
     $cfg = template_config();
 
     // 精选商品显示几个：主题设置页可配，默认 6（保存时已校验，这里再兜一次防止库里被写成怪值）
@@ -413,7 +413,7 @@ function template_home_data(): array
  */
 function template_goods_list_data(array $q): array
 {
-    $fs = new \App\Service\FrontDataService();
+    $fs = app(\App\Service\FrontDataService::class);
 
     $categoryId     = (int) ($q['category_id'] ?? 0);
     $categorySource = (string) ($q['category_source'] ?? 'main');
@@ -745,7 +745,7 @@ function template_goods_content_data(?array $row): array
                     // 获取分类名
                     $categoryName = '';
                     if ((int) $row['category_id'] > 0) {
-                        $catModel = new \App\Model\GoodsCategoryModel();
+                        $catModel = app(\App\Model\GoodsCategoryModel::class);
                         $cat = $catModel->findById((int) $row['category_id']);
                         $categoryName = $cat ? $cat['name'] : '';
                     }
@@ -883,7 +883,7 @@ function template_goods_content_data(?array $row): array
  */
 function template_blog_list_data(array $q): array
 {
-    $fs = new \App\Service\FrontDataService();
+    $fs = app(\App\Service\FrontDataService::class);
 
     $categoryId = (int) ($q['category_id'] ?? 0);
     $tagId      = (int) ($q['tag_id'] ?? 0);
@@ -977,7 +977,7 @@ function template_blog_content_data(?array $row): array
     }
 
     // 侧栏（分类树 + 热门标签）+ 最新文章
-    $fs = new \App\Service\FrontDataService();
+    $fs = app(\App\Service\FrontDataService::class);
     $sidebarData = $fs->getBlogSidebarData();
 
     return [
@@ -1014,7 +1014,7 @@ function template_search_data(array $q): array
 
     // 关键词为空时是「搜索页」（只显示搜索框），不查库
     if ($keyword !== '') {
-        $fs = new \App\Service\FrontDataService();
+        $fs = app(\App\Service\FrontDataService::class);
         // type=all 两边都查；goods / article 只查一边
         if ($type !== 'article') {
             $goodsResults = $fs->queryGoodsList(['keyword' => $keyword], 12);
@@ -1048,7 +1048,7 @@ function template_search_data(array $q): array
 function template_coupon_data(): array
 {
     // 可领取的券：启用中 + 前台展示 + 在有效期内 + 未领完（条件在 CouponModel 里）
-    $coupons = (new \App\Model\CouponModel())->getPubliclyClaimable(100);
+    $coupons = app(\App\Model\CouponModel::class)->getPubliclyClaimable(100);
 
     // 登录态：已登录才需要查「哪些券领过」，用于按钮显示「已领取」；
     // 会话由 init.php 统一启动，这里只读不启

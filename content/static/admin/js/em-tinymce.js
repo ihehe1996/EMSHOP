@@ -207,7 +207,7 @@
      * @param {Object} opts
      * @param {Array}  opts.editors  每项：{ selector, height, placeholder, ...tinymceOptions }
      * @param {string} opts.context   上传 context，如 goods_image / blog_image
-     * @param {string} opts.uploadUrl 上传地址，默认 TEMPLATE_UPLOAD_URL 或 /admin/upload
+     * @param {string} opts.uploadUrl 上传地址，默认 TEMPLATE_UPLOAD_URL 或 {入口}/upload
      * @param {Function} opts.onCsrf  上传后刷新 token 的回调
      */ 
     window.emTinymceInit = function (opts) {

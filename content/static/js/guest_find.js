@@ -108,7 +108,7 @@ var GuestFind = (function () {
                 html += '</div>';
             } else {
                 html += '<div class="find-order-actions">';
-                // 查单页是游客场景，详情走同一个 find_order.php（独立壳，无侧边栏），
+                // 查单页是游客场景，详情走同一个 /user/find_order 路由（独立壳，无侧边栏），
                 // 不跳 /user/order_detail（那里走个人中心 index_public 壳，视觉上带左侧菜单区域）
                 // data-pjax：查单页启用了 PJAX，详情在 #foContent 内渲染，不整页刷新
                 html += '<a href="/user/find_order?order_no=' + encodeURIComponent(order.order_no) + '" data-pjax class="find-order-action-btn">查看详情</a>';

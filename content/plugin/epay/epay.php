@@ -443,7 +443,7 @@ addAction('payment_notify_epay', function (array $data): void {
     $paymentCode = '';
 
     if ($isRecharge) {
-        $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
+        $recharge = app(\App\Model\UserRechargeModel::class)->findByOrderNo($orderNo);
         if (!$recharge) {
             echo 'fail';
             exit;
@@ -533,7 +533,7 @@ addAction('payment_notify_epay', function (array $data): void {
     $tradeNo = (string) ($data['trade_no'] ?? '');
 
     if ($isRecharge) {
-        $ok = (new \App\Model\UserRechargeModel())->markPaid((int) $recharge['id'], $tradeNo);
+        $ok = app(\App\Model\UserRechargeModel::class)->markPaid((int) $recharge['id'], $tradeNo);
         echo $ok ? 'success' : 'fail';
         exit;
     }

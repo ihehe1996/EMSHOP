@@ -244,7 +244,7 @@ $(function(){
 
         form.render('select');
 
-        // 卡密 action 入口：主站默认 /admin/plugin_action，商户端由 popup header 覆盖为 /user/merchant/goods
+        // 卡密 action 入口：主站默认 {入口}/plugin_action，商户端由 popup header 覆盖为 /user/merchant/goods
         var cardActionBase = (typeof CARD_ACTION_BASE !== 'undefined' && CARD_ACTION_BASE) ? CARD_ACTION_BASE : '<?= EM_ADMIN_PATH ?>/plugin_action';
         function cardUrl(action) {
             var sep = cardActionBase.indexOf('?') >= 0 ? '&' : '?';

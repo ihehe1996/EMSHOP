@@ -65,7 +65,7 @@ function alipay_load_trade_context(string $orderNo): array
 
     $isRecharge = strncmp($orderNo, 'R', 1) === 0;
     if ($isRecharge) {
-        $recharge = (new \App\Model\UserRechargeModel())->findByOrderNo($orderNo);
+        $recharge = app(\App\Model\UserRechargeModel::class)->findByOrderNo($orderNo);
         if (!$recharge) {
             throw new RuntimeException('充值订单不存在');
         }

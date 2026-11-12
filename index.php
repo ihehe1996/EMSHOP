@@ -54,7 +54,7 @@ if (\App\User\UserRouter::instance()->handleCurrentRequest()) {
 define('HOMEPAGE_MODE', Config::get('homepage_mode', 'mall'));
 
 // 路由分发：解析 URL 参数，加载模板文件，注入 body 内容
-Dispatcher::getInstance()->dispatch();
+Dispatcher::dispatch();
 
 // 页面渲染：根据请求类型（普通/PJAX/AJAX）输出完整页面
-View::getInstance()->output(); 
+View::output(); 

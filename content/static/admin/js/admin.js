@@ -19,8 +19,8 @@
      */
     function setActiveMenu(url) {
         // 命中策略（避免"多项同 path 全亮"问题）：
-        //   1. 先按 path + query 精确匹配（解决 /admin/commission?tab=log 与 ?tab=withdraw 互不干扰）
-        //   2. 没命中再退到只按 path 匹配（解决 /admin/settings?action=xxx 共用一项菜单）
+        //   1. 先按 path + query 精确匹配（解决 {入口}/commission?tab=log 与 ?tab=withdraw 互不干扰）
+        //   2. 没命中再退到只按 path 匹配（解决 {入口}/settings?action=xxx 共用一项菜单）
         //   3. path 匹配也只取第一项命中，杜绝同 path 不同 query 的多项被同时高亮
         var a = document.createElement('a');
         a.href = url;
@@ -500,7 +500,7 @@
         }
 
         setActiveMenu(window.location.href);
-        // 若无匹配（落在 /admin/home 首页），手动高亮控制台
+        // 若无匹配（落在 {入口}/home 首页），手动高亮控制台
         if (!$('.admin-menu-item.is-active').length) {
             var $dashboard = $('.admin-sidebar__body > .admin-menu-item[href*="home"]');
             if ($dashboard.length) {

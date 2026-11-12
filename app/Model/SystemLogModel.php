@@ -14,7 +14,7 @@ namespace App\Model;
  * 数据存储于 em_system_log 表。
  *
  * 使用示例：
- *   $log = new SystemLogModel();
+ *   $log = app(\App\Model\SystemLogModel::class);
  *   $log->info('admin_operation', '创建商品', '商品「T恤」创建成功', ['goods_id' => 5]);
  *   $log->error('system', '数据库连接失败', 'MySQL server has gone away');
  */

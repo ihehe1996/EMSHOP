@@ -41,7 +41,7 @@ function virtualCardAuditExport(string $action, array $detail, int $count): void
         $admin = $_SESSION['em_admin_auth'] ?? null;
         $front = $_SESSION['em_front_user'] ?? null;
         $operator = is_array($admin) ? $admin : (is_array($front) ? $front : []);
-        (new \App\Model\SystemLogModel())->info(
+        app(\App\Model\SystemLogModel::class)->info(
             'admin_operation',
             $action,
             '导出卡密 ' . $count . ' 条',
@@ -370,7 +370,7 @@ if ($action === 'card_import_page') {
     $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId);
     $csrfToken = Csrf::token();
     $pageTitle = '导入卡密';
-    // 若入口未预设（主站），保持 header 默认 /admin/plugin_action
+    // 若入口未预设（主站），保持 header 默认 {入口}/plugin_action
     if (!isset($popupCardActionBase)) {
         $popupCardActionBase = EM_ADMIN_PATH . '/plugin_action';
     }
@@ -902,7 +902,7 @@ if ($action === 'card_manager') {
 
 // ================================================================
 // 按订单 ID 导出该订单里所有 virtual_card 商品的发货内容为 txt
-// URL：/admin/plugin_action?_action=order_export_cards&order_id=X
+// URL：{入口}/plugin_action?_action=order_export_cards&order_id=X
 // 订单详情 popup 的"导出全部 (TXT)"按钮调用
 // ================================================================
 if ($action === 'order_export_cards') {

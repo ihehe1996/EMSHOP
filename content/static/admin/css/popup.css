@@ -5,7 +5,7 @@
        type: 2,
        skin: 'admin-modal',
        area: ['480px', 'auto'],
-       content: '/admin/xxx.php'
+       content: (window.EM_ADMIN_PATH || '/admin') + '/xxx'
      });
    ============================================================ */
 

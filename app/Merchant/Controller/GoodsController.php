@@ -386,13 +386,10 @@ final class GoodsController extends MerchantBaseController
                         if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                             $this->response->error('商品不存在或无权限');
                         }
-                        // 直接复用 \GoodsModel::clone（主站已有）；clone 出的新行需要校验 owner 继承
-                        if (!method_exists('GoodsModel', 'clone')) {
-                            $this->response->error('克隆方法不可用');
-                        }
-                        $newId = (int) \App\Model\GoodsModel::{'clone'}($id);
+                        // 直接复用 GoodsModel::clone（主站已有）；clone 出的新行需要校验 owner 继承
+                        $newId = (int) app(\App\Model\GoodsModel::class)->{'clone'}($id);
                         if ($newId <= 0) $this->response->error('克隆失败');
-                        // 兜底：强制把新商品的 owner_id 锁定到本商户主用户（即便 \GoodsModel::clone 可能默认带旧 owner 也无碍）
+                        // 兜底：强制把新商品的 owner_id 锁定到本商户主用户（即便 clone 默认带旧 owner 也无碍）
                         $this->db->update('goods', ['owner_id' => $ownerUserId, 'created_by' => $ownerUserId, 'source_type' => 'self'], $newId);
                         $this->response->success('克隆成功', ['id' => $newId, 'csrf_token' => $this->csrf->refresh()]);
                         break;

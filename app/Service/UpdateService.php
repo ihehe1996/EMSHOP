@@ -47,6 +47,7 @@ final class UpdateService extends BaseService
         '.env',                // 环境变量
         'config.php',          // DB 凭据
         '.claude',             // 开发工具配置
+        '.agents',             // 开发工具配置
         '.idea',               // IDE 配置
         '.git',                // 版本控制
         'base.php',            // EMSHOP代理配置文件
