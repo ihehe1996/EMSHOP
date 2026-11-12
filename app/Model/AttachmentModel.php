@@ -13,14 +13,15 @@ namespace App\Model;
  *
  * 统一管理所有上传文件的数据库记录，支持场景分类、去重查询、关联查询。
  */
-final class AttachmentModel
+final class AttachmentModel extends Model
 {
     /** @var string */
     private $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'attachment';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'attachment';
     }
 
     /**
@@ -57,7 +58,7 @@ final class AttachmentModel
             implode(', ', $placeholders)
         );
 
-        return \Database::execute($sql, $params) > 0 ? (int) \Database::fetchOne(
+        return $this->db->execute($sql, $params) > 0 ? (int) $this->db->fetchOne(
             'SELECT LAST_INSERT_ID() as id'
         )['id'] : 0;
     }
@@ -74,7 +75,7 @@ final class AttachmentModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['md5' => $md5]);
+        return $this->db->fetchOne($sql, ['md5' => $md5]);
     }
 
     /**
@@ -89,7 +90,7 @@ final class AttachmentModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['id' => $id]);
+        return $this->db->fetchOne($sql, ['id' => $id]);
     }
 
     /**
@@ -103,7 +104,7 @@ final class AttachmentModel
                 $this->table
             );
 
-            return (int) \Database::fetchOne($sql, [
+            return (int) $this->db->fetchOne($sql, [
                 'context' => $context,
                 'context_id' => $contextId,
             ])['total'];
@@ -114,7 +115,7 @@ final class AttachmentModel
             $this->table
         );
 
-        return (int) \Database::fetchOne($sql, ['context' => $context])['total'];
+        return (int) $this->db->fetchOne($sql, ['context' => $context])['total'];
     }
 
     /**
@@ -132,7 +133,7 @@ final class AttachmentModel
                 $this->table
             );
 
-            return \Database::query($sql, [
+            return $this->db->query($sql, [
                 'context' => $context,
                 'context_id' => $contextId,
                 'limit' => $pageSize,
@@ -145,7 +146,7 @@ final class AttachmentModel
             $this->table
         );
 
-        return \Database::query($sql, [
+        return $this->db->query($sql, [
             'context' => $context,
             'limit' => $pageSize,
             'offset' => $offset,
@@ -162,7 +163,7 @@ final class AttachmentModel
             $this->table
         );
 
-        return \Database::execute($sql, [
+        return $this->db->execute($sql, [
             'id' => $id,
             'context' => $context,
             'context_id' => $contextId,
@@ -179,6 +180,6 @@ final class AttachmentModel
             $this->table
         );
 
-        return \Database::execute($sql, ['id' => $id]) > 0;
+        return $this->db->execute($sql, ['id' => $id]) > 0;
     }
 }

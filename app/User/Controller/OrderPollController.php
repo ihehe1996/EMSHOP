@@ -78,7 +78,7 @@ final class OrderPollController extends UserPublicBaseController
                 if ($orderNo === '') {
                     continue;
                 }
-                $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+                $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
                 if (!$order || !$orderPollAllowed($order)) {
                     continue;
                 }
@@ -116,7 +116,7 @@ final class OrderPollController extends UserPublicBaseController
             $this->response->error('缺少订单号');
         }
 
-        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+        $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
         if (!$order) {
             $this->response->error('订单不存在');
         }
@@ -127,7 +127,7 @@ final class OrderPollController extends UserPublicBaseController
 
         $this->response->success('', [
             'status'              => (string) ($order['status'] ?? ''),
-            'status_name'         => \App\Model\OrderModel::statusName((string) ($order['status'] ?? '')),
+            'status_name'         => app(\App\Model\OrderModel::class)->statusName((string) ($order['status'] ?? '')),
             'awaiting_delivery'   => in_array((string) ($order['status'] ?? ''), ['paid', 'delivering'], true),
         ]);
     }

@@ -259,7 +259,7 @@ if (in_array($controller, ['goods_list', 'goods_index'], true)) {
     // 页面标题：标签优先，其次分类名，都没有就是「全部商品」
     $title = '全部商品';
     if ($tagId > 0) {
-        $tag = \App\Model\GoodsTagModel::getById($tagId);
+        $tag = app(\App\Model\GoodsTagModel::class)->getById($tagId);
         if ($tag) {
             $title = '标签：' . $tag['name'];
         }
@@ -304,7 +304,7 @@ if (in_array($controller, ['blog_list', 'blog_index'], true)) {
     // （判断规则与 template_blog_list_data() 的筛选保持一致：标签要属于当前 scope）
     $title = '全部文章';
     if ($tagId > 0) {
-        $tag = \App\Model\BlogTagModel::getById($tagId);
+        $tag = app(\App\Model\BlogTagModel::class)->getById($tagId);
         if ($tag && (int) $tag['merchant_id'] === MerchantContext::currentId()) {
             $title = '标签：' . $tag['name'];
         }
@@ -604,7 +604,7 @@ function template_goods_form_sections(array $configs, bool $isGuest): array
 
     // —— 查单模式字段（仅未登录用户）
     if ($isGuest) {
-        $gf = \App\Model\GuestFindModel::getConfig();
+        $gf = app(\App\Model\GuestFindModel::class)->getConfig();
 
         if (!empty($gf['contact_enabled'])) {
             $contactIconMap = [
@@ -677,7 +677,7 @@ function template_goods_content_data(?array $row): array
     $specsJson = "[]";
     if ($row !== null) {
                     // 获取所有规格（价格已自动转换）
-                    $rawSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($id);
+                    $rawSpecs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($id);
                     $defaultSpec = null;
                     foreach ($rawSpecs as $s) {
                         if ((int) $s['is_default'] === 1) {
@@ -718,7 +718,7 @@ function template_goods_content_data(?array $row): array
                             'price'        => (float) $s['price'],
                             'market_price' => $s['market_price'] ? (float) $s['market_price'] : null,
                             'stock'        => $stockInt,
-                            'stock_text'   => \App\Service\FrontDataService::formatStockText($stockInt),
+                            'stock_text'   => app(\App\Service\FrontDataService::class)->formatStockText($stockInt),
                             'sold_count'   => (int) ($s['sold_count'] ?? 0),
                             'min_buy'      => (int) ($s['min_buy'] ?? 1),
                             'max_buy'      => (int) ($s['max_buy'] ?? 0),
@@ -784,17 +784,17 @@ function template_goods_content_data(?array $row): array
                         'image'          => $covers[0] ?? '',
                         'images'         => $covers,
                         'price'          => $defaultSpec ? (float) $defaultSpec['price'] : (float) $row['min_price'],
-                        'original_price' => \App\Service\FrontDataService::resolveOriginalPrice($defaultSpec),
+                        'original_price' => app(\App\Service\FrontDataService::class)->resolveOriginalPrice($defaultSpec),
                         // stock 是业务数字（整数），stock_text 是展示文字（默认千分位，可被插件替换）
                         'stock'          => $stock,
-                        'stock_text'     => \App\Service\FrontDataService::formatStockText($stock),
+                        'stock_text'     => app(\App\Service\FrontDataService::class)->formatStockText($stock),
                         'min_buy'        => $defaultSpec ? (int) ($defaultSpec['min_buy'] ?? 1) : 1,
                         'max_buy'        => $defaultSpec ? (int) ($defaultSpec['max_buy'] ?? 0) : 0,
                         'category'       => $categoryName,
                         'sku'            => $row['code'],
                         'description'    => $row['intro'] ?: '',
                         'content'        => $row['content'] ?: '',
-                        'tags'           => \App\Model\GoodsTagModel::getTagsByGoodsId($id),
+                        'tags'           => app(\App\Model\GoodsTagModel::class)->getTagsByGoodsId($id),
                         'configs'        => $configs,
                         'unit'           => $row['unit'] ?: '件',
                         'total_sold'     => array_sum(array_column($specs, 'sold_count')),
@@ -812,7 +812,7 @@ function template_goods_content_data(?array $row): array
         // 规则：
         //   - 余额支付 + 未登录 → disabled（不可选），避免前端错误提交
         //   - 默认选中：第一个 disabled=false 的方式
-        $paymentMethods = \App\Service\PaymentService::getMethods();
+        $paymentMethods = app(\App\Service\PaymentService::class)->getMethods();
         $defaultAssigned = false;
         foreach ($paymentMethods as &$pm) {
             $pm['disabled'] = ($pm['code'] === 'balance' && $isGuest);
@@ -846,7 +846,7 @@ function template_goods_content_data(?array $row): array
         $defaultAddressId = 0;
         $buyerId = (int) ($GLOBALS['frontUser']['id'] ?? $_SESSION['em_front_user']['id'] ?? 0);
         if ($needsAddress && $buyerId > 0) {
-            $userAddresses = \App\Model\UserAddressModel::listByUserId($buyerId);
+            $userAddresses = app(\App\Model\UserAddressModel::class)->listByUserId($buyerId);
             foreach ($userAddresses as $addr) {
                 if ((int) ($addr['is_default'] ?? 0) === 1) {
                     $defaultAddressId = (int) $addr['id'];
@@ -899,7 +899,7 @@ function template_blog_list_data(array $q): array
     $where = [];
     // 标签筛选 —— 标签 ID 必须属于当前 scope
     if ($tagId > 0) {
-        $tag = \App\Model\BlogTagModel::getById($tagId);
+        $tag = app(\App\Model\BlogTagModel::class)->getById($tagId);
         if ($tag && (int) $tag['merchant_id'] === MerchantContext::currentId()) {
             $where['tag_id'] = $tagId;
         }
@@ -958,7 +958,7 @@ function template_blog_content_data(?array $row): array
         $id = (int) $row['id'];
 
         // 递增浏览量：页面上显示的阅读数取「递增后」的值（与搬走前一致）
-        \App\Model\BlogModel::incrementViews($id);
+        app(\App\Model\BlogModel::class)->incrementViews($id);
 
         $article = [
             'id'       => $id,
@@ -968,11 +968,11 @@ function template_blog_content_data(?array $row): array
             'author'   => $row['author'] ?: '管理员',
             'category' => $row['category_name'] ?: '未分类',
             'views'    => (int) $row['views_count'] + 1,
-            'tags'     => \App\Model\BlogTagModel::getTagsByBlogId($id),
+            'tags'     => app(\App\Model\BlogTagModel::class)->getTagsByBlogId($id),
         ];
 
         // 上下篇（限定 scope 内）
-        $nav = \App\Model\BlogModel::getPrevNextId($id, MerchantContext::currentId());
+        $nav = app(\App\Model\BlogModel::class)->getPrevNextId($id, MerchantContext::currentId());
         $prevId    = $nav['prev_id'];
         $prevTitle = $nav['prev_title'];
         $nextId    = $nav['next_id'];
@@ -989,7 +989,7 @@ function template_blog_content_data(?array $row): array
         'prev_title'        => $prevTitle,
         'next_id'           => $nextId,
         'next_title'        => $nextTitle,
-        'comment_count'     => $article !== null ? \App\Model\BlogCommentModel::getCountByBlog((int) $article['id']) : 0,
+        'comment_count'     => $article !== null ? app(\App\Model\BlogCommentModel::class)->getCountByBlog((int) $article['id']) : 0,
         'recent_articles'   => $fs->queryArticleList([], 5),
         'blog_categories'   => $sidebarData['blog_categories'] ?? [],
         'popular_blog_tags' => $sidebarData['popular_blog_tags'] ?? [],

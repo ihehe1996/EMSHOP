@@ -27,7 +27,7 @@ if (!defined('EM_ROOT')) {
  * - guest_find_password_checkout_placeholder 订单密码查单-下单页占位提示
  * - guest_find_password_lookup_placeholder   订单密码查单-查单页占位提示
  */
-class GuestFindModel
+class GuestFindModel extends Model
 {
     // 联系方式类型（供前端显示/校验用）
     public const CONTACT_TYPE_ANY   = 'any';   // 不限类型（默认），任何联系方式均可
@@ -41,7 +41,7 @@ class GuestFindModel
     private const DEFAULT_PASSWORD_CHECKOUT_PLACEHOLDER = '请设置您的订单密码';
     private const DEFAULT_PASSWORD_LOOKUP_PLACEHOLDER   = '请设置您的订单密码';
 
-    private static ?array $cache = null;
+    private static ?array $resultCache = null;
 
     // ============================================================
     // 开关状态
@@ -50,9 +50,9 @@ class GuestFindModel
     /**
      * 联系方式查单是否开启
      */
-    public static function isContactEnabled(): bool
+    public function isContactEnabled(): bool
     {
-        return \Config::get('guest_find_contact_enabled', '0') === '1';
+        return $this->config->get('guest_find_contact_enabled', '0') === '1';
     }
 
     /**
@@ -61,22 +61,22 @@ class GuestFindModel
      * 兜底规则：若两种查单方式（联系方式/订单密码）都未开启，视为订单密码开启，
      * 保证查单功能至少有一条通路。用户已手动开启联系方式时则完全尊重其设置。
      */
-    public static function isPasswordEnabled(): bool
+    public function isPasswordEnabled(): bool
     {
-        $password = \Config::get('guest_find_password_enabled', '0') === '1';
+        $password = $this->config->get('guest_find_password_enabled', '0') === '1';
         if ($password) {
             return true;
         }
         // 联系方式也没开 → 兜底开启订单密码
-        return \Config::get('guest_find_contact_enabled', '0') !== '1';
+        return $this->config->get('guest_find_contact_enabled', '0') !== '1';
     }
 
     /**
      * 是否有任意查单方式开启
      */
-    public static function isEnabled(): bool
+    public function isEnabled(): bool
     {
-        return self::isContactEnabled() || self::isPasswordEnabled();
+        return $this->isContactEnabled() || $this->isPasswordEnabled();
     }
 
     // ============================================================
@@ -86,9 +86,9 @@ class GuestFindModel
     /**
      * 获取联系方式类型（默认 any，表示不限类型）
      */
-    public static function getContactType(): string
+    public function getContactType(): string
     {
-        return \Config::get('guest_find_contact_type', self::CONTACT_TYPE_ANY);
+        return $this->config->get('guest_find_contact_type', self::CONTACT_TYPE_ANY);
     }
 
     /**
@@ -97,7 +97,7 @@ class GuestFindModel
      * "任意"类型在后台选项里叫"任意"（getContactTypeOptions），
      * 但在前台作为 input label 显示时，"联系方式"更符合用户视角，故在此统一转换。
      */
-    public static function getContactTypeLabel(): string
+    public function getContactTypeLabel(): string
     {
         $map = [
             self::CONTACT_TYPE_ANY   => '联系方式',
@@ -105,13 +105,13 @@ class GuestFindModel
             self::CONTACT_TYPE_EMAIL => '邮箱地址',
             self::CONTACT_TYPE_QQ    => 'QQ号码',
         ];
-        return $map[self::getContactType()] ?? '联系方式';
+        return $map[$this->getContactType()] ?? '联系方式';
     }
 
     /**
      * 获取联系方式输入框的 input type 属性
      */
-    public static function getContactInputType(): string
+    public function getContactInputType(): string
     {
         static $map = [
             self::CONTACT_TYPE_PHONE => 'tel',
@@ -119,13 +119,13 @@ class GuestFindModel
             self::CONTACT_TYPE_QQ    => 'text',
             self::CONTACT_TYPE_ANY   => 'text',
         ];
-        return $map[self::getContactType()] ?? 'text';
+        return $map[$this->getContactType()] ?? 'text';
     }
 
     /**
      * 联系方式类型选项（供后台单选用；any 放首位作为默认）
      */
-    public static function getContactTypeOptions(): array
+    public function getContactTypeOptions(): array
     {
         return [
             self::CONTACT_TYPE_ANY   => '任意',
@@ -140,15 +140,15 @@ class GuestFindModel
      *
      * @return string|null 错误信息；通过返回 null
      */
-    public static function validateContactQuery(string $value): ?string
+    public function validateContactQuery(string $value): ?string
     {
         $value = trim($value);
-        $label = self::getContactTypeLabel();
+        $label = $this->getContactTypeLabel();
         if ($value === '') {
             return '请输入' . $label;
         }
 
-        switch (self::getContactType()) {
+        switch ($this->getContactType()) {
             case self::CONTACT_TYPE_PHONE:
                 if (!preg_match('/^1[3-9]\d{9}$/', $value)) {
                     return '请输入正确的手机号码';
@@ -178,27 +178,27 @@ class GuestFindModel
     // ============================================================
 
     /** 下单页：联系方式输入框占位 */
-    public static function getContactCheckoutPlaceholder(): string
+    public function getContactCheckoutPlaceholder(): string
     {
-        return \Config::get('guest_find_contact_checkout_placeholder', self::DEFAULT_CONTACT_CHECKOUT_PLACEHOLDER);
+        return $this->config->get('guest_find_contact_checkout_placeholder', self::DEFAULT_CONTACT_CHECKOUT_PLACEHOLDER);
     }
 
     /** 查单页：联系方式输入框占位 */
-    public static function getContactLookupPlaceholder(): string
+    public function getContactLookupPlaceholder(): string
     {
-        return \Config::get('guest_find_contact_lookup_placeholder', self::DEFAULT_CONTACT_LOOKUP_PLACEHOLDER);
+        return $this->config->get('guest_find_contact_lookup_placeholder', self::DEFAULT_CONTACT_LOOKUP_PLACEHOLDER);
     }
 
     /** 下单页：订单密码输入框占位 */
-    public static function getPasswordCheckoutPlaceholder(): string
+    public function getPasswordCheckoutPlaceholder(): string
     {
-        return \Config::get('guest_find_password_checkout_placeholder', self::DEFAULT_PASSWORD_CHECKOUT_PLACEHOLDER);
+        return $this->config->get('guest_find_password_checkout_placeholder', self::DEFAULT_PASSWORD_CHECKOUT_PLACEHOLDER);
     }
 
     /** 查单页：订单密码输入框占位 */
-    public static function getPasswordLookupPlaceholder(): string
+    public function getPasswordLookupPlaceholder(): string
     {
-        return \Config::get('guest_find_password_lookup_placeholder', self::DEFAULT_PASSWORD_LOOKUP_PLACEHOLDER);
+        return $this->config->get('guest_find_password_lookup_placeholder', self::DEFAULT_PASSWORD_LOOKUP_PLACEHOLDER);
     }
 
     // ============================================================
@@ -214,34 +214,34 @@ class GuestFindModel
      *   contact_checkout_placeholder / contact_lookup_placeholder
      *   password_checkout_placeholder / password_lookup_placeholder
      */
-    public static function getConfig(): array
+    public function getConfig(): array
     {
-        if (self::$cache !== null) {
-            return self::$cache;
+        if (self::$resultCache !== null) {
+            return self::$resultCache;
         }
 
-        self::$cache = [
-            'contact_enabled'               => self::isContactEnabled(),
-            'password_enabled'              => self::isPasswordEnabled(),
-            'is_enabled'                    => self::isEnabled(),
-            'contact_type'                  => self::getContactType(),
-            'contact_type_label'            => self::getContactTypeLabel(),
-            'contact_input_type'            => self::getContactInputType(),
-            'contact_type_options'          => self::getContactTypeOptions(),
-            'contact_checkout_placeholder'  => self::getContactCheckoutPlaceholder(),
-            'contact_lookup_placeholder'    => self::getContactLookupPlaceholder(),
-            'password_checkout_placeholder' => self::getPasswordCheckoutPlaceholder(),
-            'password_lookup_placeholder'   => self::getPasswordLookupPlaceholder(),
+        self::$resultCache = [
+            'contact_enabled'               => $this->isContactEnabled(),
+            'password_enabled'              => $this->isPasswordEnabled(),
+            'is_enabled'                    => $this->isEnabled(),
+            'contact_type'                  => $this->getContactType(),
+            'contact_type_label'            => $this->getContactTypeLabel(),
+            'contact_input_type'            => $this->getContactInputType(),
+            'contact_type_options'          => $this->getContactTypeOptions(),
+            'contact_checkout_placeholder'  => $this->getContactCheckoutPlaceholder(),
+            'contact_lookup_placeholder'    => $this->getContactLookupPlaceholder(),
+            'password_checkout_placeholder' => $this->getPasswordCheckoutPlaceholder(),
+            'password_lookup_placeholder'   => $this->getPasswordLookupPlaceholder(),
         ];
 
-        return self::$cache;
+        return self::$resultCache;
     }
 
     /**
      * 清除缓存（配置变更后调用）
      */
-    public static function clearCache(): void
+    public function clearCache(): void
     {
-        self::$cache = null;
+        self::$resultCache = null;
     }
 }

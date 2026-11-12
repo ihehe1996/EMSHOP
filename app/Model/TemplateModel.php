@@ -23,7 +23,7 @@ namespace App\Model;
  *   'merchant_{id}' → 商户 id 对应的独立作用域
  * 物理文件(content/template/xxx)在全站共享一份,启用状态按 scope 隔离。
  */
-final class TemplateModel
+final class TemplateModel extends Model
 {
     /** 主站启用模板 config key */
     private const MAIN_ACTIVE_PC_KEY     = 'active_template_pc';
@@ -35,8 +35,9 @@ final class TemplateModel
 
     public function __construct()
     {
+        parent::__construct();
         $this->templateRoot  = EM_ROOT . '/content/template';
-        $this->merchantTable = \Database::prefix() . 'merchant';
+        $this->merchantTable = $this->db->prefix() . 'merchant';
     }
 
     // -----------------------------------------------------------------
@@ -187,12 +188,12 @@ final class TemplateModel
     public function getActiveTheme(string $client, string $scope): string
     {
         if ($scope === 'main') {
-            return (string) \Config::get($this->getConfigKeyFor($client), '');
+            return (string) $this->config->get($this->getConfigKeyFor($client), '');
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return '';
         $col = $this->getMerchantColumnFor($client);
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT `' . $col . '` AS v FROM `' . $this->merchantTable . '` WHERE `id` = ? LIMIT 1',
             [$merchantId]
         );
@@ -224,7 +225,7 @@ final class TemplateModel
      */
     public function getCookieOverrideTheme(string $client, string $scope): string
     {
-        $cookieName = self::buildCookieName($client, $scope);
+        $cookieName = $this->buildCookieName($client, $scope);
         $name = trim((string) ($_COOKIE[$cookieName] ?? ''));
         if (!$this->isCookieThemeAllowed($name, $scope)) {
             return '';
@@ -242,7 +243,7 @@ final class TemplateModel
             return false;
         }
 
-        $cookieName = self::buildCookieName($client, $scope);
+        $cookieName = $this->buildCookieName($client, $scope);
         $expires = time() + max(60, $ttl);
         $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
 
@@ -267,7 +268,7 @@ final class TemplateModel
      */
     public function clearCookieOverrideTheme(string $client, string $scope): void
     {
-        $cookieName = self::buildCookieName($client, $scope);
+        $cookieName = $this->buildCookieName($client, $scope);
         $expires = time() - 3600;
         $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
 
@@ -292,13 +293,13 @@ final class TemplateModel
     public function setActiveTheme(string $client, string $name, string $scope): bool
     {
         if ($scope === 'main') {
-            \Config::set($this->getConfigKeyFor($client), $name);
+            $this->config->set($this->getConfigKeyFor($client), $name);
             return true;
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return false;
         $col = $this->getMerchantColumnFor($client);
-        \Database::execute(
+        $this->db->execute(
             'UPDATE `' . $this->merchantTable . '` SET `' . $col . '` = ? WHERE `id` = ? LIMIT 1',
             [$name, $merchantId]
         );
@@ -356,7 +357,7 @@ final class TemplateModel
     /**
      * 根据当前请求识别终端类型。
      */
-    public static function detectClientFromRequest(): string
+    public function detectClientFromRequest(): string
     {
         $device = trim((string) ($_GET['device'] ?? ''));
         if ($device === 'mobile' || $device === 'pc') {
@@ -376,7 +377,7 @@ final class TemplateModel
     /**
      * 构建当前 scope + 终端的模板覆盖 Cookie 名。
      */
-    public static function buildCookieName(string $client, string $scope): string
+    public function buildCookieName(string $client, string $scope): string
     {
         $scope = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $scope) ?: 'main';
         return self::COOKIE_PREFIX . $scope . '_' . $client;

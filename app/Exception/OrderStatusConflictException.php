@@ -7,7 +7,7 @@ namespace App\Exception;
 /**
  * 订单状态流转冲突（乐观锁未命中）。
  *
- * `OrderModel::changeStatus()` 用 CAS 更新（`WHERE id = ? AND status = ?`）防止并发下
+ * `app(\App\Model\OrderModel::class)->changeStatus()` 用 CAS 更新（`WHERE id = ? AND status = ?`）防止并发下
  * 同一订单被重复推进。当受影响行数为 0，说明状态已被另一个请求改走，此时抛本异常。
  *
  * 为什么是抛异常而不是 `return false`：

@@ -34,7 +34,7 @@ final class WorkerHeartbeat
      * 核心不该、也无法硬编码某一个类型名去判断"有没有人在发货"。
      *
      * 所有发货 worker（都继承 DeliveryTaskWorker）跑完一轮都会刷这个心跳，
-     * 所以 OrderModel::triggerDelivery() 只要看它就能决定走异步还是同步。
+     * 所以 app(\App\Model\OrderModel::class)->triggerDelivery() 只要看它就能决定走异步还是同步。
      */
     public const CAPABILITY_DELIVERY = 'delivery';
 

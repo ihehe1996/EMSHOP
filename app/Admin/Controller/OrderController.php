@@ -169,7 +169,7 @@ final class OrderController extends BaseAdminController
         // 支付方式 code → image 映射
         $paymentImageMap = [];
         try {
-            foreach (\App\Service\PaymentService::getMethods() as $m) {
+            foreach (app(\App\Service\PaymentService::class)->getMethods() as $m) {
                 $code = (string) ($m['code'] ?? '');
                 if ($code !== '') {
                     $paymentImageMap[$code] = (string) ($m['image'] ?? '');
@@ -183,7 +183,7 @@ final class OrderController extends BaseAdminController
         foreach ($rows as &$row) {
             $row['goods_amount_fmt'] = number_format((float) bcdiv((string) ($row['goods_amount'] ?? 0), '1000000', 2), 2, '.', ',');
             $row['pay_amount_fmt'] = number_format((float) bcdiv((string) ($row['pay_amount'] ?? 0), '1000000', 2), 2, '.', ',');
-            $row['status_name'] = \App\Model\OrderModel::statusName($row['status']);
+            $row['status_name'] = app(\App\Model\OrderModel::class)->statusName($row['status']);
             $row['payment_image'] = $paymentImageMap[(string) ($row['payment_code'] ?? '')] ?? '';
             $row['goods'] = [];
             $row['goods_count'] = 0;
@@ -341,17 +341,17 @@ final class OrderController extends BaseAdminController
     private function handleDetail(string $prefix): void
     {
         $orderId = (int) $this->input->post('id', 0);
-        $order = \App\Model\OrderModel::getById($orderId);
+        $order = app(\App\Model\OrderModel::class)->getById($orderId);
         if (!$order) {
             $this->response->error('订单不存在');
         }
 
         $order['goods_amount_fmt'] = bcdiv((string) ($order['goods_amount'] ?? 0), '1000000', 2);
         $order['pay_amount_fmt'] = bcdiv((string) ($order['pay_amount'] ?? 0), '1000000', 2);
-        $order['status_name'] = \App\Model\OrderModel::statusName($order['status']);
+        $order['status_name'] = app(\App\Model\OrderModel::class)->statusName($order['status']);
 
         // 订单商品
-        $orderGoods = \App\Model\OrderModel::getOrderGoods($orderId);
+        $orderGoods = app(\App\Model\OrderModel::class)->getOrderGoods($orderId);
         foreach ($orderGoods as &$og) {
             $og['price_fmt'] = bcdiv((string) ($og['price'] ?? 0), '1000000', 2);
         }
@@ -388,7 +388,7 @@ final class OrderController extends BaseAdminController
             $this->response->error('参数错误');
         }
 
-        $order = \App\Model\OrderModel::getById($orderId);
+        $order = app(\App\Model\OrderModel::class)->getById($orderId);
         if (!$order) {
             $this->response->error('订单不存在');
         }
@@ -398,7 +398,7 @@ final class OrderController extends BaseAdminController
 
         $this->db->begin();
         try {
-            \App\Model\OrderModel::changeStatus($orderId, 'paid');
+            app(\App\Model\OrderModel::class)->changeStatus($orderId, 'paid');
 
             $hasSuccessPayment = $this->db->fetchOne(
                 "SELECT id FROM {$prefix}order_payment WHERE order_id = ? AND status = 'success' LIMIT 1",
@@ -437,7 +437,7 @@ final class OrderController extends BaseAdminController
         }
 
         try {
-            \App\Model\OrderModel::triggerDelivery($orderId);
+            app(\App\Model\OrderModel::class)->triggerDelivery($orderId);
         } catch (\Throwable $e) {
             // 发货触发失败不影响"已支付"结果
             $this->response->success('订单已标记为已支付，但触发发货失败：' . $e->getMessage(), [
@@ -471,7 +471,7 @@ final class OrderController extends BaseAdminController
         if (!$ogRow) {
             $this->response->error('订单商品不存在');
         }
-        if (\App\Model\OrderModel::hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) {
+        if (app(\App\Model\OrderModel::class)->hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) {
             $this->response->error('该商品已发货');
         }
 
@@ -496,7 +496,7 @@ final class OrderController extends BaseAdminController
         $deliveryContent = (string) $result['delivery_content'];
         $pluginData = isset($result['plugin_data']) && is_array($result['plugin_data']) ? $result['plugin_data'] : null;
 
-        \App\Model\OrderModel::manualShipOrderGoods($ogId, $deliveryContent, $pluginData);
+        app(\App\Model\OrderModel::class)->manualShipOrderGoods($ogId, $deliveryContent, $pluginData);
 
         $this->response->success('发货成功', ['csrf_token' => $this->csrf->refresh()]);
     }
@@ -511,7 +511,7 @@ final class OrderController extends BaseAdminController
         $currencySymbol = $primaryCurrency ? ($primaryCurrency['symbol'] ?? '¥') : '¥';
 
         $orderId = (int) $this->input->get('id', 0);
-        $order = \App\Model\OrderModel::getById($orderId);
+        $order = app(\App\Model\OrderModel::class)->getById($orderId);
         if (!$order) {
             http_response_code(404);
             echo '订单不存在';
@@ -520,9 +520,9 @@ final class OrderController extends BaseAdminController
         // 订单详情金额统一千分位
         $order['goods_amount_fmt'] = number_format((float) bcdiv((string) ($order['goods_amount'] ?? 0), '1000000', 2), 2, '.', ',');
         $order['pay_amount_fmt'] = number_format((float) bcdiv((string) ($order['pay_amount'] ?? 0), '1000000', 2), 2, '.', ',');
-        $order['status_name'] = \App\Model\OrderModel::statusName($order['status']);
+        $order['status_name'] = app(\App\Model\OrderModel::class)->statusName($order['status']);
 
-        $orderGoods = \App\Model\OrderModel::getOrderGoods($orderId);
+        $orderGoods = app(\App\Model\OrderModel::class)->getOrderGoods($orderId);
         foreach ($orderGoods as &$og) {
             $og['price_fmt'] = number_format((float) bcdiv((string) ($og['price'] ?? 0), '1000000', 2), 2, '.', ',');
         }
@@ -555,7 +555,7 @@ final class OrderController extends BaseAdminController
     private function renderShipPopup(): void
     {
         $orderId = (int) $this->input->get('id', 0);
-        $order = \App\Model\OrderModel::getById($orderId);
+        $order = app(\App\Model\OrderModel::class)->getById($orderId);
         if (!$order) {
             http_response_code(404);
             echo '订单不存在';
@@ -573,15 +573,15 @@ final class OrderController extends BaseAdminController
         $allowedShipStatus = ['paid', 'delivering', 'delivery_failed'];
         if (!in_array((string) $order['status'], $allowedShipStatus, true)) {
             $data['pageTitle'] = '无法发货';
-            $data['shipError'] = '当前订单状态（' . \App\Model\OrderModel::statusName($order['status']) . '）不允许手动发货';
+            $data['shipError'] = '当前订单状态（' . app(\App\Model\OrderModel::class)->statusName($order['status']) . '）不允许手动发货';
             $this->render('popup/order_ship', $data);
             return;
         }
 
         // 列出未发货的 order_goods
         $data['shippableGoods'] = array_values(array_filter(
-            \App\Model\OrderModel::getOrderGoods($orderId),
-            static fn($og) => !\App\Model\OrderModel::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
+            app(\App\Model\OrderModel::class)->getOrderGoods($orderId),
+            static fn($og) => !app(\App\Model\OrderModel::class)->hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
         ));
         $data['pageTitle'] = '发货 - ' . $order['order_no'];
 

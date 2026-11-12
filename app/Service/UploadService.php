@@ -15,7 +15,7 @@ namespace App\Service;
  * 上传成功后自动写入 em_attachment 记录，并支持按 MD5 去重。
  * 插件可通过 addFilter('upload_file_result', callback) 钩子替换上传结果（如转存到 OSS）。
  */
-final class UploadService
+final class UploadService extends BaseService
 {
     /** @var int 单文件上传上限（字节），富文本/封面等共用；须 ≥ 前端 EM_EDITOR_IMAGE_MAX_BYTES */
     private $maxSize = 20 * 1024 * 1024;

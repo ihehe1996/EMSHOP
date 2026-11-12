@@ -13,13 +13,14 @@ namespace App\Model;
  *
  * 数据存储于 lang 表。
  */
-final class LangModel
+final class LangModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'lang';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'lang';
     }
 
     /**
@@ -29,12 +30,12 @@ final class LangModel
      */
     public function getByLangId(int $langId): array
     {
-        return \Cache::remember('lang_' . $langId, 'lang', function () use ($langId): array {
+        return $this->cache->remember('lang_' . $langId, 'lang', function () use ($langId): array {
             $sql = sprintf(
                 'SELECT * FROM `%s` WHERE `lang_id` = ? ORDER BY `translate` ASC',
                 $this->table
             );
-            return \Database::query($sql, [$langId]);
+            return $this->db->query($sql, [$langId]);
         }, 86400);
     }
 
@@ -52,10 +53,10 @@ final class LangModel
              %s
              ORDER BY l.id DESC',
             $this->table,
-            \Database::prefix() . 'language',
+            $this->db->prefix() . 'language',
             $langId !== null ? 'WHERE l.lang_id = ?' : ''
         );
-        return \Database::query($sql, $langId !== null ? [$langId] : []);
+        return $this->db->query($sql, $langId !== null ? [$langId] : []);
     }
 
     /**
@@ -86,7 +87,7 @@ final class LangModel
             $whereClause
         );
 
-        $row = \Database::fetchOne($sql, $params);
+        $row = $this->db->fetchOne($sql, $params);
         return (int) ($row['total'] ?? 0);
     }
 
@@ -122,14 +123,14 @@ final class LangModel
              ORDER BY l.id DESC
              LIMIT ? OFFSET ?',
             $this->table,
-            \Database::prefix() . 'language',
+            $this->db->prefix() . 'language',
             $whereClause
         );
 
         $params[] = $limit;
         $params[] = $offset;
 
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -147,7 +148,7 @@ final class LangModel
             'SELECT * FROM `%s` WHERE `lang_id` = ? AND (`translate` LIKE ? OR `content` LIKE ?) ORDER BY `translate` ASC',
             $this->table
         );
-        return \Database::query($sql, [$langId, $kw, $kw]);
+        return $this->db->query($sql, [$langId, $kw, $kw]);
     }
 
     /**
@@ -158,7 +159,7 @@ final class LangModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$id]);
+        $row = $this->db->fetchOne($sql, [$id]);
         return $row !== false ? $row : null;
     }
 
@@ -170,7 +171,7 @@ final class LangModel
     public function findByLangIdAndTranslate(int $langId, string $translate): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `lang_id` = ? AND `translate` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$langId, $translate]);
+        $row = $this->db->fetchOne($sql, [$langId, $translate]);
         return $row !== false ? $row : null;
     }
 
@@ -185,7 +186,7 @@ final class LangModel
             'SELECT * FROM `%s` WHERE `translate` = ? ORDER BY `lang_id` ASC',
             $this->table
         );
-        return \Database::query($sql, [$translate]);
+        return $this->db->query($sql, [$translate]);
     }
 
     /**
@@ -198,13 +199,13 @@ final class LangModel
                 'SELECT `id` FROM `%s` WHERE `lang_id` = ? AND `translate` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$langId, $translate, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$langId, $translate, $excludeId]);
         } else {
             $sql = sprintf(
                 'SELECT `id` FROM `%s` WHERE `lang_id` = ? AND `translate` = ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$langId, $translate]);
+            $row = $this->db->fetchOne($sql, [$langId, $translate]);
         }
         return $row !== null;
     }
@@ -237,13 +238,13 @@ final class LangModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         $newId = (int) ($row['id'] ?? 0);
 
         if ($newId > 0) {
-            \Cache::deleteGroup('lang');
+            $this->cache->deleteGroup('lang');
         }
 
         return $newId;
@@ -280,10 +281,10 @@ final class LangModel
             implode(', ', $sets)
         );
 
-        $result = \Database::execute($sql, $params) > 0;
+        $result = $this->db->execute($sql, $params) > 0;
 
         if ($result) {
-            \Cache::deleteGroup('lang');
+            $this->cache->deleteGroup('lang');
         }
 
         return $result;
@@ -295,9 +296,9 @@ final class LangModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $result = \Database::execute($sql, [$id]) > 0;
+        $result = $this->db->execute($sql, [$id]) > 0;
         if ($result) {
-            \Cache::deleteGroup('lang');
+            $this->cache->deleteGroup('lang');
         }
         return $result;
     }

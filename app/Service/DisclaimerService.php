@@ -14,7 +14,7 @@ namespace App\Service;
  * 协议正文在后台框架壳 app/Admin/View/shell.php 中渲染；本类只负责版本号与签署记录，
  * 记录写入 config 表的 disclaimer_accepted 键（JSON），全站保留最近一次签署。
  */
-final class DisclaimerService
+final class DisclaimerService extends BaseService
 {
     /**
      * 当前协议版本。
@@ -28,9 +28,9 @@ final class DisclaimerService
     /**
      * 当前站点是否已签署当前版本的协议。
      */
-    public static function accepted(): bool
+    public function accepted(): bool
     {
-        $record = self::record();
+        $record = $this->record();
 
         return $record !== null && (string) ($record['version'] ?? '') === self::VERSION;
     }
@@ -40,9 +40,9 @@ final class DisclaimerService
      *
      * @return array<string, mixed>|null
      */
-    public static function record(): ?array
+    public function record(): ?array
     {
-        $raw = \Config::get(self::CONFIG_KEY, '');
+        $raw = $this->config->get(self::CONFIG_KEY, '');
         if ($raw === '') {
             return null;
         }
@@ -55,7 +55,7 @@ final class DisclaimerService
     /**
      * 写入签署记录。
      */
-    public static function accept(int $adminId, string $account, string $ip): bool
+    public function accept(int $adminId, string $account, string $ip): bool
     {
         $payload = json_encode([
             'version'  => self::VERSION,
@@ -65,6 +65,6 @@ final class DisclaimerService
             'time'     => date('Y-m-d H:i:s'),
         ], JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
 
-        return \Config::set(self::CONFIG_KEY, (string) $payload);
+        return $this->config->set(self::CONFIG_KEY, (string) $payload);
     }
 }

@@ -96,7 +96,7 @@ final class OrderController extends MerchantBaseController
                                 $orderIds
                             );
                             foreach ($goodsRows as $g) {
-                                $shipped = \App\Model\OrderModel::hasDeliveryContent(
+                                $shipped = app(\App\Model\OrderModel::class)->hasDeliveryContent(
                                     (int) ($g['id'] ?? 0),
                                     (string) ($g['delivery_content'] ?? '')
                                 );
@@ -126,7 +126,7 @@ final class OrderController extends MerchantBaseController
                                 ? ($r['nickname'] ?: $r['username'] ?: ('用户 #' . $r['user_id']))
                                 : ('游客 ' . substr((string) ($r['guest_token'] ?? ''), 0, 8));
                             $r['is_guest'] = (int) $r['user_id'] === 0;
-                            $r['status_name'] = \App\Model\OrderModel::statusName((string) $r['status']);
+                            $r['status_name'] = app(\App\Model\OrderModel::class)->statusName((string) $r['status']);
                             $pendingShipCount = 0;
                             foreach (($goodsByOrder[(int) $r['id']] ?? []) as $gi) {
                                 if (empty($gi['shipped'])) $pendingShipCount++;
@@ -174,7 +174,7 @@ final class OrderController extends MerchantBaseController
                         if ($order === null) {
                             $this->response->error('订单不存在');
                         }
-                        $items = \App\Model\OrderModel::getOrderGoods((int) $id);
+                        $items = app(\App\Model\OrderModel::class)->getOrderGoods((int) $id);
                         // 订单详情所有金额都按下单时快照币种展示
                         $dispCode = (string) ($order['display_currency_code'] ?? '');
                         $dispRate = (int) ($order['display_rate'] ?? 0);
@@ -221,7 +221,7 @@ final class OrderController extends MerchantBaseController
                         if ((int) ($ogRow['order_merchant_id'] ?? 0) !== $merchantId) {
                             $this->response->error('无权操作其它店铺的订单');
                         }
-                        if (\App\Model\OrderModel::hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) $this->response->error('该商品已发货');
+                        if (app(\App\Model\OrderModel::class)->hasDeliveryContent($ogId, (string) ($ogRow['delivery_content'] ?? ''))) $this->response->error('该商品已发货');
 
                         $goodsType = (string) ($ogRow['goods_type'] ?? '');
                         if ($goodsType === '') $this->response->error('商品类型缺失，无法发货');
@@ -242,7 +242,7 @@ final class OrderController extends MerchantBaseController
                         $deliveryContent = (string) $result['delivery_content'];
                         $pluginData = isset($result['plugin_data']) && is_array($result['plugin_data']) ? $result['plugin_data'] : null;
 
-                        \App\Model\OrderModel::manualShipOrderGoods($ogId, $deliveryContent, $pluginData);
+                        app(\App\Model\OrderModel::class)->manualShipOrderGoods($ogId, $deliveryContent, $pluginData);
 
                         $this->response->success('发货成功', ['csrf_token' => $this->csrf->refresh()]);
                         break;
@@ -278,9 +278,9 @@ final class OrderController extends MerchantBaseController
                 echo '订单不存在';
                 return;
             }
-            $order['status_name'] = \App\Model\OrderModel::statusName((string) $order['status']);
+            $order['status_name'] = app(\App\Model\OrderModel::class)->statusName((string) $order['status']);
 
-            $items = \App\Model\OrderModel::getOrderGoods((int) $orderId);
+            $items = app(\App\Model\OrderModel::class)->getOrderGoods((int) $orderId);
             // 金额按下单快照币种展示
             $dispCode = (string) ($order['display_currency_code'] ?? '');
             $dispRate = (int) ($order['display_rate'] ?? 0);
@@ -335,7 +335,7 @@ final class OrderController extends MerchantBaseController
             $allowedShipStatus = ['paid', 'delivering', 'delivery_failed'];
             if (!in_array((string) $order['status'], $allowedShipStatus, true)) {
                 $pageTitle = '无法发货';
-                $shipError = '当前订单状态（' . \App\Model\OrderModel::statusName($order['status']) . '）不允许手动发货';
+                $shipError = '当前订单状态（' . app(\App\Model\OrderModel::class)->statusName($order['status']) . '）不允许手动发货';
                 $csrfToken = $this->csrf->token();
                 $shipSubmitUrl = '/user/merchant/order';
                 include EM_ROOT . '/app/Admin/View/popup/order_ship.php';
@@ -343,8 +343,8 @@ final class OrderController extends MerchantBaseController
             }
 
             $shippableGoods = array_values(array_filter(
-                \App\Model\OrderModel::getOrderGoods($orderId),
-                static fn($og) => !\App\Model\OrderModel::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
+                app(\App\Model\OrderModel::class)->getOrderGoods($orderId),
+                static fn($og) => !app(\App\Model\OrderModel::class)->hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))
             ));
 
             $csrfToken = $this->csrf->token();

@@ -56,7 +56,7 @@ final class BlogController extends BaseAdminController
                 $where['status'] = $status;
             }
 
-            $result = \App\Model\BlogModel::getList($where, $page, $limit, 'a.is_top DESC, a.sort ASC, a.id DESC');
+            $result = app(\App\Model\BlogModel::class)->getList($where, $page, $limit, 'a.is_top DESC, a.sort ASC, a.id DESC');
 
             // 统计各状态的文章数量
             $countWhere = ['merchant_id' => 0];
@@ -67,9 +67,9 @@ final class BlogController extends BaseAdminController
                 $countWhere['category_id'] = $categoryId;
             }
 
-            $countAll = \App\Model\BlogModel::getList($countWhere, 1, 1)['total'];
-            $countPublished = \App\Model\BlogModel::getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
-            $countDraft = \App\Model\BlogModel::getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
+            $countAll = app(\App\Model\BlogModel::class)->getList($countWhere, 1, 1)['total'];
+            $countPublished = app(\App\Model\BlogModel::class)->getList(array_merge($countWhere, ['status' => 1]), 1, 1)['total'];
+            $countDraft = app(\App\Model\BlogModel::class)->getList(array_merge($countWhere, ['status' => 0]), 1, 1)['total'];
 
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -90,7 +90,7 @@ final class BlogController extends BaseAdminController
         // 切换发布状态
         if ($action === 'toggle_status') {
             $id = (int) $this->input->post('id', 0);
-            $article = \App\Model\BlogModel::getById($id);
+            $article = app(\App\Model\BlogModel::class)->getById($id);
             if (!$article) {
                 $this->response->error('文章不存在');
             }
@@ -98,16 +98,16 @@ final class BlogController extends BaseAdminController
                 $this->response->error('无权操作商户文章');
             }
             $newStatus = (int) $article['status'] ? 0 : 1;
-            \App\Model\BlogModel::update($id, ['status' => $newStatus]);
+            app(\App\Model\BlogModel::class)->update($id, ['status' => $newStatus]);
             // article_count 只统计已发布文章，状态切换后需刷新计数
-            \App\Model\BlogTagModel::refreshAllCounts();
+            app(\App\Model\BlogTagModel::class)->refreshAllCounts();
             $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 切换置顶
         if ($action === 'toggle_top') {
             $id = (int) $this->input->post('id', 0);
-            $article = \App\Model\BlogModel::getById($id);
+            $article = app(\App\Model\BlogModel::class)->getById($id);
             if (!$article) {
                 $this->response->error('文章不存在');
             }
@@ -115,23 +115,23 @@ final class BlogController extends BaseAdminController
                 $this->response->error('无权操作商户文章');
             }
             $newTop = (int) $article['is_top'] ? 0 : 1;
-            \App\Model\BlogModel::update($id, ['is_top' => $newTop]);
+            app(\App\Model\BlogModel::class)->update($id, ['is_top' => $newTop]);
             $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 删除文章（逻辑删除）
         if ($action === 'delete') {
             $id = (int) $this->input->post('id', 0);
-            $article = \App\Model\BlogModel::getById($id);
+            $article = app(\App\Model\BlogModel::class)->getById($id);
             if (!$article) {
                 $this->response->error('文章不存在');
             }
             if ((int) $article['merchant_id'] !== 0) {
                 $this->response->error('无权删除商户文章');
             }
-            if (\App\Model\BlogModel::delete($id)) {
+            if (app(\App\Model\BlogModel::class)->delete($id)) {
                 // 删除文章后同步刷新标签的 article_count
-                \App\Model\BlogTagModel::refreshAllCounts();
+                app(\App\Model\BlogTagModel::class)->refreshAllCounts();
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -161,11 +161,11 @@ final class BlogController extends BaseAdminController
             foreach ($allowedIds as $id) {
                 try {
                     if ($batchAction === 'publish') {
-                        \App\Model\BlogModel::update($id, ['status' => 1]);
+                        app(\App\Model\BlogModel::class)->update($id, ['status' => 1]);
                     } elseif ($batchAction === 'draft') {
-                        \App\Model\BlogModel::update($id, ['status' => 0]);
+                        app(\App\Model\BlogModel::class)->update($id, ['status' => 0]);
                     } elseif ($batchAction === 'delete') {
-                        \App\Model\BlogModel::delete($id);
+                        app(\App\Model\BlogModel::class)->delete($id);
                     } else {
                         $failed++;
                         break;
@@ -175,7 +175,7 @@ final class BlogController extends BaseAdminController
                 }
             }
             // 任一批量动作（发布/转草稿/删除）都会影响标签的 article_count，统一刷一次
-            \App\Model\BlogTagModel::refreshAllCounts();
+            app(\App\Model\BlogTagModel::class)->refreshAllCounts();
             if ($failed === 0) {
                 $this->response->success('批量操作成功', ['csrf_token' => $this->csrf->token()]);
             } else {

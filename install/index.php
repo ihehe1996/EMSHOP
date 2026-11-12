@@ -24,6 +24,7 @@ Autoloader::register([
 
 // 全局短名 → App\Facade\* 别名（安装过程里 InstallService 会用到 Database / Config）
 require_once EM_ROOT . '/bootstrap/aliases.php';
+require_once EM_ROOT . '/app/helpers/app.php';
 em_register_facade_aliases();
 
 // 读 .env 里的后台入口（EM_APP_ADMIN_ENTRY）；没有就让 Env 用默认值 admin

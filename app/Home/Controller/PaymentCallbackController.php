@@ -30,7 +30,7 @@ final class PaymentCallbackController
         }
 
         // 商户站子域名回调需切到主站 scope，让插件读取主站凭证。
-        \App\Service\PaymentService::dispatchReturn($plugin, $data);
+        app(\App\Service\PaymentService::class)->dispatchReturn($plugin, $data);
 
         // 兜底：插件未跳转时按身份回跳。
         \Response::redirect(self::buildReturnRedirectUrl());
@@ -71,7 +71,7 @@ final class PaymentCallbackController
 
 
         // 插件内应输出 success/fail 并 exit。
-        \App\Service\PaymentService::dispatchNotify($plugin, $data);
+        app(\App\Service\PaymentService::class)->dispatchNotify($plugin, $data);
 
         // 兜底：插件未输出时判失败。
         http_response_code(500);
@@ -111,7 +111,7 @@ final class PaymentCallbackController
     {
         $plugin = trim((string) \Input::get('plugin', ''));
         if ($plugin === '') {
-            $plugin = \App\Service\PaymentService::detectPluginFromCallback($data);
+            $plugin = app(\App\Service\PaymentService::class)->detectPluginFromCallback($data);
         }
         if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin)) {
             return '';

@@ -26,7 +26,7 @@ namespace App\Service;
  *
  * 所有路径均使用 /（UNIX 风格），PHP 在 Windows 下也接受。
  */
-final class UpdateService
+final class UpdateService extends BaseService
 {
     /** 下载的 zip 存放处 */
     private const CACHE_DIR     = '/content/tmp/update/cache';
@@ -88,7 +88,7 @@ final class UpdateService
      *
      * @return array{ok:bool, errors:string[], warnings:string[], php_version:string, disk_free:int}
      */
-    public static function preflight(string $newVersion, string $minFromVersion = '', int $packageSize = 0): array
+    public function preflight(string $newVersion, string $minFromVersion = '', int $packageSize = 0): array
     {
         $errors = [];
         $warnings = [];
@@ -99,9 +99,9 @@ final class UpdateService
         }
 
         // 数据库版本：建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP，MySQL 5.6.5 起才支持
-        if (!\Database::mysqlVersionOk()) {
-            $errors[] = '数据库版本过低：需要 MySQL ' . \Database::MIN_MYSQL_VERSION
-                . ' 及以上（或 MariaDB），当前 ' . \Database::serverVersion();
+        if (!$this->db->mysqlVersionOk()) {
+            $errors[] = '数据库版本过低：需要 MySQL ' . $this->db->MIN_MYSQL_VERSION
+                . ' 及以上（或 MariaDB），当前 ' . $this->db->serverVersion();
         }
 
         // 必需扩展
@@ -140,8 +140,8 @@ final class UpdateService
         $required = max($packageSize * 2, 50 * 1024 * 1024); // 保底 50MB
         $diskFree = @disk_free_space(EM_ROOT) ?: 0;
         if ($diskFree > 0 && $diskFree < $required) {
-            $errors[] = '磁盘剩余空间不足：需 ' . self::formatBytes($required)
-                . '，仅剩 ' . self::formatBytes((int) $diskFree);
+            $errors[] = '磁盘剩余空间不足：需 ' . $this->formatBytes($required)
+                . '，仅剩 ' . $this->formatBytes((int) $diskFree);
         }
 
         return [
@@ -165,7 +165,7 @@ final class UpdateService
      *
      * @return array{ok:bool, path:string, size:int, sha256:string, error?:string}
      */
-    public static function download(string $packageUrl, string $expectedSha256 = ''): array
+    public function download(string $packageUrl, string $expectedSha256 = ''): array
     {
         if ($packageUrl === '') {
             return ['ok' => false, 'path' => '', 'size' => 0, 'sha256' => '', 'error' => '升级包 URL 为空'];
@@ -173,11 +173,11 @@ final class UpdateService
 
         // 服务端可能返相对路径（如 /content/uploads/xxx.zip），自动补上授权服务器域名；
         // 不加这一层 cURL 对相对路径会直接 HTTP 0 失败
-        $packageUrl = self::resolvePackageUrl($packageUrl);
+        $packageUrl = $this->resolvePackageUrl($packageUrl);
 
         // package_url 来自客户端：只允许授权线路的主机，否则等于允许把任意 zip
         // 覆盖到站点根（RCE），以及用 http://127.0.0.1 之类地址探测内网（SSRF）。
-        if (!self::isTrustedPackageUrl($packageUrl)) {
+        if (!$this->isTrustedPackageUrl($packageUrl)) {
             return [
                 'ok' => false, 'path' => '', 'size' => 0, 'sha256' => '',
                 'error' => '升级包地址非法（必须与授权服务器同一域名）',
@@ -190,7 +190,7 @@ final class UpdateService
 
         
 
-        self::ensureDir(self::CACHE_DIR);
+        $this->ensureDir(self::CACHE_DIR);
 
         $filename = 'package_' . date('YmdHis') . '_' . substr(md5($packageUrl), 0, 8) . '.zip';
         $localPath = EM_ROOT . self::CACHE_DIR . '/' . $filename;
@@ -211,7 +211,7 @@ final class UpdateService
             CURLOPT_CONNECTTIMEOUT => 10,  // 10秒建立连接时间
             CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? \EM_VERSION : 'dev'),
             // 证书与主机名校验默认开启；自签线路由 config 的 license_insecure_tls=1 显式降级
-        ] + (class_exists('LicenseClient') ? \LicenseClient::tlsOptions() : [
+        ] + (class_exists('LicenseClient') ? $this->licenseClient->tlsOptions() : [
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]));
@@ -241,7 +241,7 @@ final class UpdateService
             ];
         }
 
-        self::audit('update_download', [
+        $this->audit('update_download', [
             'host'   => (string) parse_url($packageUrl, PHP_URL_HOST),
             'size'   => (int) $size,
             'sha256' => $sha256,
@@ -261,7 +261,7 @@ final class UpdateService
      *
      * @return array{ok:bool, extract_path:string, files:int, error?:string}
      */
-    public static function extract(string $zipPath): array
+    public function extract(string $zipPath): array
     {
         // zip_path 来自客户端：只允许临时下载目录里的 .zip，防止拿服务器上的任意文件来解压
         $realZip = str_replace('\\', '/', (string) realpath($zipPath));
@@ -278,8 +278,8 @@ final class UpdateService
         }
 
         // 每次解压前清空目录，避免残留
-        self::removeDir(EM_ROOT . self::EXTRACT_DIR);
-        self::ensureDir(self::EXTRACT_DIR);
+        $this->removeDir(EM_ROOT . self::EXTRACT_DIR);
+        $this->ensureDir(self::EXTRACT_DIR);
 
         $zip = new \ZipArchive();
         $open = $zip->open($zipPath);
@@ -292,7 +292,7 @@ final class UpdateService
         $zip->close();
 
         if (!$ok) {
-            self::removeDir(EM_ROOT . self::EXTRACT_DIR);
+            $this->removeDir(EM_ROOT . self::EXTRACT_DIR);
             @unlink($zipPath);
             return ['ok' => false, 'extract_path' => '', 'files' => 0, 'error' => '解压失败，可能磁盘空间不足或权限不够'];
         }
@@ -300,7 +300,7 @@ final class UpdateService
         // 解压完成后删除 zip，不在服务器保留升级包
         @unlink($zipPath);
 
-        self::audit('update_extract', ['files' => $count]);
+        $this->audit('update_extract', ['files' => $count]);
 
         return ['ok' => true, 'extract_path' => EM_ROOT . self::EXTRACT_DIR, 'files' => $count];
     }
@@ -315,7 +315,7 @@ final class UpdateService
      *
      * @return array{ok:bool, replaced:int, added:int, skipped:int, manifest_file:string, error?:string}
      */
-    public static function apply(string $extractPath): array
+    public function apply(string $extractPath): array
     {
         // extract_path 来自客户端：只允许固定的解压目录，否则等于允许把服务器上
         // 任意目录（/etc、其它站点、备份目录）复制到网站根目录。
@@ -331,7 +331,7 @@ final class UpdateService
             return ['ok' => false, 'replaced' => 0, 'added' => 0, 'skipped' => 0, 'manifest_file' => '', 'error' => '解压目录不存在'];
         }
 
-        $srcRoot = self::detectPackageRoot($extractPath);
+        $srcRoot = $this->detectPackageRoot($extractPath);
         $manifest = ['applied' => [], 'added' => [], 'replaced' => [], 'started_at' => date('c')];
 
         $replaced = 0; $added = 0; $skipped = 0;
@@ -345,12 +345,12 @@ final class UpdateService
                 if ($fileInfo->isDir()) continue;
                 if ($fileInfo->isLink()) { $skipped++; continue; }
                 $rel = ltrim(str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($srcRoot))), '/');
-                if (self::isPreserved($rel)) { $skipped++; continue; }
+                if ($this->isPreserved($rel)) { $skipped++; continue; }
 
                 $dst = EM_ROOT . '/' . $rel;
 
                 // 服务器配置类文件按归属决定：不是我们放的就跳过（详见 MANAGED_SERVER_CONFIG）
-                $disposition = self::serverConfigDisposition($rel, $dst);
+                $disposition = $this->serverConfigDisposition($rel, $dst);
                 if ($disposition === self::CONFIG_LEAVE) { $skipped++; continue; }
                 if ($disposition === self::CONFIG_OVERWRITE) {
                     // 覆盖前留一份，万一是站长在我们这份基础上追加过自己的规则
@@ -378,7 +378,7 @@ final class UpdateService
                 }
             }
         } catch (\Throwable $e) {
-            self::rollbackFromManifest($manifest);
+            $this->rollbackFromManifest($manifest);
             return [
                 'ok' => false, 'replaced' => $replaced, 'added' => $added, 'skipped' => $skipped,
                 'manifest_file' => '', 'error' => '应用失败已自动回滚：' . $e->getMessage(),
@@ -389,7 +389,7 @@ final class UpdateService
         $manifestPath = EM_ROOT . self::MANIFEST_FILE;
         @file_put_contents($manifestPath, json_encode($manifest, JSON_UNESCAPED_UNICODE | \JSON_PRETTY_PRINT));
 
-        self::audit('update_apply', [
+        $this->audit('update_apply', [
             'replaced' => $replaced,
             'added'    => $added,
             'skipped'  => $skipped,
@@ -411,10 +411,10 @@ final class UpdateService
      *
      * @return array{ok:bool, applied:string[], pending:string[], batch:int, error?:string}
      */
-    public static function migrate(): array
+    public function migrate(): array
     {
         // 保证追踪表存在（本次升级首次引入追踪时，可能是 apply 阶段带来的新 .sql 创建）
-        self::ensureMigrationsTable();
+        $this->ensureMigrationsTable();
 
         $dir = EM_ROOT . '/install/migrations';
         if (!is_dir($dir)) {
@@ -424,8 +424,8 @@ final class UpdateService
         $allFiles = glob($dir . '/*.sql') ?: [];
         sort($allFiles, SORT_STRING);
 
-        $prefix = \Database::prefix();
-        $done = \Database::query('SELECT `filename` FROM `' . $prefix . 'migrations`');
+        $prefix = $this->db->prefix();
+        $done = $this->db->query('SELECT `filename` FROM `' . $prefix . 'migrations`');
         $doneSet = array_flip(array_column($done, 'filename'));
 
         $pending = [];
@@ -438,7 +438,7 @@ final class UpdateService
             return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0];
         }
 
-        $batchRow = \Database::fetchOne('SELECT COALESCE(MAX(`batch`),0)+1 AS `n` FROM `' . $prefix . 'migrations`');
+        $batchRow = $this->db->fetchOne('SELECT COALESCE(MAX(`batch`),0)+1 AS `n` FROM `' . $prefix . 'migrations`');
         $batch = (int) ($batchRow['n'] ?? 1);
 
         $applied = [];
@@ -452,11 +452,11 @@ final class UpdateService
             $sql = str_replace('__PREFIX__', $prefix, $sql);
 
             try {
-                foreach (self::splitSqlStatements($sql) as $stmt) {
+                foreach ($this->splitSqlStatements($sql) as $stmt) {
                     if (trim($stmt) === '') continue;
-                    \Database::statement($stmt);
+                    $this->db->statement($stmt);
                 }
-                \Database::insert('migrations', [
+                $this->db->insert('migrations', [
                     'filename' => $name,
                     'batch'    => $batch,
                     'checksum' => $checksum,
@@ -480,16 +480,16 @@ final class UpdateService
      * 新装站点：把 install/migrations 里当前随包自带的 SQL 记入 em_migrations（不执行 SQL）。
      * 安装程序建表已包含同等结构，避免用户首次在线升级重复跑迁移报错。
      */
-    public static function markBundledMigrationsApplied(): void
+    public function markBundledMigrationsApplied(): void
     {
         $dir = EM_ROOT . '/install/migrations';
         if (!is_dir($dir)) {
             return;
         }
 
-        self::ensureMigrationsTable();
+        $this->ensureMigrationsTable();
 
-        $done = \Database::query('SELECT `filename` FROM `' . \Database::prefix() . 'migrations`');
+        $done = $this->db->query('SELECT `filename` FROM `' . $this->db->prefix() . 'migrations`');
         $doneSet = array_flip(array_column($done, 'filename'));
 
         $files = glob($dir . '/*.sql') ?: [];
@@ -501,7 +501,7 @@ final class UpdateService
                 continue;
             }
             $raw = (string) file_get_contents($file);
-            \Database::insert('migrations', [
+            $this->db->insert('migrations', [
                 'filename' => $name,
                 'batch'    => 0,
                 'checksum' => hash('sha256', $raw),
@@ -525,7 +525,7 @@ final class UpdateService
      *
      * @return array{ok:bool, ran:bool, deleted:bool, output:string, error?:string}
      */
-    public static function runPackageScript(string $extractPath): array
+    public function runPackageScript(string $extractPath): array
     {
         // extract_path 来自客户端，和 apply 一样只允许固定的解压目录
         $realExtract = str_replace('\\', '/', (string) realpath($extractPath));
@@ -538,7 +538,7 @@ final class UpdateService
         }
 
         // 是否带脚本看的是「升级包里有没有」，不是站点根目录有没有遗留文件
-        $srcRoot = self::detectPackageRoot($extractPath);
+        $srcRoot = $this->detectPackageRoot($extractPath);
         if (!is_file($srcRoot . '/update.php')) {
             return ['ok' => true, 'ran' => false, 'deleted' => true, 'output' => ''];
         }
@@ -551,7 +551,7 @@ final class UpdateService
             ];
         }
 
-        $delete = static function () use ($script): void {
+        $delete = function () use ($script): void {
             if (is_file($script)) {
                 @unlink($script);
             }
@@ -561,7 +561,7 @@ final class UpdateService
 
         // 用独立闭包执行：脚本里的局部变量（$output / $error / $script 等）
         // 不会覆盖本方法的同名变量，把状态维护和脚本作用域隔开
-        $runner = static function (string $__packageScript): void {
+        $runner = function (string $__packageScript): void {
             include $__packageScript;
         };
 
@@ -585,17 +585,17 @@ final class UpdateService
         }
 
         // 输出/异常信息必须能 json_encode（脚本可能是 GBK 编码或 echo 了二进制）
-        $output = self::normalizeScriptOutput($output);
+        $output = $this->normalizeScriptOutput($output);
         if ($error !== '') {
-            $error = self::normalizeScriptOutput($error);
+            $error = $this->normalizeScriptOutput($error);
         }
 
         $deleted = !is_file($script);
 
-        self::audit($error === '' ? 'update_script' : 'update_script_fail', array_filter([
+        $this->audit($error === '' ? 'update_script' : 'update_script_fail', array_filter([
             'error'         => $error,
             'output_length' => strlen($output),
-        ], static function ($v) { return $v !== '' && $v !== 0; }));
+        ], function ($v) { return $v !== '' && $v !== 0; }));
 
         if ($error !== '') {
             return [
@@ -614,7 +614,7 @@ final class UpdateService
      * UTF-8，Response::json 的 json_encode 会返回 false，整个 AJAX 响应变成空串，
      * 前端只报解析错误，而脚本其实已经执行成功并被删除了 —— 很容易误判成升级失败。
      */
-    private static function normalizeScriptOutput(string $output): string
+    private function normalizeScriptOutput(string $output): string
     {
         if ($output === '') {
             return '';
@@ -653,21 +653,21 @@ final class UpdateService
     /**
      * 收尾：清理临时文件，记录 last_update_at。
      */
-    public static function finalize(): array
+    public function finalize(): array
     {
-        self::removeDir(EM_ROOT . self::EXTRACT_DIR);
-        self::cleanDir(EM_ROOT . self::CACHE_DIR);
+        $this->removeDir(EM_ROOT . self::EXTRACT_DIR);
+        $this->cleanDir(EM_ROOT . self::CACHE_DIR);
         // 清理旧版升级遗留的备份目录（当前版本已不再创建备份）
         $legacyBackup = EM_ROOT . '/content/tmp/update/backup';
         if (is_dir($legacyBackup)) {
-            self::removeDir($legacyBackup);
+            $this->removeDir($legacyBackup);
         }
 
         @unlink(EM_ROOT . self::MANIFEST_FILE);
 
         // 记录一下最后升级时间
         if (class_exists('Config')) {
-            \Config::set('last_update_at', (string) time());
+            $this->config->set('last_update_at', (string) time());
         }
 
         // 上报更新成功（官方站版本管理的「更新数」+1）。
@@ -677,7 +677,7 @@ final class UpdateService
         $reported = false;
         if (defined('EM_VERSION') && class_exists('LicenseClient')) {
             try {
-                $reported = \LicenseClient::reportUpdateSuccess((string) EM_VERSION);
+                $reported = $this->licenseClient->reportUpdateSuccess((string) EM_VERSION);
             } catch (\Throwable $e) {
                 $reported = false;
             }
@@ -695,13 +695,13 @@ final class UpdateService
      *
      * @return array{ok:bool, restored_files:int, error?:string}
      */
-    public static function rollback(): array
+    public function rollback(): array
     {
         $manifestPath = EM_ROOT . self::MANIFEST_FILE;
         $restored = 0;
         if (is_file($manifestPath)) {
             $manifest = json_decode((string) file_get_contents($manifestPath), true) ?: [];
-            $restored = self::rollbackFromManifest($manifest);
+            $restored = $this->rollbackFromManifest($manifest);
         }
 
         return ['ok' => true, 'restored_files' => $restored];
@@ -716,7 +716,7 @@ final class UpdateService
      *
      * @param array{applied?:string[], added?:string[], replaced?:string[]} $manifest
      */
-    private static function rollbackFromManifest(array $manifest): int
+    private function rollbackFromManifest(array $manifest): int
     {
         $count = 0;
         foreach ($manifest['added'] ?? [] as $rel) {
@@ -729,16 +729,16 @@ final class UpdateService
     /**
      * 保证 em_migrations 表存在（老站第一次进入升级流程时走这里）。
      */
-    private static function ensureMigrationsTable(): void
+    private function ensureMigrationsTable(): void
     {
-        $table = \Database::prefix() . 'migrations';
+        $table = $this->db->prefix() . 'migrations';
 
         // 防御性兜底：MySQL < 5.6.5 不支持 DATETIME DEFAULT CURRENT_TIMESTAMP。
         // 正常流程里 install/upgrade 的版本守卫已先拦截，这里仅兜底。本表只有一个
         // applied_at 自增列，换成 TIMESTAMP 在 5.5 下也安全。
-        $appliedAtType = \Database::mysqlVersionOk() ? 'DATETIME' : 'TIMESTAMP';
+        $appliedAtType = $this->db->mysqlVersionOk() ? 'DATETIME' : 'TIMESTAMP';
 
-        \Database::statement(
+        $this->db->statement(
             'CREATE TABLE IF NOT EXISTS `' . $table . '` (
                 `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `filename`   VARCHAR(255) NOT NULL,
@@ -759,9 +759,9 @@ final class UpdateService
      *   2. 相对路径（/api/versions/em/3/download、/content/uploads/...）—— 前面补当前授权服务器域名
      * 没这一层，cURL 对相对路径直接 HTTP 0 失败。
      *
-     * public 是给 LicenseService::fetchBaseData() 用的（base-data 的 patch_package_url 就是相对路径）。
+     * public 是给 app(\App\Service\LicenseService::class)->fetchBaseData() 用的（base-data 的 patch_package_url 就是相对路径）。
      */
-    public static function resolvePackageUrl(string $url): string
+    public function resolvePackageUrl(string $url): string
     {
         $url = trim($url);
         if ($url === '') return $url;
@@ -771,7 +771,7 @@ final class UpdateService
 
         // 相对路径：补当前授权服务器的域名做前缀
         if (!class_exists('LicenseClient')) return $url;
-        $base = rtrim(\LicenseClient::currentBaseUrl(), '/');
+        $base = rtrim($this->licenseClient->currentBaseUrl(), '/');
         if ($base === '') return $url;
 
         return $base . '/' . ltrim($url, '/');
@@ -780,12 +780,12 @@ final class UpdateService
     /**
      * 升级包地址是否属于授权线路主机。
      */
-    private static function isTrustedPackageUrl(string $url): bool
+    private function isTrustedPackageUrl(string $url): bool
     {
         if (!class_exists('DownloadUrlGuard') || !class_exists('LicenseClient')) {
             return false;
         }
-        foreach (\LicenseClient::lines() as $line) {
+        foreach ($this->licenseClient->lines() as $line) {
             $base = rtrim((string) ($line['url'] ?? ''), '/');
             if ($base !== '' && \DownloadUrlGuard::isAllowed($url, $base, true)) {
                 return true;
@@ -798,7 +798,7 @@ final class UpdateService
      * 解压目录可能是 emshop-v1.2.0/ 这样套一层的，也可能是直接铺平的。
      * 看解压根下有没有 init.php 或 app/ 来判断，找不到就返回原目录。
      */
-    private static function detectPackageRoot(string $extractPath): string
+    private function detectPackageRoot(string $extractPath): string
     {
         if (is_file($extractPath . '/init.php') || is_dir($extractPath . '/app')) {
             return rtrim($extractPath, '/');
@@ -815,7 +815,7 @@ final class UpdateService
     /**
      * 相对路径是否命中保留白名单（升级时不动这些路径）。
      */
-    private static function isPreserved(string $rel): bool
+    private function isPreserved(string $rel): bool
     {
         $rel = str_replace('\\', '/', $rel);
         foreach (self::PRESERVE_PATHS as $p) {
@@ -832,7 +832,7 @@ final class UpdateService
      * 只读文件开头一段做归属判定就够了，标识本来就在最前面的注释里；
      * 顺带避免把一个几 MB 的文件整个读进来。
      */
-    private static function serverConfigDisposition(string $rel, string $dst): string
+    private function serverConfigDisposition(string $rel, string $dst): string
     {
         $rel = str_replace('\\', '/', $rel);
         $marker = self::MANAGED_SERVER_CONFIG[$rel] ?? null;
@@ -854,7 +854,7 @@ final class UpdateService
      *
      * @return string[]
      */
-    private static function splitSqlStatements(string $sql): array
+    private function splitSqlStatements(string $sql): array
     {
         // 先去块注释 / 单行注释，避免正文里的分号被误拆
         $sql = preg_replace('#/\*.*?\*/#s', '', (string) $sql);
@@ -897,7 +897,7 @@ final class UpdateService
 
     // ---------- 目录/文件工具 ----------
 
-    private static function ensureDir(string $relPath): void
+    private function ensureDir(string $relPath): void
     {
         $abs = EM_ROOT . $relPath;
         if (!is_dir($abs)) {
@@ -905,7 +905,7 @@ final class UpdateService
         }
     }
 
-    private static function removeDir(string $abs): void
+    private function removeDir(string $abs): void
     {
         if (!is_dir($abs)) return;
         $iter = new \RecursiveIteratorIterator(
@@ -919,11 +919,11 @@ final class UpdateService
         @rmdir($abs);
     }
 
-    private static function cleanDir(string $abs): void
+    private function cleanDir(string $abs): void
     {
         if (!is_dir($abs)) return;
         foreach (glob($abs . '/*') ?: [] as $f) {
-            if (is_dir($f)) self::removeDir($f);
+            if (is_dir($f)) $this->removeDir($f);
             else @unlink($f);
         }
     }
@@ -931,7 +931,7 @@ final class UpdateService
     /**
      * 升级操作审计：记录操作人、动作与关键参数。写日志失败不阻断升级。
      */
-    private static function audit(string $action, array $detail): void
+    private function audit(string $action, array $detail): void
     {
         try {
             $admin = $_SESSION['em_admin_auth'] ?? null;
@@ -949,7 +949,7 @@ final class UpdateService
         }
     }
 
-    private static function formatBytes(int $bytes): string
+    private function formatBytes(int $bytes): string
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = 0;

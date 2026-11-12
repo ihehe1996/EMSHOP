@@ -21,12 +21,13 @@ namespace App\Service;
  *   - 主站自买(tab=main)同样要走"下载/解压",那段代码可以复用
  *   - 落库逻辑需要事务,放 Service 干净
  */
-final class MainAppPurchaseService
+final class MainAppPurchaseService extends BaseService
 {
     private \App\Model\AppMarketModel $marketModel;
 
     public function __construct()
     {
+        parent::__construct();
         $this->marketModel = new \App\Model\AppMarketModel();
     }
 
@@ -63,7 +64,7 @@ final class MainAppPurchaseService
             throw new \InvalidArgumentException('cost_per_unit 不能为负');
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 1. upsert market 行(只动元数据 / 价格 / 上下架,不动配额)
             $marketId = $this->marketModel->upsert([
@@ -91,10 +92,10 @@ final class MainAppPurchaseService
                 $remark !== '' ? $remark : '主站采购'
             );
 
-            \Database::commit();
+            $this->db->commit();
             return ['market_id' => $marketId, 'log_id' => $logId];
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }

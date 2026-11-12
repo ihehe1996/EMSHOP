@@ -18,14 +18,15 @@ namespace App\Model;
  *   0    = 0%
  * price 字段为 BIGINT ×1000000（与项目整体金额约定一致）。
  */
-final class MerchantLevelModel
+final class MerchantLevelModel extends Model
 {
     /** @var string 带前缀完整表名 */
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'merchant_level';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'merchant_level';
     }
 
     /**
@@ -39,13 +40,13 @@ final class MerchantLevelModel
             $sql = 'SELECT * FROM `' . $this->table . '`
                      WHERE `deleted_at` IS NULL
                      ORDER BY `sort` ASC, `id` ASC';
-            return \Database::query($sql);
+            return $this->db->query($sql);
         }
 
         $sql = 'SELECT * FROM `' . $this->table . '`
                  WHERE `deleted_at` IS NULL AND `name` LIKE ?
                  ORDER BY `sort` ASC, `id` ASC';
-        return \Database::query($sql, ['%' . $keyword . '%']);
+        return $this->db->query($sql, ['%' . $keyword . '%']);
     }
 
     /**
@@ -66,7 +67,7 @@ final class MerchantLevelModel
                   FROM `' . $this->table . '`
                  WHERE `deleted_at` IS NULL AND `is_enabled` = 1
                  ORDER BY `sort` ASC, `id` ASC';
-        return \Database::query($sql);
+        return $this->db->query($sql);
     }
 
     /**
@@ -81,7 +82,7 @@ final class MerchantLevelModel
         }
         $sql = 'SELECT * FROM `' . $this->table . '`
                  WHERE `id` = ? AND `deleted_at` IS NULL LIMIT 1';
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -92,11 +93,11 @@ final class MerchantLevelModel
         if ($excludeId > 0) {
             $sql = 'SELECT `id` FROM `' . $this->table . '`
                      WHERE `name` = ? AND `id` != ? AND `deleted_at` IS NULL LIMIT 1';
-            $row = \Database::fetchOne($sql, [$name, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$name, $excludeId]);
         } else {
             $sql = 'SELECT `id` FROM `' . $this->table . '`
                      WHERE `name` = ? AND `deleted_at` IS NULL LIMIT 1';
-            $row = \Database::fetchOne($sql, [$name]);
+            $row = $this->db->fetchOne($sql, [$name]);
         }
         return $row !== null;
     }
@@ -108,7 +109,7 @@ final class MerchantLevelModel
      */
     public function create(array $data): int
     {
-        return \Database::insert('merchant_level', $this->pickFields($data));
+        return $this->db->insert('merchant_level', $this->pickFields($data));
     }
 
     /**
@@ -121,7 +122,7 @@ final class MerchantLevelModel
         if ($id <= 0) {
             return false;
         }
-        return \Database::update('merchant_level', $this->pickFields($data), $id) > 0;
+        return $this->db->update('merchant_level', $this->pickFields($data), $id) > 0;
     }
 
     /**
@@ -132,7 +133,7 @@ final class MerchantLevelModel
         if ($id <= 0) {
             return false;
         }
-        return \Database::update('merchant_level', ['deleted_at' => date('Y-m-d H:i:s')], $id) > 0;
+        return $this->db->update('merchant_level', ['deleted_at' => date('Y-m-d H:i:s')], $id) > 0;
     }
 
     /**
@@ -145,7 +146,7 @@ final class MerchantLevelModel
             return -1;
         }
         $newVal = ((int) $row['is_enabled']) === 1 ? 0 : 1;
-        \Database::update('merchant_level', ['is_enabled' => $newVal], $id);
+        $this->db->update('merchant_level', ['is_enabled' => $newVal], $id);
         return $newVal;
     }
 
@@ -157,9 +158,9 @@ final class MerchantLevelModel
         if ($levelId <= 0) {
             return 0;
         }
-        $sql = 'SELECT COUNT(*) AS `c` FROM `' . \Database::prefix() . 'merchant`
+        $sql = 'SELECT COUNT(*) AS `c` FROM `' . $this->db->prefix() . 'merchant`
                  WHERE `level_id` = ? AND `deleted_at` IS NULL';
-        $row = \Database::fetchOne($sql, [$levelId]);
+        $row = $this->db->fetchOne($sql, [$levelId]);
         return (int) ($row['c'] ?? 0);
     }
 

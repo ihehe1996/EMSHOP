@@ -59,7 +59,7 @@ class RechargeController extends BaseController
         if ($paymentCode === '') $this->response->error('请选择支付方式');
         if ($paymentCode === 'balance') $this->response->error('充值不能用余额支付');
 
-        $methods = \App\Service\PaymentService::getMethods();
+        $methods = app(\App\Service\PaymentService::class)->getMethods();
         $payment = null;
         foreach ($methods as $m) {
             if (($m['code'] ?? '') === $paymentCode) { $payment = $m; break; }
@@ -84,7 +84,7 @@ class RechargeController extends BaseController
 
             // 走 PaymentService::createPayment 而不是直接 applyFilter —— 它会临时把 scope
             // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
-            $payPayload = \App\Service\PaymentService::createPaymentPayload($pseudoOrder, $payment);
+            $payPayload = app(\App\Service\PaymentService::class)->createPaymentPayload($pseudoOrder, $payment);
             $payUrl = (string) ($payPayload['pay_url'] ?? '');
             if ($payUrl === '') {
                 throw new \RuntimeException('支付方式未生成支付链接');

@@ -18,7 +18,7 @@ namespace App\Service;
  * 与 LicenseClient::appUpdateCheck() 的分工：本类负责"组装清单 / 分片 / 字段适配 / 降级"，
  * 网络与信封解析留在 LicenseClient。
  */
-final class AppUpdateService
+final class AppUpdateService extends BaseService
 {
     /** app-update-check 单次请求的 apps 上限（服务端约定 1~100 条） */
     private const BATCH_SIZE = 100;
@@ -38,7 +38,7 @@ final class AppUpdateService
      * @return array<string, array{version:string, file_path:string, min_version:string}>
      *         只含"有更新"的条目，key 与入参一致
      */
-    public static function checkInstalled(array $installed, string $type): array
+    public function checkInstalled(array $installed, string $type): array
     {
         if (!in_array($type, ['plugin', 'template'], true) || $installed === []) {
             return [];
@@ -60,14 +60,14 @@ final class AppUpdateService
         }
 
         // 身份口径与 app-list 一致：未激活时 code 为空串，服务端按未授权算
-        $licenseRow = LicenseService::currentLicense();
+        $licenseRow = app(\App\Service\LicenseService::class)->currentLicense();
         $code = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
-        $domain = LicenseService::effectiveHost();
+        $domain = app(\App\Service\LicenseService::class)->effectiveHost();
 
         $out = [];
         foreach (array_chunk($apps, self::BATCH_SIZE) as $batch) {
             try {
-                $res = \LicenseClient::appUpdateCheck($batch, $domain, $code);
+                $res = $this->licenseClient->appUpdateCheck($batch, $domain, $code);
             } catch (\Throwable $e) {
                 // 中心不可达：静默降级，别让插件/模板列表页整体报错
                 continue;
@@ -77,7 +77,7 @@ final class AppUpdateService
             // （口径与 license/status、应用商店列表一致）。前提是**确实带了码** ——
             // 没带码时服务端照样回 false，那不是「码失效」，不能拿它清本地
             if ($code !== '' && ($res['license']['authorized'] ?? null) === false) {
-                LicenseService::clearLocalAuthorization();
+                app(\App\Service\LicenseService::class)->clearLocalAuthorization();
             }
 
             foreach ($res['data'] as $row) {

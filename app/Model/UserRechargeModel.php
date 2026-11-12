@@ -13,7 +13,7 @@ namespace App\Model;
  *
  * 用户发起充值 → 创建一行 pending 记录 → 第三方支付回调 → markPaid 给用户 money 加钱。
  */
-class UserRechargeModel
+class UserRechargeModel extends Model
 {
     public const STATUS_PENDING   = 'pending';
     public const STATUS_PAID      = 'paid';
@@ -23,7 +23,8 @@ class UserRechargeModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user_recharge';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user_recharge';
     }
 
     /**
@@ -34,7 +35,7 @@ class UserRechargeModel
     public function create(int $userId, int $amountRaw, string $paymentCode, string $paymentPlugin): array
     {
         $orderNo = $this->generateOrderNo();
-        $id = (int) \Database::insert('user_recharge', [
+        $id = (int) $this->db->insert('user_recharge', [
             'user_id'        => $userId,
             'order_no'       => $orderNo,
             'amount'         => $amountRaw,
@@ -49,12 +50,12 @@ class UserRechargeModel
 
     public function findByOrderNo(string $orderNo): ?array
     {
-        return \Database::fetchOne("SELECT * FROM {$this->table} WHERE order_no = ?", [$orderNo]) ?: null;
+        return $this->db->fetchOne("SELECT * FROM {$this->table} WHERE order_no = ?", [$orderNo]) ?: null;
     }
 
     public function findById(int $id): ?array
     {
-        return \Database::find('user_recharge', $id);
+        return $this->db->find('user_recharge', $id);
     }
 
     /**
@@ -62,29 +63,29 @@ class UserRechargeModel
      */
     public function markPaid(int $id, string $tradeNo): bool
     {
-        \Database::begin();
+        $this->db->begin();
         try {
             // 先锁充值单，保证并发回调幂等。
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT * FROM {$this->table} WHERE id = ? FOR UPDATE",
                 [$id]
             );
             if ($row === null) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return false;
             }
             if ((string) $row['status'] === self::STATUS_PAID) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return true;
             }
             if ((string) $row['status'] !== self::STATUS_PENDING) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return false;
             }
 
             // 锁用户余额并加钱。
-            $userTable = \Database::prefix() . 'user';
-            $user = \Database::fetchOne(
+            $userTable = $this->db->prefix() . 'user';
+            $user = $this->db->fetchOne(
                 "SELECT money FROM `{$userTable}` WHERE id = ? FOR UPDATE",
                 [(int) $row['user_id']]
             );
@@ -96,14 +97,14 @@ class UserRechargeModel
             $amount = (int) ($row['amount'] ?? 0);
             $after = $before + $amount;
 
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE `{$userTable}` SET money = ? WHERE id = ?",
                 [$after, (int) $row['user_id']]
             );
 
             // 写余额日志（与充值状态变更保持同一事务）。
-            $logTable = \Database::prefix() . 'user_balance_log';
-            \Database::execute(
+            $logTable = $this->db->prefix() . 'user_balance_log';
+            $this->db->execute(
                 "INSERT INTO `{$logTable}`
                  (user_id, type, amount, before_balance, after_balance, remark, operator_id, operator_name, ip)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -121,16 +122,16 @@ class UserRechargeModel
             );
 
             // 最后把充值单置为已支付。
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$this->table} SET status = ?, trade_no = ?, paid_at = NOW()
                  WHERE id = ? AND status = ?",
                 [self::STATUS_PAID, $tradeNo, $id, self::STATUS_PENDING]
             );
 
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             return false;
         }
     }
@@ -142,14 +143,14 @@ class UserRechargeModel
      */
     public function paginateByUser(int $userId, int $page = 1, int $perPage = 15): array
     {
-        $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE user_id = ?", [$userId]);
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE user_id = ?", [$userId]);
         $total = (int) ($countRow['cnt'] ?? 0);
         $totalPages = max(1, (int) ceil($total / $perPage));
         if ($page > $totalPages) $page = $totalPages;
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT * FROM {$this->table} WHERE user_id = ? ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             [$userId]
         );
@@ -161,7 +162,7 @@ class UserRechargeModel
      */
     public function paginate(array $filter, int $page = 1, int $perPage = 20): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $where = ['1=1'];
         $params = [];
 
@@ -176,7 +177,7 @@ class UserRechargeModel
         }
         $whereSql = implode(' AND ', $where);
 
-        $countRow = \Database::fetchOne(
+        $countRow = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$this->table} r
              LEFT JOIN {$prefix}user u ON u.id = r.user_id
              WHERE {$whereSql}",
@@ -188,7 +189,7 @@ class UserRechargeModel
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT r.*, u.username, u.nickname
              FROM {$this->table} r
              LEFT JOIN {$prefix}user u ON u.id = r.user_id
@@ -207,7 +208,7 @@ class UserRechargeModel
         if ($id <= 0) {
             return false;
         }
-        return \Database::execute("DELETE FROM {$this->table} WHERE id = ? LIMIT 1", [$id]) > 0;
+        return $this->db->execute("DELETE FROM {$this->table} WHERE id = ? LIMIT 1", [$id]) > 0;
     }
 
     /**
@@ -217,12 +218,12 @@ class UserRechargeModel
      */
     public function deleteBatch(array $ids): int
     {
-        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn($id) => $id > 0)));
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($id) => $id > 0)));
         if ($ids === []) {
             return 0;
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        return (int) \Database::execute(
+        return (int) $this->db->execute(
             "DELETE FROM {$this->table} WHERE id IN ({$placeholders})",
             $ids
         );
@@ -235,7 +236,7 @@ class UserRechargeModel
     {
         for ($i = 0; $i < 5; $i++) {
             $no = 'R' . date('YmdHis') . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            $exist = \Database::fetchOne("SELECT id FROM {$this->table} WHERE order_no = ?", [$no]);
+            $exist = $this->db->fetchOne("SELECT id FROM {$this->table} WHERE order_no = ?", [$no]);
             if (!$exist) return $no;
         }
         throw new \RuntimeException('生成充值单号失败');

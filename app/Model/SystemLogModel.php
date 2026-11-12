@@ -18,13 +18,14 @@ namespace App\Model;
  *   $log->info('admin_operation', '创建商品', '商品「T恤」创建成功', ['goods_id' => 5]);
  *   $log->error('system', '数据库连接失败', 'MySQL server has gone away');
  */
-final class SystemLogModel
+final class SystemLogModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'system_log';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'system_log';
     }
 
     /**
@@ -65,7 +66,7 @@ final class SystemLogModel
             $this->table
         );
 
-        \Database::execute($sql, [
+        $this->db->execute($sql, [
             $level,
             $type,
             mb_substr($action, 0, 100),
@@ -77,7 +78,7 @@ final class SystemLogModel
             mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 512),
         ]);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         return (int) ($row['id'] ?? 0);
     }
 
@@ -147,7 +148,7 @@ final class SystemLogModel
             $where
         );
 
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -179,7 +180,7 @@ final class SystemLogModel
         $where = $conditions !== [] ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s` %s', $this->table, $where);
-        $row = \Database::fetchOne($sql, $params);
+        $row = $this->db->fetchOne($sql, $params);
         return (int) ($row['cnt'] ?? 0);
     }
 
@@ -191,7 +192,7 @@ final class SystemLogModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$id]);
+        $row = $this->db->fetchOne($sql, [$id]);
         return $row !== false ? $row : null;
     }
 
@@ -201,7 +202,7 @@ final class SystemLogModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -217,7 +218,7 @@ final class SystemLogModel
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $sql = sprintf('DELETE FROM `%s` WHERE `id` IN (%s)', $this->table, $placeholders);
-        return \Database::execute($sql, $ids);
+        return $this->db->execute($sql, $ids);
     }
 
     /**
@@ -232,7 +233,7 @@ final class SystemLogModel
             'DELETE FROM `%s` WHERE `created_at` < DATE_SUB(NOW(), INTERVAL ? DAY)',
             $this->table
         );
-        return \Database::execute($sql, [$days]);
+        return $this->db->execute($sql, [$days]);
     }
 
     /**
@@ -246,7 +247,7 @@ final class SystemLogModel
             'SELECT `type`, COUNT(*) AS cnt FROM `%s` GROUP BY `type` ORDER BY cnt DESC',
             $this->table
         );
-        $rows = \Database::query($sql, []);
+        $rows = $this->db->query($sql, []);
         $result = [];
         foreach ($rows as $row) {
             $result[$row['type']] = (int) $row['cnt'];

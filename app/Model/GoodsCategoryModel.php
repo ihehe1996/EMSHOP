@@ -13,13 +13,14 @@ namespace App\Model;
  *
  * 仅支持2级分类：顶级(parent_id=0) 和 二级(parent_id>0, 归属某顶级)。
  */
-final class GoodsCategoryModel
+final class GoodsCategoryModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'goods_category';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'goods_category';
     }
 
     /**
@@ -33,7 +34,7 @@ final class GoodsCategoryModel
             'SELECT * FROM `%s` ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, []);
+        return $this->db->query($sql, []);
     }
 
     /**
@@ -47,7 +48,7 @@ final class GoodsCategoryModel
             'SELECT * FROM `%s` WHERE `parent_id` = 0 ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, []);
+        return $this->db->query($sql, []);
     }
 
     /**
@@ -58,7 +59,7 @@ final class GoodsCategoryModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -99,8 +100,8 @@ final class GoodsCategoryModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
-        return (int) \Database::fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
+        $this->db->execute($sql, $params);
+        return (int) $this->db->fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
     }
 
     /**
@@ -140,7 +141,7 @@ final class GoodsCategoryModel
             implode(', ', $sets)
         );
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -149,7 +150,7 @@ final class GoodsCategoryModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -161,7 +162,7 @@ final class GoodsCategoryModel
             'SELECT COUNT(*) AS cnt FROM `%s` WHERE `parent_id` = ? LIMIT 1',
             $this->table
         );
-        $row = \Database::fetchOne($sql, [$parentId]);
+        $row = $this->db->fetchOne($sql, [$parentId]);
         return $row !== null && (int) $row['cnt'] > 0;
     }
 
@@ -177,7 +178,7 @@ final class GoodsCategoryModel
             'SELECT `id` FROM `%s` WHERE `slug` = ? AND `id` != ? LIMIT 1',
             $this->table
         );
-        return \Database::fetchOne($sql, [$slug, $excludeId]) !== null;
+        return $this->db->fetchOne($sql, [$slug, $excludeId]) !== null;
     }
 
     /**
@@ -186,7 +187,7 @@ final class GoodsCategoryModel
     public function count(): int
     {
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s`', $this->table);
-        $row = \Database::fetchOne($sql, []);
+        $row = $this->db->fetchOne($sql, []);
         return $row !== null ? (int) $row['cnt'] : 0;
     }
 }

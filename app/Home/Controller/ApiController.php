@@ -137,7 +137,7 @@ class ApiController extends BaseController
                         $couponCode
                     );
 
-                    $result = \App\Model\OrderModel::create($prepared['create_data'], [[
+                    $result = app(\App\Model\OrderModel::class)->create($prepared['create_data'], [[
                         'goods_id'  => (int) $prepared['goods_id'],
                         'spec_id'   => (int) $prepared['spec_id'],
                         'quantity'  => $quantity,
@@ -145,14 +145,14 @@ class ApiController extends BaseController
 
                     // 下单后立即扣 API 对接人的余额并支付，不返回支付方式链接
                     if ((int) ($result['pay_amount'] ?? 0) <= 0) {
-                        \App\Model\OrderModel::payFreeOrder((int) $result['order_id']);
+                        app(\App\Model\OrderModel::class)->payFreeOrder((int) $result['order_id']);
                     } else {
                         try {
-                            \App\Model\OrderModel::payWithBalance((int) $result['order_id'], (int) $apiUser['id']);
+                            app(\App\Model\OrderModel::class)->payWithBalance((int) $result['order_id'], (int) $apiUser['id']);
                         } catch (\Throwable $payErr) {
                             // 支付失败的 API 单标记 failed，避免残留 pending 单
                             try {
-                                \App\Model\OrderModel::changeStatus((int) $result['order_id'], 'failed');
+                                app(\App\Model\OrderModel::class)->changeStatus((int) $result['order_id'], 'failed');
                             } catch (\Throwable $_) {
                             }
                             throw $payErr;
@@ -275,7 +275,7 @@ class ApiController extends BaseController
             $this->response->error('order_no 不能为空');
         }
 
-        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+        $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
         if ($order === null) {
             $this->response->error('订单不存在');
         }
@@ -295,7 +295,7 @@ class ApiController extends BaseController
         $this->response->success('', [
             'order_no'          => (string) $order['order_no'],
             'status'            => (string) $order['status'],
-            'status_name'       => \App\Model\OrderModel::statusName((string) $order['status']),
+            'status_name'       => app(\App\Model\OrderModel::class)->statusName((string) $order['status']),
             'pay_amount'        => bcdiv((string) ($order['pay_amount'] ?? 0), '1000000', 2),
             'payment_code'      => (string) ($order['payment_code'] ?? ''),
             'payment_name'      => (string) ($order['payment_name'] ?? ''),
@@ -506,7 +506,7 @@ class ApiController extends BaseController
              WHERE g.`id` IN ({$placeholders})",
             $goodsIds
         );
-        $tagMap = \App\Model\GoodsTagModel::getTagsByGoodsIds($goodsIds);
+        $tagMap = app(\App\Model\GoodsTagModel::class)->getTagsByGoodsIds($goodsIds);
         $specMap = $this->fetchGoodsSpecsForImport($goodsIds);
         $out = [];
         foreach ($rows as $r) {
@@ -587,7 +587,7 @@ class ApiController extends BaseController
             if ($gid <= 0) {
                 continue;
             }
-            $resolvedSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($gid, true);
+            $resolvedSpecs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($gid, true);
             foreach ($resolvedSpecs as $sp) {
                 $sid = (int) ($sp['id'] ?? 0);
                 if ($sid <= 0) {
@@ -637,12 +637,12 @@ class ApiController extends BaseController
                 'name'         => (string) ($s['name'] ?? ''),
                 'spec_no'      => (string) ($s['spec_no'] ?? ''),
                 'price'        => (string) ($resolvedPriceMap[(int) ($s['id'] ?? 0)]
-                    ?? number_format((float) \App\Model\GoodsModel::moneyFromDb($s['price'] ?? 0), 2, '.', '')),
+                    ?? number_format((float) app(\App\Model\GoodsModel::class)->moneyFromDb($s['price'] ?? 0), 2, '.', '')),
                 'cost_price'   => $s['cost_price'] !== null && $s['cost_price'] !== ''
-                    ? \number_format((float) \App\Model\GoodsModel::moneyFromDb($s['cost_price']), 2, '.', '')
+                    ? \number_format((float) app(\App\Model\GoodsModel::class)->moneyFromDb($s['cost_price']), 2, '.', '')
                     : '',
                 'market_price' => $s['market_price'] !== null && $s['market_price'] !== ''
-                    ? \number_format((float) \App\Model\GoodsModel::moneyFromDb($s['market_price']), 2, '.', '')
+                    ? \number_format((float) app(\App\Model\GoodsModel::class)->moneyFromDb($s['market_price']), 2, '.', '')
                     : '',
                 'stock'        => max(0, (int) ($s['stock'] ?? 0)),
                 'tags'         => $tags,
@@ -987,7 +987,7 @@ class ApiController extends BaseController
         int $quantity,
         string $couponCode
     ): array {
-        $goods = \App\Model\GoodsModel::getById($goodsId);
+        $goods = app(\App\Model\GoodsModel::class)->getById($goodsId);
         if (!$goods
             || (int) ($goods['status'] ?? 0) !== 1
             || (int) ($goods['is_on_sale'] ?? 0) !== 1
@@ -1006,7 +1006,7 @@ class ApiController extends BaseController
             throw new \RuntimeException('该商品未开启 API 对接下单');
         }
 
-        $allSpecs = \App\Model\GoodsModel::getSpecsByGoodsId((int) $goods['id']);
+        $allSpecs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId((int) $goods['id']);
         if ($allSpecs === []) {
             throw new \RuntimeException('商品规格不存在');
         }
@@ -1071,7 +1071,7 @@ class ApiController extends BaseController
         }
         if ($extraFields !== []) {
             $goodsConfigs = json_decode((string) ($goods['configs'] ?? '{}'), true) ?: [];
-            $packedContact = \App\Model\OrderModel::packExtraContactInfo(
+            $packedContact = app(\App\Model\OrderModel::class)->packExtraContactInfo(
                 $goodsConfigs['extra_fields'] ?? [],
                 $extraFields
             );
@@ -1167,7 +1167,7 @@ class ApiController extends BaseController
         }
 
         // 幂等：已写过发货内容直接返回成功
-        if (\App\Model\OrderModel::hasDeliveryContent($localOrderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
+        if (app(\App\Model\OrderModel::class)->hasDeliveryContent($localOrderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
             $this->writeSystemLog('info', '发货回调重复通知', '发货回调重复到达，按幂等返回成功', [
                 'local_order_goods_id' => $localOrderGoodsId,
                 'order_id' => (int) ($og['order_id'] ?? 0),
@@ -1179,7 +1179,7 @@ class ApiController extends BaseController
         $em['upstream_order_no'] = trim((string) ($params['order_no'] ?? ($em['upstream_order_no'] ?? '')));
         $pd['emshop_remote'] = $em;
 
-        $stored = \App\Model\OrderModel::persistDeliveryContent($localOrderGoodsId, $deliveryContent);
+        $stored = app(\App\Model\OrderModel::class)->persistDeliveryContent($localOrderGoodsId, $deliveryContent);
         if (!$stored) {
             $this->writeSystemLog('error', '发货回调写入失败', '发货内容写入明细表失败', [
                 'local_order_goods_id' => $localOrderGoodsId,
@@ -1199,7 +1199,7 @@ class ApiController extends BaseController
         $specId = (int) ($og['spec_id'] ?? 0);
         $qty = (int) ($og['quantity'] ?? 0);
         if ($specId > 0 && $qty > 0) {
-            \App\Model\GoodsModel::incrementSoldCount($specId, $qty);
+            app(\App\Model\GoodsModel::class)->incrementSoldCount($specId, $qty);
         }
 
         $remainStock = $this->parseSpecRemainingStockFromCallback($params);
@@ -1210,7 +1210,7 @@ class ApiController extends BaseController
                 [$remainStock, $specId]
             );
             if ($gid > 0) {
-                \App\Model\GoodsModel::updatePriceStockCache($gid);
+                app(\App\Model\GoodsModel::class)->updatePriceStockCache($gid);
             }
         }
 
@@ -1222,7 +1222,7 @@ class ApiController extends BaseController
             );
         }
 
-        \App\Model\OrderModel::checkDeliveryComplete((int) ($og['order_id'] ?? 0));
+        app(\App\Model\OrderModel::class)->checkDeliveryComplete((int) ($og['order_id'] ?? 0));
         $this->writeSystemLog('info', '发货回调处理成功', '已处理上游发货回调并写入发货内容', [
             'local_order_goods_id'      => $localOrderGoodsId,
             'order_id'                  => (int) ($og['order_id'] ?? 0),

@@ -51,7 +51,7 @@ function alipay_status_text(string $status, bool $isRecharge): string
         ];
         return $map[$status] ?? ($status !== '' ? $status : '未知状态');
     }
-    return \App\Model\OrderModel::statusName($status);
+    return app(\App\Model\OrderModel::class)->statusName($status);
 }
 
 function alipay_load_trade_context(string $orderNo): array
@@ -91,7 +91,7 @@ function alipay_load_trade_context(string $orderNo): array
         ];
     }
 
-    $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+    $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
     if (!$order) {
         throw new RuntimeException('订单不存在');
     }
@@ -110,7 +110,7 @@ function alipay_load_trade_context(string $orderNo): array
     }
 
     $orderItems = [];
-    foreach (\App\Model\OrderModel::getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
+    foreach (app(\App\Model\OrderModel::class)->getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
         $orderItems[] = [
             'title'    => (string) ($og['goods_title'] ?? ''),
             'spec'     => (string) ($og['spec_name'] ?? ''),

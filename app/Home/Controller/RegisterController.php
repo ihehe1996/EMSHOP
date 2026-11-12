@@ -171,7 +171,7 @@ class RegisterController extends BaseController
         doAction('register_succeeded', $email, $username);
 
         try {
-            \App\Service\UserExperienceService::applyRegisterBonus($userId);
+            app(\App\Service\UserExperienceService::class)->applyRegisterBonus($userId);
         } catch (\Throwable $e) {
             // 初始经验发放失败不阻断注册
         }

@@ -2,7 +2,7 @@
 /**
  * 前台未授权横幅（由 View 在 <body> 之后注入）。
  *
- * 只在 LicenseService::isActivated() === false 时输出；隐藏状态由 Cookie
+ * 只在 app(\App\Service\LicenseService::class)->isActivated() === false 时输出；隐藏状态由 Cookie
  * `em_license_notice` 决定，见 View::licenseBannerHtml()：
  *   - today:YYYY-MM-DD  当日有效，次日零点失效
  *   - session           浏览器会话内有效，关浏览器后重新出现

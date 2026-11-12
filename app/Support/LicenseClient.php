@@ -258,7 +258,7 @@ final class LicenseClient
      *   code      本地保存的授权码（可选）。传了服务端就按「授权码 + 域名」两个都对上
      *             才算授权（同 license/status）；没传时老口径「只认域名」
      *
-     * 返回 data 的字段（原样交给 LicenseService::fetchBaseData() 归一化）：
+     * 返回 data 的字段（原样交给 app(\App\Service\LicenseService::class)->fetchBaseData() 归一化）：
      *   domain / authorized / license_type / license_type_label
      *   identity_matched / used_fallback
      *   has_new_version / latest_version / force_update / min_version / patch_package_url
@@ -890,7 +890,7 @@ final class LicenseClient
 
     /**
      * 返回当前选中线路的 URL（public 别名，方便外部模块拿到授权服务器域名拼相对地址用）。
-     * 用于 UpdateService::resolvePackageUrl() 在服务端返回相对路径时补域名。
+     * 用于 app(\App\Service\UpdateService::class)->resolvePackageUrl() 在服务端返回相对路径时补域名。
      *
      * 实际请求也只走这条线路（见 apiRequest()），不会自动换线。
      */

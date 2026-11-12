@@ -28,20 +28,20 @@ namespace App\Service;
  *   - rate 存整数，500 = 5%（内部 /10000 还原）
  *   - 冻结期满转可用：由 CommissionLogModel::promoteMatured 惰性执行
  */
-class RebateService
+class RebateService extends BaseService
 {
     /** 返佣总开关 */
-    public static function isEnabled(): bool
+    public function isEnabled(): bool
     {
-        return \Config::get('shop_enable_rebate', '0') === '1';
+        return $this->config->get('shop_enable_rebate', '0') === '1';
     }
 
     /**
      * 返佣计算方式：amount（按订单金额） / profit（按订单利润，默认）。
      */
-    public static function calculateMode(): string
+    public function calculateMode(): string
     {
-        $mode = (string) \Config::get('rebate_calculate_mode', 'amount');
+        $mode = (string) $this->config->get('rebate_calculate_mode', 'amount');
         return in_array($mode, ['amount', 'profit'], true) ? $mode : 'amount';
     }
 
@@ -51,13 +51,13 @@ class RebateService
      *
      * @return array{0:int, 1:int} [l1, l2]；0 表示没有对应级的上级
      */
-    public static function resolveOrderInviters(int $userId): array
+    public function resolveOrderInviters(int $userId): array
     {
-        if (!self::isEnabled()) return [0, 0];
+        if (!$this->isEnabled()) return [0, 0];
 
         $l1 = 0; $l2 = 0;
         if ($userId > 0) {
-            $u = \Database::find('user', $userId);
+            $u = $this->db->find('user', $userId);
             if ($u) {
                 $l1 = (int) ($u['inviter_l1'] ?? 0);
                 $l2 = (int) ($u['inviter_l2'] ?? 0);
@@ -65,7 +65,7 @@ class RebateService
         } else {
             $l1 = \InviteToken::currentInviterId();
             if ($l1 > 0) {
-                $upper = \Database::find('user', $l1);
+                $upper = $this->db->find('user', $l1);
                 if ($upper) {
                     $l2 = (int) ($upper['inviter_l1'] ?? 0);
                 }
@@ -75,20 +75,20 @@ class RebateService
     }
 
     /** 冷却天数（整数） */
-    public static function freezeDays(): int
+    public function freezeDays(): int
     {
-        return max(0, (int) \Config::get('rebate_freeze_days', '7'));
+        return max(0, (int) $this->config->get('rebate_freeze_days', '7'));
     }
 
     /**
      * 全局默认 2 级比例。
      * @return array{l1:int, l2:int} 比例为整数，如 500 表示 5%
      */
-    public static function globalRates(): array
+    public function globalRates(): array
     {
         return [
-            'l1' => (int) \Config::get('rebate_level1_rate', '0'),
-            'l2' => (int) \Config::get('rebate_level2_rate', '0'),
+            'l1' => (int) $this->config->get('rebate_level1_rate', '0'),
+            'l2' => (int) $this->config->get('rebate_level2_rate', '0'),
         ];
     }
 
@@ -98,29 +98,29 @@ class RebateService
      * @param array $goodsRow 原始商品行（含 configs / category_id 字段）
      * @return array{l1:int, l2:int, source:string}
      */
-    public static function resolveRateConfig(array $goodsRow): array
+    public function resolveRateConfig(array $goodsRow): array
     {
         $default = ['l1' => 0, 'l2' => 0];
 
         // 1) 商品级：configs.rebate
         $configs = json_decode((string) ($goodsRow['configs'] ?? '{}'), true) ?: [];
         if (!empty($configs['rebate']) && is_array($configs['rebate'])) {
-            $r = self::normalizeRate($configs['rebate']);
+            $r = $this->normalizeRate($configs['rebate']);
             if (array_sum($r) > 0) return $r + ['source' => 'goods'];
         }
 
         // 2) 分类级：goods_category.rebate_config
         $categoryId = (int) ($goodsRow['category_id'] ?? 0);
         if ($categoryId > 0) {
-            $catRow = \Database::find('goods_category', $categoryId);
+            $catRow = $this->db->find('goods_category', $categoryId);
             if ($catRow && !empty($catRow['rebate_config'])) {
-                $r = self::normalizeRate(json_decode((string) $catRow['rebate_config'], true) ?: []);
+                $r = $this->normalizeRate(json_decode((string) $catRow['rebate_config'], true) ?: []);
                 if (array_sum($r) > 0) return $r + ['source' => 'category'];
             }
         }
 
         // 3) 全局
-        $r = self::globalRates();
+        $r = $this->globalRates();
         if (array_sum($r) > 0) return $r + ['source' => 'global'];
 
         return $default + ['source' => 'none'];
@@ -129,7 +129,7 @@ class RebateService
     /**
      * 规范化比例数组：只保留 l1/l2，非负整数
      */
-    private static function normalizeRate(array $arr): array
+    private function normalizeRate(array $arr): array
     {
         $out = ['l1' => 0, 'l2' => 0];
         foreach (['l1', 'l2'] as $k) {
@@ -145,11 +145,11 @@ class RebateService
      * 幂等：若该订单已经结算过（commission_log 里有非 reverted 记录）则直接返回。
      * 只对"订单有 inviter_l1/l2 任一非空"时才尝试结算。
      */
-    public static function settleOrder(int $orderId): void
+    public function settleOrder(int $orderId): void
     {
-        if (!self::isEnabled()) return;
+        if (!$this->isEnabled()) return;
 
-        $order = \Database::find('order', $orderId);
+        $order = $this->db->find('order', $orderId);
         if (!$order) return;
 
         // 仅 completed 状态才结算（防止被误触发）
@@ -165,10 +165,10 @@ class RebateService
         ];
         if ($inviters[1] === 0 && $inviters[2] === 0) return;
 
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         // 取订单的所有商品项（带售价、成本价、数量）—— 只读，放在事务外
-        $items = \Database::query(
+        $items = $this->db->query(
             "SELECT og.goods_id, og.spec_id, og.price AS sold_price, og.quantity,
                     gs.cost_price AS cost_price_raw,
                     g.configs AS goods_configs, g.category_id
@@ -180,12 +180,12 @@ class RebateService
         );
         if (empty($items)) return;
 
-        $calcMode    = self::calculateMode();
-        $freezeDays  = self::freezeDays();
+        $calcMode    = $this->calculateMode();
+        $freezeDays  = $this->freezeDays();
         $freezeUntil = $freezeDays > 0 ? \date('Y-m-d H:i:s', time() + $freezeDays * 86400) : null;
         $logModel    = new \App\Model\CommissionLogModel();
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 锁订单行：并发结算在这里串行化。
             //
@@ -193,19 +193,19 @@ class RebateService
             // 每个返佣等级都合法地占一行（见下方 foreach × for 两层循环），
             // 且部分提现拆单还会复制 (order_id, user_id, level)。
             // 所以这张表的幂等只能靠「持订单行锁后重查」保证。
-            \Database::fetchOne(
+            $this->db->fetchOne(
                 "SELECT `id` FROM {$prefix}order WHERE `id` = ? FOR UPDATE",
                 [$orderId]
             );
 
             // 幂等性：已有非 reverted 记录说明已结算过
             // （此刻在事务内且持有订单行锁，判断可靠；原先在事务外，是 check-then-write 竞态）
-            $exist = \Database::fetchOne(
+            $exist = $this->db->fetchOne(
                 "SELECT id FROM {$prefix}commission_log WHERE order_id = ? AND status != ? LIMIT 1",
                 [$orderId, \App\Model\CommissionLogModel::STATUS_REVERTED]
             );
             if ($exist) {
-                \Database::commit();
+                $this->db->commit();
                 return;
             }
 
@@ -229,7 +229,7 @@ class RebateService
                     'configs'     => $item['goods_configs'] ?? null,
                     'category_id' => $item['category_id'] ?? 0,
                 ];
-                $rates = self::resolveRateConfig($fakeGoods);
+                $rates = $this->resolveRateConfig($fakeGoods);
 
                 for ($lvl = 1; $lvl <= 2; $lvl++) {
                     $uid = $inviters[$lvl];
@@ -256,23 +256,23 @@ class RebateService
                         // 有冷却期 → 冻结态，到期由 promoteMatured 转 available
                         $logPayload['frozen_until'] = $freezeUntil;
                         $logModel->createFrozen($logPayload);
-                        \Database::execute(
+                        $this->db->execute(
                             "UPDATE {$prefix}user SET commission_frozen = commission_frozen + ? WHERE id = ?",
                             [$amount, $uid]
                         );
                     } else {
                         // 冷却期 = 0 → 直接落到可提现，跳过冻结环节
                         $logModel->createAvailable($logPayload);
-                        \Database::execute(
+                        $this->db->execute(
                             "UPDATE {$prefix}user SET commission_available = commission_available + ? WHERE id = ?",
                             [$amount, $uid]
                         );
                     }
                 }
             }
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -280,10 +280,10 @@ class RebateService
     /**
      * 订单退款时调用：倒扣与该订单相关的全部佣金（委托给 CommissionLogModel）。
      */
-    public static function revertOrder(int $orderId): void
+    public function revertOrder(int $orderId): void
     {
         // 商户订单由 MerchantLedgerService 处理，RebateService 跳过
-        $order = \Database::find('order', $orderId);
+        $order = $this->db->find('order', $orderId);
         if ($order !== null && (int) ($order['merchant_id'] ?? 0) > 0) return;
 
         (new \App\Model\CommissionLogModel())->revertByOrder($orderId);
@@ -297,7 +297,7 @@ class RebateService
      * @throws RuntimeException
      * @return int 提现记录 id
      */
-    public static function withdraw(int $userId, int $amountRaw): int
+    public function withdraw(int $userId, int $amountRaw): int
     {
         if ($userId <= 0 || $amountRaw <= 0) {
             throw new \RuntimeException('参数错误');
@@ -306,13 +306,13 @@ class RebateService
         // 先惰性把到期 frozen 转 available
         (new \App\Model\CommissionLogModel())->promoteMatured($userId);
 
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $logModel = new \App\Model\CommissionLogModel();
         $withdrawModel = new \App\Model\CommissionWithdrawModel();
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $user = \Database::fetchOne(
+            $user = $this->db->fetchOne(
                 "SELECT commission_available FROM {$prefix}user WHERE id = ? FOR UPDATE",
                 [$userId]
             );
@@ -358,7 +358,7 @@ class RebateService
 
             if ($fullIds) {
                 $in = implode(',', array_fill(0, count($fullIds), '?'));
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$prefix}commission_log
                      SET status = ?, withdraw_id = ?, updated_at = NOW()
                      WHERE id IN ({$in}) AND status = ?",
@@ -369,7 +369,7 @@ class RebateService
                 $logModel->splitWithdraw((int) $partial['id'], (int) $partial['take'], $withdrawId);
             }
 
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}user
                  SET commission_available = GREATEST(commission_available - ?, 0)
                  WHERE id = ?",
@@ -387,10 +387,10 @@ class RebateService
                 throw new \RuntimeException('余额入账失败');
             }
 
-            \Database::commit();
+            $this->db->commit();
             return $withdrawId;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }

@@ -15,7 +15,7 @@ namespace App\Model;
  * 金额字段：value / min_amount / max_discount 都按 BIGINT ×1000000 存储；
  * 打折券的 value 例外，存整数 0-100（如 85 代表 8.5 折）。
  */
-class CouponModel
+class CouponModel extends Model
 {
     private string $table;
 
@@ -30,10 +30,11 @@ class CouponModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'coupon';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'coupon';
     }
 
-    public static function typeOptions(): array
+    public function typeOptions(): array
     {
         return [
             self::TYPE_FIXED_AMOUNT  => '满减券',
@@ -42,7 +43,7 @@ class CouponModel
         ];
     }
 
-    public static function scopeOptions(): array
+    public function scopeOptions(): array
     {
         return [
             self::SCOPE_ALL        => '全场通用',
@@ -76,7 +77,7 @@ class CouponModel
         }
         $whereSql = implode(' AND ', $where);
 
-        $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -84,7 +85,7 @@ class CouponModel
         if ($page > $totalPages) $page = $totalPages;
         $offset = ($page - 1) * $perPage;
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT * FROM {$this->table} WHERE {$whereSql} ORDER BY sort ASC, id DESC LIMIT {$perPage} OFFSET {$offset}",
             $params
         );
@@ -105,7 +106,7 @@ class CouponModel
 
     public function findById(int $id): ?array
     {
-        $row = \Database::fetchOne("SELECT * FROM {$this->table} WHERE id = ? AND deleted_at IS NULL LIMIT 1", [$id]);
+        $row = $this->db->fetchOne("SELECT * FROM {$this->table} WHERE id = ? AND deleted_at IS NULL LIMIT 1", [$id]);
         if (!$row) return null;
         $this->transformFromDb($row);
         return $row;
@@ -114,7 +115,7 @@ class CouponModel
     public function findByCode(string $code): ?array
     {
         if ($code === '') return null;
-        $row = \Database::fetchOne("SELECT * FROM {$this->table} WHERE code = ? AND deleted_at IS NULL LIMIT 1", [$code]);
+        $row = $this->db->fetchOne("SELECT * FROM {$this->table} WHERE code = ? AND deleted_at IS NULL LIMIT 1", [$code]);
         if (!$row) return null;
         $this->transformFromDb($row);
         return $row;
@@ -128,7 +129,7 @@ class CouponModel
     public function getPubliclyClaimable(int $limit = 100): array
     {
         $now = date('Y-m-d H:i:s');
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT * FROM {$this->table}
              WHERE deleted_at IS NULL AND is_enabled = 1 AND show_on_front = 1
                AND (start_at IS NULL OR start_at <= ?)
@@ -148,26 +149,26 @@ class CouponModel
         $now = date('Y-m-d H:i:s');
         $row['created_at'] = $now;
         $row['updated_at'] = $now;
-        return (int) \Database::insert('coupon', $row);
+        return (int) $this->db->insert('coupon', $row);
     }
 
     public function update(int $id, array $data): bool
     {
         $row = $this->transformToDb($data);
         $row['updated_at'] = date('Y-m-d H:i:s');
-        return \Database::update('coupon', $row, $id) > 0;
+        return $this->db->update('coupon', $row, $id) > 0;
     }
 
     public function softDelete(int $id): bool
     {
-        return \Database::update('coupon', ['deleted_at' => date('Y-m-d H:i:s')], $id) > 0;
+        return $this->db->update('coupon', ['deleted_at' => date('Y-m-d H:i:s')], $id) > 0;
     }
 
     public function toggle(int $id): bool
     {
         $current = $this->findById($id);
         if (!$current) return false;
-        return \Database::update('coupon', ['is_enabled' => $current['is_enabled'] ? 0 : 1], $id) > 0;
+        return $this->db->update('coupon', ['is_enabled' => $current['is_enabled'] ? 0 : 1], $id) > 0;
     }
 
     /**
@@ -178,7 +179,7 @@ class CouponModel
         $current = $this->findById($id);
         if (!$current) return false;
         $next = (int) ($current['show_on_front'] ?? 1) === 1 ? 0 : 1;
-        return \Database::update('coupon', ['show_on_front' => $next, 'updated_at' => date('Y-m-d H:i:s')], $id) > 0;
+        return $this->db->update('coupon', ['show_on_front' => $next, 'updated_at' => date('Y-m-d H:i:s')], $id) > 0;
     }
 
     public function existsCode(string $code, int $excludeId = 0): bool
@@ -189,7 +190,7 @@ class CouponModel
             $sql .= ' AND id != ?';
             $params[] = $excludeId;
         }
-        $row = \Database::fetchOne($sql . ' LIMIT 1', $params);
+        $row = $this->db->fetchOne($sql . ' LIMIT 1', $params);
         return $row !== null && $row !== false;
     }
 
@@ -250,7 +251,7 @@ class CouponModel
                 // 科学计数法会在 PHP 8 抛未捕获的 ValueError（PHP 7.4 静默截断成错误面额）。
                 // Money::parse 只放行严格的十进制数字，非法输入抛 InvalidArgumentException，
                 // 由调用方（admin/coupon.php 的 catch Throwable）转成清晰的错误提示。
-                $out[$f] = \Money::parse($v, true);
+                $out[$f] = $this->money->parse($v, true);
             }
         }
         if ($type === self::TYPE_PERCENT && array_key_exists('value', $data)) {
@@ -272,7 +273,7 @@ class CouponModel
     public function incrementUsedCount(int $couponId): bool
     {
         // 条件更新：未超上限才能 +1
-        $n = \Database::execute(
+        $n = $this->db->execute(
             "UPDATE {$this->table}
              SET used_count = used_count + 1, updated_at = NOW()
              WHERE id = ? AND deleted_at IS NULL

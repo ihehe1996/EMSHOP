@@ -135,7 +135,7 @@ include EM_ROOT . '/app/Admin/View/popup/header.php';
                                     <?php
                                     $goodsTags = [];
                                     if ($isEdit) {
-                                        $goodsTags = \App\Model\GoodsTagModel::getTagsByGoodsId((int) $goods['id']);
+                                        $goodsTags = app(\App\Model\GoodsTagModel::class)->getTagsByGoodsId((int) $goods['id']);
                                         foreach ($goodsTags as $t):
                                     ?>
                                     <span class="goods-tag-token" data-id="<?php echo (int) $t['id']; ?>">
@@ -1127,7 +1127,7 @@ $(function() {
 
 // 商品标签输入
 (function(){
-    var allTags = <?= json_encode(\App\Model\GoodsTagModel::getAll(), JSON_UNESCAPED_UNICODE) ?>;
+    var allTags = <?= json_encode(app(\App\Model\GoodsTagModel::class)->getAll(), JSON_UNESCAPED_UNICODE) ?>;
     var $wrap = $('#goodsTagInputWrap');
     var $tokens = $('#goodsTagTokens');
     var $input = $('#goodsTagTextInput');

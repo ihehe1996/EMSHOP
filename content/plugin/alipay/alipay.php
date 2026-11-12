@@ -743,7 +743,7 @@ addAction('payment_notify_alipay', function (array $data): void {
         exit;
     }
 
-    $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+    $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
     if (!$order) {
         echo 'fail';
         exit;
@@ -778,7 +778,7 @@ addAction('payment_notify_alipay', function (array $data): void {
     try {
         Database::begin();
 
-        \App\Model\OrderModel::changeStatus((int) $order['id'], 'paid');
+        app(\App\Model\OrderModel::class)->changeStatus((int) $order['id'], 'paid');
 
         $sql = 'INSERT INTO `' . Database::prefix() . 'order_payment`
                 (order_id, payment_code, payment_plugin, trade_no, amount, status, paid_at, created_at)
@@ -801,7 +801,7 @@ addAction('payment_notify_alipay', function (array $data): void {
     }
 
     try {
-        \App\Model\OrderModel::triggerDelivery((int) $order['id']);
+        app(\App\Model\OrderModel::class)->triggerDelivery((int) $order['id']);
     } catch (Throwable $e) {
         alipay_log('trigger delivery failed: ' . $e->getMessage());
     }

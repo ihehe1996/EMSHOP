@@ -53,17 +53,17 @@ class BlogCommentController extends BaseController
         }
 
         // 验证文章属于当前 scope
-        $blog = \App\Model\BlogModel::getByIdForScope($blogId, $this->merchantContext->currentId());
+        $blog = app(\App\Model\BlogModel::class)->getByIdForScope($blogId, $this->merchantContext->currentId());
         if (!$blog) {
             $this->response->error('文章不存在');
             return;
         }
 
-        $result = \App\Model\BlogCommentModel::getTopComments($blogId, $page, $limit, $sort);
+        $result = app(\App\Model\BlogCommentModel::class)->getTopComments($blogId, $page, $limit, $sort);
 
         // 为每条顶级评论加载前3条回复
         foreach ($result['list'] as &$comment) {
-            $replies = \App\Model\BlogCommentModel::getReplies((int) $comment['id'], 1, 3);
+            $replies = app(\App\Model\BlogCommentModel::class)->getReplies((int) $comment['id'], 1, 3);
             $comment['replies'] = $replies['list'];
             $comment['reply_total'] = $replies['total'];
         }
@@ -86,7 +86,7 @@ class BlogCommentController extends BaseController
             return;
         }
 
-        $result = \App\Model\BlogCommentModel::getReplies($parentId, $page, $limit);
+        $result = app(\App\Model\BlogCommentModel::class)->getReplies($parentId, $page, $limit);
         $this->response->success('', $result);
     }
 
@@ -111,7 +111,7 @@ class BlogCommentController extends BaseController
             return;
         }
         // 必须给当前 scope 的文章发评论
-        $blog = \App\Model\BlogModel::getByIdForScope($blogId, $this->merchantContext->currentId());
+        $blog = app(\App\Model\BlogModel::class)->getByIdForScope($blogId, $this->merchantContext->currentId());
         if (!$blog) {
             $this->response->error('文章不存在');
             return;
@@ -127,7 +127,7 @@ class BlogCommentController extends BaseController
 
         // 如果是回复，验证父评论存在
         if ($parentId > 0) {
-            $parent = \App\Model\BlogCommentModel::getById($parentId);
+            $parent = app(\App\Model\BlogCommentModel::class)->getById($parentId);
             if (!$parent || (int) $parent['status'] !== 1 || $parent['deleted_at'] !== null) {
                 $this->response->error('被回复的评论不存在');
                 return;
@@ -138,7 +138,7 @@ class BlogCommentController extends BaseController
             }
         }
 
-        $newId = \App\Model\BlogCommentModel::create([
+        $newId = app(\App\Model\BlogCommentModel::class)->create([
             'blog_id'       => $blogId,
             'user_id'       => (int) $user['id'],
             'parent_id'     => $parentId,
@@ -153,7 +153,7 @@ class BlogCommentController extends BaseController
         }
 
         // 返回新评论数据（含用户信息）
-        $comment = \App\Model\BlogCommentModel::getById($newId);
+        $comment = app(\App\Model\BlogCommentModel::class)->getById($newId);
         $comment['nickname'] = $user['nickname'] ?? $user['username'] ?? '用户';
         $comment['username'] = $user['username'] ?? '';
         $comment['avatar']   = $user['avatar'] ?? '';
@@ -178,7 +178,7 @@ class BlogCommentController extends BaseController
             return;
         }
 
-        $comment = \App\Model\BlogCommentModel::getById($id);
+        $comment = app(\App\Model\BlogCommentModel::class)->getById($id);
         if (!$comment || $comment['deleted_at'] !== null) {
             $this->response->error('评论不存在');
             return;
@@ -190,7 +190,7 @@ class BlogCommentController extends BaseController
             return;
         }
 
-        \App\Model\BlogCommentModel::delete($id);
+        app(\App\Model\BlogCommentModel::class)->delete($id);
         $this->response->success('删除成功');
     }
 }

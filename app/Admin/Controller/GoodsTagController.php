@@ -47,7 +47,7 @@ final class GoodsTagController extends BaseAdminController
                 $where['keyword'] = $keyword;
             }
 
-            $result = \App\Model\GoodsTagModel::getAdminList($where, $page, $limit);
+            $result = app(\App\Model\GoodsTagModel::class)->getAdminList($where, $page, $limit);
 
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -70,7 +70,7 @@ final class GoodsTagController extends BaseAdminController
                 $this->response->error('标签名不能为空');
             }
 
-            if (\App\Model\GoodsTagModel::nameExists($name, $id)) {
+            if (app(\App\Model\GoodsTagModel::class)->nameExists($name, $id)) {
                 $this->response->error('标签名已存在');
             }
 
@@ -80,9 +80,9 @@ final class GoodsTagController extends BaseAdminController
             ];
 
             if ($id > 0) {
-                \App\Model\GoodsTagModel::update($id, $data);
+                app(\App\Model\GoodsTagModel::class)->update($id, $data);
             } else {
-                $id = \App\Model\GoodsTagModel::create($data);
+                $id = app(\App\Model\GoodsTagModel::class)->create($data);
             }
 
             $this->response->success('保存成功', ['id' => $id, 'csrf_token' => $this->csrf->refresh()]);
@@ -94,7 +94,7 @@ final class GoodsTagController extends BaseAdminController
             if ($id <= 0) {
                 $this->response->error('参数错误');
             }
-            if (\App\Model\GoodsTagModel::delete($id)) {
+            if (app(\App\Model\GoodsTagModel::class)->delete($id)) {
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -110,14 +110,14 @@ final class GoodsTagController extends BaseAdminController
                 $this->response->error('请选择标签');
             }
             foreach ($ids as $id) {
-                \App\Model\GoodsTagModel::delete($id);
+                app(\App\Model\GoodsTagModel::class)->delete($id);
             }
             $this->response->success('批量删除成功', ['csrf_token' => $this->csrf->token()]);
         }
 
         // 刷新商品计数
         if ($action === 'refresh_counts') {
-            \App\Model\GoodsTagModel::refreshAllCounts();
+            app(\App\Model\GoodsTagModel::class)->refreshAllCounts();
             $this->response->success('计数已刷新', ['csrf_token' => $this->csrf->token()]);
         }
 

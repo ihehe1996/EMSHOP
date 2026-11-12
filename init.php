@@ -136,6 +136,9 @@ Autoloader::register([
 
 // 全局短名（Cache / Config / Database …）→ App\Facade\* 的别名（Laravel 的 AliasLoader 对应物）
 require_once EM_ROOT . '/bootstrap/aliases.php';
+
+// app(Class::class) 容器解析助手（模型 / 服务实例化用）
+require_once EM_ROOT . '/app/helpers/app.php';
 em_register_facade_aliases();
 
 // 后台入口路径：默认 /admin，可在 .env 里用 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。

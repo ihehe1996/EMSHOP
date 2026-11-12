@@ -15,14 +15,15 @@ namespace App\Model;
  * 主站推送时自动 is_on_sale=1；商户可在自己的店铺后台下架（改为 0）；
  * 主站删除 / 下架商品时，所有引用记录依赖外层查询时的 JOIN 过滤自动失效。
  */
-final class MerchantGoodsRefModel
+final class MerchantGoodsRefModel extends Model
 {
     /** @var string */
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'goods_merchant_ref';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'goods_merchant_ref';
     }
 
     /**
@@ -35,11 +36,11 @@ final class MerchantGoodsRefModel
         if ($goodsId <= 0) {
             return [];
         }
-        $rows = \Database::query(
+        $rows = $this->db->query(
             'SELECT `merchant_id` FROM `' . $this->table . '` WHERE `goods_id` = ?',
             [$goodsId]
         );
-        return array_map(static fn($r) => (int) $r['merchant_id'], $rows);
+        return array_map(fn($r) => (int) $r['merchant_id'], $rows);
     }
 
     /**
@@ -51,7 +52,7 @@ final class MerchantGoodsRefModel
     {
         $sql = 'SELECT * FROM `' . $this->table . '`
                  WHERE `merchant_id` = ? AND `goods_id` = ? LIMIT 1';
-        return \Database::fetchOne($sql, [$merchantId, $goodsId]);
+        return $this->db->fetchOne($sql, [$merchantId, $goodsId]);
     }
 
     /**
@@ -78,7 +79,7 @@ final class MerchantGoodsRefModel
 
             $existing = $this->find($mid, $goodsId);
             if ($existing === null) {
-                \Database::insert('goods_merchant_ref', [
+                $this->db->insert('goods_merchant_ref', [
                     'merchant_id' => $mid,
                     'goods_id' => $goodsId,
                     'markup_rate' => $defaultMarkupRate,
@@ -88,7 +89,7 @@ final class MerchantGoodsRefModel
                 ]);
                 $added++;
             } else {
-                \Database::update('goods_merchant_ref',
+                $this->db->update('goods_merchant_ref',
                     ['is_on_sale' => 1, 'pushed_at' => $now],
                     (int) $existing['id']
                 );
@@ -110,7 +111,7 @@ final class MerchantGoodsRefModel
             return 0;
         }
         if ($merchantIds === []) {
-            return \Database::execute(
+            return $this->db->execute(
                 'UPDATE `' . $this->table . '` SET `is_on_sale` = 0 WHERE `goods_id` = ?',
                 [$goodsId]
             );
@@ -118,7 +119,7 @@ final class MerchantGoodsRefModel
         $placeholders = implode(',', array_fill(0, count($merchantIds), '?'));
         $params = array_map('intval', $merchantIds);
         array_unshift($params, $goodsId);
-        return \Database::execute(
+        return $this->db->execute(
             'UPDATE `' . $this->table . '` SET `is_on_sale` = 0
               WHERE `goods_id` = ? AND `merchant_id` IN (' . $placeholders . ')',
             $params
@@ -133,7 +134,7 @@ final class MerchantGoodsRefModel
         if ($goodsId <= 0) {
             return 0;
         }
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS `c` FROM `' . $this->table . '`
               WHERE `goods_id` = ? AND `is_on_sale` = 1',
             [$goodsId]

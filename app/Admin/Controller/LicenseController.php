@@ -30,7 +30,7 @@ if ($this->request->isPost()) {
         switch ($action) {
             case 'activate':
                 $code = trim((string) $this->input->post('license_code', ''));
-                $result = \App\Service\LicenseService::activate($code);
+                $result = app(\App\Service\LicenseService::class)->activate($code);
                 $this->response->success('激活成功：' . $result['level_label'], [
                     'level' => $result['level'],
                     'level_label' => $result['level_label'],
@@ -39,18 +39,18 @@ if ($this->request->isPost()) {
                 break;
 
             case 'unbind':
-                \App\Service\LicenseService::unbind();
+                app(\App\Service\LicenseService::class)->unbind();
                 $this->response->success('已解绑主授权域名', ['csrf_token' => $this->csrf->refresh()]);
                 break;
 
             case 'revalidate':
-                \App\Service\LicenseService::revalidateCurrent();
+                app(\App\Service\LicenseService::class)->revalidateCurrent();
                 $this->response->success('已完成校验', ['csrf_token' => $this->csrf->refresh()]);
                 break;
 
             case 'save_aliases':
                 $raw = (string) $this->input->post('aliases', '');
-                $saved = \App\Service\LicenseService::saveAliasHosts($raw);
+                $saved = app(\App\Service\LicenseService::class)->saveAliasHosts($raw);
                 $this->response->success('已保存', [
                     'aliases'    => $saved,
                     'csrf_token' => $this->csrf->refresh(),
@@ -62,7 +62,7 @@ if ($this->request->isPost()) {
                 if (!in_array($level, ['vip', 'svip', 'supreme'], true)) {
                     $this->response->error('无效的授权等级');
                 }
-                $url = \App\Service\LicenseService::getBuyUrl(
+                $url = app(\App\Service\LicenseService::class)->getBuyUrl(
                     $level,
                     (string) ($admin['email'] ?? '')
                 );
@@ -71,8 +71,8 @@ if ($this->request->isPost()) {
 
             case 'switch_line':
                 $idx = (int) $this->input->post('index', 0);
-                \App\Service\LicenseService::switchLine($idx);
-                $lines = \App\Service\LicenseService::getAllLines();
+                app(\App\Service\LicenseService::class)->switchLine($idx);
+                $lines = app(\App\Service\LicenseService::class)->getAllLines();
                 $this->response->success('已切换到：' . ($lines[$idx]['name'] ?? ''), [
                     'current_index' => $idx,
                     'current_name' => $lines[$idx]['name'] ?? '',
@@ -85,7 +85,7 @@ if ($this->request->isPost()) {
             case 'official_login':
                 $account  = trim((string) $this->input->post('account', ''));
                 $password = (string) $this->input->post('password', '');
-                $profile  = \App\Service\LicenseService::loginOfficialAccount($account, $password);
+                $profile  = app(\App\Service\LicenseService::class)->loginOfficialAccount($account, $password);
                 $this->response->success('登录成功', [
                     'user'       => $profile,
                     'csrf_token' => $this->csrf->refresh(),
@@ -94,7 +94,7 @@ if ($this->request->isPost()) {
 
             // 验证码登录：邮箱 + 邮箱验证码（免密码）
             case 'official_login_code':
-                $profile = \App\Service\LicenseService::loginOfficialAccountByCode(
+                $profile = app(\App\Service\LicenseService::class)->loginOfficialAccountByCode(
                     (string) $this->input->post('email', ''),
                     (string) $this->input->post('code', '')
                 );
@@ -105,13 +105,13 @@ if ($this->request->isPost()) {
                 break;
 
             case 'official_logout':
-                \App\Service\LicenseService::logoutOfficialAccount();
+                app(\App\Service\LicenseService::class)->logoutOfficialAccount();
                 $this->response->success('已退出官方账号', ['csrf_token' => $this->csrf->refresh()]);
                 break;
 
             // 官方账号验证码：scene=register（注册）/ login（验证码登录）
             case 'official_email_code':
-                \App\Service\LicenseService::sendOfficialEmailCode(
+                app(\App\Service\LicenseService::class)->sendOfficialEmailCode(
                     (string) $this->input->post('email', ''),
                     (string) $this->input->post('scene', 'register')
                 );
@@ -119,7 +119,7 @@ if ($this->request->isPost()) {
                 break;
 
             case 'official_register':
-                $profile = \App\Service\LicenseService::registerOfficialAccount(
+                $profile = app(\App\Service\LicenseService::class)->registerOfficialAccount(
                     (string) $this->input->post('email', ''),
                     (string) $this->input->post('password', ''),
                     (string) $this->input->post('password_confirmation', '')
@@ -132,7 +132,7 @@ if ($this->request->isPost()) {
 
             // 购买渠道 + 联系方式：给应用商店的「获取正版激活码」弹窗用（与首页同一个数据源）
             case 'agent_links':
-                $base = \App\Service\LicenseService::fetchBaseData();
+                $base = app(\App\Service\LicenseService::class)->fetchBaseData();
                 $this->response->success('', [
                     'buy_links'     => $base['buy_links'] ?? [],
                     'used_fallback' => !empty($base['used_fallback']),
@@ -144,7 +144,7 @@ if ($this->request->isPost()) {
             // 官方账号名下的激活码列表：实时向官方站 /api/my/licenses 拉取
             case 'official_licenses':
                 $this->response->success('', [
-                    'licenses'   => \App\Service\LicenseService::officialAccountLicenses(),
+                    'licenses'   => app(\App\Service\LicenseService::class)->officialAccountLicenses(),
                     'csrf_token' => $this->csrf->refresh(),
                 ]);
                 break;
@@ -152,13 +152,13 @@ if ($this->request->isPost()) {
             // 官方账号个人资料：实时向官方站 /api/auth/me 拉取（只读，不轮换 CSRF）
             case 'official_profile':
                 $this->response->success('', [
-                    'user' => \App\Service\LicenseService::officialAccountProfile(),
+                    'user' => app(\App\Service\LicenseService::class)->officialAccountProfile(),
                 ]);
                 break;
 
             // 官方账号概况：资料 + 激活码数量一次拿齐（宫格页只发这一个请求）
             case 'official_overview':
-                $overview = \App\Service\LicenseService::officialAccountOverview();
+                $overview = app(\App\Service\LicenseService::class)->officialAccountOverview();
                 $this->response->success('', [
                     'user'           => $overview['user'] ?? [],
                     'licenses_count' => (int) ($overview['licenses_count'] ?? 0),
@@ -167,7 +167,7 @@ if ($this->request->isPost()) {
 
             // 余额变动明细（只读，余额和列表同一次返回）
             case 'official_balance_logs':
-                $this->response->success('', \App\Service\LicenseService::officialAccountBalanceLogs(
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountBalanceLogs(
                     (int) $this->input->post('page', 1),
                     (int) $this->input->post('per_page', 10)
                 ));
@@ -175,7 +175,7 @@ if ($this->request->isPost()) {
 
             // 添加激活码：绑定到当前官方账号（已被其他账号绑定的由上游拒绝）
             case 'official_add_license':
-                $result = \App\Service\LicenseService::officialAccountBindLicense((string) $this->input->post('code', ''));
+                $result = app(\App\Service\LicenseService::class)->officialAccountBindLicense((string) $this->input->post('code', ''));
                 $this->response->success('绑定成功', [
                     'license'    => $result['license'] ?? [],
                     'csrf_token' => $this->csrf->refresh(),
@@ -184,7 +184,7 @@ if ($this->request->isPost()) {
 
             // 移除授权：清空上游该激活码的域名，并清掉本机对应的授权状态
             case 'official_remove_license':
-                $result = \App\Service\LicenseService::officialAccountRemoveLicense((string) $this->input->post('code', ''));
+                $result = app(\App\Service\LicenseService::class)->officialAccountRemoveLicense((string) $this->input->post('code', ''));
                 $this->response->success('已移除授权', [
                     'license'       => $result['license'] ?? [],
                     'local_cleared' => !empty($result['local_cleared']),
@@ -194,7 +194,7 @@ if ($this->request->isPost()) {
 
             // 重置授权码：换新码（旧码立即失效），本机在用的码同步更新
             case 'official_reset_license':
-                $result = \App\Service\LicenseService::officialAccountResetLicense((string) $this->input->post('code', ''));
+                $result = app(\App\Service\LicenseService::class)->officialAccountResetLicense((string) $this->input->post('code', ''));
                 $this->response->success('已重置授权码', [
                     'license'       => $result['license'] ?? [],
                     'local_updated' => !empty($result['local_updated']),
@@ -205,13 +205,13 @@ if ($this->request->isPost()) {
             // 代理配置：实时向官方站 /api/my/config 拉取，本站不保存
             case 'official_agent_config':
                 $this->response->success('', [
-                    'config' => \App\Service\LicenseService::officialAccountAgentConfig(),
+                    'config' => app(\App\Service\LicenseService::class)->officialAccountAgentConfig(),
                 ]);
                 break;
 
             // 激活码仓库：列表 + 价格表 + 余额（代理专属，角色由上游校验）
             case 'official_em_codes':
-                $this->response->success('', \App\Service\LicenseService::officialAccountEmCodes(
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountEmCodes(
                     (int) $this->input->post('page', 1),
                     (int) $this->input->post('per_page', 10),
                     (string) $this->input->post('usage', 'unused')
@@ -220,7 +220,7 @@ if ($this->request->isPost()) {
 
             // 生成激活码：按档位单价从上游账号余额扣费
             case 'official_em_codes_generate':
-                $generated = \App\Service\LicenseService::officialAccountGenerateEmCodes(
+                $generated = app(\App\Service\LicenseService::class)->officialAccountGenerateEmCodes(
                     (string) $this->input->post('type', ''),
                     (int) $this->input->post('count', 1)
                 );
@@ -234,7 +234,7 @@ if ($this->request->isPost()) {
 
             // 代理版本安装包：只列 EMSHOP 已发布版本
             case 'official_versions':
-                $this->response->success('', \App\Service\LicenseService::officialAccountVersions(
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountVersions(
                     (int) $this->input->post('page', 1),
                     (int) $this->input->post('per_page', 10)
                 ));
@@ -242,7 +242,7 @@ if ($this->request->isPost()) {
 
             // 代理订单记录（只读，归属由上游按 token 过滤）
             case 'official_orders':
-                $this->response->success('', \App\Service\LicenseService::officialAccountOrders([
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountOrders([
                     'page'     => (int) $this->input->post('page', 1),
                     'per_page' => (int) $this->input->post('per_page', 10),
                     'keyword'  => (string) $this->input->post('keyword', ''),
@@ -254,7 +254,7 @@ if ($this->request->isPost()) {
 
             // 我的广告位（只做 EMSHOP）
             case 'official_ad_slots':
-                $this->response->success('', \App\Service\LicenseService::officialAccountAdSlots([
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountAdSlots([
                     'page'     => (int) $this->input->post('page', 1),
                     'per_page' => (int) $this->input->post('per_page', 10),
                     'keyword'  => (string) $this->input->post('keyword', ''),
@@ -264,13 +264,13 @@ if ($this->request->isPost()) {
 
             case 'official_ad_slot_detail':
                 $this->response->success('', [
-                    'slot' => \App\Service\LicenseService::officialAccountAdSlotDetail((int) $this->input->post('id', 0)),
+                    'slot' => app(\App\Service\LicenseService::class)->officialAccountAdSlotDetail((int) $this->input->post('id', 0)),
                 ]);
                 break;
 
             case 'official_ad_slot_save':
                 $slotId = (int) $this->input->post('id', 0);
-                $savedSlot = \App\Service\LicenseService::officialAccountAdSlotSave($slotId > 0 ? $slotId : null, [
+                $savedSlot = app(\App\Service\LicenseService::class)->officialAccountAdSlotSave($slotId > 0 ? $slotId : null, [
                     'title'       => (string) $this->input->post('title', ''),
                     'label'       => (string) $this->input->post('label', ''),
                     'label_color' => (string) $this->input->post('label_color', ''),
@@ -287,7 +287,7 @@ if ($this->request->isPost()) {
                 break;
 
             case 'official_ad_slot_status':
-                \App\Service\LicenseService::officialAccountAdSlotStatus(
+                app(\App\Service\LicenseService::class)->officialAccountAdSlotStatus(
                     (int) $this->input->post('id', 0),
                     (int) $this->input->post('status', 1)
                 );
@@ -295,12 +295,12 @@ if ($this->request->isPost()) {
                 break;
 
             case 'official_ad_slot_delete':
-                \App\Service\LicenseService::officialAccountAdSlotDelete((int) $this->input->post('id', 0));
+                app(\App\Service\LicenseService::class)->officialAccountAdSlotDelete((int) $this->input->post('id', 0));
                 $this->response->success('已删除', ['csrf_token' => $this->csrf->refresh()]);
                 break;
 
             case 'official_ad_slot_move':
-                \App\Service\LicenseService::officialAccountAdSlotMove(
+                app(\App\Service\LicenseService::class)->officialAccountAdSlotMove(
                     (int) $this->input->post('id', 0),
                     (string) $this->input->post('direction', '')
                 );
@@ -309,7 +309,7 @@ if ($this->request->isPost()) {
 
             // 安装记录（只读，归属由上游按 token 过滤）
             case 'official_install_records':
-                $this->response->success('', \App\Service\LicenseService::officialAccountInstallRecords([
+                $this->response->success('', app(\App\Service\LicenseService::class)->officialAccountInstallRecords([
                     'page'     => (int) $this->input->post('page', 1),
                     'per_page' => (int) $this->input->post('per_page', 10),
                     'keyword'  => (string) $this->input->post('keyword', ''),
@@ -320,7 +320,7 @@ if ($this->request->isPost()) {
 
             // 代理配置保存：同步写上游，必须校验登录密码
             case 'official_agent_config_save':
-                $saved = \App\Service\LicenseService::officialAccountSaveAgentConfig([
+                $saved = app(\App\Service\LicenseService::class)->officialAccountSaveAgentConfig([
                     'identity'          => (string) $this->input->post('identity', ''),
                     'qq_service'        => (string) $this->input->post('qq_service', ''),
                     'qq_group'          => (string) $this->input->post('qq_group', ''),
@@ -342,7 +342,7 @@ if ($this->request->isPost()) {
             case 'line_ping':
                 $this->response->success('', [
                     'lines'         => $this->licenseClient->measureLatency(),
-                    'current_index' => \App\Service\LicenseService::currentLineIndex(),
+                    'current_index' => app(\App\Service\LicenseService::class)->currentLineIndex(),
                 ]);
                 break;
 
@@ -366,7 +366,7 @@ if ((string) $this->input->get('_download', '') === 'version') {
     }
 
     try {
-        $source = \App\Service\LicenseService::officialAccountVersionSource((int) $this->input->get('id', 0));
+        $source = app(\App\Service\LicenseService::class)->officialAccountVersionSource((int) $this->input->get('id', 0));
     } catch (\Throwable $e) {
         $this->response->error($e->getMessage() ?: '下载失败');
     }
@@ -399,7 +399,7 @@ if ($popupMode === 'agent' || $popupMode === 'contact') {
     $agent = null;
     $agentError = null;
     try {
-        $agent = \App\Service\LicenseService::fetchBaseData();
+        $agent = app(\App\Service\LicenseService::class)->fetchBaseData();
     } catch (\Throwable $e) {
         $agentError = $e->getMessage() ?: '获取授权信息失败';
     }
@@ -409,7 +409,7 @@ if ($popupMode === 'agent' || $popupMode === 'contact') {
 
 // 官方账号管理（大 iframe）：账号概览 + 功能宫格（个人资料 / 退出登录在卡片里）
 if ($popupMode === 'account') {
-    $officialAccount = \App\Service\LicenseService::officialAccount();
+    $officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
     $csrfToken       = $this->csrf->token();
     include dirname(__DIR__) . '/View/popup/official_account.php';
     return;
@@ -426,7 +426,7 @@ if ($popupMode === 'official_login') {
 // 官方账号 · 我的激活码（宫格入口打开的功能窗口）
 if ($popupMode === 'licenses') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_licenses.php';
     return;
 }
@@ -434,7 +434,7 @@ if ($popupMode === 'licenses') {
 // 官方账号 · 余额变动明细（宫格「账户余额」打开的功能窗口）
 if ($popupMode === 'balance_logs') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_balance_logs.php';
     return;
 }
@@ -442,7 +442,7 @@ if ($popupMode === 'balance_logs') {
 // 官方账号 · 添加激活码（宫格「添加激活码」打开的输入窗口）
 if ($popupMode === 'add_license') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_add_license.php';
     return;
 }
@@ -450,7 +450,7 @@ if ($popupMode === 'add_license') {
 // 官方账号 · 代理配置（代理 / 管理账号才显示这张卡）
 if ($popupMode === 'agent_settings') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_agent_config.php';
     return;
 }
@@ -458,7 +458,7 @@ if ($popupMode === 'agent_settings') {
 // 官方账号 · 激活码仓库（代理 / 管理账号）
 if ($popupMode === 'code_warehouse') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_code_warehouse.php';
     return;
 }
@@ -466,7 +466,7 @@ if ($popupMode === 'code_warehouse') {
 // 官方账号 · 版本安装包（代理 / 管理账号，只列 EMSHOP）
 if ($popupMode === 'versions') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_versions.php';
     return;
 }
@@ -474,7 +474,7 @@ if ($popupMode === 'versions') {
 // 官方账号 · 用户订单记录（代理 / 管理账号）
 if ($popupMode === 'orders') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_orders.php';
     return;
 }
@@ -482,7 +482,7 @@ if ($popupMode === 'orders') {
 // 官方账号 · 广告位管理（代理 / 管理账号，只做 EMSHOP）
 if ($popupMode === 'ad_slots') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_ad_slots.php';
     return;
 }
@@ -490,7 +490,7 @@ if ($popupMode === 'ad_slots') {
 // 官方账号 · 广告位表单（新建 / 编辑，独立 iframe 弹窗）
 if ($popupMode === 'ad_slot_form') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     $slotId           = (int) $this->input->get('id', 0);
     include dirname(__DIR__) . '/View/popup/official_ad_slot_form.php';
     return;
@@ -499,7 +499,7 @@ if ($popupMode === 'ad_slot_form') {
 // 官方账号 · 安装记录（代理 / 管理账号）
 if ($popupMode === 'install_records') {
     $csrfToken        = $this->csrf->token();
-    $officialLoggedIn = \App\Service\LicenseService::officialAccount() !== [];
+    $officialLoggedIn = app(\App\Service\LicenseService::class)->officialAccount() !== [];
     include dirname(__DIR__) . '/View/popup/official_install_records.php';
     return;
 }

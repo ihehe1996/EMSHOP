@@ -25,7 +25,7 @@ final class PageEditController extends BaseAdminController
         }
 
         $id = (int) $this->input->get('id', 0);
-        $pageRow = $id ? \App\Model\PageModel::getById($id) : null;
+        $pageRow = $id ? app(\App\Model\PageModel::class)->getById($id) : null;
         if ($pageRow && (int) $pageRow['merchant_id'] !== 0) {
             $pageRow = null; // 主站后台不展示商户页面
         }
@@ -80,7 +80,7 @@ final class PageEditController extends BaseAdminController
         if (in_array($slug, $reserved, true)) {
             $this->response->error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
         }
-        if (\App\Model\PageModel::slugExists($slug, $id, 0)) {
+        if (app(\App\Model\PageModel::class)->slugExists($slug, $id, 0)) {
             $this->response->error('URL 别名 "' . $slug . '" 已被占用');
         }
         // template_name 只允许小写字母数字中划线下划线
@@ -102,18 +102,18 @@ final class PageEditController extends BaseAdminController
 
         try {
             if ($id) {
-                $existing = \App\Model\PageModel::getById($id);
+                $existing = app(\App\Model\PageModel::class)->getById($id);
                 if (!$existing) {
                     $this->response->error('页面不存在');
                 }
                 if ((int) $existing['merchant_id'] !== 0) {
                     $this->response->error('无权操作商户页面');
                 }
-                \App\Model\PageModel::update($id, $data);
+                app(\App\Model\PageModel::class)->update($id, $data);
                 $pageId = $id;
             } else {
                 $data['merchant_id'] = 0; // 主站后台创建的页面固定归主站
-                $pageId = \App\Model\PageModel::create($data);
+                $pageId = app(\App\Model\PageModel::class)->create($data);
             }
             if (!$pageId) {
                 $this->response->error('保存失败');

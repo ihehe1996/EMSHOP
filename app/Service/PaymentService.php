@@ -23,19 +23,19 @@ namespace App\Service;
  *   实现：永远从 em_plugin 里 scope='main' AND category='支付插件' AND is_enabled=1 的行
  *   按需 include 主文件、临时把 __em_current_scope 切到 'main' 触发钩子，再恢复 scope。
  */
-class PaymentService
+class PaymentService extends BaseService
 {
     /**
      * 获取所有已启用的支付方式（已排序）。
      *
      * @return array<array{code:string, name:string, image:string}>
      */
-    public static function getMethods(): array
+    public function getMethods(): array
     {
-        $methods = self::collectMainPluginMethods();
+        $methods = $this->collectMainPluginMethods();
 
         // 余额支付（内置，受后台开关控制，放在最后）
-        $balanceEnabled = \Config::get('shop_balance_enabled', '1');
+        $balanceEnabled = $this->config->get('shop_balance_enabled', '1');
         if ($balanceEnabled === '1') {
             // 登录用户：在显示名后拼当前余额，方便用户一眼看到够不够付
             $displayName = '余额支付';
@@ -43,7 +43,7 @@ class PaymentService
             $fu = $_SESSION['em_front_user'] ?? null;
             if (is_array($fu) && isset($fu['money'])) {
                 $bal = bcdiv((string) $fu['money'], '1000000', 2);
-                $cur = \Currency::getInstance()->getPrimary();
+                $cur = $this->currency->getPrimary();
                 $sym = $cur ? ($cur['symbol'] ?? '¥') : '¥';
                 $displayName = '余额支付 ' . $sym . $bal;
             }
@@ -75,9 +75,9 @@ class PaymentService
      * @param array<string, mixed> $payment 支付方式行（来自 PaymentService::getMethods）
      * @return array{pay_url:string,qrcode:string}
      */
-    public static function createPaymentPayload(array $order, array $payment): array
+    public function createPaymentPayload(array $order, array $payment): array
     {
-        $ctx = self::runUnderMainScope(static function () use ($order, $payment) {
+        $ctx = $this->runUnderMainScope(function () use ($order, $payment) {
             return applyFilter('payment_create', [
                 'order'       => $order,
                 'payment'     => $payment,
@@ -101,9 +101,9 @@ class PaymentService
      * @param array<string, mixed> $order
      * @param array<string, mixed> $payment
      */
-    public static function createPayment(array $order, array $payment): string
+    public function createPayment(array $order, array $payment): string
     {
-        $payload = self::createPaymentPayload($order, $payment);
+        $payload = $this->createPaymentPayload($order, $payment);
         return $payload['pay_url'];
     }
 
@@ -115,9 +115,9 @@ class PaymentService
      *
      * @param array<string, mixed> $data 合并 GET+POST 后的回调入参
      */
-    public static function dispatchNotify(string $plugin, array $data): void
+    public function dispatchNotify(string $plugin, array $data): void
     {
-        self::runUnderMainScope(static function () use ($plugin, $data) {
+        $this->runUnderMainScope(function () use ($plugin, $data) {
             doAction('payment_notify_' . $plugin, $data);
             return null;
         });
@@ -128,9 +128,9 @@ class PaymentService
      *
      * @param array<string, mixed> $data 合并 GET+POST 后的回调入参
      */
-    public static function dispatchReturn(string $plugin, array $data): void
+    public function dispatchReturn(string $plugin, array $data): void
     {
-        self::runUnderMainScope(static function () use ($plugin, $data) {
+        $this->runUnderMainScope(function () use ($plugin, $data) {
             doAction('payment_return_' . $plugin, $data);
             return null;
         });
@@ -145,9 +145,9 @@ class PaymentService
      *
      * @param array<string, mixed> $data 回调参数（GET+POST）
      */
-    public static function detectPluginFromCallback(array $data): string
+    public function detectPluginFromCallback(array $data): string
     {
-        $orderNo = self::extractCallbackOrderNo($data);
+        $orderNo = $this->extractCallbackOrderNo($data);
         if ($orderNo === '') {
             return '';
         }
@@ -160,7 +160,7 @@ class PaymentService
         }
 
         // 普通商品订单走 order 表
-        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+        $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
         $plugin = trim((string) ($order['payment_plugin'] ?? ''));
         return preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin) ? $plugin : '';
     }
@@ -170,7 +170,7 @@ class PaymentService
      *
      * @param array<string, mixed> $data
      */
-    private static function extractCallbackOrderNo(array $data): string
+    private function extractCallbackOrderNo(array $data): string
     {
         foreach (['out_trade_no', 'order_no', 'merchant_order_no'] as $key) {
             $val = trim((string) ($data[$key] ?? ''));
@@ -189,7 +189,7 @@ class PaymentService
      * @param callable():T $fn
      * @return T
      */
-    private static function runUnderMainScope(callable $fn)
+    private function runUnderMainScope(callable $fn)
     {
         $savedScope = $GLOBALS['__em_current_scope'] ?? null;
         $GLOBALS['__em_current_scope'] = 'main';
@@ -218,7 +218,7 @@ class PaymentService
      *
      * @return array<int, array<string, mixed>>
      */
-    private static function collectMainPluginMethods(): array
+    private function collectMainPluginMethods(): array
     {
         $pm = new \App\Model\PluginModel();
         $rows = $pm->getEnabledByCategory('支付插件', 'main');
@@ -249,7 +249,7 @@ class PaymentService
         }
 
         // 3. 白名单过滤：只保留主站启用的支付插件注册的方式
-        $methods = array_values(array_filter($methods, static function (array $m) use ($enabledNames) {
+        $methods = array_values(array_filter($methods, function (array $m) use ($enabledNames) {
             return in_array($m['plugin'] ?? '', $enabledNames, true);
         }));
 

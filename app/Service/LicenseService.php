@@ -25,7 +25,7 @@ namespace App\Service;
  *   - 授权状态由 activate(=bind) 写入，由 api/open/v1/em/license/status 周期核对。
  *     fetchBaseData() 仅供后台首页展示（公告/广告/版本/代理商），不参与授权判定
  */
-final class LicenseService
+final class LicenseService extends BaseService
 {
     public const LEVEL_NONE = 'none';
     public const LEVEL_VIP = 'vip';
@@ -58,7 +58,7 @@ final class LicenseService
     public const MAX_ALIAS_HOSTS = 10;
 
     /** 对外展示用的中文名 */
-    public static function levelLabel(string $level): string
+    public function levelLabel(string $level): string
     {
         return [
             self::LEVEL_NONE => '未授权',
@@ -79,34 +79,34 @@ final class LicenseService
      *
      * @return array<string, mixed>|null
      */
-    public static function currentLicense(): ?array
+    public function currentLicense(): ?array
     {
-        $mainHostRaw = (string) \Config::get('license_main_host', '');
+        $mainHostRaw = (string) $this->config->get('license_main_host', '');
         if ($mainHostRaw === '') {
             return null; // 未激活
         }
-        $mainHost = self::normalizeHost($mainHostRaw);
+        $mainHost = $this->normalizeHost($mainHostRaw);
         if ($mainHost === '') {
             return null; // 配置异常：解析不到有效 host
         }
         // 当前访问域名是否命中主授权域名 / 别名
-        $req = self::normalizeHost(self::currentDomain());
-        $aliases = array_values(array_filter(array_map([self::class, 'normalizeHost'], self::aliasHosts()), static fn(string $v): bool => $v !== ''));
+        $req = $this->normalizeHost($this->currentDomain());
+        $aliases = array_values(array_filter(array_map([self::class, 'normalizeHost'], $this->aliasHosts()), fn(string $v): bool => $v !== ''));
         $hostMatched = (
             $req === '' ||
             $req === 'localhost' ||
-            self::hostMatches($req, $mainHost) ||
-            self::inHostList($req, $aliases)
+            $this->hostMatches($req, $mainHost) ||
+            $this->inHostList($req, $aliases)
         );
 
-        $emkey = (string) \Config::get('license_emkey', '');
-        $type = (int) \Config::get('license_emkey_type', '0');
+        $emkey = (string) $this->config->get('license_emkey', '');
+        $type = (int) $this->config->get('license_emkey_type', '0');
         $level = self::TYPE_TO_LEVEL[$type] ?? self::LEVEL_NONE;
 
         return [
             'license_code' => $emkey,
             'level'        => $level,
-            'level_label'  => self::levelLabel($level),
+            'level_label'  => $this->levelLabel($level),
             'bound_domain' => $mainHost, // 给老调用方保持字段名
             'alias_hosts'  => $aliases,
             'host_matched' => $hostMatched,
@@ -116,22 +116,22 @@ final class LicenseService
     /**
      * 当前域名的有效等级。未激活 → 'none'。
      */
-    public static function currentLevel(): string
+    public function currentLevel(): string
     {
-        $row = self::currentLicense();
+        $row = $this->currentLicense();
         return $row !== null ? (string) $row['level'] : self::LEVEL_NONE;
     }
 
     /** 是否已激活（任意等级）。 */
-    public static function isActivated(): bool
+    public function isActivated(): bool
     {
-        return self::currentLevel() !== self::LEVEL_NONE;
+        return $this->currentLevel() !== self::LEVEL_NONE;
     }
 
     /** 等级是否满足（比较权重）。 */
-    public static function hasLevel(string $required): bool
+    public function hasLevel(string $required): bool
     {
-        $cur = self::LEVEL_WEIGHT[self::currentLevel()] ?? 0;
+        $cur = self::LEVEL_WEIGHT[$this->currentLevel()] ?? 0;
         $need = self::LEVEL_WEIGHT[$required] ?? 0;
         return $cur >= $need;
     }
@@ -145,15 +145,15 @@ final class LicenseService
      * @return array{level:string, level_label:string, bound_domain:string}
      * @throws RuntimeException 激活码为空 / 已绑别的域名 / 码不存在 / 网络错误
      */
-    public static function activate(string $licenseCode): array
+    public function activate(string $licenseCode): array
     {
         $licenseCode = trim($licenseCode);
         if ($licenseCode === '') {
             throw new \RuntimeException('请输入激活码');
         }
 
-        $domain = self::currentDomain();
-        $result = \LicenseClient::bind($licenseCode, $domain);
+        $domain = $this->currentDomain();
+        $result = $this->licenseClient->bind($licenseCode, $domain);
 
         // license_type 是数字档位（1=VIP / 2=SVIP / 3=至尊），转成内部 level 字符串
         $type = (int) ($result['license_type'] ?? 0);
@@ -168,13 +168,13 @@ final class LicenseService
             $mainHost = $domain;
         }
 
-        \Config::set('license_emkey', $licenseCode);
-        \Config::set('license_emkey_type', (string) $type);
-        \Config::set('license_main_host', $mainHost);
+        $this->config->set('license_emkey', $licenseCode);
+        $this->config->set('license_emkey_type', (string) $type);
+        $this->config->set('license_main_host', $mainHost);
 
         return [
             'level'        => $level,
-            'level_label'  => self::levelLabel($level),
+            'level_label'  => $this->levelLabel($level),
             'bound_domain' => $mainHost,
         ];
     }
@@ -189,21 +189,21 @@ final class LicenseService
      *
      * @throws RuntimeException 未激活 / 接口判定域名与授权码不匹配 / 网络错误
      */
-    public static function unbind(): void
+    public function unbind(): void
     {
-        $emkey = (string) \Config::get('license_emkey', '');
-        $mainHost = (string) \Config::get('license_main_host', '');
+        $emkey = (string) $this->config->get('license_emkey', '');
+        $mainHost = (string) $this->config->get('license_main_host', '');
         if ($mainHost === '') {
             throw new \RuntimeException('当前未激活，无需解绑');
         }
 
         if ($emkey !== '') {
             // 远程解绑；网络失败/域名与码不匹配直接抛，本地不动
-            \LicenseClient::unbind($emkey, $mainHost);
+            $this->licenseClient->unbind($emkey, $mainHost);
         }
 
-        \Config::set('license_main_host', '');
-        \Config::set('license_emkey_type', '0');
+        $this->config->set('license_main_host', '');
+        $this->config->set('license_emkey_type', '0');
     }
 
     /**
@@ -218,16 +218,16 @@ final class LicenseService
      * 注意：base-data 的 authorized 字段**不参与**本地授权判定 —— 它只用于首页展示
      * （公告/广告/版本/代理商那几块）。判定只看这个专用接口。
      */
-    public static function revalidateCurrent(): void
+    public function revalidateCurrent(): void
     {
-        if ((string) \Config::get('license_main_host', '') === '') {
+        if ((string) $this->config->get('license_main_host', '') === '') {
             return;
         }
 
         try {
-            $result = \LicenseClient::status(
-                self::effectiveHost(),
-                (string) \Config::get('license_emkey', '')
+            $result = $this->licenseClient->status(
+                $this->effectiveHost(),
+                (string) $this->config->get('license_emkey', '')
             );
         } catch (\Throwable $e) {
             // 网络异常 / 服务端 500 等 → 保守保留
@@ -240,7 +240,7 @@ final class LicenseService
 
         if ($authorized === false) {
             // 服务端明确判定未授权 → 清空本地授权
-            self::clearLocalAuthorization();
+            $this->clearLocalAuthorization();
             return;
         }
 
@@ -253,8 +253,8 @@ final class LicenseService
         if (!isset(self::TYPE_TO_LEVEL[$type])) {
             return; // 授权有效但档位没给全 → 保留本地原值，不误清
         }
-        if ((int) \Config::get('license_emkey_type', '0') !== $type) {
-            \Config::set('license_emkey_type', (string) $type);
+        if ((int) $this->config->get('license_emkey_type', '0') !== $type) {
+            $this->config->set('license_emkey_type', (string) $type);
         }
     }
 
@@ -268,10 +268,10 @@ final class LicenseService
      * （license/status、应用商店列表 app-list、应用更新检测 app-update-check）——
      * 只有明确的 false 才清；字段缺失（老服务端）或网络异常一律不动本地。
      */
-    public static function clearLocalAuthorization(): void
+    public function clearLocalAuthorization(): void
     {
-        \Config::set('license_main_host', '');
-        \Config::set('license_emkey_type', '0');
+        $this->config->set('license_main_host', '');
+        $this->config->set('license_emkey_type', '0');
     }
 
     /**
@@ -295,14 +295,14 @@ final class LicenseService
      * @return array<string, mixed>
      * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public static function fetchBaseData(): array
+    public function fetchBaseData(): array
     {
-        $data = \LicenseClient::baseData(
+        $data = $this->licenseClient->baseData(
             defined('SERVICE_TOKEN') ? (string) SERVICE_TOKEN : '',
-            self::effectiveHost(),
+            $this->effectiveHost(),
             defined('EM_VERSION') ? (string) EM_VERSION : '',
             // 本地保存的授权码：上游据此按「码 + 域名」双重校验（未激活时为空串）
-            (string) \Config::get('license_emkey', '')
+            (string) $this->config->get('license_emkey', '')
         );
 
         // echo '<pre>'; print_r($data);die;
@@ -314,12 +314,12 @@ final class LicenseService
             'license_label'    => (string) ($data['license_type_label'] ?? ''),
             'identity_matched' => ($data['identity_matched'] ?? null) === true,
             'used_fallback'    => ($data['used_fallback'] ?? null) === true,
-            'buy_links'        => self::normalizeLinks($data['buy_links'] ?? []),
-            'download_links'   => self::normalizeLinks($data['download_links'] ?? []),
-            'contact'          => self::normalizeContact($data['contact'] ?? []),
-            'announcements'    => self::normalizeEntries($data['announcements'] ?? [], false),
-            'ad_slots'         => self::normalizeEntries($data['ad_slots'] ?? [], true),
-            'update'           => self::normalizeUpdate($data),
+            'buy_links'        => $this->normalizeLinks($data['buy_links'] ?? []),
+            'download_links'   => $this->normalizeLinks($data['download_links'] ?? []),
+            'contact'          => $this->normalizeContact($data['contact'] ?? []),
+            'announcements'    => $this->normalizeEntries($data['announcements'] ?? [], false),
+            'ad_slots'         => $this->normalizeEntries($data['ad_slots'] ?? [], true),
+            'update'           => $this->normalizeUpdate($data),
         ];
     }
 
@@ -333,11 +333,11 @@ final class LicenseService
      * @param array<string, mixed> $data 服务端 data 原文
      * @return array{has_new:bool, version:string, force:bool, min_version:string, package_url:string}
      */
-    private static function normalizeUpdate(array $data): array
+    private function normalizeUpdate(array $data): array
     {
         $hasNew     = ($data['has_new_version'] ?? null) === true;
         $minVersion = trim((string) ($data['min_version'] ?? ''));
-        $patchUrl   = self::toAbsoluteUrl(trim((string) ($data['patch_package_url'] ?? '')));
+        $patchUrl   = $this->toAbsoluteUrl(trim((string) ($data['patch_package_url'] ?? '')));
 
         $current = defined('EM_VERSION') ? (string) EM_VERSION : '';
         $patchOk = $hasNew
@@ -359,7 +359,7 @@ final class LicenseService
      * @param mixed $raw
      * @return array<int, array{name:string, url:string}>
      */
-    private static function normalizeLinks($raw): array
+    private function normalizeLinks($raw): array
     {
         if (!is_array($raw)) {
             return [];
@@ -382,7 +382,7 @@ final class LicenseService
      * @param mixed $raw
      * @return array<string, string>
      */
-    private static function normalizeContact($raw): array
+    private function normalizeContact($raw): array
     {
         $raw = is_array($raw) ? $raw : [];
         $out = [];
@@ -390,7 +390,7 @@ final class LicenseService
             $out[$key] = trim((string) ($raw[$key] ?? ''));
         }
         if ($out['wechat_qr'] !== '') {
-            $out['wechat_qr'] = self::toAbsoluteUrl($out['wechat_qr']);
+            $out['wechat_qr'] = $this->toAbsoluteUrl($out['wechat_qr']);
         }
         return $out;
     }
@@ -404,7 +404,7 @@ final class LicenseService
      * @param mixed $raw
      * @return array<int, array<string, mixed>>
      */
-    private static function normalizeEntries($raw, bool $withExpires): array
+    private function normalizeEntries($raw, bool $withExpires): array
     {
         if (!is_array($raw)) {
             return [];
@@ -432,13 +432,13 @@ final class LicenseService
     /**
      * 相对地址 → 补当前线路域名（线路没配好 / 解析失败时原样返回，不打断渲染）。
      */
-    private static function toAbsoluteUrl(string $url): string
+    private function toAbsoluteUrl(string $url): string
     {
         if ($url === '') {
             return '';
         }
         try {
-            return UpdateService::resolvePackageUrl($url);
+            return app(\App\Service\UpdateService::class)->resolvePackageUrl($url);
         } catch (\Throwable $e) {
             return $url;
         }
@@ -449,24 +449,24 @@ final class LicenseService
      *
      * @throws RuntimeException
      */
-    public static function getBuyUrl(string $level, string $adminEmail = '', string $returnUrl = ''): string
+    public function getBuyUrl(string $level, string $adminEmail = '', string $returnUrl = ''): string
     {
         if ($returnUrl === '') {
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $returnUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . EM_ADMIN_PATH . '/license?from=buy';
         }
-        return \LicenseClient::getBuyUrl($level, self::currentDomain(), $adminEmail, $returnUrl);
+        return $this->licenseClient->getBuyUrl($level, $this->currentDomain(), $adminEmail, $returnUrl);
     }
 
     /**
      * 给所有中心服务调用用的 "有效 host"：优先 Config 里配的主授权域名，没配则回退当前 HTTP_HOST。
      *
-     * 用法示例：`LicenseClient::appList(['domain' => LicenseService::effectiveHost(), ...])`
+     * 用法示例：`LicenseClient::appList(['domain' => app(\App\Service\LicenseService::class)->effectiveHost(), ...])`
      */
-    public static function effectiveHost(): string
+    public function effectiveHost(): string
     {
-        $main = (string) \Config::get('license_main_host', '');
-        return $main !== '' ? $main : self::currentDomain();
+        $main = (string) $this->config->get('license_main_host', '');
+        return $main !== '' ? $main : $this->currentDomain();
     }
 
     /**
@@ -474,13 +474,13 @@ final class LicenseService
      *
      * @return array<int, string>
      */
-    public static function aliasHosts(): array
+    public function aliasHosts(): array
     {
-        $raw = (string) \Config::get('license_alias_hosts', '');
+        $raw = (string) $this->config->get('license_alias_hosts', '');
         if ($raw === '') return [];
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) return [];
-        return array_values(array_filter(array_map('strval', $decoded), static fn(string $v): bool => $v !== ''));
+        return array_values(array_filter(array_map('strval', $decoded), fn(string $v): bool => $v !== ''));
     }
 
     /**
@@ -490,7 +490,7 @@ final class LicenseService
      *
      * @param string|array<int, string> $input 可以是 textarea 原文（一行一个）或数组
      */
-    public static function saveAliasHosts($input): array
+    public function saveAliasHosts($input): array
     {
         if (is_array($input)) {
             $lines = array_map('strval', $input);
@@ -498,7 +498,7 @@ final class LicenseService
             $lines = preg_split('/\r\n|\r|\n/', (string) $input) ?: [];
         }
 
-        $mainHost = strtolower((string) \Config::get('license_main_host', ''));
+        $mainHost = strtolower((string) $this->config->get('license_main_host', ''));
         $seen = [];
         $out = [];
         foreach ($lines as $raw) {
@@ -510,7 +510,7 @@ final class LicenseService
             $out[] = $v;
             if (count($out) >= self::MAX_ALIAS_HOSTS) break;
         }
-        \Config::set('license_alias_hosts', json_encode($out, JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES));
+        $this->config->set('license_alias_hosts', json_encode($out, JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES));
         return $out;
     }
 
@@ -519,25 +519,25 @@ final class LicenseService
     // 只走这里记的当前线路，用户在后台手动切换。
 
     /** 所有可用的授权服务器线路。 */
-    public static function getAllLines(): array
+    public function getAllLines(): array
     {
-        return \LicenseClient::lines();
+        return $this->licenseClient->lines();
     }
 
     /** 当前线路索引（越界回落 0）。 */
-    public static function currentLineIndex(): int
+    public function currentLineIndex(): int
     {
-        return \LicenseClient::currentLineIndex();
+        return $this->licenseClient->currentLineIndex();
     }
 
     /** 切换当前线路。 @throws RuntimeException 索引越界 */
-    public static function switchLine(int $idx): void
+    public function switchLine(int $idx): void
     {
-        $lines = self::getAllLines();
+        $lines = $this->getAllLines();
         if ($idx < 0 || $idx >= count($lines)) {
             throw new \RuntimeException('无效的线路索引');
         }
-        \Config::set('license_line_index', (string) $idx);
+        $this->config->set('license_line_index', (string) $idx);
     }
 
     // ---------- 官方账号（官方站前台账号，与授权码无关） ----------
@@ -553,14 +553,14 @@ final class LicenseService
      *
      * @throws RuntimeException 账号密码为空 / 登录失败 / 响应异常
      */
-    public static function loginOfficialAccount(string $account, string $password): array
+    public function loginOfficialAccount(string $account, string $password): array
     {
         $account = trim($account);
         if ($account === '' || $password === '') {
             throw new \RuntimeException('请输入账号和密码');
         }
 
-        return self::storeOfficialAccount(\LicenseClient::accountLogin($account, $password), '登录响应异常，请稍后重试');
+        return $this->storeOfficialAccount($this->licenseClient->accountLogin($account, $password), '登录响应异常，请稍后重试');
     }
 
     /**
@@ -569,7 +569,7 @@ final class LicenseService
      * @param string $scene register（注册）或 login（验证码登录）
      * @throws RuntimeException 邮箱格式不对 / 场景不对 / 上游拒绝（限流等）
      */
-    public static function sendOfficialEmailCode(string $email, string $scene = 'register'): void
+    public function sendOfficialEmailCode(string $email, string $scene = 'register'): void
     {
         $email = strtolower(trim($email));
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -579,7 +579,7 @@ final class LicenseService
             throw new \RuntimeException('无效的验证码场景');
         }
 
-        \LicenseClient::accountEmailCode($email, $scene);
+        $this->licenseClient->accountEmailCode($email, $scene);
     }
 
     /**
@@ -587,7 +587,7 @@ final class LicenseService
      *
      * @throws RuntimeException 参数不合法 / 验证码错误 / 账号不存在 / 上游拒绝
      */
-    public static function loginOfficialAccountByCode(string $email, string $code): array
+    public function loginOfficialAccountByCode(string $email, string $code): array
     {
         $email = strtolower(trim($email));
         $code  = trim($code);
@@ -599,8 +599,8 @@ final class LicenseService
             throw new \RuntimeException('请输入 6 位邮箱验证码');
         }
 
-        return self::storeOfficialAccount(
-            \LicenseClient::accountLoginByCode($email, $code),
+        return $this->storeOfficialAccount(
+            $this->licenseClient->accountLoginByCode($email, $code),
             '登录响应异常，请稍后重试'
         );
     }
@@ -610,7 +610,7 @@ final class LicenseService
      *
      * @throws RuntimeException 参数不合法 / 邮箱已注册 / 上游拒绝
      */
-    public static function registerOfficialAccount(string $email, string $password, string $passwordConfirmation): array
+    public function registerOfficialAccount(string $email, string $password, string $passwordConfirmation): array
     {
         $email = strtolower(trim($email));
 
@@ -624,7 +624,7 @@ final class LicenseService
             throw new \RuntimeException('两次输入的密码不一致');
         }
 
-        return self::storeOfficialAccount(\LicenseClient::accountRegister([
+        return $this->storeOfficialAccount($this->licenseClient->accountRegister([
             'email'                 => $email,
             'password'              => $password,
             'password_confirmation' => $passwordConfirmation,
@@ -639,7 +639,7 @@ final class LicenseService
      * @param array<string, mixed> $data 服务端 data：{token, expires_in, user{...}}
      * @throws RuntimeException 响应缺 token / user
      */
-    private static function storeOfficialAccount(array $data, string $errorMessage): array
+    private function storeOfficialAccount(array $data, string $errorMessage): array
     {
         $token = trim((string) ($data['token'] ?? ''));
         $user  = is_array($data['user'] ?? null) ? $data['user'] : [];
@@ -647,12 +647,12 @@ final class LicenseService
             throw new \RuntimeException($errorMessage);
         }
 
-        $profile = self::profileFromUser($user);
+        $profile = $this->profileFromUser($user);
         $expiresIn = (int) ($data['expires_in'] ?? 0);
 
-        \Config::set(self::ACCOUNT_TOKEN_KEY, $token);
-        \Config::set(self::ACCOUNT_USER_KEY, (string) json_encode($profile, JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES));
-        \Config::set(self::ACCOUNT_EXPIRE_KEY, (string) ($expiresIn > 0 ? \time() + $expiresIn : 0));
+        $this->config->set(self::ACCOUNT_TOKEN_KEY, $token);
+        $this->config->set(self::ACCOUNT_USER_KEY, (string) json_encode($profile, JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES));
+        $this->config->set(self::ACCOUNT_EXPIRE_KEY, (string) ($expiresIn > 0 ? \time() + $expiresIn : 0));
 
         return $profile;
     }
@@ -663,7 +663,7 @@ final class LicenseService
      * @param array<string, mixed> $user
      * @return array{id:int,username:string,email:string,nickname:string,avatar:string,role:string}
      */
-    private static function profileFromUser(array $user): array
+    private function profileFromUser(array $user): array
     {
         return [
             'id'       => (int) ($user['id'] ?? 0),
@@ -681,18 +681,18 @@ final class LicenseService
      * @return array<int, array<string, mixed>>
      * @throws RuntimeException 未登录 / token 失效 / 网络失败
      */
-    public static function officialAccountLicenses(): array
+    public function officialAccountLicenses(): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        return \LicenseClient::myLicenses($token);
+        return $this->licenseClient->myLicenses($token);
     }
 
     /**
@@ -704,18 +704,18 @@ final class LicenseService
      * @return array<string, mixed>
      * @throws RuntimeException 未登录 / token 失效 / 网络失败
      */
-    public static function officialAccountProfile(): array
+    public function officialAccountProfile(): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        return \LicenseClient::accountProfile($token);
+        return $this->licenseClient->accountProfile($token);
     }
 
     /**
@@ -727,24 +727,24 @@ final class LicenseService
      * @return array<string, mixed>
      * @throws RuntimeException 未登录 / token 失效 / 网络失败
      */
-    public static function officialAccountOverview(): array
+    public function officialAccountOverview(): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $data = \LicenseClient::accountOverview($token);
+        $data = $this->licenseClient->accountOverview($token);
 
         // 顺手把最新资料写回本地快照：下次打开窗口，头部先渲染的就是新昵称/邮箱/角色
         $user = is_array($data['user'] ?? null) ? $data['user'] : [];
         if ($user !== []) {
-            \Config::set(self::ACCOUNT_USER_KEY, (string) json_encode(
-                self::profileFromUser($user),
+            $this->config->set(self::ACCOUNT_USER_KEY, (string) json_encode(
+                $this->profileFromUser($user),
                 JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES
             ));
         }
@@ -760,18 +760,18 @@ final class LicenseService
      * @return array<string, mixed>
      * @throws RuntimeException 未登录 / token 失效 / 网络失败
      */
-    public static function officialAccountBalanceLogs(int $page = 1, int $perPage = 10): array
+    public function officialAccountBalanceLogs(int $page = 1, int $perPage = 10): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        return \LicenseClient::accountBalanceLogs($token, $page, $perPage);
+        return $this->licenseClient->accountBalanceLogs($token, $page, $perPage);
     }
 
     /**
@@ -783,23 +783,23 @@ final class LicenseService
      * @return array<string, mixed> 上游 data（含 license）
      * @throws RuntimeException 未登录 / 激活码为空 / 已被其他账号绑定 / 网络失败
      */
-    public static function officialAccountBindLicense(string $code): array
+    public function officialAccountBindLicense(string $code): array
     {
         $code = trim($code);
         if ($code === '') {
             throw new \RuntimeException('请输入激活码');
         }
 
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        return \LicenseClient::accountBindLicense($token, $code);
+        return $this->licenseClient->accountBindLicense($token, $code);
     }
 
     /**
@@ -811,29 +811,29 @@ final class LicenseService
      * @return array{license:array<string,mixed>, local_cleared:bool}
      * @throws RuntimeException 未登录 / 激活码为空 / 上游拒绝 / 网络失败
      */
-    public static function officialAccountRemoveLicense(string $code): array
+    public function officialAccountRemoveLicense(string $code): array
     {
         $code = trim($code);
         if ($code === '') {
             throw new \RuntimeException('请输入激活码');
         }
 
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
         // 先远程：失败直接抛，本地保持原样（与 unbind() 同口径）
-        $result = \LicenseClient::accountRemoveLicense($token, $code);
+        $result = $this->licenseClient->accountRemoveLicense($token, $code);
 
-        $localKey = self::normalizeLicenseCode((string) \Config::get('license_emkey', ''));
+        $localKey = $this->normalizeLicenseCode((string) $this->config->get('license_emkey', ''));
         $localCleared = false;
-        if ($localKey !== '' && $localKey === self::normalizeLicenseCode($code)) {
-            self::clearLocalAuthorization();
+        if ($localKey !== '' && $localKey === $this->normalizeLicenseCode($code)) {
+            $this->clearLocalAuthorization();
             $localCleared = true;
         }
 
@@ -852,30 +852,30 @@ final class LicenseService
      * @return array{license:array<string,mixed>, local_updated:bool}
      * @throws RuntimeException 未登录 / 激活码为空 / 上游拒绝 / 网络失败
      */
-    public static function officialAccountResetLicense(string $code): array
+    public function officialAccountResetLicense(string $code): array
     {
         $code = trim($code);
         if ($code === '') {
             throw new \RuntimeException('请输入激活码');
         }
 
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $result = \LicenseClient::accountResetLicense($token, $code);
+        $result = $this->licenseClient->accountResetLicense($token, $code);
         $license = is_array($result['license'] ?? null) ? $result['license'] : [];
         $newCode = trim((string) ($license['code'] ?? ''));
 
-        $localCode = self::normalizeLicenseCode((string) \Config::get('license_emkey', ''));
+        $localCode = $this->normalizeLicenseCode((string) $this->config->get('license_emkey', ''));
         $localUpdated = false;
-        if ($newCode !== '' && $localCode !== '' && $localCode === self::normalizeLicenseCode($code)) {
-            \Config::set('license_emkey', $newCode);
+        if ($newCode !== '' && $localCode !== '' && $localCode === $this->normalizeLicenseCode($code)) {
+            $this->config->set('license_emkey', $newCode);
             $localUpdated = true;
         }
 
@@ -893,18 +893,18 @@ final class LicenseService
      * @return array<string, string>
      * @throws RuntimeException 未登录 / token 失效 / 网络失败
      */
-    public static function officialAccountAgentConfig(): array
+    public function officialAccountAgentConfig(): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $data = \LicenseClient::accountConfig($token);
+        $data = $this->licenseClient->accountConfig($token);
         $config = is_array($data['config'] ?? null) ? $data['config'] : [];
 
         $out = [];
@@ -925,18 +925,18 @@ final class LicenseService
      * @return array<string, string> 保存后的完整配置
      * @throws RuntimeException 未登录 / 密码为空 / 密码错误 / 校验失败 / 网络失败
      */
-    public static function officialAccountSaveAgentConfig(array $config, string $password): array
+    public function officialAccountSaveAgentConfig(array $config, string $password): array
     {
         // 密码保持原样提交（不 trim，免得吃掉密码里的首尾空格）
         if (trim($password) === '') {
             throw new \RuntimeException('请输入登录密码');
         }
 
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
@@ -965,7 +965,7 @@ final class LicenseService
         }
         $payload['password'] = $password;
 
-        $data = \LicenseClient::accountConfigUpdateWithPassword($token, $payload);
+        $data = $this->licenseClient->accountConfigUpdateWithPassword($token, $payload);
         $saved = is_array($data['config'] ?? null) ? $data['config'] : [];
 
         $out = [];
@@ -984,29 +984,29 @@ final class LicenseService
      * @return array<string, mixed>
      * @throws RuntimeException 未登录 / 无代理权限 / 网络失败
      */
-    public static function officialAccountEmCodes(int $page = 1, int $perPage = 10, string $usage = 'unused'): array
+    public function officialAccountEmCodes(int $page = 1, int $perPage = 10, string $usage = 'unused'): array
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $data = \LicenseClient::accountEmCodes($token, $page, $perPage, $usage);
+        $data = $this->licenseClient->accountEmCodes($token, $page, $perPage, $usage);
 
         // 生成激活码不允许透支：上游的 affordable 是「余额 + 可透支额度」算出来的，
         // 这里按当前余额重算，界面上的「最多还能生成几个」只认账号自己的钱。
-        $balanceCents = self::moneyToCents((string) ($data['balance'] ?? '0'));
+        $balanceCents = $this->moneyToCents((string) ($data['balance'] ?? '0'));
         $pricing = is_array($data['pricing'] ?? null) ? $data['pricing'] : null;
 
         if ($pricing !== null) {
             $fees = is_array($pricing['fees'] ?? null) ? $pricing['fees'] : [];
 
             foreach ($fees as $key => $fee) {
-                $feeCents = self::moneyToCents((string) ($fee['fee'] ?? '0'));
+                $feeCents = $this->moneyToCents((string) ($fee['fee'] ?? '0'));
                 $fees[$key]['affordable'] = $feeCents > 0
                     ? \intdiv(max(0, $balanceCents), $feeCents)
                     : 0;
@@ -1026,7 +1026,7 @@ final class LicenseService
      * @return array{codes:array<int,string>, cost:string, balance:string}
      * @throws RuntimeException 未登录 / 档位不对 / 价格未配置 / 余额不足 / 网络失败
      */
-    public static function officialAccountGenerateEmCodes(string $type, int $count): array
+    public function officialAccountGenerateEmCodes(string $type, int $count): array
     {
         if (!in_array($type, ['1', '2', '3'], true)) {
             throw new \RuntimeException('无效的授权档位');
@@ -1034,18 +1034,18 @@ final class LicenseService
 
         $count = max(1, min(200, $count));
 
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
 
         // 不允许透支：先按当前余额核对一遍（上游按站长配置可能仍放行透支），
         // 钱不够就在本地拦掉，不白白发一次生成请求。
-        $wallet = \LicenseClient::accountEmCodes($token, 1, 1);
+        $wallet = $this->licenseClient->accountEmCodes($token, 1, 1);
         $pricing = is_array($wallet['pricing'] ?? null) ? $wallet['pricing'] : [];
 
         if (empty($pricing['configured'])) {
@@ -1057,9 +1057,9 @@ final class LicenseService
             throw new \RuntimeException('该档位还没配置价格，暂时生成不了');
         }
 
-        $feeCents     = self::moneyToCents((string) $fee);
+        $feeCents     = $this->moneyToCents((string) $fee);
         $costCents    = $feeCents * $count;
-        $balanceCents = self::moneyToCents((string) ($wallet['balance'] ?? '0'));
+        $balanceCents = $this->moneyToCents((string) ($wallet['balance'] ?? '0'));
 
         if ($costCents > 0 && $costCents > $balanceCents) {
             $affordable = $feeCents > 0 ? \intdiv(max(0, $balanceCents), $feeCents) : 0;
@@ -1067,13 +1067,13 @@ final class LicenseService
             throw new \RuntimeException(sprintf(
                 '余额不足：生成 %d 个需要 %s 元，当前余额 %s 元，最多还能生成 %d 个',
                 $count,
-                self::centsToMoney($costCents),
-                self::centsToMoney($balanceCents),
+                $this->centsToMoney($costCents),
+                $this->centsToMoney($balanceCents),
                 $affordable
             ));
         }
 
-        $data = \LicenseClient::accountGenerateEmCodes($token, $type, $count);
+        $data = $this->licenseClient->accountGenerateEmCodes($token, $type, $count);
 
         return [
             'codes'   => is_array($data['codes'] ?? null) ? \array_values($data['codes']) : [],
@@ -1083,13 +1083,13 @@ final class LicenseService
     }
 
     /** 官方账号 token；未登录 / 已过期直接抛（这一组新接口共用）。 */
-    private static function officialTokenOrFail(): string
+    private function officialTokenOrFail(): string
     {
-        if (self::officialAccount() === []) {
+        if ($this->officialAccount() === []) {
             throw new \RuntimeException('请先登录官方账号');
         }
 
-        $token = (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        $token = (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
         if ($token === '') {
             throw new \RuntimeException('请先登录官方账号');
         }
@@ -1098,41 +1098,41 @@ final class LicenseService
     }
 
     /** 代理版本安装包（上游只给 EMSHOP 已发布的版本）。 */
-    public static function officialAccountVersions(int $page = 1, int $perPage = 10): array
+    public function officialAccountVersions(int $page = 1, int $perPage = 10): array
     {
-        return \LicenseClient::accountVersions(self::officialTokenOrFail(), $page, $perPage);
+        return $this->licenseClient->accountVersions($this->officialTokenOrFail(), $page, $perPage);
     }
 
     /** 下载版本源码包（二进制；文件名 / 错误信息都来自上游）。 */
-    public static function officialAccountVersionSource(int $id): array
+    public function officialAccountVersionSource(int $id): array
     {
         if ($id <= 0) {
             throw new \RuntimeException('无效的版本');
         }
 
-        return \LicenseClient::accountVersionSource(self::officialTokenOrFail(), $id);
+        return $this->licenseClient->accountVersionSource($this->officialTokenOrFail(), $id);
     }
 
     /** 代理订单记录（只读；归属由上游按 token 过滤）。 */
-    public static function officialAccountOrders(array $params): array
+    public function officialAccountOrders(array $params): array
     {
-        return \LicenseClient::accountOrders(self::officialTokenOrFail(), $params);
+        return $this->licenseClient->accountOrders($this->officialTokenOrFail(), $params);
     }
 
     /** 我的广告位列表（只做 EMSHOP）。 */
-    public static function officialAccountAdSlots(array $params): array
+    public function officialAccountAdSlots(array $params): array
     {
-        return \LicenseClient::accountAdSlots(self::officialTokenOrFail(), $params);
+        return $this->licenseClient->accountAdSlots($this->officialTokenOrFail(), $params);
     }
 
     /** 广告位详情（编辑时拉正文）。 */
-    public static function officialAccountAdSlotDetail(int $id): array
+    public function officialAccountAdSlotDetail(int $id): array
     {
         if ($id <= 0) {
             throw new \RuntimeException('无效的广告位');
         }
 
-        return \LicenseClient::accountAdSlotDetail(self::officialTokenOrFail(), $id);
+        return $this->licenseClient->accountAdSlotDetail($this->officialTokenOrFail(), $id);
     }
 
     /**
@@ -1140,7 +1140,7 @@ final class LicenseService
      *
      * 只透传上游写入白名单里的字段；`agent_id` 由上游按 token 注入，这里不碰。
      */
-    public static function officialAccountAdSlotSave(?int $id, array $fields): array
+    public function officialAccountAdSlotSave(?int $id, array $fields): array
     {
         $allowed = ['title', 'label', 'label_color', 'content', 'link_url', 'expires_on', 'status'];
         $payload = [];
@@ -1163,39 +1163,39 @@ final class LicenseService
             throw new \RuntimeException('请填到期日');
         }
 
-        $token = self::officialTokenOrFail();
+        $token = $this->officialTokenOrFail();
 
         return ($id !== null && $id > 0)
-            ? \LicenseClient::accountAdSlotUpdate($token, $id, $payload)
-            : \LicenseClient::accountAdSlotCreate($token, $payload);
+            ? $this->licenseClient->accountAdSlotUpdate($token, $id, $payload)
+            : $this->licenseClient->accountAdSlotCreate($token, $payload);
     }
 
     /** 只改广告位的启用 / 停用状态（不动正文）。 */
-    public static function officialAccountAdSlotStatus(int $id, int $status): void
+    public function officialAccountAdSlotStatus(int $id, int $status): void
     {
         if ($id <= 0) {
             throw new \RuntimeException('无效的广告位');
         }
 
-        \LicenseClient::accountAdSlotUpdate(
-            self::officialTokenOrFail(),
+        $this->licenseClient->accountAdSlotUpdate(
+            $this->officialTokenOrFail(),
             $id,
             ['status' => $status === 0 ? 0 : 1],
         );
     }
 
     /** 删除广告位（上游按 token 校验归属）。 */
-    public static function officialAccountAdSlotDelete(int $id): void
+    public function officialAccountAdSlotDelete(int $id): void
     {
         if ($id <= 0) {
             throw new \RuntimeException('无效的广告位');
         }
 
-        \LicenseClient::accountAdSlotDelete(self::officialTokenOrFail(), $id);
+        $this->licenseClient->accountAdSlotDelete($this->officialTokenOrFail(), $id);
     }
 
     /** 广告位上移 / 下移。 */
-    public static function officialAccountAdSlotMove(int $id, string $direction): void
+    public function officialAccountAdSlotMove(int $id, string $direction): void
     {
         if ($id <= 0) {
             throw new \RuntimeException('无效的广告位');
@@ -1205,17 +1205,17 @@ final class LicenseService
             throw new \RuntimeException('无效的排序方向');
         }
 
-        \LicenseClient::accountAdSlotMove(self::officialTokenOrFail(), $id, $direction);
+        $this->licenseClient->accountAdSlotMove($this->officialTokenOrFail(), $id, $direction);
     }
 
     /** 代理安装记录（只读；归属由上游按 token 过滤）。 */
-    public static function officialAccountInstallRecords(array $params): array
+    public function officialAccountInstallRecords(array $params): array
     {
-        return \LicenseClient::accountInstallRecords(self::officialTokenOrFail(), $params);
+        return $this->licenseClient->accountInstallRecords($this->officialTokenOrFail(), $params);
     }
 
     /** 金额字符串（元）转分：按字符串拆，不走浮点，避免 0.1 + 0.2 那类误差。 */
-    private static function moneyToCents(string $money): int
+    private function moneyToCents(string $money): int
     {
         $money = trim($money);
         if ($money === '') {
@@ -1236,7 +1236,7 @@ final class LicenseService
     }
 
     /** 分转金额字符串（元，两位小数）。 */
-    private static function centsToMoney(int $cents): string
+    private function centsToMoney(int $cents): string
     {
         $negative = $cents < 0;
         $cents    = abs($cents);
@@ -1245,45 +1245,45 @@ final class LicenseService
     }
 
     /** 激活码归一：去空白、转大写（连字符保留，与上游 normalizeCode 同口径）。 */
-    private static function normalizeLicenseCode(string $code): string
+    private function normalizeLicenseCode(string $code): string
     {
         return strtoupper((string) preg_replace('/\s+/', '', $code));
     }
 
     /** 当前官方账号 token（只给服务端内部请求带身份用，不要输出到页面）。 */
-    public static function officialAccountToken(): string
+    public function officialAccountToken(): string
     {
-        return (string) \Config::get(self::ACCOUNT_TOKEN_KEY, '');
+        return (string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '');
     }
 
     /** 当前登录的官方账号（未登录 / 已过期返回空数组）。只读本地配置，不发请求。 */
-    public static function officialAccount(): array
+    public function officialAccount(): array
     {
-        if ((string) \Config::get(self::ACCOUNT_TOKEN_KEY, '') === '') {
+        if ((string) $this->config->get(self::ACCOUNT_TOKEN_KEY, '') === '') {
             return [];
         }
 
-        $expire = (int) \Config::get(self::ACCOUNT_EXPIRE_KEY, '0');
+        $expire = (int) $this->config->get(self::ACCOUNT_EXPIRE_KEY, '0');
         if ($expire > 0 && $expire < time()) {
-            self::logoutOfficialAccount();
+            $this->logoutOfficialAccount();
             return [];
         }
 
-        $user = json_decode((string) \Config::get(self::ACCOUNT_USER_KEY, ''), true);
+        $user = json_decode((string) $this->config->get(self::ACCOUNT_USER_KEY, ''), true);
         return is_array($user) && $user !== [] ? $user : [];
     }
 
     /** 退出官方账号：清掉本地 token 与账号展示信息。 */
-    public static function logoutOfficialAccount(): void
+    public function logoutOfficialAccount(): void
     {
-        \Config::set(self::ACCOUNT_TOKEN_KEY, '');
-        \Config::set(self::ACCOUNT_USER_KEY, '');
-        \Config::set(self::ACCOUNT_EXPIRE_KEY, '0');
+        $this->config->set(self::ACCOUNT_TOKEN_KEY, '');
+        $this->config->set(self::ACCOUNT_USER_KEY, '');
+        $this->config->set(self::ACCOUNT_EXPIRE_KEY, '0');
     }
 
 
     /** 取当前请求域名（去端口）。*/
-    private static function currentDomain(): string
+    private function currentDomain(): string
     {
         $host = $_SERVER['HTTP_HOST'] ?? '';
         if ($host === '') return 'localhost';
@@ -1292,7 +1292,7 @@ final class LicenseService
     }
 
     /** 归一化输入为 host（小写、去协议/路径/端口/首尾点）。 */
-    private static function normalizeHost(string $input): string
+    private function normalizeHost(string $input): string
     {
         $s = strtolower(trim($input));
         if ($s === '') return '';
@@ -1315,7 +1315,7 @@ final class LicenseService
      * - 完全相等
      * - 或者是其子域（以 ".{$licensed}" 结尾）
      */
-    private static function hostMatches(string $req, string $licensed): bool
+    private function hostMatches(string $req, string $licensed): bool
     {
         if ($req === '' || $licensed === '') return false;
         if ($req === $licensed) return true;
@@ -1325,19 +1325,19 @@ final class LicenseService
             return false;
         }
 
-        return self::endsWith($req, '.' . $licensed);
+        return $this->endsWith($req, '.' . $licensed);
     }
 
     /** @param array<int, string> $list */
-    private static function inHostList(string $req, array $list): bool
+    private function inHostList(string $req, array $list): bool
     {
         foreach ($list as $licensed) {
-            if (self::hostMatches($req, $licensed)) return true;
+            if ($this->hostMatches($req, $licensed)) return true;
         }
         return false;
     }
 
-    private static function endsWith(string $haystack, string $needle): bool
+    private function endsWith(string $haystack, string $needle): bool
     {
         if ($needle === '') return true;
         $hl = strlen($haystack);

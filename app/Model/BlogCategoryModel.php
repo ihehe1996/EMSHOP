@@ -15,13 +15,14 @@ namespace App\Model;
  *
  * 多租户：merchant_id=0 主站；>0 商户。商户和主站完全分离。
  */
-final class BlogCategoryModel
+final class BlogCategoryModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'blog_category';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'blog_category';
     }
 
     /**
@@ -33,7 +34,7 @@ final class BlogCategoryModel
             'SELECT * FROM `%s` WHERE `merchant_id` = ? ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, [$merchantId]);
+        return $this->db->query($sql, [$merchantId]);
     }
 
     /**
@@ -45,7 +46,7 @@ final class BlogCategoryModel
             'SELECT * FROM `%s` WHERE `parent_id` = 0 AND `merchant_id` = ? ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, [$merchantId]);
+        return $this->db->query($sql, [$merchantId]);
     }
 
     /**
@@ -54,7 +55,7 @@ final class BlogCategoryModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -92,8 +93,8 @@ final class BlogCategoryModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
-        return (int) \Database::fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
+        $this->db->execute($sql, $params);
+        return (int) $this->db->fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
     }
 
     /**
@@ -130,13 +131,13 @@ final class BlogCategoryModel
             implode(', ', $sets)
         );
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     public function hasChildren(int $parentId): bool
@@ -145,7 +146,7 @@ final class BlogCategoryModel
             'SELECT COUNT(*) AS cnt FROM `%s` WHERE `parent_id` = ? LIMIT 1',
             $this->table
         );
-        $row = \Database::fetchOne($sql, [$parentId]);
+        $row = $this->db->fetchOne($sql, [$parentId]);
         return $row !== null && (int) $row['cnt'] > 0;
     }
 
@@ -161,13 +162,13 @@ final class BlogCategoryModel
             'SELECT `id` FROM `%s` WHERE `slug` = ? AND `merchant_id` = ? AND `id` != ? LIMIT 1',
             $this->table
         );
-        return \Database::fetchOne($sql, [$slug, $merchantId, $excludeId]) !== null;
+        return $this->db->fetchOne($sql, [$slug, $merchantId, $excludeId]) !== null;
     }
 
     public function count(int $merchantId = 0): int
     {
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s` WHERE `merchant_id` = ?', $this->table);
-        $row = \Database::fetchOne($sql, [$merchantId]);
+        $row = $this->db->fetchOne($sql, [$merchantId]);
         return $row !== null ? (int) $row['cnt'] : 0;
     }
 }

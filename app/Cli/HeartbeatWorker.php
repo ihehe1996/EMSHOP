@@ -22,7 +22,7 @@ namespace App\Cli;
  * 「服务在不在跑」，不是「某类活此刻有没有人消费」。
  *
  * 因此它不会因为某个业务 worker 卡住、崩溃、或者压根没装插件而失鲜。
- * 代价写在 `OrderModel::triggerDelivery()` 那边：它拿这个心跳判断发货走同步还是异步，
+ * 代价写在 `app(\App\Model\OrderModel::class)->triggerDelivery()` 那边：它拿这个心跳判断发货走同步还是异步，
  * 所以「服务在跑」等价于「新订单按异步入队」。改这里之前先看那边。
  */
 final class HeartbeatWorker implements ServerWorkerInterface

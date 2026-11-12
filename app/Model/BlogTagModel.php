@@ -14,7 +14,7 @@ if (!defined('EM_ROOT')) {
  *
  * 多租户：标签按 merchant_id 分池，主站和商户可以同名（uk_merchant_name）。
  */
-class BlogTagModel
+class BlogTagModel extends Model
 {
     // ============================================================
     // 标签 CRUD
@@ -23,10 +23,10 @@ class BlogTagModel
     /**
      * 获取指定 scope 下的所有标签（按 sort ASC, id ASC 排序）
      */
-    public static function getAll(int $merchantId = 0): array
+    public function getAll(int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT * FROM {$prefix}blog_tag WHERE merchant_id = ? ORDER BY sort ASC, id ASC",
             [$merchantId]
         );
@@ -35,9 +35,9 @@ class BlogTagModel
     /**
      * 后台标签列表（分页 + 搜索）
      */
-    public static function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
+    public function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = [];
         $params = [];
 
@@ -53,14 +53,14 @@ class BlogTagModel
 
         $whereSql = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-        $total = \Database::fetchOne(
+        $total = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM {$prefix}blog_tag {$whereSql}",
             $params
         );
         $totalCount = (int) ($total['count'] ?? 0);
 
         $offset = ($page - 1) * $limit;
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT * FROM {$prefix}blog_tag {$whereSql} ORDER BY sort ASC, id ASC LIMIT {$offset}, {$limit}",
             $params
         );
@@ -76,20 +76,20 @@ class BlogTagModel
     /**
      * 根据 ID 获取标签（不带 ACL，调用方负责）
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne("SELECT * FROM {$prefix}blog_tag WHERE id = ?", [$id]);
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne("SELECT * FROM {$prefix}blog_tag WHERE id = ?", [$id]);
         return $row ?: null;
     }
 
     /**
      * 在指定 scope 下按名称查找标签
      */
-    public static function getByName(string $name, int $merchantId = 0): ?array
+    public function getByName(string $name, int $merchantId = 0): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}blog_tag WHERE name = ? AND merchant_id = ?",
             [$name, $merchantId]
         );
@@ -101,60 +101,60 @@ class BlogTagModel
      *
      * @return int 新标签 ID
      */
-    public static function create(array $data): int
+    public function create(array $data): int
     {
         if (!array_key_exists('merchant_id', $data)) {
             $data['merchant_id'] = 0;
         }
         $data['created_at'] = date('Y-m-d H:i:s');
-        return \Database::insert('blog_tag', $data);
+        return $this->db->insert('blog_tag', $data);
     }
 
     /**
      * 更新标签。merchant_id 不允许通过 update 修改。
      */
-    public static function update(int $id, array $data): bool
+    public function update(int $id, array $data): bool
     {
         unset($data['merchant_id']);
-        return \Database::update('blog_tag', $data, $id) !== false;
+        return $this->db->update('blog_tag', $data, $id) !== false;
     }
 
     /**
      * 删除标签（同时删除关联）
      */
-    public static function delete(int $id): bool
+    public function delete(int $id): bool
     {
-        $prefix = \Database::prefix();
-        \Database::execute("DELETE FROM {$prefix}blog_tag_relation WHERE tag_id = ?", [$id]);
-        return \Database::execute("DELETE FROM {$prefix}blog_tag WHERE id = ?", [$id]) > 0;
+        $prefix = $this->db->prefix();
+        $this->db->execute("DELETE FROM {$prefix}blog_tag_relation WHERE tag_id = ?", [$id]);
+        return $this->db->execute("DELETE FROM {$prefix}blog_tag WHERE id = ?", [$id]) > 0;
     }
 
     /**
      * 在指定 scope 下检查标签名是否已存在
      */
-    public static function nameExists(string $name, int $excludeId = 0, int $merchantId = 0): bool
+    public function nameExists(string $name, int $excludeId = 0, int $merchantId = 0): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $sql = "SELECT id FROM {$prefix}blog_tag WHERE name = ? AND merchant_id = ?";
         $params = [$name, $merchantId];
         if ($excludeId > 0) {
             $sql .= ' AND id != ?';
             $params[] = $excludeId;
         }
-        return \Database::fetchOne($sql, $params) !== null;
+        return $this->db->fetchOne($sql, $params) !== null;
     }
 
     /**
      * 在指定 scope 下按名称查找或创建标签，返回标签 ID
      */
-    public static function findOrCreate(string $name, int $merchantId = 0): int
+    public function findOrCreate(string $name, int $merchantId = 0): int
     {
         $name = trim($name);
-        $existing = self::getByName($name, $merchantId);
+        $existing = $this->getByName($name, $merchantId);
         if ($existing) {
             return (int) $existing['id'];
         }
-        return self::create(['name' => $name, 'merchant_id' => $merchantId]);
+        return $this->create(['name' => $name, 'merchant_id' => $merchantId]);
     }
 
     // ============================================================
@@ -164,10 +164,10 @@ class BlogTagModel
     /**
      * 获取文章的所有标签
      */
-    public static function getTagsByBlogId(int $blogId): array
+    public function getTagsByBlogId(int $blogId): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT t.* FROM {$prefix}blog_tag t
              INNER JOIN {$prefix}blog_tag_relation r ON t.id = r.tag_id
              WHERE r.blog_id = ?
@@ -179,12 +179,12 @@ class BlogTagModel
     /**
      * 获取多篇文章的标签（批量，返回 blog_id => [tags] 映射）
      */
-    public static function getTagsByBlogIds(array $blogIds): array
+    public function getTagsByBlogIds(array $blogIds): array
     {
         if (empty($blogIds)) return [];
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($blogIds), '?'));
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT r.blog_id, t.id, t.name, t.color FROM {$prefix}blog_tag t
              INNER JOIN {$prefix}blog_tag_relation r ON t.id = r.tag_id
              WHERE r.blog_id IN ({$placeholders})
@@ -204,14 +204,14 @@ class BlogTagModel
      * @param int   $blogId 文章 ID
      * @param array $tagIds 标签 ID 数组
      */
-    public static function syncBlogTags(int $blogId, array $tagIds): void
+    public function syncBlogTags(int $blogId, array $tagIds): void
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         // 删除旧关联
-        \Database::execute("DELETE FROM {$prefix}blog_tag_relation WHERE blog_id = ?", [$blogId]);
+        $this->db->execute("DELETE FROM {$prefix}blog_tag_relation WHERE blog_id = ?", [$blogId]);
         // 插入新关联
         foreach (array_unique(array_filter($tagIds)) as $tagId) {
-            \Database::insert('blog_tag_relation', [
+            $this->db->insert('blog_tag_relation', [
                 'blog_id' => $blogId,
                 'tag_id'  => (int) $tagId,
             ]);
@@ -221,10 +221,10 @@ class BlogTagModel
     /**
      * 刷新所有标签的 article_count
      */
-    public static function refreshAllCounts(): void
+    public function refreshAllCounts(): void
     {
-        $prefix = \Database::prefix();
-        \Database::execute(
+        $prefix = $this->db->prefix();
+        $this->db->execute(
             "UPDATE {$prefix}blog_tag t SET t.article_count = (
                 SELECT COUNT(DISTINCT r.blog_id)
                 FROM {$prefix}blog_tag_relation r
@@ -237,10 +237,10 @@ class BlogTagModel
     /**
      * 获取指定 scope 下的热门标签（按文章数量排序）
      */
-    public static function getPopularTags(int $limit = 20, int $merchantId = 0): array
+    public function getPopularTags(int $limit = 20, int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT * FROM {$prefix}blog_tag
              WHERE article_count > 0 AND merchant_id = ?
              ORDER BY article_count DESC, sort ASC, id ASC
@@ -252,10 +252,10 @@ class BlogTagModel
     /**
      * 根据标签 ID 获取关联的文章 ID 列表
      */
-    public static function getBlogIdsByTagId(int $tagId): array
+    public function getBlogIdsByTagId(int $tagId): array
     {
-        $prefix = \Database::prefix();
-        $rows = \Database::query(
+        $prefix = $this->db->prefix();
+        $rows = $this->db->query(
             "SELECT blog_id FROM {$prefix}blog_tag_relation WHERE tag_id = ?",
             [$tagId]
         );

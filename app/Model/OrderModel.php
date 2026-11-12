@@ -14,7 +14,7 @@ namespace App\Model;
  * 负责订单创建、状态流转、查询等核心操作。
  * 状态变更统一通过 changeStatus() 方法执行，确保合法性校验和钩子触发。
  */
-class OrderModel
+class OrderModel extends Model
 {
     private static string $orderTable = '';
     private static string $orderGoodsTable = '';
@@ -48,10 +48,10 @@ class OrderModel
         'failed'           => ['refunding'],
     ];
 
-    private static function tables(): void
+    private function tables(): void
     {
         if (self::$orderTable === '') {
-            $prefix = \Database::prefix();
+            $prefix = $this->db->prefix();
             self::$orderTable = $prefix . 'order';
             self::$orderGoodsTable = $prefix . 'order_goods';
             self::$orderGoodsDeliveryItemTable = $prefix . 'order_goods_delivery_item';
@@ -64,7 +64,7 @@ class OrderModel
      *
      * @param mixed $g
      */
-    private static function isGuestShippingAddressFilled($g): bool
+    private function isGuestShippingAddressFilled($g): bool
     {
         if (!is_array($g)) {
             return false;
@@ -81,7 +81,7 @@ class OrderModel
      * 生成订单编号。
      * 格式：EMS + 年月日时分秒 + 6位随机字符
      */
-    public static function generateOrderNo(): string
+    public function generateOrderNo(): string
     {
         $chars = '0123456789';
         $rand = '';
@@ -99,17 +99,17 @@ class OrderModel
      * @return array{order_id: int, order_no: string} 创建成功返回订单信息
      * @throws RuntimeException
      */
-    public static function create(array $orderData, array $goodsItems): array
+    public function create(array $orderData, array $goodsItems): array
     {
-        self::tables();
+        $this->tables();
 
         if (empty($goodsItems)) {
             throw new \RuntimeException('订单商品不能为空');
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $orderNo = self::generateOrderNo();
+            $orderNo = $this->generateOrderNo();
             $now = date('Y-m-d H:i:s');
 
             // 计算商品总金额并校验库存
@@ -122,7 +122,7 @@ class OrderModel
                 $quantity = (int) ($item['quantity'] ?? 1);
 
                 // 查询商品信息
-                $goods = GoodsModel::getById($goodsId);
+                $goods = app(\App\Model\GoodsModel::class)->getById($goodsId);
                 if (!$goods || (int) $goods['status'] !== 1 || (int) $goods['is_on_sale'] !== 1 || $goods['deleted_at'] !== null) {
                     throw new \RuntimeException('商品不存在或已下架');
                 }
@@ -130,7 +130,7 @@ class OrderModel
                 // 查询规格信息
                 $spec = null;
                 if ($specId > 0) {
-                    $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+                    $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId);
                     foreach ($specs as $s) {
                         if ((int) $s['id'] === $specId) {
                             $spec = $s;
@@ -139,7 +139,7 @@ class OrderModel
                     }
                 } else {
                     // 无指定规格，取第一个
-                    $specs = GoodsModel::getSpecsByGoodsId($goodsId);
+                    $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId);
                     $spec = $specs[0] ?? null;
                     if ($spec) {
                         $specId = (int) $spec['id'];
@@ -275,7 +275,7 @@ class OrderModel
 
             // 展示货币快照：下单瞬间锁定访客选择的展示货币 + 当时汇率，
             // 后续订单详情都按这个快照渲染，不受汇率变动影响（访客币=主货币时返回 ['', 0]）
-            [$displayCurrencyCode, $displayRate] = \Currency::visitorSnapshot();
+            [$displayCurrencyCode, $displayRate] = $this->currency->visitorSnapshot();
 
             // 收货地址快照：任一商品类型在 goods_type_register 里声明 needs_address=true 时，本单要求填地址
             //   - 登录用户：从 $orderData['address_id'] 查 UserAddressModel 快照为 JSON
@@ -291,8 +291,8 @@ class OrderModel
                     $gid = (int) ($r['goods_id'] ?? 0);
                     if ($gid > 0) {
                         if (!array_key_exists($gid, $goodsCfgCache)) {
-                            $cfgRow = \Database::fetchOne(
-                                "SELECT `configs` FROM `" . \Database::prefix() . "goods` WHERE `id` = ? LIMIT 1",
+                            $cfgRow = $this->db->fetchOne(
+                                "SELECT `configs` FROM `" . $this->db->prefix() . "goods` WHERE `id` = ? LIMIT 1",
                                 [$gid]
                             );
                             $goodsCfgCache[$gid] = is_array($cfgRow)
@@ -328,12 +328,12 @@ class OrderModel
 
                 if ($buyerId > 0 && $addressId > 0) {
                     // —— 登录用户且显式选了地址簿：优先走地址簿
-                    $addr = UserAddressModel::findById($addressId, $buyerId);
+                    $addr = app(\App\Model\UserAddressModel::class)->findById($addressId, $buyerId);
                     if ($addr === null) {
                         throw new \RuntimeException('收货地址不存在或不属于当前账户');
                     }
-                    $addressSnapshot = self::buildAddressSnapshot($addr);
-                } elseif (self::isGuestShippingAddressFilled($g)) {
+                    $addressSnapshot = $this->buildAddressSnapshot($addr);
+                } elseif ($this->isGuestShippingAddressFilled($g)) {
                     // —— 手填整单地址：游客单，或 API 单（user_id 为付款人但终端收货走 guest_address）
                     if (!preg_match('/^1\d{10}$/', (string) $g['mobile'])) {
                         throw new \RuntimeException('收货手机号格式错误');
@@ -341,7 +341,7 @@ class OrderModel
                     if (mb_strlen((string) $g['detail']) > 255) {
                         throw new \RuntimeException('详细地址过长');
                     }
-                    $addressSnapshot = self::buildAddressSnapshot($g);
+                    $addressSnapshot = $this->buildAddressSnapshot($g);
                 } elseif ($buyerId > 0) {
                     throw new \RuntimeException('请选择收货地址');
                 } else {
@@ -360,12 +360,12 @@ class OrderModel
                     if (mb_strlen((string) $g['detail']) > 255) {
                         throw new \RuntimeException('详细地址过长');
                     }
-                    $addressSnapshot = self::buildAddressSnapshot($g);
+                    $addressSnapshot = $this->buildAddressSnapshot($g);
                 }
             }
 
             // 插入订单主表（使用 Database::insert 获取自增ID）
-            $orderId = (int) \Database::insert('order', [
+            $orderId = (int) $this->db->insert('order', [
                 'order_no'            => $orderNo,
                 'user_id'             => (int) ($orderData['user_id'] ?? 0),
                 'guest_token'         => $orderData['guest_token'] ?? null,
@@ -424,14 +424,14 @@ class OrderModel
                         $ownerUnitCost = $row['_owner_cost'];
                         if ($ownerUnitCost === null) {
                             $ownerUnitCost = (int) round(
-                                (int) $row['_base_price'] * \App\Service\MerchantLedgerService::resolveOwnerDiscountRate($ownerId)
+                                (int) $row['_base_price'] * app(\App\Service\MerchantLedgerService::class)->resolveOwnerDiscountRate($ownerId)
                             );
                         }
                         $costAmount = $ownerUnitCost * max(1, (int) $row['quantity']);
                     } elseif ($goodsOwnerId === $ownerId) {
                         // 自建商品：fee = price × qty × self_goods_fee_rate / 10000
                         // 注意：price 是已乘买家折扣后的成交价，主站收的手续费按"实付"算
-                        $feeAmount = \App\Service\MerchantLedgerService::computeSelfFee(
+                        $feeAmount = app(\App\Service\MerchantLedgerService::class)->computeSelfFee(
                             $merchantId,
                             (int) $row['price'],
                             (int) $row['quantity']
@@ -444,7 +444,7 @@ class OrderModel
                         (order_id, goods_id, spec_id, goods_title, spec_name, cover_image, price, quantity, goods_type,
                          goods_owner_id, cost_amount, fee_amount, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                \Database::execute($sql, [
+                $this->db->execute($sql, [
                     $orderId,
                     $row['goods_id'],
                     $row['spec_id'],
@@ -461,12 +461,12 @@ class OrderModel
                 ]);
             }
 
-            \Database::commit();
+            $this->db->commit();
 
             return ['order_id' => $orderId, 'order_no' => $orderNo, 'pay_amount' => $payAmount];
 
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -476,13 +476,13 @@ class OrderModel
      *
      * @throws RuntimeException
      */
-    public static function changeStatus(int $orderId, string $newStatus): bool
+    public function changeStatus(int $orderId, string $newStatus): bool
     {
-        self::tables();
+        $this->tables();
 
-        $order = self::getById($orderId);
+        $order = $this->getById($orderId);
         if (!$order) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单状态流转失败',
                 '订单不存在，无法执行状态流转',
@@ -499,7 +499,7 @@ class OrderModel
         $allowed = self::STATUS_TRANSITIONS[$currentStatus] ?? [];
 
         if (!in_array($newStatus, $allowed, true)) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单状态流转拒绝',
                 '当前状态不允许流转到目标状态',
@@ -549,10 +549,10 @@ class OrderModel
 
         $sql = "UPDATE `" . self::$orderTable . "` SET " . implode(', ', $sets)
              . " WHERE `id` = ? AND `status` = ?";
-        $affected = \Database::execute($sql, $params);
+        $affected = $this->db->execute($sql, $params);
 
         if ($affected === 0) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单状态流转冲突',
                 'CAS 更新未命中，订单状态已被并发修改，本次流转未生效',
@@ -578,13 +578,13 @@ class OrderModel
             // 余额支付、0 元下单、各支付插件回调、后台手工补单都会经过，不会漏。
             // 未付款的订单自始至终不占库存，所以不需要「回补」逻辑。
             if ($newStatus === 'paid') {
-                self::deductOrderStock($orderId);
+                $this->deductOrderStock($orderId);
             }
 
             // 未成交终态：退回该单核销掉的优惠券（库存没扣过，不用管）。
             // refunded 刻意不在列表内：那表示货已发出后退款，券是真实消耗。
             if (in_array($newStatus, ['expired', 'cancelled', 'failed'], true)) {
-                self::releaseOrderCoupons($orderId);
+                $this->releaseOrderCoupons($orderId);
             }
 
             $merchantId = (int) ($order['merchant_id'] ?? 0);
@@ -592,20 +592,20 @@ class OrderModel
             try {
                 if ($newStatus === 'completed') {
                     if ($merchantId > 0) {
-                        \App\Service\MerchantLedgerService::settleOrder($orderId);
+                        app(\App\Service\MerchantLedgerService::class)->settleOrder($orderId);
                     } else {
-                        \App\Service\RebateService::settleOrder($orderId);
+                        app(\App\Service\RebateService::class)->settleOrder($orderId);
                     }
-                    \App\Service\UserExperienceService::onOrderCompleted($orderId);
+                    app(\App\Service\UserExperienceService::class)->onOrderCompleted($orderId);
                 } elseif ($newStatus === 'refunded') {
                     if ($merchantId > 0) {
-                        \App\Service\MerchantLedgerService::refundOrder($orderId);
+                        app(\App\Service\MerchantLedgerService::class)->refundOrder($orderId);
                     } else {
-                        \App\Service\RebateService::revertOrder($orderId);
+                        app(\App\Service\RebateService::class)->revertOrder($orderId);
                     }
                 }
             } catch (\Throwable $e) {
-                self::writeSystemLog(
+                $this->writeSystemLog(
                     'warning',
                     '订单后置处理失败',
                     '状态变更成功，但结算/经验/回滚等后置处理失败',
@@ -627,11 +627,11 @@ class OrderModel
      *
      * @throws RuntimeException
      */
-    public static function payWithBalance(int $orderId, int $userId): bool
+    public function payWithBalance(int $orderId, int $userId): bool
     {
-        self::tables();
+        $this->tables();
 
-        $order = self::getById($orderId);
+        $order = $this->getById($orderId);
         if (!$order) {
             throw new \RuntimeException('订单不存在');
         }
@@ -641,7 +641,7 @@ class OrderModel
 
         $payAmount = (int) $order['pay_amount'];
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 扣款
             $balanceLog = new UserBalanceLogModel();
@@ -651,27 +651,27 @@ class OrderModel
             }
 
             // 更新订单状态为已支付
-            self::changeStatus($orderId, 'paid');
+            $this->changeStatus($orderId, 'paid');
 
             // 记录支付流水
             $sql = "INSERT INTO `" . self::$paymentTable . "`
                     (order_id, payment_code, payment_plugin, trade_no, amount, status, paid_at, created_at)
                     VALUES (?, 'balance', 'built-in', ?, ?, 'success', NOW(), NOW())";
-            \Database::execute($sql, [
+            $this->db->execute($sql, [
                 $orderId,
                 'BAL' . $order['order_no'],
                 $payAmount,
             ]);
 
-            \Database::commit();
+            $this->db->commit();
 
             // 触发发货流程（异步，不在事务内）
-            self::triggerDelivery($orderId);
+            $this->triggerDelivery($orderId);
 
             return true;
 
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -682,11 +682,11 @@ class OrderModel
      *
      * @throws RuntimeException
      */
-    public static function payFreeOrder(int $orderId): bool
+    public function payFreeOrder(int $orderId): bool
     {
-        self::tables();
+        $this->tables();
 
-        $order = self::getById($orderId);
+        $order = $this->getById($orderId);
         if (!$order) {
             throw new \RuntimeException('订单不存在');
         }
@@ -699,25 +699,25 @@ class OrderModel
             throw new \RuntimeException('订单金额不为0，不能走免支付流程');
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            self::changeStatus($orderId, 'paid');
+            $this->changeStatus($orderId, 'paid');
 
             $sql = "INSERT INTO `" . self::$paymentTable . "`
                     (order_id, payment_code, payment_plugin, trade_no, amount, status, paid_at, created_at)
                     VALUES (?, 'free', 'built-in', ?, 0, 'success', NOW(), NOW())";
-            \Database::execute($sql, [
+            $this->db->execute($sql, [
                 $orderId,
                 'FREE' . $order['order_no'],
             ]);
 
-            \Database::commit();
+            $this->db->commit();
 
-            self::triggerDelivery($orderId);
+            $this->triggerDelivery($orderId);
 
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -737,15 +737,15 @@ class OrderModel
      *
      * 判据是「queue worker 的能力心跳」而不是宿主心跳：管家活着不等于队列在消费。
      */
-    public static function triggerDelivery(int $orderId): void
+    public function triggerDelivery(int $orderId): void
     {
-        self::tables();
+        $this->tables();
 
         // 更新订单状态为发货中
         try {
-            self::changeStatus($orderId, 'delivering');
+            $this->changeStatus($orderId, 'delivering');
         } catch (\Throwable $e) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单进入发货中失败',
                 '触发发货时状态流转失败，订单保持原状态',
@@ -759,8 +759,8 @@ class OrderModel
             return;
         }
 
-        $orderGoods = self::getOrderGoods($orderId);
-        $queueTable = \Database::prefix() . 'delivery_queue';
+        $orderGoods = $this->getOrderGoods($orderId);
+        $queueTable = $this->db->prefix() . 'delivery_queue';
 
         foreach ($orderGoods as $og) {
             $goodsType = $og['goods_type'];
@@ -775,7 +775,7 @@ class OrderModel
             // ① 这一行已经发过货 → 不再入队。
             //    用 hasDeliveryContent 而不是队列状态：人工发货路径完全不碰队列，
             //    所以「队列里有 success 行」并不等于「这行发过货」。
-            if (self::hasDeliveryContent($ogId, (string) ($og['delivery_content'] ?? ''))) {
+            if ($this->hasDeliveryContent($ogId, (string) ($og['delivery_content'] ?? ''))) {
                 continue;
             }
 
@@ -784,7 +784,7 @@ class OrderModel
             //    上面 ① 被跳过，剩下的行在这里避免叠加重复任务。
             //    注意必须按 order_goods_id 过滤：若按订单过滤，会把尚未入队的行
             //    一起跳过，导致缺行。
-            $active = \Database::fetchOne(
+            $active = $this->db->fetchOne(
                 "SELECT `id` FROM `{$queueTable}`
                   WHERE `order_goods_id` = ? AND `status` IN ('pending','retry','processing')
                   LIMIT 1",
@@ -798,7 +798,7 @@ class OrderModel
             $callbackToken = bin2hex(random_bytes(16));
 
             // 写入队列任务
-            \Database::insert('delivery_queue', [
+            $this->db->insert('delivery_queue', [
                 'order_id'       => $orderId,
                 'order_goods_id' => $ogId,
                 'task_type'      => 'delivery',
@@ -819,7 +819,7 @@ class OrderModel
         // 发货 worker 现在由各商品类型插件各自注册（deliver_virtual_card 等），
         // 核心硬编码任何一个类型名都会判错。
         if (!\WorkerHeartbeat::isAlive(\WorkerHeartbeat::CAPABILITY_DELIVERY)) {
-            \App\Service\DeliveryQueueService::drainOrderSync($orderId);
+            app(\App\Service\DeliveryQueueService::class)->drainOrderSync($orderId);
         }
     }
 
@@ -833,10 +833,10 @@ class OrderModel
      * 付款时库存已不够的（下单后到付款前被别人买光）记一条告警日志，不阻断支付 ——
      * 网关回调里抛异常会让回调一直失败重试，而钱那时候已经收了。
      */
-    private static function deductOrderStock(int $orderId): void
+    private function deductOrderStock(int $orderId): void
     {
-        $prefix = \Database::prefix();
-        $items = \Database::query(
+        $prefix = $this->db->prefix();
+        $items = $this->db->query(
             "SELECT `spec_id`, `goods_id`, `quantity` FROM {$prefix}order_goods WHERE `order_id` = ?",
             [$orderId]
         );
@@ -850,7 +850,7 @@ class OrderModel
                 continue;
             }
 
-            $affected = \Database::execute(
+            $affected = $this->db->execute(
                 "UPDATE {$prefix}goods_spec
                     SET `stock` = `stock` - ?
                   WHERE `id` = ? AND `stock` >= ?",
@@ -860,7 +860,7 @@ class OrderModel
             if ($affected > 0) {
                 $touchedGoods[(int) ($it['goods_id'] ?? 0)] = true;
             } else {
-                self::writeSystemLog(
+                $this->writeSystemLog(
                     'warning',
                     '付款时库存不足',
                     '订单已支付但规格库存不足以扣减，请核对库存',
@@ -872,7 +872,7 @@ class OrderModel
         // 刷新受影响商品的 min/max 价与总库存缓存（商品列表页读的是这几个字段）
         foreach (array_keys($touchedGoods) as $gid) {
             if ($gid > 0) {
-                GoodsModel::updatePriceStockCache($gid);
+                app(\App\Model\GoodsModel::class)->updatePriceStockCache($gid);
             }
         }
     }
@@ -884,11 +884,11 @@ class OrderModel
      * refunded 不在此列 —— 那表示货已发出后退款，券是真实消耗。
      * 库存不在这里处理：库存在付款时才扣，未付款的订单从没占过。
      */
-    private static function releaseOrderCoupons(int $orderId): void
+    private function releaseOrderCoupons(int $orderId): void
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $released = \Database::execute(
+        $released = $this->db->execute(
             "UPDATE {$prefix}user_coupon
                 SET `status` = 'unused', `used_at` = NULL, `order_id` = NULL
               WHERE `order_id` = ? AND `status` = 'used'",
@@ -896,7 +896,7 @@ class OrderModel
         );
 
         if ($released > 0) {
-            self::writeSystemLog('info', '优惠券退回', '订单未成交，已退回核销的优惠券', [
+            $this->writeSystemLog('info', '优惠券退回', '订单未成交，已退回核销的优惠券', [
                 'order_id' => $orderId,
                 'coupons'  => $released,
             ]);
@@ -911,19 +911,19 @@ class OrderModel
      *
      * @return int 本次过期的订单数
      */
-    public static function expirePendingOrders(): int
+    public function expirePendingOrders(): int
     {
-        self::tables();
+        $this->tables();
 
-        $prefix = \Database::prefix();
-        $expireMinutes = (int) (\Config::get('shop_order_expire_minutes', '30') ?: 30);
+        $prefix = $this->db->prefix();
+        $expireMinutes = (int) ($this->config->get('shop_order_expire_minutes', '30') ?: 30);
         if ($expireMinutes <= 0) {
             return 0;
         }
 
         // 每轮处理一批。本方法由订单超时 worker 每 60 秒调用一次，批处理可把
         // 锁持有时间与单次耗时切碎。
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT `id` FROM {$prefix}order
               WHERE `status` = 'pending'
                 AND `created_at` < DATE_SUB(NOW(), INTERVAL ? MINUTE)
@@ -942,7 +942,7 @@ class OrderModel
         $expired = 0;
         foreach ($rows as $r) {
             try {
-                self::changeStatus((int) $r['id'], 'expired');
+                $this->changeStatus((int) $r['id'], 'expired');
                 $expired++;
             } catch (\Throwable $e) {
                 // 并发下该单可能刚被支付回调改成 paid（CAS 会拒绝本次流转）——
@@ -966,19 +966,19 @@ class OrderModel
      * @param array|null  $pluginData      合并到 order_goods.plugin_data 的额外字段（如 express_no）
      * @throws RuntimeException
      */
-    public static function manualShipOrderGoods(int $orderGoodsId, string $deliveryContent, ?array $pluginData = null): void
+    public function manualShipOrderGoods(int $orderGoodsId, string $deliveryContent, ?array $pluginData = null): void
     {
-        self::tables();
-        $prefix = \Database::prefix();
+        $this->tables();
+        $prefix = $this->db->prefix();
 
-        $og = \Database::fetchOne(
+        $og = $this->db->fetchOne(
             "SELECT id, order_id, delivery_content, plugin_data FROM {$prefix}order_goods WHERE id = ?",
             [$orderGoodsId]
         );
         if (!$og) {
             throw new \RuntimeException('订单商品不存在');
         }
-        if (self::hasDeliveryContent($orderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
+        if ($this->hasDeliveryContent($orderGoodsId, (string) ($og['delivery_content'] ?? ''))) {
             throw new \RuntimeException('该商品已发货，不能重复发货');
         }
         if ($deliveryContent === '') {
@@ -988,7 +988,7 @@ class OrderModel
         // 校验整单状态：只有已付款之后的订单才能写发货内容。
         // 此前这一步只在后台/商户端弹窗的 UI 上把关，POST 端点本身对任意状态都放行 ——
         // 未支付或已过期/已取消的订单一旦被写入卡密，买家凭订单详情就能直接看到。
-        $orderRow = \Database::fetchOne(
+        $orderRow = $this->db->fetchOne(
             "SELECT id, status FROM {$prefix}order WHERE id = ?",
             [(int) $og['order_id']]
         );
@@ -1002,7 +1002,7 @@ class OrderModel
         // 与自动发货队列互斥：把本商品行还在排队（pending/retry）的任务作废。
         // 否则队列 worker 随后执行它，会覆盖掉刚写好的手工内容，并再消耗一批卡密。
         // （正在 processing 的任务无法在此撤回，由商品类型插件的发货幂等短路兜住。）
-        \Database::execute(
+        $this->db->execute(
             "UPDATE {$prefix}delivery_queue
                 SET status = 'success', completed_at = NOW(),
                     last_error = '人工发货，自动发货任务作废'
@@ -1020,12 +1020,12 @@ class OrderModel
             $mergedPluginData = array_merge($mergedPluginData, $pluginData);
         }
 
-        $stored = self::persistDeliveryContent($orderGoodsId, $deliveryContent);
+        $stored = $this->persistDeliveryContent($orderGoodsId, $deliveryContent);
         if (!$stored) {
             throw new \RuntimeException('发货明细写入失败，请先完成系统升级迁移');
         }
         $now = date('Y-m-d H:i:s');
-        \Database::execute(
+        $this->db->execute(
             "UPDATE {$prefix}order_goods SET delivery_at = ?, plugin_data = ? WHERE id = ?",
             [
                 $now,
@@ -1035,21 +1035,21 @@ class OrderModel
         );
 
         // 如存在异步回调地址，推送发货结果给下游
-        self::notifyDeliveryCallback($orderGoodsId);
+        $this->notifyDeliveryCallback($orderGoodsId);
 
         // 检查同订单其他行是否也都已发货，齐了就整单流转 delivered → completed
         $orderId = (int) $og['order_id'];
         $remaining = false;
-        foreach (self::getOrderGoods($orderId) as $row) {
-            if (!self::hasDeliveryContent((int) $row['id'], (string) ($row['delivery_content'] ?? ''))) {
+        foreach ($this->getOrderGoods($orderId) as $row) {
+            if (!$this->hasDeliveryContent((int) $row['id'], (string) ($row['delivery_content'] ?? ''))) {
                 $remaining = true;
                 break;
             }
         }
         if (!$remaining) {
             // 所有行都发完了 → delivered → completed（changeStatus 会拒绝非法流转，自动跳过）
-            try { self::changeStatus($orderId, 'delivered'); } catch (\Throwable $e) {}
-            try { self::changeStatus($orderId, 'completed'); } catch (\Throwable $e) {}
+            try { $this->changeStatus($orderId, 'delivered'); } catch (\Throwable $e) {}
+            try { $this->changeStatus($orderId, 'completed'); } catch (\Throwable $e) {}
         }
     }
 
@@ -1063,20 +1063,20 @@ class OrderModel
      * - 如果所有商品都有发货内容 → delivered → completed
      * - 如果有人工发货商品还没内容 → 只保持 delivering，等管理员手动发货
      */
-    public static function checkDeliveryComplete(int $orderId): void
+    public function checkDeliveryComplete(int $orderId): void
     {
-        self::tables();
-        $prefix = \Database::prefix();
-        $orderGoods = self::getOrderGoods($orderId);
+        $this->tables();
+        $prefix = $this->db->prefix();
+        $orderGoods = $this->getOrderGoods($orderId);
         $allAutoDelivered = true;
         $hasManual = false;
 
         foreach ($orderGoods as $og) {
-            if (self::hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))) {
+            if ($this->hasDeliveryContent((int) ($og['id'] ?? 0), (string) ($og['delivery_content'] ?? ''))) {
                 continue; // 已发货
             }
             // 检查队列任务是否已完成（人工发货场景：队列 success 但发货内容为空）
-            $task = \Database::fetchOne(
+            $task = $this->db->fetchOne(
                 "SELECT status FROM {$prefix}delivery_queue WHERE order_goods_id = ? ORDER BY id DESC LIMIT 1",
                 [(int) $og['id']]
             );
@@ -1102,9 +1102,9 @@ class OrderModel
         // 被别的请求先推掉就会抛异常；若两步共用一个 try，第二个 changeStatus 永远
         // 不会执行，订单会永久停在 delivered 而不是 completed（分账/返佣也就不结算）。
         try {
-            self::changeStatus($orderId, 'delivered');
+            $this->changeStatus($orderId, 'delivered');
         } catch (\Throwable $e) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单流转 delivered 失败',
                 '发货完成后尝试流转到 delivered 失败，订单保持当前状态',
@@ -1117,9 +1117,9 @@ class OrderModel
         }
 
         try {
-            self::changeStatus($orderId, 'completed');
+            $this->changeStatus($orderId, 'completed');
         } catch (\Throwable $e) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单流转 completed 失败',
                 '发货完成后尝试流转到 completed 失败，订单保持当前状态',
@@ -1136,11 +1136,11 @@ class OrderModel
      * 若订单配置了 delivery_callback_url，则把订单商品发货结果异步回调给下游。
      * 失败仅记录日志，不影响主流程状态流转。
      */
-    public static function notifyDeliveryCallback(int $orderGoodsId): void
+    public function notifyDeliveryCallback(int $orderGoodsId): void
     {
-        self::tables();
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $this->tables();
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT og.`id` AS order_goods_id, og.`order_id`, og.`goods_id`, og.`spec_id`, og.`delivery_content`, og.`delivery_at`,
                     o.`order_no`, o.`delivery_callback_url`
              FROM `{$prefix}order_goods` og
@@ -1152,7 +1152,7 @@ class OrderModel
             return;
         }
         $callbackUrl = trim((string) ($row['delivery_callback_url'] ?? ''));
-        $deliveryContent = self::getDeliveryContent($orderGoodsId, (string) ($row['delivery_content'] ?? ''));
+        $deliveryContent = $this->getDeliveryContent($orderGoodsId, (string) ($row['delivery_content'] ?? ''));
         if ($callbackUrl === '' || $deliveryContent === '') {
             return;
         }
@@ -1160,7 +1160,7 @@ class OrderModel
         // 请求前再校验一次：地址可能来自更早写入的历史数据（那时入库还没有内网校验），
         // 也可能在这条记录存下之后才被解析到内网（DNS 变更）。任一情况都不应发出请求。
         if (!\DownloadUrlGuard::isPublicHttpUrl($callbackUrl)) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '发货回调地址被拒绝',
                 'delivery_callback_url 指向内网或保留地址，已跳过回调',
@@ -1177,7 +1177,7 @@ class OrderModel
         ];
         $specId = (int) ($row['spec_id'] ?? 0);
         if ($specId > 0) {
-            $specRow = \Database::fetchOne(
+            $specRow = $this->db->fetchOne(
                 "SELECT `stock` FROM `{$prefix}goods_spec` WHERE `id` = ? LIMIT 1",
                 [$specId]
             );
@@ -1187,14 +1187,14 @@ class OrderModel
         }
         $goodsId = (int) ($row['goods_id'] ?? 0);
         if ($goodsId > 0) {
-            $range = GoodsModel::getPriceAndStockRange($goodsId);
+            $range = app(\App\Model\GoodsModel::class)->getPriceAndStockRange($goodsId);
             $payload['goods_total_stock'] = (int) ($range['total_stock'] ?? 0);
         }
         $httpCode = 0;
         $responseBody = '';
-        $ok = self::postJson($callbackUrl, $payload, $httpCode, $responseBody);
+        $ok = $this->postJson($callbackUrl, $payload, $httpCode, $responseBody);
         if ($ok) {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'info',
                 '订单发货回调推送成功',
                 '已向下游推送发货结果',
@@ -1207,7 +1207,7 @@ class OrderModel
                 ]
             );
         } else {
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'warning',
                 '订单发货回调推送失败',
                 '向下游推送发货结果失败',
@@ -1225,7 +1225,7 @@ class OrderModel
     /**
      * @param array<string, mixed> $payload
      */
-    private static function postJson(string $url, array $payload, int &$httpCode = 0, string &$responseBody = ''): bool
+    private function postJson(string $url, array $payload, int &$httpCode = 0, string &$responseBody = ''): bool
     {
         if ($url === '' || !preg_match('#^https?://#i', $url)) {
             $responseBody = 'invalid_url';
@@ -1286,7 +1286,7 @@ class OrderModel
     /**
      * @param array<string, mixed> $detail
      */
-    private static function writeSystemLog(string $level, string $action, string $message, array $detail = []): void
+    private function writeSystemLog(string $level, string $action, string $message, array $detail = []): void
     {
         try {
             if (!defined('EM_ROOT')) {
@@ -1311,32 +1311,32 @@ class OrderModel
     /**
      * 按 ID 查询订单。
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        self::tables();
-        return \Database::fetchOne("SELECT * FROM `" . self::$orderTable . "` WHERE id = ?", [$id]);
+        $this->tables();
+        return $this->db->fetchOne("SELECT * FROM `" . self::$orderTable . "` WHERE id = ?", [$id]);
     }
 
     /**
      * 按订单编号查询。
      */
-    public static function getByOrderNo(string $orderNo): ?array
+    public function getByOrderNo(string $orderNo): ?array
     {
-        self::tables();
-        return \Database::fetchOne("SELECT * FROM `" . self::$orderTable . "` WHERE order_no = ?", [$orderNo]);
+        $this->tables();
+        return $this->db->fetchOne("SELECT * FROM `" . self::$orderTable . "` WHERE order_no = ?", [$orderNo]);
     }
 
     /**
      * 获取订单商品列表。
      */
-    public static function getOrderGoods(int $orderId): array
+    public function getOrderGoods(int $orderId): array
     {
-        self::tables();
-        $rows = \Database::query("SELECT * FROM `" . self::$orderGoodsTable . "` WHERE order_id = ? ORDER BY id", [$orderId]);
+        $this->tables();
+        $rows = $this->db->query("SELECT * FROM `" . self::$orderGoodsTable . "` WHERE order_id = ? ORDER BY id", [$orderId]);
         if ($rows === []) {
             return [];
         }
-        self::hydrateDeliveryContent($rows);
+        $this->hydrateDeliveryContent($rows);
         return $rows;
     }
 
@@ -1350,9 +1350,9 @@ class OrderModel
      * @param array<int, int|string> $orderIds
      * @return array<int, array<int, array<string, mixed>>>
      */
-    public static function getOrderGoodsBatch(array $orderIds, bool $withDeliveryContent = true): array
+    public function getOrderGoodsBatch(array $orderIds, bool $withDeliveryContent = true): array
     {
-        self::tables();
+        $this->tables();
 
         $ids = [];
         foreach ($orderIds as $id) {
@@ -1368,7 +1368,7 @@ class OrderModel
         $columns = $withDeliveryContent
             ? '*'
             : 'id, order_id, goods_id, spec_id, goods_title, spec_name, cover_image, price, quantity, goods_type, delivery_at';
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT {$columns} FROM `" . self::$orderGoodsTable . "`
               WHERE order_id IN ({$placeholders}) ORDER BY id",
             $ids
@@ -1377,7 +1377,7 @@ class OrderModel
             return [];
         }
         if ($withDeliveryContent) {
-            self::hydrateDeliveryContent($rows);
+            $this->hydrateDeliveryContent($rows);
         }
 
         $map = [];
@@ -1390,7 +1390,7 @@ class OrderModel
     /**
      * 订单是否已购买（非待付/取消/过期/失败），用于控制「购买后才可见」的内容如使用教程。
      */
-    public static function isPurchasedStatus(string $status): bool
+    public function isPurchasedStatus(string $status): bool
     {
         return !in_array($status, ['pending', 'expired', 'cancelled', 'failed'], true);
     }
@@ -1401,7 +1401,7 @@ class OrderModel
      * @param array<int, array<string, mixed>> $orderGoods
      * @return array<int, array<string, mixed>>
      */
-    public static function attachGoodsGuides(array $orderGoods): array
+    public function attachGoodsGuides(array $orderGoods): array
     {
         if ($orderGoods === []) {
             return $orderGoods;
@@ -1420,8 +1420,8 @@ class OrderModel
 
         $ids = array_keys($goodsIds);
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $rows = \Database::query(
-            'SELECT `id`, `guide` FROM `' . \Database::prefix() . 'goods`
+        $rows = $this->db->query(
+            'SELECT `id`, `guide` FROM `' . $this->db->prefix() . 'goods`
               WHERE `id` IN (' . $placeholders . ') AND `deleted_at` IS NULL',
             $ids
         );
@@ -1446,14 +1446,14 @@ class OrderModel
     /**
      * 是否已存在发货内容（兼容旧字段 + 新明细表）。
      */
-    public static function hasDeliveryContent(int $orderGoodsId, string $legacyContent = ''): bool
+    public function hasDeliveryContent(int $orderGoodsId, string $legacyContent = ''): bool
     {
-        self::tables();
+        $this->tables();
         if (trim($legacyContent) !== '') {
             return true;
         }
         try {
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT 1 FROM `" . self::$orderGoodsDeliveryItemTable . "` WHERE order_goods_id = ? LIMIT 1",
                 [$orderGoodsId]
             );
@@ -1466,11 +1466,11 @@ class OrderModel
     /**
      * 读取某条订单商品的完整发货内容（优先新明细表）。
      */
-    public static function getDeliveryContent(int $orderGoodsId, string $fallback = ''): string
+    public function getDeliveryContent(int $orderGoodsId, string $fallback = ''): string
     {
-        self::tables();
+        $this->tables();
         try {
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT `content` FROM `" . self::$orderGoodsDeliveryItemTable . "`
                  WHERE `order_goods_id` = ? ORDER BY `sort` ASC, `id` ASC",
                 [$orderGoodsId]
@@ -1495,16 +1495,16 @@ class OrderModel
      * 持久化发货内容到明细表。
      * 大批量卡密时按批 INSERT，避免逐行写入过慢。
      */
-    public static function persistDeliveryContent(int $orderGoodsId, string $deliveryContent): bool
+    public function persistDeliveryContent(int $orderGoodsId, string $deliveryContent): bool
     {
-        self::tables();
-        $lines = self::splitDeliveryLines($deliveryContent);
+        $this->tables();
+        $lines = $this->splitDeliveryLines($deliveryContent);
         if ($lines === []) {
             return false;
         }
         try {
             $table = self::$orderGoodsDeliveryItemTable;
-            \Database::execute(
+            $this->db->execute(
                 "DELETE FROM `{$table}` WHERE `order_goods_id` = ?",
                 [$orderGoodsId]
             );
@@ -1515,7 +1515,7 @@ class OrderModel
             $orderNo = '';
             $orderId = 0;
             try {
-                $meta = \Database::fetchOne(
+                $meta = $this->db->fetchOne(
                     "SELECT og.order_id, o.order_no
                        FROM `" . self::$orderGoodsTable . "` og
                        LEFT JOIN `" . self::$orderTable . "` o ON o.id = og.order_id
@@ -1531,7 +1531,7 @@ class OrderModel
                 // 仅用于日志，不影响落库
             }
 
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'info',
                 '发货内容落库开始',
                 '订单发货明细开始批量写入',
@@ -1556,7 +1556,7 @@ class OrderModel
                     $params[] = $line;
                     $params[] = $offset + $i + 1;
                 }
-                \Database::execute(
+                $this->db->execute(
                     "INSERT INTO `{$table}` (`order_goods_id`, `content`, `sort`) VALUES "
                     . implode(',', $valuesParts),
                     $params
@@ -1565,7 +1565,7 @@ class OrderModel
             }
             $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
 
-            self::writeSystemLog(
+            $this->writeSystemLog(
                 'info',
                 '发货内容落库耗时',
                 '订单发货明细批量写入完成',
@@ -1591,7 +1591,7 @@ class OrderModel
      *
      * @param array<int, array<string, mixed>> $rows
      */
-    private static function hydrateDeliveryContent(array &$rows): void
+    private function hydrateDeliveryContent(array &$rows): void
     {
         $ids = [];
         foreach ($rows as $r) {
@@ -1603,7 +1603,7 @@ class OrderModel
         $map = [];
         try {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $items = \Database::query(
+            $items = $this->db->query(
                 "SELECT `order_goods_id`, `content`
                    FROM `" . self::$orderGoodsDeliveryItemTable . "`
                   WHERE `order_goods_id` IN ({$placeholders})
@@ -1632,11 +1632,11 @@ class OrderModel
     /**
      * @return string[]
      */
-    private static function splitDeliveryLines(string $deliveryContent): array
+    private function splitDeliveryLines(string $deliveryContent): array
     {
         $lines = preg_split("/\r\n|\r|\n/", $deliveryContent);
         if (!is_array($lines)) return [];
-        $lines = array_values(array_filter(array_map(static fn($v) => trim((string) $v), $lines), static fn($v) => $v !== ''));
+        $lines = array_values(array_filter(array_map(fn($v) => trim((string) $v), $lines), fn($v) => $v !== ''));
         return $lines;
     }
 
@@ -1649,7 +1649,7 @@ class OrderModel
      *
      * @param array<string, mixed> $data
      */
-    private static function buildAddressSnapshot(array $data): string
+    private function buildAddressSnapshot(array $data): string
     {
         return (string) json_encode([
             'recipient' => (string) ($data['recipient'] ?? ''),
@@ -1668,7 +1668,7 @@ class OrderModel
      * @param array<string, string> $valuesByName 字段 name => 用户填写值
      * @return array{extra: list<array{name: string, title: string, value: string}>}
      */
-    public static function packExtraContactInfo(array $definitions, array $valuesByName): array
+    public function packExtraContactInfo(array $definitions, array $valuesByName): array
     {
         $items = [];
         $packedNames = [];
@@ -1710,13 +1710,13 @@ class OrderModel
      *
      * @return array<string, string>
      */
-    public static function resolveExtraFieldTitleMap(int $orderId): array
+    public function resolveExtraFieldTitleMap(int $orderId): array
     {
         if ($orderId <= 0) {
             return [];
         }
-        $prefix = \Database::prefix();
-        $rows = \Database::query(
+        $prefix = $this->db->prefix();
+        $rows = $this->db->query(
             "SELECT DISTINCT g.`configs` FROM `{$prefix}order_goods` og
              INNER JOIN `{$prefix}goods` g ON g.`id` = og.`goods_id`
              WHERE og.`order_id` = ?",
@@ -1750,7 +1750,7 @@ class OrderModel
      * @param array<string, mixed> $order
      * @return array{guest_contact: string, extra_pairs: array<string, string>, order_password: string}
      */
-    public static function parseBuyerContactFields(array $order): array
+    public function parseBuyerContactFields(array $order): array
     {
         $guestContact = trim((string) ($order['guest_contact'] ?? ''));
         $contactRaw = (string) ($order['contact_info'] ?? '');
@@ -1763,7 +1763,7 @@ class OrderModel
                 if ($guestContact === '' && isset($decoded['guest_find_contact'])) {
                     $guestContact = trim((string) $decoded['guest_find_contact']);
                 }
-                $extraPairs = self::extraPairsFromContactDecoded($decoded, $orderId);
+                $extraPairs = $this->extraPairsFromContactDecoded($decoded, $orderId);
             }
         } elseif ($guestContact === '' && $contactRaw !== '') {
             $guestContact = trim($contactRaw);
@@ -1780,7 +1780,7 @@ class OrderModel
      * @param array<string, mixed> $decoded
      * @return array<string, string> 展示用 label => value
      */
-    private static function extraPairsFromContactDecoded(array $decoded, int $orderId): array
+    private function extraPairsFromContactDecoded(array $decoded, int $orderId): array
     {
         if (isset($decoded['extra']) && is_array($decoded['extra'])) {
             $pairs = [];
@@ -1795,13 +1795,13 @@ class OrderModel
                 $value = isset($item['value']) && is_scalar($item['value'])
                     ? (string) $item['value']
                     : '';
-                $pairs[self::uniqueExtraDisplayLabel($pairs, $title)] = $value;
+                $pairs[$this->uniqueExtraDisplayLabel($pairs, $title)] = $value;
             }
             return $pairs;
         }
 
         $skipKeys = ['guest_find_contact', 'api_attach', 'extra'];
-        $titleMap = $orderId > 0 ? self::resolveExtraFieldTitleMap($orderId) : [];
+        $titleMap = $orderId > 0 ? $this->resolveExtraFieldTitleMap($orderId) : [];
         $pairs = [];
         foreach ($decoded as $k => $v) {
             $name = (string) $k;
@@ -1809,7 +1809,7 @@ class OrderModel
                 continue;
             }
             $label = $titleMap[$name] ?? $name;
-            $pairs[self::uniqueExtraDisplayLabel($pairs, $label)] = is_scalar($v)
+            $pairs[$this->uniqueExtraDisplayLabel($pairs, $label)] = is_scalar($v)
                 ? (string) $v
                 : (string) json_encode($v, JSON_UNESCAPED_UNICODE);
         }
@@ -1819,7 +1819,7 @@ class OrderModel
     /**
      * @param array<string, string> $existing
      */
-    private static function uniqueExtraDisplayLabel(array $existing, string $label): string
+    private function uniqueExtraDisplayLabel(array $existing, string $label): string
     {
         if (!array_key_exists($label, $existing)) {
             return $label;
@@ -1831,7 +1831,7 @@ class OrderModel
         return $label . ' (' . $n . ')';
     }
 
-    public static function statusName(string $status): string
+    public function statusName(string $status): string
     {
         $map = [
             'pending'          => '待付款',

@@ -14,12 +14,12 @@ namespace App\Service;
  * 当前服务专门用于后台管理员登录。
  * 管理员账号未来不能用于前台登录，前台登录需单独实现用户认证逻辑。
  */
-final class AuthService
+final class AuthService extends BaseService
 {
     /**
      * @var array<string, mixed>
      */
-    private $config;
+    private $authConfig;
 
     /**
      * @var UserModel
@@ -33,7 +33,8 @@ final class AuthService
 
     public function __construct()
     {
-        $this->config = [
+        parent::__construct();
+        $this->authConfig = [
             'session_key'           => EM_AUTH_SESSION_KEY,
             'remember_cookie'       => EM_AUTH_REMEMBER_COOKIE,
             'remember_days_default' => EM_AUTH_REMEMBER_DAYS_DEFAULT,
@@ -60,11 +61,11 @@ final class AuthService
     {
         $this->startSession();
 
-        if (!empty($_SESSION[$this->config['session_key']])) {
+        if (!empty($_SESSION[$this->authConfig['session_key']])) {
             return $this->validateSession();
         }
 
-        $token = isset($_COOKIE[$this->config['remember_cookie']]) ? (string) $_COOKIE[$this->config['remember_cookie']] : '';
+        $token = isset($_COOKIE[$this->authConfig['remember_cookie']]) ? (string) $_COOKIE[$this->authConfig['remember_cookie']] : '';
         if ($token === '') {
             return false;
         }
@@ -75,7 +76,7 @@ final class AuthService
             return false;
         }
 
-        $_SESSION[$this->config['session_key']] = $this->sessionPayload($user);
+        $_SESSION[$this->authConfig['session_key']] = $this->sessionPayload($user);
         session_regenerate_id(true);
         return true;
     }
@@ -88,7 +89,7 @@ final class AuthService
      */
     private function validateSession(): bool
     {
-        $payload = $_SESSION[$this->config['session_key']] ?? null;
+        $payload = $_SESSION[$this->authConfig['session_key']] ?? null;
         $userId = is_array($payload) ? (int) ($payload['id'] ?? 0) : 0;
 
         if ($userId > 0) {
@@ -99,10 +100,10 @@ final class AuthService
                     $this->passwordFingerprint((string) ($user['password'] ?? ''))
                 )
                 && hash_equals(
-                    self::signSessionPayload(
+                    $this->signSessionPayload(
                         $payload,
                         (string) ($user['password'] ?? ''),
-                        \CsrfSecret::get()
+                        $this->csrfSecret->get()
                     ),
                     (string) ($payload['sig'] ?? '')
                 )
@@ -112,7 +113,7 @@ final class AuthService
         }
 
         // 账号失效或密码已改：清掉登录态，并作废记住我 cookie
-        unset($_SESSION[$this->config['session_key']]);
+        unset($_SESSION[$this->authConfig['session_key']]);
         $this->forgetRememberCookie();
 
         if (session_id() !== '') {
@@ -138,7 +139,7 @@ final class AuthService
     public function user(): ?array
     {
         $this->startSession();
-        return isset($_SESSION[$this->config['session_key']]) ? $_SESSION[$this->config['session_key']] : null;
+        return isset($_SESSION[$this->authConfig['session_key']]) ? $_SESSION[$this->authConfig['session_key']] : null;
     }
 
     /**
@@ -149,7 +150,7 @@ final class AuthService
     public function refreshSession(array $user): void
     {
         $this->startSession();
-        $_SESSION[$this->config['session_key']] = $this->sessionPayload($user);
+        $_SESSION[$this->authConfig['session_key']] = $this->sessionPayload($user);
     }
 
     /**
@@ -182,13 +183,13 @@ final class AuthService
         doAction('login_attempt_succeeded', 'admin', $account);
         $this->startSession();
         session_regenerate_id(true);
-        $_SESSION[$this->config['session_key']] = $this->sessionPayload($user);
+        $_SESSION[$this->authConfig['session_key']] = $this->sessionPayload($user);
 
         // 只有勾选“记住我”才签发长期令牌；不勾选时保持 null，
         // updateLoginMeta 会顺带清掉上一次残留的令牌。
         $rememberToken = null;
         if ($remember) {
-            $days = (int) $this->config['remember_days_checked'];
+            $days = (int) $this->authConfig['remember_days_checked'];
             if ($days > 0) {
                 $rememberToken = bin2hex(random_bytes(32));
                 $this->queueRememberCookie($rememberToken, $days);
@@ -210,7 +211,7 @@ final class AuthService
         // 退出时连**数据库里**的「记住我」令牌一并作废。
         // 只删浏览器 cookie 是不够的：cookie 只是令牌的副本，库里那份不清掉，
         // 任何拿到过该值的人在退出后仍然能直接登进来（最长可达 remember_days_checked 天）。
-        $userId = (int) ($_SESSION[$this->config['session_key']]['id'] ?? 0);
+        $userId = (int) ($_SESSION[$this->authConfig['session_key']]['id'] ?? 0);
         if ($userId > 0) {
             $this->users->clearRememberToken($userId);
         }
@@ -219,7 +220,7 @@ final class AuthService
         // 容器，整表清空会把前台登录态（em_front_user）以及前台专属的
         // em_find_order_visible / em_last_merchant 一起清掉，还会连累前后台共用的
         // CSRF 键（em_admin_csrf）与验证码键。后台专属键只有 em_admin_auth 这一个。
-        unset($_SESSION[$this->config['session_key']]);
+        unset($_SESSION[$this->authConfig['session_key']]);
         $this->forgetRememberCookie();
 
         if (session_id() !== '') {
@@ -248,10 +249,10 @@ final class AuthService
         ];
 
         // 服务端签名：同机其它应用即使能写 session 文件，没有密钥和密码哈希也伪造不出来。
-        $payload['sig'] = self::signSessionPayload(
+        $payload['sig'] = $this->signSessionPayload(
             $payload,
             (string) ($user['password'] ?? ''),
-            \CsrfSecret::ensure()
+            $this->csrfSecret->ensure()
         );
 
         return $payload;
@@ -260,7 +261,7 @@ final class AuthService
     /**
      * 计算 session payload 的服务端签名。
      */
-    private static function signSessionPayload(array $payload, string $passwordHash, string $secret): string
+    private function signSessionPayload(array $payload, string $passwordHash, string $secret): string
     {
         unset($payload['sig']);
         ksort($payload, SORT_STRING);
@@ -280,7 +281,7 @@ final class AuthService
         $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 
         setcookie(
-            $this->config['remember_cookie'],
+            $this->authConfig['remember_cookie'],
             $token,
             [
                 'expires' => time() + ($days * 86400),
@@ -300,7 +301,7 @@ final class AuthService
         $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 
         setcookie(
-            $this->config['remember_cookie'],
+            $this->authConfig['remember_cookie'],
             '',
             [
                 'expires' => time() - 3600,

@@ -18,15 +18,16 @@ namespace App\Model;
  *   is_system=1 的"系统导航"全站共享（merchant_id=0，主站和所有商户站都会看到）；
  *   is_system=0 的"自定义导航"按 merchant_id 隔离（0=主站自定义；>0=商户自定义）。
  */
-final class NaviModel
+final class NaviModel extends Model
 {
     private string $table;
     private string $hiddenTable;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'navi';
-        $this->hiddenTable = \Database::prefix() . 'merchant_navi_hidden';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'navi';
+        $this->hiddenTable = $this->db->prefix() . 'merchant_navi_hidden';
     }
 
     /**
@@ -39,7 +40,7 @@ final class NaviModel
             'SELECT * FROM `%s` WHERE `is_system` = 1 OR `merchant_id` = ? ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        $rows = \Database::query($sql, [$merchantId]);
+        $rows = $this->db->query($sql, [$merchantId]);
 
         // 仅商户视角需要标"我隐藏了哪条系统导航"
         $hidden = $merchantId > 0 ? \array_flip($this->getHiddenSystemIds($merchantId)) : [];
@@ -73,7 +74,7 @@ final class NaviModel
         }
         $sql .= ' ORDER BY `sort` ASC, `id` ASC';
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
 
         $top = [];
         $childMap = [];
@@ -107,7 +108,7 @@ final class NaviModel
              ORDER BY `sort` ASC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, [$merchantId]);
+        return $this->db->query($sql, [$merchantId]);
     }
 
     /**
@@ -116,7 +117,7 @@ final class NaviModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -152,8 +153,8 @@ final class NaviModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
-        return (int) \Database::fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
+        $this->db->execute($sql, $params);
+        return (int) $this->db->fetchOne('SELECT LAST_INSERT_ID() as id', [])['id'];
     }
 
     /**
@@ -200,7 +201,7 @@ final class NaviModel
         $params[] = $id;
 
         $sql = sprintf('UPDATE `%s` SET %s WHERE `id` = ? LIMIT 1', $this->table, implode(', ', $sets));
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -209,7 +210,7 @@ final class NaviModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? AND `is_system` = 0 LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -218,7 +219,7 @@ final class NaviModel
     public function hasChildren(int $parentId): bool
     {
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s` WHERE `parent_id` = ?', $this->table);
-        $row = \Database::fetchOne($sql, [$parentId]);
+        $row = $this->db->fetchOne($sql, [$parentId]);
         return $row !== null && (int) $row['cnt'] > 0;
     }
 
@@ -231,7 +232,7 @@ final class NaviModel
     {
         $sql = sprintf('UPDATE `%s` SET `sort` = ?, `updated_at` = NOW() WHERE `id` = ? LIMIT 1', $this->table);
         foreach ($sortData as $id => $sort) {
-            \Database::execute($sql, [(int) $sort, (int) $id]);
+            $this->db->execute($sql, [(int) $sort, (int) $id]);
         }
     }
 
@@ -244,7 +245,7 @@ final class NaviModel
             'SELECT COUNT(*) AS cnt FROM `%s` WHERE `is_system` = 1 OR `merchant_id` = ?',
             $this->table
         );
-        $row = \Database::fetchOne($sql, [$merchantId]);
+        $row = $this->db->fetchOne($sql, [$merchantId]);
         return $row !== null ? (int) $row['cnt'] : 0;
     }
 
@@ -260,11 +261,11 @@ final class NaviModel
     public function getHiddenSystemIds(int $merchantId): array
     {
         if ($merchantId <= 0) return [];
-        $rows = \Database::query(
+        $rows = $this->db->query(
             'SELECT `navi_id` FROM `' . $this->hiddenTable . '` WHERE `merchant_id` = ?',
             [$merchantId]
         );
-        return array_map(static fn($r) => (int) $r['navi_id'], $rows);
+        return array_map(fn($r) => (int) $r['navi_id'], $rows);
     }
 
     /**
@@ -280,18 +281,18 @@ final class NaviModel
             throw new \RuntimeException('仅可隐藏系统导航');
         }
 
-        $existing = \Database::fetchOne(
+        $existing = $this->db->fetchOne(
             'SELECT 1 FROM `' . $this->hiddenTable . '` WHERE `merchant_id` = ? AND `navi_id` = ? LIMIT 1',
             [$merchantId, $naviId]
         );
         if ($existing) {
-            \Database::execute(
+            $this->db->execute(
                 'DELETE FROM `' . $this->hiddenTable . '` WHERE `merchant_id` = ? AND `navi_id` = ?',
                 [$merchantId, $naviId]
             );
             return 0;
         }
-        \Database::insert('merchant_navi_hidden', [
+        $this->db->insert('merchant_navi_hidden', [
             'merchant_id' => $merchantId,
             'navi_id' => $naviId,
         ]);

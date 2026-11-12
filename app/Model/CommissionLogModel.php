@@ -19,7 +19,7 @@ namespace App\Model;
  *
  * frozen 到期后不靠定时任务，由"访问佣金相关页面"时 promoteMatured() 惰性扫描迁移。
  */
-class CommissionLogModel
+class CommissionLogModel extends Model
 {
     private string $table;
 
@@ -30,7 +30,8 @@ class CommissionLogModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'commission_log';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'commission_log';
     }
 
     /**
@@ -55,7 +56,7 @@ class CommissionLogModel
             'created_at'   => date('Y-m-d H:i:s'),
             'updated_at'   => date('Y-m-d H:i:s'),
         ];
-        return (int) \Database::insert('commission_log', $row);
+        return (int) $this->db->insert('commission_log', $row);
     }
 
     /**
@@ -79,7 +80,7 @@ class CommissionLogModel
             'created_at'   => date('Y-m-d H:i:s'),
             'updated_at'   => date('Y-m-d H:i:s'),
         ];
-        return (int) \Database::insert('commission_log', $row);
+        return (int) $this->db->insert('commission_log', $row);
     }
 
     /**
@@ -89,19 +90,19 @@ class CommissionLogModel
      */
     public function promoteMatured(int $userId): int
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $now = date('Y-m-d H:i:s');
-        $freezeDays = \App\Service\RebateService::freezeDays();
+        $freezeDays = app(\App\Service\RebateService::class)->freezeDays();
 
         // 冷却期 = 0：历史冻结也应立即转可提现（配置变更后惰性迁移）
         if ($freezeDays === 0) {
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT id, amount FROM {$this->table}
                  WHERE user_id = ? AND status = ?",
                 [$userId, self::STATUS_FROZEN]
             );
         } else {
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT id, amount FROM {$this->table}
                  WHERE user_id = ? AND status = ? AND frozen_until IS NOT NULL AND frozen_until <= ?",
                 [$userId, self::STATUS_FROZEN, $now]
@@ -116,25 +117,25 @@ class CommissionLogModel
             $ids[] = (int) $r['id'];
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
             $in = implode(',', array_fill(0, count($ids), '?'));
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$this->table} SET status = ?, frozen_until = NULL, updated_at = NOW()
                  WHERE id IN ({$in}) AND status = ?",
                 array_merge([self::STATUS_AVAILABLE], $ids, [self::STATUS_FROZEN])
             );
             // 更新 user 缓存：frozen - total，available + total
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}user
                  SET commission_frozen = GREATEST(commission_frozen - ?, 0),
                      commission_available = commission_available + ?
                  WHERE id = ?",
                 [$total, $total, $userId]
             );
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
         return $total;
@@ -169,22 +170,22 @@ class CommissionLogModel
         }
         $whereSql = implode(' AND ', $where);
 
-        $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
         $total = (int) ($countRow['cnt'] ?? 0);
         $totalPages = max(1, (int) ceil($total / $perPage));
         if ($page > $totalPages) $page = $totalPages;
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT *, ({$effective}) AS `effective_status`
                FROM {$this->table} WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             $params
         );
         foreach ($rows as &$r) {
             // 返回带货币符号的完整字符串（按访客当前币种换算）；前端直接输出不再拼 ¥
-            $r['amount_display']       = \Currency::displayAmount((int) $r['amount']);
-            $r['basis_amount_display'] = \Currency::displayAmount((int) ($r['basis_amount'] ?? 0));
+            $r['amount_display']       = $this->currency->displayAmount((int) $r['amount']);
+            $r['basis_amount_display'] = $this->currency->displayAmount((int) ($r['basis_amount'] ?? 0));
             // 对外以有效状态为准，前端标签与过滤口径保持一致（原始 status 保留在 raw_status）
             $r['raw_status'] = (string) ($r['status'] ?? '');
             $r['status']     = (string) ($r['effective_status'] ?? $r['status']);
@@ -202,7 +203,7 @@ class CommissionLogModel
      */
     public function listAvailableForWithdraw(int $userId, int $limit = 1000): array
     {
-        return \Database::query(
+        return $this->db->query(
             "SELECT id, amount FROM {$this->table}
              WHERE user_id = ? AND status = ?
              ORDER BY id ASC LIMIT {$limit}",
@@ -220,7 +221,7 @@ class CommissionLogModel
             return;
         }
 
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$this->table} WHERE id = ? AND status = ? FOR UPDATE",
             [$logId, self::STATUS_AVAILABLE]
         );
@@ -234,7 +235,7 @@ class CommissionLogModel
         }
 
         if ($takeAmount === $amt) {
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$this->table} SET status = ?, withdraw_id = ?, updated_at = NOW() WHERE id = ?",
                 [self::STATUS_WITHDRAWN, $withdrawId, $logId]
             );
@@ -242,11 +243,11 @@ class CommissionLogModel
         }
 
         $remain = $amt - $takeAmount;
-        \Database::execute(
+        $this->db->execute(
             "UPDATE {$this->table} SET amount = ?, updated_at = NOW() WHERE id = ?",
             [$remain, $logId]
         );
-        \Database::insert('commission_log', [
+        $this->db->insert('commission_log', [
             'user_id'      => (int) $row['user_id'],
             'order_id'     => (int) $row['order_id'],
             'order_no'     => (string) $row['order_no'],
@@ -275,8 +276,8 @@ class CommissionLogModel
      */
     public function revertByOrder(int $orderId): int
     {
-        $prefix = \Database::prefix();
-        $rows = \Database::query(
+        $prefix = $this->db->prefix();
+        $rows = $this->db->query(
             "SELECT id, user_id, amount, status FROM {$this->table}
              WHERE order_id = ? AND status IN (?, ?, ?)",
             [$orderId, self::STATUS_FROZEN, self::STATUS_AVAILABLE, self::STATUS_WITHDRAWN]
@@ -284,7 +285,7 @@ class CommissionLogModel
         if (empty($rows)) return 0;
 
         $totalReverted = 0;
-        \Database::begin();
+        $this->db->begin();
         try {
             foreach ($rows as $r) {
                 $id       = (int) $r['id'];
@@ -293,19 +294,19 @@ class CommissionLogModel
                 $status   = (string) $r['status'];
 
                 // 先把记录标为 reverted
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$this->table} SET status = ?, updated_at = NOW() WHERE id = ?",
                     [self::STATUS_REVERTED, $id]
                 );
 
                 if ($status === self::STATUS_FROZEN) {
-                    \Database::execute(
+                    $this->db->execute(
                         "UPDATE {$prefix}user SET commission_frozen = GREATEST(commission_frozen - ?, 0) WHERE id = ?",
                         [$amt, $uid]
                     );
                     $totalReverted += $amt;
                 } elseif ($status === self::STATUS_AVAILABLE) {
-                    \Database::execute(
+                    $this->db->execute(
                         "UPDATE {$prefix}user SET commission_available = GREATEST(commission_available - ?, 0) WHERE id = ?",
                         [$amt, $uid]
                     );
@@ -313,9 +314,9 @@ class CommissionLogModel
                 }
                 // withdrawn 不扣账户（钱已进余额，无法撤回）
             }
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
         return $totalReverted;

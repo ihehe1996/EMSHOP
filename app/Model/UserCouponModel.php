@@ -16,7 +16,7 @@ namespace App\Model;
  *
  * status 只落表 unused/used；过期/失效通过 join em_coupon 动态判断。
  */
-class UserCouponModel
+class UserCouponModel extends Model
 {
     private string $table;
     private string $couponTable;
@@ -32,8 +32,9 @@ class UserCouponModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user_coupon';
-        $this->couponTable = \Database::prefix() . 'coupon';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user_coupon';
+        $this->couponTable = $this->db->prefix() . 'coupon';
     }
 
     /**
@@ -41,7 +42,7 @@ class UserCouponModel
      */
     public function hasClaimed(int $userId, int $couponId): bool
     {
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT id FROM {$this->table} WHERE user_id = ? AND coupon_id = ? LIMIT 1",
             [$userId, $couponId]
         );
@@ -56,7 +57,7 @@ class UserCouponModel
         if ($this->hasClaimed($userId, $couponId)) {
             throw new \RuntimeException('您已领取过该优惠券');
         }
-        return (int) \Database::insert('user_coupon', [
+        return (int) $this->db->insert('user_coupon', [
             'user_id'     => $userId,
             'coupon_id'   => $couponId,
             'status'      => self::STATUS_UNUSED,
@@ -72,7 +73,7 @@ class UserCouponModel
     public function listByView(int $userId, string $view, int $limit = 100): array
     {
         $now = date('Y-m-d H:i:s');
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         // LEFT JOIN coupon 保留已删除券的记录（若券被软删仍在用户包里按过期处理）
         $sql = "SELECT uc.id AS user_coupon_id, uc.status, uc.obtained_at, uc.used_at, uc.order_id,
@@ -124,7 +125,7 @@ class UserCouponModel
 
         $sql .= " ORDER BY uc.id DESC LIMIT {$limit}";
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         $couponModel = new CouponModel();
 
         // 复用 CouponModel 的转换逻辑（借反射）—— 简单起见，直接调用其 public 查询会多一次 DB
@@ -149,9 +150,9 @@ class UserCouponModel
     public function countByViews(int $userId): array
     {
         $now = date('Y-m-d H:i:s');
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT
                 SUM(CASE WHEN uc.status = 'unused'
                          AND (c.end_at IS NULL OR c.end_at >= ?)
@@ -185,7 +186,7 @@ class UserCouponModel
      */
     public function markUsed(int $userCouponId, int $orderId): bool
     {
-        $n = \Database::execute(
+        $n = $this->db->execute(
             "UPDATE {$this->table}
              SET status = 'used', used_at = NOW(), order_id = ?
              WHERE id = ? AND status = 'unused'",
@@ -199,7 +200,7 @@ class UserCouponModel
      */
     public function findByUserAndCoupon(int $userId, int $couponId): ?array
     {
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$this->table} WHERE user_id = ? AND coupon_id = ? LIMIT 1",
             [$userId, $couponId]
         );

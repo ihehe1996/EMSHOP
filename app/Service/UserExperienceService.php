@@ -14,44 +14,44 @@ namespace App\Service;
  * - 注册：按 user_credit_initial 赠送初始经验
  * - 订单完成：累计 pay_amount 到 total_consumption，按 user_exp_per_yuan 赠送经验，并按 unlock_exp 自动升级等级
  */
-final class UserExperienceService
+final class UserExperienceService extends BaseService
 {
     private const MONEY_SCALE = 1000000;
 
-    private static function settleTable(): string
+    private function settleTable(): string
     {
-        return \Database::prefix() . 'user_experience_order';
+        return $this->db->prefix() . 'user_experience_order';
     }
 
     /**
      * 注册成功后赠送初始经验（配置 user_credit_initial）。
      */
-    public static function applyRegisterBonus(int $userId): void
+    public function applyRegisterBonus(int $userId): void
     {
         if ($userId <= 0) {
             return;
         }
 
-        $initial = max(0, (int) \Config::get('user_credit_initial', '0'));
+        $initial = max(0, (int) $this->config->get('user_credit_initial', '0'));
         if ($initial <= 0) {
             return;
         }
 
-        self::addExperience($userId, $initial, 0);
+        $this->addExperience($userId, $initial, 0);
     }
 
     /**
      * 订单完成：累计消费 + 赠送经验 + 尝试按经验自动解锁等级（幂等）。
      */
-    public static function onOrderCompleted(int $orderId): void
+    public function onOrderCompleted(int $orderId): void
     {
         if ($orderId <= 0) {
             return;
         }
 
-        $orderTable = \Database::prefix() . 'order';
-        $settleTable = self::settleTable();
-        $order = \Database::fetchOne(
+        $orderTable = $this->db->prefix() . 'order';
+        $settleTable = $this->settleTable();
+        $order = $this->db->fetchOne(
             'SELECT `id`, `user_id`, `pay_amount`, `status`
                FROM `' . $orderTable . '`
               WHERE `id` = ? LIMIT 1',
@@ -69,7 +69,7 @@ final class UserExperienceService
             return;
         }
 
-        $exists = \Database::fetchOne(
+        $exists = $this->db->fetchOne(
             'SELECT `order_id` FROM `' . $settleTable . '` WHERE `order_id` = ? LIMIT 1',
             [$orderId]
         );
@@ -78,7 +78,7 @@ final class UserExperienceService
         }
 
         $payAmount = max(0, (int) ($order['pay_amount'] ?? 0));
-        $expPerYuan = max(0, (int) \Config::get('user_exp_per_yuan', '0'));
+        $expPerYuan = max(0, (int) $this->config->get('user_exp_per_yuan', '0'));
         $yuan = intdiv($payAmount, self::MONEY_SCALE);
         $expGain = $yuan * $expPerYuan;
 
@@ -86,10 +86,10 @@ final class UserExperienceService
             return;
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $userTable = \Database::prefix() . 'user';
-            $userRow = \Database::fetchOne(
+            $userTable = $this->db->prefix() . 'user';
+            $userRow = $this->db->fetchOne(
                 // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
                 // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
                 // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
@@ -97,17 +97,17 @@ final class UserExperienceService
                 [$userId]
             );
             if ($userRow === null) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return;
             }
 
-            \Database::execute(
+            $this->db->execute(
                 'INSERT INTO `' . $settleTable . '` (`order_id`, `user_id`, `pay_amount`, `exp_gained`) VALUES (?, ?, ?, ?)',
                 [$orderId, $userId, $payAmount, $expGain]
             );
 
             if ($payAmount > 0) {
-                \Database::execute(
+                $this->db->execute(
                     'UPDATE `' . $userTable . '`
                         SET `total_consumption` = `total_consumption` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -116,7 +116,7 @@ final class UserExperienceService
             }
 
             if ($expGain > 0) {
-                \Database::execute(
+                $this->db->execute(
                     'UPDATE `' . $userTable . '`
                         SET `experience` = `experience` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -124,32 +124,32 @@ final class UserExperienceService
                 );
             }
 
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             // 并发重复结算：主键冲突视为已处理
-            if (self::isDuplicateKey($e)) {
+            if ($this->isDuplicateKey($e)) {
                 return;
             }
             throw $e;
         }
 
-        self::tryAutoUpgradeLevel($userId);
+        $this->tryAutoUpgradeLevel($userId);
     }
 
     /**
      * 增加经验并尝试自动升级（供注册等场景）。
      */
-    private static function addExperience(int $userId, int $delta, int $consumptionDelta): void
+    private function addExperience(int $userId, int $delta, int $consumptionDelta): void
     {
         if ($delta <= 0 && $consumptionDelta <= 0) {
             return;
         }
 
-        $userTable = \Database::prefix() . 'user';
-        \Database::begin();
+        $userTable = $this->db->prefix() . 'user';
+        $this->db->begin();
         try {
-            $userRow = \Database::fetchOne(
+            $userRow = $this->db->fetchOne(
                 // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
                 // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
                 // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
@@ -157,12 +157,12 @@ final class UserExperienceService
                 [$userId]
             );
             if ($userRow === null) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return;
             }
 
             if ($consumptionDelta > 0) {
-                \Database::execute(
+                $this->db->execute(
                     'UPDATE `' . $userTable . '`
                         SET `total_consumption` = `total_consumption` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -170,7 +170,7 @@ final class UserExperienceService
                 );
             }
             if ($delta > 0) {
-                \Database::execute(
+                $this->db->execute(
                     'UPDATE `' . $userTable . '`
                         SET `experience` = `experience` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -178,30 +178,30 @@ final class UserExperienceService
                 );
             }
 
-            \Database::commit();
+            $this->db->commit();
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
 
         if ($delta > 0) {
-            self::tryAutoUpgradeLevel($userId);
+            $this->tryAutoUpgradeLevel($userId);
         }
     }
 
     /**
      * 按经验值自动解锁更高用户等级（仅升级、不降级）。
      */
-    public static function tryAutoUpgradeLevel(int $userId): void
+    public function tryAutoUpgradeLevel(int $userId): void
     {
         if ($userId <= 0) {
             return;
         }
 
-        $userTable = \Database::prefix() . 'user';
-        $levelTable = \Database::prefix() . 'user_levels';
+        $userTable = $this->db->prefix() . 'user';
+        $levelTable = $this->db->prefix() . 'user_levels';
 
-        $user = \Database::fetchOne(
+        $user = $this->db->fetchOne(
             'SELECT `level_id`, `experience` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1',
             [$userId]
         );
@@ -213,7 +213,7 @@ final class UserExperienceService
         $currentLevelNum = 0;
         $levelId = (int) ($user['level_id'] ?? 0);
         if ($levelId > 0) {
-            $cur = \Database::fetchOne(
+            $cur = $this->db->fetchOne(
                 'SELECT `level` FROM `' . $levelTable . '` WHERE `id` = ? AND `enabled` = \'y\' LIMIT 1',
                 [$levelId]
             );
@@ -222,7 +222,7 @@ final class UserExperienceService
             }
         }
 
-        $best = \Database::fetchOne(
+        $best = $this->db->fetchOne(
             'SELECT `id`, `level`
                FROM `' . $levelTable . '`
               WHERE `enabled` = \'y\'
@@ -242,19 +242,19 @@ final class UserExperienceService
             return;
         }
 
-        \Database::execute(
+        $this->db->execute(
             'UPDATE `' . $userTable . '` SET `level_id` = ? WHERE `id` = ? LIMIT 1',
             [$newLevelId, $userId]
         );
     }
 
-    private static function isDuplicateKey(\Throwable $e): bool
+    private function isDuplicateKey(\Throwable $e): bool
     {
         $msg = $e->getMessage();
         if (strpos($msg, '1062') !== false || strpos($msg, 'Duplicate entry') !== false) {
             return true;
         }
         $prev = $e->getPrevious();
-        return $prev instanceof \Throwable && self::isDuplicateKey($prev);
+        return $prev instanceof \Throwable && $this->isDuplicateKey($prev);
     }
 }

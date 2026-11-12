@@ -109,7 +109,7 @@ final class NaviController extends BaseAdminController
                         if ($pageId <= 0) {
                             $this->response->error('请选择要链接的页面');
                         }
-                        $pageRow = \App\Model\PageModel::getById($pageId);
+                        $pageRow = app(\App\Model\PageModel::class)->getById($pageId);
                         if ($pageRow === null || (int) $pageRow['status'] !== 1 || (int) $pageRow['merchant_id'] !== 0) {
                             $this->response->error('所选页面不存在或不属于主站');
                         }
@@ -196,7 +196,7 @@ final class NaviController extends BaseAdminController
                         if ($pageId <= 0) {
                             $this->response->error('请选择要链接的页面');
                         }
-                        $pageRow = \App\Model\PageModel::getById($pageId);
+                        $pageRow = app(\App\Model\PageModel::class)->getById($pageId);
                         if ($pageRow === null || (int) $pageRow['status'] !== 1 || (int) $pageRow['merchant_id'] !== 0) {
                             $this->response->error('所选页面不存在或不属于主站');
                         }
@@ -334,7 +334,7 @@ final class NaviController extends BaseAdminController
             'topLevelItems'   => $model->getTopLevel(0),
             'goodsCategories' => (new \App\Model\GoodsCategoryModel())->getAll(),
             'blogCategories'  => (new \App\Model\BlogCategoryModel())->getAll(0),
-            'publishedPages'  => \App\Model\PageModel::getPublishedSimple(0),
+            'publishedPages'  => app(\App\Model\PageModel::class)->getPublishedSimple(0),
         ]);
     }
 

@@ -18,7 +18,7 @@ namespace App\Model;
  * 例外：create() 强制写入 role='user'，后台新增用户不会造出管理员账号。
  * 破坏性方法（toggleStatus/delete/deleteBatch）用 $protectId 兜住「不能删/禁自己」。
  */
-final class UserListModel
+final class UserListModel extends Model
 {
     private string $table;
 
@@ -27,7 +27,8 @@ final class UserListModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user';
     }
 
     /**
@@ -36,8 +37,8 @@ final class UserListModel
     private function userStatsSelectSql(): string
     {
         if (self::$hasExperienceFields === null) {
-            self::$hasExperienceFields = \Database::columnExists($this->table, 'total_consumption')
-                && \Database::columnExists($this->table, 'experience');
+            self::$hasExperienceFields = $this->db->columnExists($this->table, 'total_consumption')
+                && $this->db->columnExists($this->table, 'experience');
         }
         if (self::$hasExperienceFields) {
             return 'u.`total_consumption`, u.`experience`,';
@@ -74,15 +75,15 @@ final class UserListModel
             $this->table,
             $where
         );
-        $countRow = \Database::fetchOne($countSql, $params);
+        $countRow = $this->db->fetchOne($countSql, $params);
         $total = $countRow !== null ? (int) $countRow['cnt'] : 0;
 
         $orderBy = $this->buildListOrderBy($sortField, $sortOrder);
 
         // 数据（左连商户 + 商户等级 + 用户等级；用户等级影响买家折扣）
-        $merchantTable = \Database::prefix() . 'merchant';
-        $merchantLevelTable = \Database::prefix() . 'merchant_level';
-        $userLevelTable = \Database::prefix() . 'user_levels';
+        $merchantTable = $this->db->prefix() . 'merchant';
+        $merchantLevelTable = $this->db->prefix() . 'merchant_level';
+        $userLevelTable = $this->db->prefix() . 'user_levels';
         $sql = sprintf(
             'SELECT u.`id`, u.`username`, u.`email`, u.`mobile`, u.`nickname`, u.`avatar`, u.`money`,
                     %s
@@ -108,7 +109,7 @@ final class UserListModel
             $offset
         );
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
 
         return ['data' => $rows, 'total' => $total];
     }
@@ -121,8 +122,8 @@ final class UserListModel
         $dir = strtolower($order) === 'asc' ? 'ASC' : 'DESC';
         $hasStats = self::$hasExperienceFields;
         if ($hasStats === null) {
-            $hasStats = \Database::columnExists($this->table, 'total_consumption')
-                && \Database::columnExists($this->table, 'experience');
+            $hasStats = $this->db->columnExists($this->table, 'total_consumption')
+                && $this->db->columnExists($this->table, 'experience');
             self::$hasExperienceFields = $hasStats;
         }
 
@@ -161,7 +162,7 @@ final class UserListModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -174,13 +175,13 @@ final class UserListModel
                 'SELECT `id` FROM `%s` WHERE `username` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$username, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$username, $excludeId]);
         } else {
             $sql = sprintf(
                 'SELECT `id` FROM `%s` WHERE `username` = ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$username]);
+            $row = $this->db->fetchOne($sql, [$username]);
         }
         return $row !== null;
     }
@@ -203,13 +204,13 @@ final class UserListModel
                 'SELECT `id` FROM `%s` WHERE `email` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$email, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$email, $excludeId]);
         } else {
             $sql = sprintf(
                 'SELECT `id` FROM `%s` WHERE `email` = ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$email]);
+            $row = $this->db->fetchOne($sql, [$email]);
         }
         return $row !== null;
     }
@@ -229,13 +230,13 @@ final class UserListModel
                 'SELECT `id` FROM `%s` WHERE `mobile` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$mobile, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$mobile, $excludeId]);
         } else {
             $sql = sprintf(
                 'SELECT `id` FROM `%s` WHERE `mobile` = ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$mobile]);
+            $row = $this->db->fetchOne($sql, [$mobile]);
         }
         return $row !== null;
     }
@@ -282,7 +283,7 @@ final class UserListModel
             implode(', ', $sets)
         );
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -299,7 +300,7 @@ final class UserListModel
         );
         $params = $protectId > 0 ? [$id, $protectId] : [$id];
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -316,7 +317,7 @@ final class UserListModel
         );
         $params = $protectId > 0 ? [$id, $protectId] : [$id];
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -341,7 +342,7 @@ final class UserListModel
             $params[] = $protectId;
         }
 
-        return \Database::execute($sql, $params);
+        return $this->db->execute($sql, $params);
     }
 
     /**
@@ -386,9 +387,9 @@ final class UserListModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         return (int) ($row['id'] ?? 0);
     }
 }

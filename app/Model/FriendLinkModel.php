@@ -13,13 +13,14 @@ namespace App\Model;
  *
  * 数据存储于 friend_link 表。
  */
-final class FriendLinkModel
+final class FriendLinkModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'friend_link';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'friend_link';
     }
 
     /**
@@ -41,7 +42,7 @@ final class FriendLinkModel
 
         $sql .= ' ORDER BY `sort` DESC, `id` ASC';
 
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -55,7 +56,7 @@ final class FriendLinkModel
             'SELECT * FROM `%s` WHERE `enabled` = \'y\' AND (`expire_time` IS NULL OR `expire_time` >= NOW()) ORDER BY `sort` DESC, `id` ASC',
             $this->table
         );
-        return \Database::query($sql, []);
+        return $this->db->query($sql, []);
     }
 
     /**
@@ -77,7 +78,7 @@ final class FriendLinkModel
 
         $sql .= ' ORDER BY `sort` DESC, `id` ASC';
 
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -88,7 +89,7 @@ final class FriendLinkModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$id]);
+        $row = $this->db->fetchOne($sql, [$id]);
         return $row !== false ? $row : null;
     }
 
@@ -99,10 +100,10 @@ final class FriendLinkModel
     {
         if ($excludeId > 0) {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `name` = ? AND `id` != ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$name, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$name, $excludeId]);
         } else {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `name` = ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$name]);
+            $row = $this->db->fetchOne($sql, [$name]);
         }
         return $row !== null;
     }
@@ -135,9 +136,9 @@ final class FriendLinkModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         return (int) ($row['id'] ?? 0);
     }
 
@@ -172,7 +173,7 @@ final class FriendLinkModel
             implode(', ', $sets)
         );
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -181,7 +182,7 @@ final class FriendLinkModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -193,7 +194,7 @@ final class FriendLinkModel
             'UPDATE `%s` SET `enabled` = IF(`enabled` = \'y\', \'n\', \'y\') WHERE `id` = ? LIMIT 1',
             $this->table
         );
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -209,7 +210,7 @@ final class FriendLinkModel
         }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $sql = sprintf('DELETE FROM `%s` WHERE `id` IN (%s)', $this->table, $placeholders);
-        return \Database::execute($sql, $ids);
+        return $this->db->execute($sql, $ids);
     }
 
     /**
@@ -218,7 +219,7 @@ final class FriendLinkModel
     public function count(): int
     {
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s`', $this->table);
-        $row = \Database::fetchOne($sql, []);
+        $row = $this->db->fetchOne($sql, []);
         return (int) ($row['cnt'] ?? 0);
     }
 }

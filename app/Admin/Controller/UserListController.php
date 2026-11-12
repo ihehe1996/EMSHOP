@@ -157,7 +157,7 @@ final class UserListController extends BaseAdminController
 
                     if ($userId > 0) {
                         try {
-                            \App\Service\UserExperienceService::applyRegisterBonus($userId);
+                            app(\App\Service\UserExperienceService::class)->applyRegisterBonus($userId);
                         } catch (\Throwable $e) {
                             // 初始经验发放失败不阻断创建
                         }

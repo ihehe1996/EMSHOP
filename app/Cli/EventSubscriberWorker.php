@@ -89,7 +89,7 @@ final class EventSubscriberWorker implements ServerWorkerInterface
             $key = 'event_cursor_' . $event;
             $cursor = (int) $storage->getValue($key, 0);
 
-            $rows = \App\Service\PluginEvent::since($event, $cursor, self::BATCH);
+            $rows = app(\App\Service\PluginEvent::class)->since($event, $cursor, self::BATCH);
             if ($rows === []) {
                 continue;
             }
@@ -159,7 +159,7 @@ final class EventSubscriberWorker implements ServerWorkerInterface
         $this->nextCleanupAt = $now + self::CLEANUP_INTERVAL;
 
         try {
-            $deleted = \App\Service\PluginEvent::cleanup();
+            $deleted = app(\App\Service\PluginEvent::class)->cleanup();
             if ($deleted > 0) {
                 CliServer::log("插件事件：清理了 {$deleted} 条过期事件");
             }

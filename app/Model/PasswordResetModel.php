@@ -11,13 +11,14 @@ namespace App\Model;
 /**
  * 密码重置令牌数据模型。
  */
-final class PasswordResetModel
+final class PasswordResetModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'password_reset';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'password_reset';
     }
 
     /**
@@ -30,9 +31,9 @@ final class PasswordResetModel
              VALUES (?, ?, ?, ?, NOW())',
             $this->table
         );
-        \Database::execute($sql, [$userId, $email, $tokenHash, $expiresAt]);
+        $this->db->execute($sql, [$userId, $email, $tokenHash, $expiresAt]);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         return (int) ($row['id'] ?? 0);
     }
 
@@ -52,7 +53,7 @@ final class PasswordResetModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, [$tokenHash]);
+        return $this->db->fetchOne($sql, [$tokenHash]);
     }
 
     /**
@@ -64,7 +65,7 @@ final class PasswordResetModel
             'UPDATE `%s` SET `used_at` = NOW() WHERE `id` = ? AND `used_at` IS NULL LIMIT 1',
             $this->table
         );
-        \Database::execute($sql, [$id]);
+        $this->db->execute($sql, [$id]);
     }
 
     /**
@@ -77,6 +78,6 @@ final class PasswordResetModel
              WHERE `user_id` = ? AND `used_at` IS NULL',
             $this->table
         );
-        \Database::execute($sql, [$userId]);
+        $this->db->execute($sql, [$userId]);
     }
 }

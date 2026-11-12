@@ -12,7 +12,7 @@ if (!defined('EM_ROOT')) {
  * 支持二级评论结构：顶级评论（parent_id=0）和回复（parent_id=顶级评论ID）。
  * 回复可以指定被回复人 reply_user_id，但 parent_id 始终指向顶级评论。
  */
-class BlogCommentModel
+class BlogCommentModel extends Model
 {
     /**
      * 获取文章的顶级评论（分页），附带每条评论的回复数量和用户信息。
@@ -23,13 +23,13 @@ class BlogCommentModel
      * @param string $sort    排序：newest / oldest / hot
      * @return array{total:int, page:int, limit:int, list:array}
      */
-    public static function getTopComments(int $blogId, int $page = 1, int $limit = 10, string $sort = 'newest'): array
+    public function getTopComments(int $blogId, int $page = 1, int $limit = 10, string $sort = 'newest'): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $params = [$blogId];
 
         // 统计顶级评论总数
-        $total = \Database::fetchOne(
+        $total = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM {$prefix}blog_comment
              WHERE blog_id = ? AND parent_id = 0 AND status = 1 AND deleted_at IS NULL",
             $params
@@ -52,7 +52,7 @@ class BlogCommentModel
                 WHERE c.blog_id = ? AND c.parent_id = 0 AND c.status = 1 AND c.deleted_at IS NULL
                 ORDER BY {$orderBy}
                 LIMIT {$offset}, {$limit}";
-        $list = \Database::query($sql, $params);
+        $list = $this->db->query($sql, $params);
 
         return [
             'total' => $totalCount,
@@ -70,11 +70,11 @@ class BlogCommentModel
      * @param int $limit    每页条数
      * @return array{total:int, page:int, limit:int, list:array}
      */
-    public static function getReplies(int $parentId, int $page = 1, int $limit = 5): array
+    public function getReplies(int $parentId, int $page = 1, int $limit = 5): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $total = \Database::fetchOne(
+        $total = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM {$prefix}blog_comment
              WHERE parent_id = ? AND status = 1 AND deleted_at IS NULL",
             [$parentId]
@@ -90,7 +90,7 @@ class BlogCommentModel
                 WHERE c.parent_id = ? AND c.status = 1 AND c.deleted_at IS NULL
                 ORDER BY c.created_at ASC
                 LIMIT {$offset}, {$limit}";
-        $list = \Database::query($sql, [$parentId]);
+        $list = $this->db->query($sql, [$parentId]);
 
         return [
             'total' => $totalCount,
@@ -103,10 +103,10 @@ class BlogCommentModel
     /**
      * 获取文章的评论总数（已通过）
      */
-    public static function getCountByBlog(int $blogId): int
+    public function getCountByBlog(int $blogId): int
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM {$prefix}blog_comment
              WHERE blog_id = ? AND status = 1 AND deleted_at IS NULL",
             [$blogId]
@@ -119,20 +119,20 @@ class BlogCommentModel
      *
      * @return int 新评论 ID
      */
-    public static function create(array $data): int
+    public function create(array $data): int
     {
         $data['created_at'] = date('Y-m-d H:i:s');
         $data['updated_at'] = date('Y-m-d H:i:s');
-        return \Database::insert('blog_comment', $data);
+        return $this->db->insert('blog_comment', $data);
     }
 
     /**
      * 根据 ID 获取评论
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}blog_comment WHERE id = ? LIMIT 1",
             [$id]
         );
@@ -142,9 +142,9 @@ class BlogCommentModel
     /**
      * 逻辑删除评论
      */
-    public static function delete(int $id): bool
+    public function delete(int $id): bool
     {
-        return \Database::update('blog_comment', [
+        return $this->db->update('blog_comment', [
             'deleted_at' => date('Y-m-d H:i:s'),
         ], $id) !== false;
     }
@@ -152,9 +152,9 @@ class BlogCommentModel
     /**
      * 更新评论状态
      */
-    public static function updateStatus(int $id, int $status): bool
+    public function updateStatus(int $id, int $status): bool
     {
-        return \Database::update('blog_comment', [
+        return $this->db->update('blog_comment', [
             'status' => $status,
         ], $id) !== false;
     }
@@ -162,13 +162,13 @@ class BlogCommentModel
     /**
      * 批量更新状态
      */
-    public static function batchUpdateStatus(array $ids, int $status): int
+    public function batchUpdateStatus(array $ids, int $status): int
     {
         if (empty($ids)) return 0;
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $params = array_merge($ids, [$status]);
-        return \Database::execute(
+        return $this->db->execute(
             "UPDATE {$prefix}blog_comment SET status = ? WHERE id IN ({$placeholders})",
             array_merge([$status], $ids)
         );
@@ -177,13 +177,13 @@ class BlogCommentModel
     /**
      * 批量逻辑删除
      */
-    public static function batchDelete(array $ids): int
+    public function batchDelete(array $ids): int
     {
         if (empty($ids)) return 0;
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $now = date('Y-m-d H:i:s');
-        return \Database::execute(
+        return $this->db->execute(
             "UPDATE {$prefix}blog_comment SET deleted_at = ? WHERE id IN ({$placeholders})",
             array_merge([$now], $ids)
         );
@@ -197,9 +197,9 @@ class BlogCommentModel
      * @param int    $limit  每页条数
      * @return array{total:int, page:int, limit:int, list:array}
      */
-    public static function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
+    public function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = ['c.deleted_at IS NULL'];
         $params = [];
 
@@ -223,7 +223,7 @@ class BlogCommentModel
 
         $whereSql = 'WHERE ' . implode(' AND ', $conditions);
 
-        $total = \Database::fetchOne(
+        $total = $this->db->fetchOne(
             "SELECT COUNT(*) as count
              FROM {$prefix}blog_comment c
              LEFT JOIN {$prefix}blog b ON c.blog_id = b.id
@@ -241,7 +241,7 @@ class BlogCommentModel
                 {$whereSql}
                 ORDER BY c.id DESC
                 LIMIT {$offset}, {$limit}";
-        $list = \Database::query($sql, $params);
+        $list = $this->db->query($sql, $params);
 
         return [
             'total' => $totalCount,
@@ -256,10 +256,10 @@ class BlogCommentModel
      *
      * @return array{all:int, pending:int, approved:int, rejected:int}
      */
-    public static function getStatusCounts(int $merchantId = 0): array
+    public function getStatusCounts(int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
-        $rows = \Database::query(
+        $prefix = $this->db->prefix();
+        $rows = $this->db->query(
             "SELECT c.status, COUNT(*) as cnt
              FROM {$prefix}blog_comment c
              LEFT JOIN {$prefix}blog b ON c.blog_id = b.id

@@ -79,10 +79,10 @@ final class CouponController extends BaseAdminController
                     if ($data['type'] === '') {
                         $this->response->error('请选择类型');
                     }
-                    if (!in_array($data['type'], array_keys(\App\Model\CouponModel::typeOptions()), true)) {
+                    if (!in_array($data['type'], array_keys(app(\App\Model\CouponModel::class)->typeOptions()), true)) {
                         $this->response->error('未知类型');
                     }
-                    if (!in_array($data['apply_scope'], array_keys(\App\Model\CouponModel::scopeOptions()), true)) {
+                    if (!in_array($data['apply_scope'], array_keys(app(\App\Model\CouponModel::class)->scopeOptions()), true)) {
                         $this->response->error('未知适用范围');
                     }
 

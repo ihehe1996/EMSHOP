@@ -11,8 +11,8 @@ $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
-$__record = \App\Service\DisclaimerService::record();
-$__accepted = \App\Service\DisclaimerService::accepted();
+$__record = app(\App\Service\DisclaimerService::class)->record();
+$__accepted = app(\App\Service\DisclaimerService::class)->accepted();
 $__version = (string) \App\Service\DisclaimerService::VERSION;
 $__recordVersion = $__record !== null ? (string) ($__record['version'] ?? '') : '';
 ?>

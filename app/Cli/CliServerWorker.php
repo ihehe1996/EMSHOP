@@ -95,7 +95,7 @@ final class CliServerWorker
      *
      * **只刷 $type 自己的心跳，一律不碰能力心跳。** 能力心跳
      * （content/server/worker.{capability}.heartbeat）由核心自有的 HeartbeatWorker
-     * 独家维护：它是后台「运行模式」卡片和 OrderModel::triggerDelivery() 的判据，
+     * 独家维护：它是后台「运行模式」卡片和 app(\App\Model\OrderModel::class)->triggerDelivery() 的判据，
      * 绑在业务执行流上的话，发货卡住多久、判据就跟着错多久。
      *
      * 类型心跳刻意放在 tick() **之后**：tick 卡死时它不刷新，

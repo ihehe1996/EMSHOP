@@ -349,7 +349,7 @@ final class PluginController extends BaseAdminController
         }
 
         $scanned = $model->scanWithStatus(self::SCOPE);
-        $latestVersions = \App\Service\AppUpdateService::checkInstalled($scanned, 'plugin');
+        $latestVersions = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, 'plugin');
         $licenseError = '';
 
         $data = [];

@@ -68,7 +68,7 @@ include EM_ROOT . '/app/Admin/View/popup/header.php';
                                         <?php
                                         $articleTags = [];
                                         if ($isEdit) {
-                                            $articleTags = \App\Model\BlogTagModel::getTagsByBlogId((int) $article['id']);
+                                            $articleTags = app(\App\Model\BlogTagModel::class)->getTagsByBlogId((int) $article['id']);
                                             foreach ($articleTags as $t):
                                         ?>
                                         <span class="blog-tag-token" data-id="<?= (int) $t['id'] ?>">
@@ -272,7 +272,7 @@ $(function () {
 
         // 标签输入（本店标签池）
         (function () {
-            var allTags = <?= json_encode(\App\Model\BlogTagModel::getAll($merchantId), JSON_UNESCAPED_UNICODE) ?>;
+            var allTags = <?= json_encode(app(\App\Model\BlogTagModel::class)->getAll($merchantId), JSON_UNESCAPED_UNICODE) ?>;
             var $wrap = $('#tagInputWrap');
             var $tokens = $('#tagTokens');
             var $input = $('#tagTextInput');

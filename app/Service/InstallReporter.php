@@ -35,7 +35,7 @@ namespace App\Service;
  * 开发模式开关。这里只借它一个常量（服务端地址），HTTP 自己做，
  * 免得把「安装环境」和「正常运行环境」的要求绑在一起。
  */
-final class InstallReporter
+final class InstallReporter extends BaseService
 {
     /**
      * 单次请求的总超时（秒）。**使用者定的就是 5**。
@@ -67,18 +67,18 @@ final class InstallReporter
      *     is_reinstall?: bool      // 这一趟是不是删了旧表重建
      * } $context
      */
-    public static function report(array $context = []): void
+    public function report(array $context = []): void
     {
         try {
-            self::loadBaseFile();
+            $this->loadBaseFile();
 
-            $url = self::endpoint();
+            $url = $this->endpoint();
 
             if ($url === '') {
                 return;
             }
             
-            self::post($url, self::payload($context));
+            $this->post($url, $this->payload($context));
         } catch (\Throwable $ignored) {
             /* 见类注释：这里**故意**什么也不做，连日志都不写 ——
                安装环境多半还没有日志文件，写进去也没人看，
@@ -97,7 +97,7 @@ final class InstallReporter
      * `base.php` 里只有两个常量定义，加载它没有副作用；用 `require_once`
      * 兜住「init.php 已经加载过」的正常场景（那时两个常量都在，直接返回）。
      */
-    private static function loadBaseFile(): void
+    private function loadBaseFile(): void
     {
         if (defined('SERVICE_TOKEN') && defined('SERVER_NAME')) {
             return;
@@ -118,28 +118,28 @@ final class InstallReporter
      * @param array<string, mixed> $context
      * @return array<string, string|int>
      */
-    private static function payload(array $context): array
+    private function payload(array $context): array
     {
         $siteUrl = trim((string) ($context['site_url'] ?? ''));
 
         return [
             /* 程序名称：base.php 的 SERVER_NAME（服务端靠它区分两个产品线的包，
                和路径段里的 em 是两回事 —— 那个是「发给谁」，这个是「装的什么」） */
-            'name' => self::constant('SERVER_NAME', 'EMSHOP'),
+            'name' => $this->constant('SERVER_NAME', 'EMSHOP'),
             'version' => trim((string) ($context['version'] ?? '')),
             /* 域名：服务端会自己归一（去协议/端口/www），这里给完整地址更省事 */
             'domain' => $siteUrl,
             'site_url' => $siteUrl,
             /* 身份标识 = 这个包是哪个代理的（服务端用它反查归属）。
                **这正是 base.php 存在的意义**，服务端认不出就是没归属，不影响记录 */
-            'identity' => self::constant('SERVICE_TOKEN', ''),
-            'ip' => self::clientIp(),
+            'identity' => $this->constant('SERVICE_TOKEN', ''),
+            'ip' => $this->clientIp(),
             'admin_username' => trim((string) ($context['admin_username'] ?? '')),
             'admin_email' => trim((string) ($context['admin_email'] ?? '')),
             'php_version' => PHP_VERSION,
-            'db_version' => self::dbVersion(),
+            'db_version' => $this->dbVersion(),
             'server_software' => trim((string) ($_SERVER['SERVER_SOFTWARE'] ?? '')),
-            'os' => self::os(),
+            'os' => $this->os(),
             'is_reinstall' => !empty($context['is_reinstall']) ? 1 : 0,
         ];
     }
@@ -154,7 +154,7 @@ final class InstallReporter
      * `X-Forwarded-For` 取**第一个**（最靠近客户端的那一跳）；
      * 取不到就退回 `REMOTE_ADDR`。
      */
-    private static function clientIp(): string
+    private function clientIp(): string
     {
         $forwarded = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
 
@@ -173,13 +173,13 @@ final class InstallReporter
      * 数据库版本。**取不到就是空串**，不值得为它多做任何事。
      *
      * 走 `Database` 而不是自己开一个 PDO：安装流程走到这一步时
-     * `InstallService::setup()` 已经用它建完表了，连接是现成的。
+     * `app(\App\Service\InstallService::class)->setup()` 已经用它建完表了，连接是现成的。
      * 但**不能假设它一定在**（比如以后有人在别的场景调这个类），所以照样包起来。
      */
-    private static function dbVersion(): string
+    private function dbVersion(): string
     {
         try {
-            $row = \Database::fetchOne('SELECT VERSION() AS `v`');
+            $row = $this->db->fetchOne('SELECT VERSION() AS `v`');
 
             return trim((string) ($row['v'] ?? ''));
         } catch (\Throwable $ignored) {
@@ -188,7 +188,7 @@ final class InstallReporter
     }
 
     /** 操作系统一行：`Linux 5.15.0-91-generic`。`php_uname` 在个别环境会返回空，兜一下 */
-    private static function os(): string
+    private function os(): string
     {
         $sys = (string) @php_uname('s');
         $release = (string) @php_uname('r');
@@ -203,7 +203,7 @@ final class InstallReporter
      * 的环境也有 —— 那种情况下**照样上报**，只是没归属（服务端认不出 identity），
      * 「有人装了一个没有身份标识的包」这件事本身就是要看见的。
      */
-    private static function constant(string $name, string $default): string
+    private function constant(string $name, string $default): string
     {
         if (!defined($name)) {
             return $default;
@@ -215,13 +215,13 @@ final class InstallReporter
     }
 
     /** 上报地址。服务端地址只认常量，不读 config.php（理由同 LicenseClient::serverUrl()） */
-    private static function endpoint(): string
+    private function endpoint(): string
     {
         // 正常运行时 init.php 已 define（当前选中线路）；安装时还没有 init.php，
         // 直接取官方线路常量的第一条 —— 只碰常量，不读 Config（安装环境没有数据库）。
         $base = defined('EM_LICENSE_SERVER_URL') ? \trim((string) EM_LICENSE_SERVER_URL) : '';
         if ($base === '' && class_exists('LicenseClient')) {
-            $lines = \LicenseClient::officialLines();
+            $lines = $this->licenseClient->officialLines();
             $base  = trim((string) ($lines[0]['url'] ?? ''));
         }
 
@@ -241,7 +241,7 @@ final class InstallReporter
      *
      * @param array<string, string|int> $payload
      */
-    private static function post(string $url, array $payload): void
+    private function post(string $url, array $payload): void
     {
         if (!function_exists('curl_init')) {
             return;

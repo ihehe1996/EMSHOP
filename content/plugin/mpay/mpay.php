@@ -475,7 +475,7 @@ addAction('payment_notify_mpay', function (array $data): void {
         $paymentCode = (string) ($recharge['payment_code'] ?? '');
         $tradeAmount = (int) ($recharge['amount'] ?? 0);
     } else {
-        $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+        $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
         if (!$order) {
             echo 'fail';
             exit;
@@ -544,7 +544,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     try {
         Database::begin();
 
-        \App\Model\OrderModel::changeStatus((int) $order['id'], 'paid');
+        app(\App\Model\OrderModel::class)->changeStatus((int) $order['id'], 'paid');
 
         Database::execute(
             'INSERT INTO `' . Database::prefix() . 'order_payment`
@@ -569,7 +569,7 @@ addAction('payment_notify_mpay', function (array $data): void {
     }
 
     try {
-        \App\Model\OrderModel::triggerDelivery((int) $order['id']);
+        app(\App\Model\OrderModel::class)->triggerDelivery((int) $order['id']);
     } catch (Throwable $e) {
         mpay_log('trigger delivery failed: ' . $e->getMessage());
     }

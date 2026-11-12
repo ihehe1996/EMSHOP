@@ -9,9 +9,9 @@ $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
-$__licenseActivated = \App\Service\LicenseService::isActivated();
+$__licenseActivated = app(\App\Service\LicenseService::class)->isActivated();
 // 安装本身有授权、但当前访问域名不是主授权域名 / 别名时，提示关联激活
-$__licenseRow        = $__licenseActivated ? \App\Service\LicenseService::currentLicense() : null;
+$__licenseRow        = $__licenseActivated ? app(\App\Service\LicenseService::class)->currentLicense() : null;
 $__licenseHostMatched = $__licenseRow !== null && !empty($__licenseRow['host_matched']);
 $__licenseMainHost    = $__licenseRow !== null ? (string) ($__licenseRow['bound_domain'] ?? '') : '';
 $__licenseLevel       = $__licenseRow !== null ? (string) ($__licenseRow['level'] ?? 'none') : 'none';
@@ -229,7 +229,7 @@ $calcRatio = static function (float $today, float $yesterday): array {
 
 // 运行模式：只有 CLI / FPM 两种。
 //
-// 判据必须与 OrderModel::triggerDelivery() **完全一致** —— 发货走异步还是同步，
+// 判据必须与 app(\App\Model\OrderModel::class)->triggerDelivery() **完全一致** —— 发货走异步还是同步，
 // 全站唯一依据就是发货能力心跳 WorkerHeartbeat::CAPABILITY_DELIVERY。
 // 卡片显示 CLI、实际却在同步发货（或反过来）是最坏的情况，所以这里复用同一个判据，
 // 而不是看管家进程的宿主心跳：管家活着 ≠ 发货队列有人在消费。
@@ -243,7 +243,7 @@ $__runModeDesc   = $__deliveryAsync
 
 // 官方账号卡：登录态只读本地配置，不发请求；
 // 「管理」按钮打开 license.php?_popup=account 的大 iframe（激活码 / 账号信息 / 退出登录都在里面）
-$__officialAccount = \App\Service\LicenseService::officialAccount();
+$__officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
 
 /* ============================================================
  * 官方公告 / 广告推广 / 版本更新 / 代理商联系方式
@@ -308,8 +308,8 @@ $__officialAccount = \App\Service\LicenseService::officialAccount();
     <section class="dash-metrics">
         <?php
             // 系统版本卡（结构复用 dash-metric，不含环比 chip）
-            $__sysLevel = \App\Service\LicenseService::currentLevel();
-            $__sysLevelLabel = \App\Service\LicenseService::levelLabel($__sysLevel);
+            $__sysLevel = app(\App\Service\LicenseService::class)->currentLevel();
+            $__sysLevelLabel = app(\App\Service\LicenseService::class)->levelLabel($__sysLevel);
         ?>
         <div class="dash-metric dash-metric--system" style="--m-color: #6366f1; --m-soft: #eef2ff;">
             <div class="dash-metric__head">

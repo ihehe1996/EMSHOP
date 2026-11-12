@@ -52,12 +52,12 @@ final class PageController extends BaseAdminController
                 $where['status'] = $status;
             }
 
-            $result = \App\Model\PageModel::getList($where, $page, $limit);
+            $result = app(\App\Model\PageModel::class)->getList($where, $page, $limit);
 
             // 状态计数（供 em-tabs 计数徽章使用）—— 同样限定主站
-            $countAll = \App\Model\PageModel::getList(['merchant_id' => 0], 1, 1)['total'];
-            $countPublished = \App\Model\PageModel::getList(['merchant_id' => 0, 'status' => 1], 1, 1)['total'];
-            $countDraft = \App\Model\PageModel::getList(['merchant_id' => 0, 'status' => 0], 1, 1)['total'];
+            $countAll = app(\App\Model\PageModel::class)->getList(['merchant_id' => 0], 1, 1)['total'];
+            $countPublished = app(\App\Model\PageModel::class)->getList(['merchant_id' => 0, 'status' => 1], 1, 1)['total'];
+            $countDraft = app(\App\Model\PageModel::class)->getList(['merchant_id' => 0, 'status' => 0], 1, 1)['total'];
 
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
@@ -78,14 +78,14 @@ final class PageController extends BaseAdminController
         // ========== 设为站点首页（主站作用域）==========
         if ($action === 'set_homepage') {
             $id = (int) $this->input->post('id', 0);
-            $page = \App\Model\PageModel::getById($id);
+            $page = app(\App\Model\PageModel::class)->getById($id);
             if (!$page) {
                 $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
                 $this->response->error('无权操作商户页面');
             }
-            if (\App\Model\PageModel::setHomepage($id, 0)) {
+            if (app(\App\Model\PageModel::class)->setHomepage($id, 0)) {
                 $this->response->success('已设为主站首页', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('设置失败');
@@ -95,21 +95,21 @@ final class PageController extends BaseAdminController
         // ========== 取消页面首页（回退到 homepage_mode）==========
         if ($action === 'clear_homepage') {
             $id = (int) $this->input->post('id', 0);
-            $page = \App\Model\PageModel::getById($id);
+            $page = app(\App\Model\PageModel::class)->getById($id);
             if (!$page) {
                 $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
                 $this->response->error('无权操作商户页面');
             }
-            \App\Model\PageModel::clearHomepage(0, $id);
+            app(\App\Model\PageModel::class)->clearHomepage(0, $id);
             $this->response->success('已取消首页', ['csrf_token' => $this->csrf->token()]);
         }
 
         // ========== 切换发布状态 ==========
         if ($action === 'toggle_status') {
             $id = (int) $this->input->post('id', 0);
-            $page = \App\Model\PageModel::getById($id);
+            $page = app(\App\Model\PageModel::class)->getById($id);
             if (!$page) {
                 $this->response->error('页面不存在');
             }
@@ -117,21 +117,21 @@ final class PageController extends BaseAdminController
                 $this->response->error('无权操作商户页面');
             }
             $newStatus = (int) $page['status'] ? 0 : 1;
-            \App\Model\PageModel::update($id, ['status' => $newStatus]);
+            app(\App\Model\PageModel::class)->update($id, ['status' => $newStatus]);
             $this->response->success('状态已更新', ['csrf_token' => $this->csrf->token()]);
         }
 
         // ========== 删除 ==========
         if ($action === 'delete') {
             $id = (int) $this->input->post('id', 0);
-            $page = \App\Model\PageModel::getById($id);
+            $page = app(\App\Model\PageModel::class)->getById($id);
             if (!$page) {
                 $this->response->error('页面不存在');
             }
             if ((int) $page['merchant_id'] !== 0) {
                 $this->response->error('无权操作商户页面');
             }
-            if (\App\Model\PageModel::delete($id)) {
+            if (app(\App\Model\PageModel::class)->delete($id)) {
                 $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
             } else {
                 $this->response->error('删除失败');
@@ -161,11 +161,11 @@ final class PageController extends BaseAdminController
             foreach ($allowedIds as $id) {
                 try {
                     if ($batchAction === 'publish') {
-                        \App\Model\PageModel::update($id, ['status' => 1]);
+                        app(\App\Model\PageModel::class)->update($id, ['status' => 1]);
                     } elseif ($batchAction === 'draft') {
-                        \App\Model\PageModel::update($id, ['status' => 0]);
+                        app(\App\Model\PageModel::class)->update($id, ['status' => 0]);
                     } elseif ($batchAction === 'delete') {
-                        \App\Model\PageModel::delete($id);
+                        app(\App\Model\PageModel::class)->delete($id);
                     } else {
                         $failed++;
                         break;

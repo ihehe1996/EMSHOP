@@ -24,7 +24,7 @@ namespace App\Model;
  *
  * 物理插件文件(content/plugin/xxx)在全站共享一份。
  */
-final class PluginModel
+final class PluginModel extends Model
 {
     /**
      * 主站后台应用商店的分类(id => 名称)。
@@ -86,8 +86,9 @@ final class PluginModel
 
     public function __construct()
     {
+        parent::__construct();
         $this->pluginRoot    = EM_ROOT . '/content/plugin';
-        $this->merchantTable = \Database::prefix() . 'merchant';
+        $this->merchantTable = $this->db->prefix() . 'merchant';
     }
 
     // -----------------------------------------------------------------
@@ -231,7 +232,7 @@ final class PluginModel
         $raw = $this->readEnabledRaw($scope);
         if ($raw === '') return [];
         $names = array_map('trim', explode(',', $raw));
-        return array_values(array_filter($names, static fn ($n) => $n !== ''));
+        return array_values(array_filter($names, fn ($n) => $n !== ''));
     }
 
     /**
@@ -240,11 +241,11 @@ final class PluginModel
     private function readEnabledRaw(string $scope): string
     {
         if ($scope === 'main') {
-            return (string) \Config::get(self::MAIN_ENABLED_KEY, '');
+            return (string) $this->config->get(self::MAIN_ENABLED_KEY, '');
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return '';
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT `enabled_plugins` FROM `' . $this->merchantTable . '` WHERE `id` = ? LIMIT 1',
             [$merchantId]
         );
@@ -268,14 +269,14 @@ final class PluginModel
         $value = implode(',', array_keys($clean));
 
         if ($scope === 'main') {
-            \Config::set(self::MAIN_ENABLED_KEY, $value);
+            $this->config->set(self::MAIN_ENABLED_KEY, $value);
             return;
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) {
             throw new \InvalidArgumentException('非法 scope: ' . $scope);
         }
-        \Database::execute(
+        $this->db->execute(
             'UPDATE `' . $this->merchantTable . '` SET `enabled_plugins` = ? WHERE `id` = ? LIMIT 1',
             [$value, $merchantId]
         );
@@ -320,7 +321,7 @@ final class PluginModel
     {
         $names = $this->getEnabledNames($scope);
         if (!in_array($name, $names, true)) return true; // 本来就不在
-        $names = array_values(array_filter($names, static fn ($n) => $n !== $name));
+        $names = array_values(array_filter($names, fn ($n) => $n !== $name));
         $this->writeEnabledNames($scope, $names);
         return true;
     }

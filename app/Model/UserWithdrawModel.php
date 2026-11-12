@@ -19,7 +19,7 @@ namespace App\Model;
  *
  * 创建时立即从 user.money 扣款（等于冻结），rejected 时退回。
  */
-class UserWithdrawModel
+class UserWithdrawModel extends Model
 {
     public const STATUS_PENDING  = 'pending';
     public const STATUS_APPROVED = 'approved';
@@ -32,7 +32,8 @@ class UserWithdrawModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user_withdraw';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user_withdraw';
     }
 
     /**
@@ -48,13 +49,13 @@ class UserWithdrawModel
         if ($accountName === '' || $accountNo === '') throw new \RuntimeException('请填写收款账号和姓名');
         if ($channel === 'bank' && $bankName === '') throw new \RuntimeException('请填写开户行');
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 扣用户余额（同时写 balance_log，方便对账）
             $ok = (new UserBalanceLogModel())->decrease($userId, $amountRaw, '提现申请（冻结）');
             if (!$ok) throw new \RuntimeException('余额不足');
 
-            $id = (int) \Database::insert('user_withdraw', [
+            $id = (int) $this->db->insert('user_withdraw', [
                 'user_id'      => $userId,
                 'amount'       => $amountRaw,
                 'channel'      => $channel,
@@ -64,17 +65,17 @@ class UserWithdrawModel
                 'status'       => self::STATUS_PENDING,
                 'created_at'   => date('Y-m-d H:i:s'),
             ]);
-            \Database::commit();
+            $this->db->commit();
             return $id;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
 
     public function findById(int $id): ?array
     {
-        return \Database::find('user_withdraw', $id);
+        return $this->db->find('user_withdraw', $id);
     }
 
     /**
@@ -97,14 +98,14 @@ class UserWithdrawModel
             throw new \RuntimeException('当前状态不可驳回');
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $affected = \Database::execute(
+            $affected = $this->db->execute(
                 "UPDATE {$this->table} SET status = ?, admin_id = ?, admin_remark = ?, processed_at = NOW()
                  WHERE id = ? AND status IN (?, ?)",
                 [self::STATUS_REJECTED, $adminId, $remark, $id, self::STATUS_PENDING, self::STATUS_APPROVED]
             );
-            if ($affected === 0) { \Database::rollBack(); return false; }
+            if ($affected === 0) { $this->db->rollBack(); return false; }
 
             // 退回余额
             $ok = (new UserBalanceLogModel())->increase(
@@ -115,10 +116,10 @@ class UserWithdrawModel
             );
             if (!$ok) throw new \RuntimeException('退回余额失败');
 
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -133,7 +134,7 @@ class UserWithdrawModel
 
     private function transition(int $id, string $from, string $to, int $adminId, string $remark): bool
     {
-        $affected = \Database::execute(
+        $affected = $this->db->execute(
             "UPDATE {$this->table} SET status = ?, admin_id = ?, admin_remark = ?, processed_at = NOW()
              WHERE id = ? AND status = ?",
             [$to, $adminId, $remark, $id, $from]
@@ -143,14 +144,14 @@ class UserWithdrawModel
 
     public function paginateByUser(int $userId, int $page = 1, int $perPage = 15): array
     {
-        $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE user_id = ?", [$userId]);
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE user_id = ?", [$userId]);
         $total = (int) ($countRow['cnt'] ?? 0);
         $totalPages = max(1, (int) ceil($total / $perPage));
         if ($page > $totalPages) $page = $totalPages;
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT * FROM {$this->table} WHERE user_id = ? ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             [$userId]
         );
@@ -159,7 +160,7 @@ class UserWithdrawModel
 
     public function paginate(array $filter, int $page = 1, int $perPage = 20): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $where = ['1=1'];
         $params = [];
 
@@ -174,7 +175,7 @@ class UserWithdrawModel
         }
         $whereSql = implode(' AND ', $where);
 
-        $countRow = \Database::fetchOne(
+        $countRow = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$this->table} w
              LEFT JOIN {$prefix}user u ON u.id = w.user_id
              WHERE {$whereSql}",
@@ -186,7 +187,7 @@ class UserWithdrawModel
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT w.*, u.username, u.nickname
              FROM {$this->table} w
              LEFT JOIN {$prefix}user u ON u.id = w.user_id

@@ -14,16 +14,16 @@ if (!defined('EM_ROOT')) {
  *
  * @package EM\Core\Model
  */
-class PageModel
+class PageModel extends Model
 {
     /**
      * 获取页面列表（后台管理：含草稿 / 软删除按条件过滤）
      *
      * @param array  $where   筛选：status / keyword / merchant_id
      */
-    public static function getList(array $where = [], int $page = 1, int $limit = 20, string $orderBy = 'sort ASC, id DESC'): array
+    public function getList(array $where = [], int $page = 1, int $limit = 20, string $orderBy = 'sort ASC, id DESC'): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = ['deleted_at IS NULL'];
         $params = [];
 
@@ -46,7 +46,7 @@ class PageModel
 
         $whereSql = 'WHERE ' . implode(' AND ', $conditions);
 
-        $total = \Database::query("SELECT COUNT(*) as count FROM {$prefix}page {$whereSql}", $params);
+        $total = $this->db->query("SELECT COUNT(*) as count FROM {$prefix}page {$whereSql}", $params);
         $totalCount = (int) ($total[0]['count'] ?? 0);
 
         $offset = ($page - 1) * $limit;
@@ -55,7 +55,7 @@ class PageModel
                 {$whereSql}
                 ORDER BY {$orderBy}
                 LIMIT {$offset}, {$limit}";
-        $list = \Database::query($sql, $params);
+        $list = $this->db->query($sql, $params);
 
         return [
             'total' => $totalCount,
@@ -68,10 +68,10 @@ class PageModel
     /**
      * 按 ID 获取页面（含 content）。Controller 自行做 merchant_id ACL。
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}page WHERE id = ? AND deleted_at IS NULL",
             [$id]
         );
@@ -81,10 +81,10 @@ class PageModel
     /**
      * 按 slug 获取"已发布"页面（限定 scope）—— 前台路由使用
      */
-    public static function getBySlug(string $slug, int $merchantId = 0): ?array
+    public function getBySlug(string $slug, int $merchantId = 0): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}page
              WHERE slug = ? AND merchant_id = ? AND status = 1 AND deleted_at IS NULL LIMIT 1",
             [$slug, $merchantId]
@@ -95,17 +95,17 @@ class PageModel
     /**
      * slug 在指定 scope 内是否被占用（排除自身）
      */
-    public static function slugExists(string $slug, int $excludeId = 0, int $merchantId = 0): bool
+    public function slugExists(string $slug, int $excludeId = 0, int $merchantId = 0): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         if ($excludeId > 0) {
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT id FROM {$prefix}page
                  WHERE slug = ? AND merchant_id = ? AND id != ? AND deleted_at IS NULL LIMIT 1",
                 [$slug, $merchantId, $excludeId]
             );
         } else {
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT id FROM {$prefix}page
                  WHERE slug = ? AND merchant_id = ? AND deleted_at IS NULL LIMIT 1",
                 [$slug, $merchantId]
@@ -117,7 +117,7 @@ class PageModel
     /**
      * 创建页面。$data 必须包含 merchant_id（调用方决定 0 还是商户 ID）。
      */
-    public static function create(array $data): int
+    public function create(array $data): int
     {
         $fields = ['merchant_id', 'title', 'slug', 'content', 'status', 'template_name',
                    'seo_title', 'seo_keywords', 'seo_description', 'sort'];
@@ -130,14 +130,14 @@ class PageModel
         if (!array_key_exists('merchant_id', $insert)) {
             $insert['merchant_id'] = 0;
         }
-        $id = \Database::insert('page', $insert);
+        $id = $this->db->insert('page', $insert);
         return (int) $id;
     }
 
     /**
      * 更新页面。merchant_id 不在白名单（不允许通过 update 改归属）。
      */
-    public static function update(int $id, array $data): bool
+    public function update(int $id, array $data): bool
     {
         $fields = ['title', 'slug', 'content', 'status', 'template_name',
                    'seo_title', 'seo_keywords', 'seo_description', 'sort'];
@@ -153,8 +153,8 @@ class PageModel
             return false;
         }
         $params[] = $id;
-        $prefix = \Database::prefix();
-        return \Database::execute(
+        $prefix = $this->db->prefix();
+        return $this->db->execute(
             "UPDATE {$prefix}page SET " . implode(', ', $sets) . " WHERE id = ?",
             $params
         ) > 0;
@@ -163,10 +163,10 @@ class PageModel
     /**
      * 软删除页面
      */
-    public static function delete(int $id): bool
+    public function delete(int $id): bool
     {
-        $prefix = \Database::prefix();
-        return \Database::execute(
+        $prefix = $this->db->prefix();
+        return $this->db->execute(
             "UPDATE {$prefix}page SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL",
             [$id]
         ) > 0;
@@ -175,10 +175,10 @@ class PageModel
     /**
      * 浏览量 +1（前台访问时调用）
      */
-    public static function incrementViews(int $id): void
+    public function incrementViews(int $id): void
     {
-        $prefix = \Database::prefix();
-        \Database::execute(
+        $prefix = $this->db->prefix();
+        $this->db->execute(
             "UPDATE {$prefix}page SET views_count = views_count + 1 WHERE id = ?",
             [$id]
         );
@@ -189,10 +189,10 @@ class PageModel
      *
      * @return array<int, array{id:int, title:string, slug:string}>
      */
-    public static function getPublishedSimple(int $merchantId = 0): array
+    public function getPublishedSimple(int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT id, title, slug FROM {$prefix}page
              WHERE status = 1 AND merchant_id = ? AND deleted_at IS NULL
              ORDER BY sort ASC, id DESC",
@@ -210,10 +210,10 @@ class PageModel
      *
      * @return array<string,mixed>|null 找不到返回 null
      */
-    public static function getHomepage(int $merchantId): ?array
+    public function getHomepage(int $merchantId): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}page
              WHERE merchant_id = ? AND is_homepage = 1 AND status = 1 AND deleted_at IS NULL
              LIMIT 1",
@@ -230,33 +230,33 @@ class PageModel
      *
      * @return bool 成功 true，找不到 page 或归属不符返回 false
      */
-    public static function setHomepage(int $id, int $merchantId): bool
+    public function setHomepage(int $id, int $merchantId): bool
     {
-        $prefix = \Database::prefix();
-        $page = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $page = $this->db->fetchOne(
             "SELECT id FROM {$prefix}page
              WHERE id = ? AND merchant_id = ? AND deleted_at IS NULL LIMIT 1",
             [$id, $merchantId]
         );
         if (!$page) return false;
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 同 scope 其它页 is_homepage 清零
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}page SET is_homepage = 0
                  WHERE merchant_id = ? AND is_homepage = 1 AND id != ?",
                 [$merchantId, $id]
             );
             // 目标页 is_homepage = 1，同时强制发布状态
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}page SET is_homepage = 1, status = 1 WHERE id = ?",
                 [$id]
             );
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -265,17 +265,17 @@ class PageModel
      * 取消该 scope 的站点首页（清零，回退到 settings 的 homepage_mode）。
      * 不指定 id 时清整个 scope；指定 id 时只清该页（用于"取消首页"按钮）。
      */
-    public static function clearHomepage(int $merchantId, ?int $id = null): bool
+    public function clearHomepage(int $merchantId, ?int $id = null): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         if ($id !== null) {
-            return \Database::execute(
+            return $this->db->execute(
                 "UPDATE {$prefix}page SET is_homepage = 0
                  WHERE id = ? AND merchant_id = ? AND is_homepage = 1",
                 [$id, $merchantId]
             ) >= 0;
         }
-        return \Database::execute(
+        return $this->db->execute(
             "UPDATE {$prefix}page SET is_homepage = 0
              WHERE merchant_id = ? AND is_homepage = 1",
             [$merchantId]

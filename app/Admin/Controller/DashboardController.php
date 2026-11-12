@@ -69,14 +69,14 @@ final class DashboardController extends BaseAdminController
         }
 
         // 授权状态核对挪到这里异步做
-        \App\Service\LicenseService::revalidateCurrent();
+        app(\App\Service\LicenseService::class)->revalidateCurrent();
 
         // 每次都实时拉（接口不通则返回失败态，latency_ms = -1）
         $start = microtime(true);
         $data = null;
         $error = '';
         try {
-            $data = \App\Service\LicenseService::fetchBaseData();
+            $data = app(\App\Service\LicenseService::class)->fetchBaseData();
         } catch (\Throwable $e) {
             $error = $e->getMessage();
         }

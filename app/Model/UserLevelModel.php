@@ -13,7 +13,7 @@ namespace App\Model;
  *
  * 数据存储于 user_levels 表（已在数据库中创建）。
  */
-final class UserLevelModel
+final class UserLevelModel extends Model
 {
     private string $table;
 
@@ -22,7 +22,8 @@ final class UserLevelModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user_levels';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user_levels';
     }
 
     /**
@@ -86,13 +87,13 @@ final class UserLevelModel
                 'SELECT * FROM `%s` ORDER BY `level` ASC, `id` ASC',
                 $this->table
             );
-            $rows = \Database::query($sql, []);
+            $rows = $this->db->query($sql, []);
         } else {
             $sql = sprintf(
                 'SELECT * FROM `%s` WHERE `name` LIKE ? ORDER BY `level` ASC, `id` ASC',
                 $this->table
             );
-            $rows = \Database::query($sql, ['%' . $keyword . '%']);
+            $rows = $this->db->query($sql, ['%' . $keyword . '%']);
         }
 
         foreach ($rows as &$row) {
@@ -109,7 +110,7 @@ final class UserLevelModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$id]);
+        $row = $this->db->fetchOne($sql, [$id]);
         // Database::fetchOne 查不到时返回的是 null，不是 false。
         // 原先判 === false 永远不成立，于是把 null 传给了 transformFromDb()，
         // 在 PHP 8 下抛 TypeError（弹窗接口直接 500）。
@@ -130,10 +131,10 @@ final class UserLevelModel
                 'SELECT `id` FROM `%s` WHERE `name` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$name, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$name, $excludeId]);
         } else {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `name` = ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$name]);
+            $row = $this->db->fetchOne($sql, [$name]);
         }
         return $row !== null;
     }
@@ -148,10 +149,10 @@ final class UserLevelModel
                 'SELECT `id` FROM `%s` WHERE `level` = ? AND `id` != ? LIMIT 1',
                 $this->table
             );
-            $row = \Database::fetchOne($sql, [$level, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$level, $excludeId]);
         } else {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `level` = ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$level]);
+            $row = $this->db->fetchOne($sql, [$level]);
         }
         return $row !== null;
     }
@@ -186,9 +187,9 @@ final class UserLevelModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         return (int) ($row['id'] ?? 0);
     }
 
@@ -225,7 +226,7 @@ final class UserLevelModel
             implode(', ', $sets)
         );
 
-        return \Database::execute($sql, $params) > 0;
+        return $this->db->execute($sql, $params) > 0;
     }
 
     /**
@@ -234,7 +235,7 @@ final class UserLevelModel
     public function delete(int $id): bool
     {
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 
     /**
@@ -246,6 +247,6 @@ final class UserLevelModel
             'UPDATE `%s` SET `enabled` = IF(`enabled` = \'y\', \'n\', \'y\') WHERE `id` = ? LIMIT 1',
             $this->table
         );
-        return \Database::execute($sql, [$id]) > 0;
+        return $this->db->execute($sql, [$id]) > 0;
     }
 }

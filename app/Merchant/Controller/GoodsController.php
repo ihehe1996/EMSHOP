@@ -31,7 +31,7 @@ final class GoodsController extends MerchantBaseController
                 return $cache[$userId];
             }
 
-            $rate = \App\Service\MerchantLedgerService::resolveOwnerDiscountRate($userId);
+            $rate = app(\App\Service\MerchantLedgerService::class)->resolveOwnerDiscountRate($userId);
             $levelName = '';
             $label = '';
             if ($rate < 1.0) {
@@ -194,14 +194,14 @@ final class GoodsController extends MerchantBaseController
                         foreach ($rows as &$row) {
                             $mainMin = (int) $row['min_price'];
                             $mainMax = (int) ($row['max_price'] ?? 0);
-                            $wholesale = \App\Model\GoodsModel::resolveGoodsWholesalePriceRange(
+                            $wholesale = app(\App\Model\GoodsModel::class)->resolveGoodsWholesalePriceRange(
                                 (int) $row['goods_id'],
                                 $ownerUserId,
                                 $discountRate
                             );
                             // 有没有专属拿货价，不能用「算出来是不是 > 0」判断 —— 站长专属价 0 元算出来就是 0，
                             // 按 > 0 判断会当成没配置、回退显示成主站原价，跟实际扣款对不上。
-                            $hasExclusiveWholesale = \App\Model\GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
+                            $hasExclusiveWholesale = app(\App\Model\GoodsModel::class)->goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
                             $costUnit = $hasExclusiveWholesale ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
                             $maxCostUnit = $hasExclusiveWholesale ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
                             $markup = (int) $row['markup_rate'];
@@ -314,7 +314,7 @@ final class GoodsController extends MerchantBaseController
                         if ($keyword !== '') $where['keyword'] = $keyword;
                         if ($isOnSale !== '') $where['is_on_sale'] = (int) $isOnSale;
 
-                        $result = \App\Model\GoodsModel::getList($where, $page, $pageSize, 'g.sort ASC, g.id DESC');
+                        $result = app(\App\Model\GoodsModel::class)->getList($where, $page, $pageSize, 'g.sort ASC, g.id DESC');
                         foreach ($result['list'] as &$row) {
                             $row['cover_image'] = '';
                             if (!empty($row['cover_images'])) {
@@ -343,25 +343,25 @@ final class GoodsController extends MerchantBaseController
 
                     case 'toggle_self_sale': {
                         $id = (int) $this->input->post('id', 0);
-                        $goods = \App\Model\GoodsModel::getById($id);
+                        $goods = app(\App\Model\GoodsModel::class)->getById($id);
                         if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                             $this->response->error('商品不存在或无权限');
                         }
                         $newVal = (int) $goods['is_on_sale'] === 1 ? 0 : 1;
-                        \App\Model\GoodsModel::update($id, ['is_on_sale' => $newVal]);
+                        app(\App\Model\GoodsModel::class)->update($id, ['is_on_sale' => $newVal]);
                         $this->response->success('状态已更新', ['is_on_sale' => $newVal, 'csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
 
                     case 'delete_self': {
                         $id = (int) $this->input->post('id', 0);
-                        $goods = \App\Model\GoodsModel::getById($id);
+                        $goods = app(\App\Model\GoodsModel::class)->getById($id);
                         if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                             $this->response->error('商品不存在或无权限');
                         }
-                        \App\Model\GoodsModel::delete($id);
+                        app(\App\Model\GoodsModel::class)->delete($id);
                         // 自动同步标签计数（软删除后商品被排除）
-                        \App\Model\GoodsTagModel::refreshAllCounts();
+                        app(\App\Model\GoodsTagModel::class)->refreshAllCounts();
                         $this->response->success('删除成功', ['csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
@@ -369,12 +369,12 @@ final class GoodsController extends MerchantBaseController
                     // 切换推荐态（本店内推荐；商户自建商品用）
                     case 'toggle_self_recommend': {
                         $id = (int) $this->input->post('id', 0);
-                        $goods = \App\Model\GoodsModel::getById($id);
+                        $goods = app(\App\Model\GoodsModel::class)->getById($id);
                         if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                             $this->response->error('商品不存在或无权限');
                         }
                         $newVal = (int) $goods['is_recommended'] === 1 ? 0 : 1;
-                        \App\Model\GoodsModel::update($id, ['is_recommended' => $newVal]);
+                        app(\App\Model\GoodsModel::class)->update($id, ['is_recommended' => $newVal]);
                         $this->response->success('状态已更新', ['is_recommended' => $newVal, 'csrf_token' => $this->csrf->refresh()]);
                         break;
                     }
@@ -382,7 +382,7 @@ final class GoodsController extends MerchantBaseController
                     // 克隆自建商品（复制主表行 + 规格；新建行 owner_id 保持为本商户主）
                     case 'clone_self': {
                         $id = (int) $this->input->post('id', 0);
-                        $goods = \App\Model\GoodsModel::getById($id);
+                        $goods = app(\App\Model\GoodsModel::class)->getById($id);
                         if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                             $this->response->error('商品不存在或无权限');
                         }
@@ -412,24 +412,24 @@ final class GoodsController extends MerchantBaseController
                         $failed = 0;
                         foreach ($ids as $gid) {
                             if ($gid <= 0) { $failed++; continue; }
-                            $g = \App\Model\GoodsModel::getById($gid);
+                            $g = app(\App\Model\GoodsModel::class)->getById($gid);
                             if ($g === null || (int) $g['owner_id'] !== $ownerUserId) {
                                 $failed++; continue;
                             }
                             try {
                                 switch ($batchAction) {
-                                    case 'on_sale':      \App\Model\GoodsModel::update($gid, ['is_on_sale' => 1]); break;
-                                    case 'off_sale':     \App\Model\GoodsModel::update($gid, ['is_on_sale' => 0]); break;
-                                    case 'delete':       \App\Model\GoodsModel::delete($gid); break;
-                                    case 'recommend':    \App\Model\GoodsModel::update($gid, ['is_recommended' => 1]); break;
-                                    case 'unrecommend':  \App\Model\GoodsModel::update($gid, ['is_recommended' => 0]); break;
+                                    case 'on_sale':      app(\App\Model\GoodsModel::class)->update($gid, ['is_on_sale' => 1]); break;
+                                    case 'off_sale':     app(\App\Model\GoodsModel::class)->update($gid, ['is_on_sale' => 0]); break;
+                                    case 'delete':       app(\App\Model\GoodsModel::class)->delete($gid); break;
+                                    case 'recommend':    app(\App\Model\GoodsModel::class)->update($gid, ['is_recommended' => 1]); break;
+                                    case 'unrecommend':  app(\App\Model\GoodsModel::class)->update($gid, ['is_recommended' => 0]); break;
                                 }
                             } catch (\Throwable $e) { $failed++; }
                         }
 
                         // 涉及删除批量时同步刷新标签计数
                         if ($batchAction === 'delete') {
-                            \App\Model\GoodsTagModel::refreshAllCounts();
+                            app(\App\Model\GoodsTagModel::class)->refreshAllCounts();
                         }
 
                         if ($failed === 0) {
@@ -470,7 +470,7 @@ final class GoodsController extends MerchantBaseController
                         // 编辑模式：校验 owner_id 归属
                         $existingGoods = null;
                         if ($id > 0) {
-                            $existingGoods = \App\Model\GoodsModel::getById($id);
+                            $existingGoods = app(\App\Model\GoodsModel::class)->getById($id);
                             if ($existingGoods === null || (int) $existingGoods['owner_id'] !== $ownerUserId) {
                                 $this->response->error('商品不存在或无权限');
                             }
@@ -508,7 +508,7 @@ final class GoodsController extends MerchantBaseController
                         if (array_sum($rebate) > 0) $configs['rebate'] = $rebate;
 
                         if ($id > 0) {
-                            $configs = \App\Model\GoodsModel::mergeConfigsOnSave($id, $configs);
+                            $configs = app(\App\Model\GoodsModel::class)->mergeConfigsOnSave($id, $configs);
                         }
 
                         // 必填校验
@@ -565,10 +565,10 @@ final class GoodsController extends MerchantBaseController
 
                         try {
                             if ($id) {
-                                $result = \App\Model\GoodsModel::update($id, $data);
+                                $result = app(\App\Model\GoodsModel::class)->update($id, $data);
                                 $goodsId = $id;
                             } else {
-                                $goodsId = \App\Model\GoodsModel::create($data);
+                                $goodsId = app(\App\Model\GoodsModel::class)->create($data);
                                 $result = $goodsId ? true : false;
                             }
                             if (!$result) $this->response->error('保存失败，请检查是否填写了所有必填项');
@@ -659,9 +659,9 @@ final class GoodsController extends MerchantBaseController
                                 $specName = trim($spec['name']);
                                 $updateData = [
                                     'spec_no' => $spec['spec_no'] ?? '',
-                                    'price' => \App\Model\GoodsModel::moneyToDb($spec['price'] ?? 0),
-                                    'cost_price' => !empty($spec['cost_price']) ? \App\Model\GoodsModel::moneyToDb($spec['cost_price']) : null,
-                                    'market_price' => !empty($spec['market_price']) ? \App\Model\GoodsModel::moneyToDb($spec['market_price']) : null,
+                                    'price' => app(\App\Model\GoodsModel::class)->moneyToDb($spec['price'] ?? 0),
+                                    'cost_price' => !empty($spec['cost_price']) ? app(\App\Model\GoodsModel::class)->moneyToDb($spec['cost_price']) : null,
+                                    'market_price' => !empty($spec['market_price']) ? app(\App\Model\GoodsModel::class)->moneyToDb($spec['market_price']) : null,
                                     'tags' => $tags,
                                     'min_buy' => isset($spec['min_buy']) && $spec['min_buy'] !== '' ? max(1, (int)$spec['min_buy']) : 1,
                                     'max_buy' => isset($spec['max_buy']) && $spec['max_buy'] !== '' ? max(0, (int)$spec['max_buy']) : 0,
@@ -749,7 +749,7 @@ final class GoodsController extends MerchantBaseController
                                 ]);
                             }
 
-                            \App\Model\GoodsModel::updatePriceStockCache($goodsId);
+                            app(\App\Model\GoodsModel::class)->updatePriceStockCache($goodsId);
 
                             // 规格落库后的扩展点：插件据 $specIdMap（表单规格行 index => 落库后的 spec_id）
                             // 把自己随表单提交的规格级数据写进 em_goods_spec.configs（与主站后台同一套钩子）
@@ -760,10 +760,10 @@ final class GoodsController extends MerchantBaseController
                             $goodsTagNames = array_filter(array_map('trim', explode(',', $goodsTagsStr)));
                             $goodsTagIds = [];
                             foreach ($goodsTagNames as $tagName) {
-                                if ($tagName !== '') $goodsTagIds[] = \App\Model\GoodsTagModel::findOrCreate($tagName);
+                                if ($tagName !== '') $goodsTagIds[] = app(\App\Model\GoodsTagModel::class)->findOrCreate($tagName);
                             }
-                            \App\Model\GoodsTagModel::syncGoodsTags($goodsId, $goodsTagIds);
-                            \App\Model\GoodsTagModel::refreshAllCounts();
+                            app(\App\Model\GoodsTagModel::class)->syncGoodsTags($goodsId, $goodsTagIds);
+                            app(\App\Model\GoodsTagModel::class)->refreshAllCounts();
 
                             // 触发商品类型保存钩子
                             $postData = $_POST;
@@ -791,9 +791,9 @@ final class GoodsController extends MerchantBaseController
                     case 'get_specs_json': {
                         $gid = (int) $this->input->post('id', (int) $this->input->get('id', 0));
                         if ($gid <= 0) $this->response->error('商品ID不能为空');
-                        $g = \App\Model\GoodsModel::getById($gid, false);
+                        $g = app(\App\Model\GoodsModel::class)->getById($gid, false);
                         if ($g === null || (int) $g['owner_id'] !== $ownerUserId) $this->response->error('商品不存在或无权限');
-                        $this->response->success('', ['specs' => \App\Model\GoodsModel::getSpecsByGoodsId($gid, false)]);
+                        $this->response->success('', ['specs' => app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($gid, false)]);
                         break;
                     }
 
@@ -818,7 +818,7 @@ final class GoodsController extends MerchantBaseController
                         }
                         $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_spec WHERE id = ?", [$specId]);
                         $this->db->execute("DELETE FROM " . $this->db->prefix() . "goods_spec_combo WHERE spec_id = ?", [$specId]);
-                        if ($gid > 0) \App\Model\GoodsModel::updatePriceStockCache($gid);
+                        if ($gid > 0) app(\App\Model\GoodsModel::class)->updatePriceStockCache($gid);
                         $this->response->success('删除成功', ['csrf_token' => $this->csrf->token()]);
                         break;
                     }
@@ -827,7 +827,7 @@ final class GoodsController extends MerchantBaseController
                     case 'save_stock': {
                         $gid = (int) $this->input->post('goods_id', 0);
                         if ($gid <= 0) $this->response->error('商品ID不能为空');
-                        $g = \App\Model\GoodsModel::getById($gid);
+                        $g = app(\App\Model\GoodsModel::class)->getById($gid);
                         if ($g === null || (int) $g['owner_id'] !== $ownerUserId) $this->response->error('商品不存在或无权限');
 
                         $specStocks = $_POST['spec_stock'] ?? [];
@@ -837,7 +837,7 @@ final class GoodsController extends MerchantBaseController
                             // 那道校验，却在 spec_stock 里带上**别人商品的 spec_id**，
                             // 从而改掉其他商户（乃至主站）商品的库存。
                             $ownedSpecIds = [];
-                            foreach (\App\Model\GoodsModel::getSpecsByGoodsId($gid) as $s) {
+                            foreach (app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($gid) as $s) {
                                 $ownedSpecIds[(int) $s['id']] = true;
                             }
 
@@ -850,7 +850,7 @@ final class GoodsController extends MerchantBaseController
                             }
                         }
                         doAction("goods_type_{$g['goods_type']}_stock_save", $g, $_POST);
-                        \App\Model\GoodsModel::updatePriceStockCache($gid);
+                        app(\App\Model\GoodsModel::class)->updatePriceStockCache($gid);
                         $this->response->success('库存已保存', ['csrf_token' => $this->csrf->token()]);
                         break;
                     }
@@ -861,7 +861,7 @@ final class GoodsController extends MerchantBaseController
                         $gid = (int) $this->input->post('goods_id', 0);
                         $g = null;
                         if ($gid > 0) {
-                            $g = \App\Model\GoodsModel::getById($gid);
+                            $g = app(\App\Model\GoodsModel::class)->getById($gid);
                             // 如果传了 goods_id，校验归属（新建时通常为 0，跳过校验）
                             if ($g !== null && (int) $g['owner_id'] !== $ownerUserId) {
                                 $this->response->error('商品不存在或无权限');
@@ -916,9 +916,9 @@ final class GoodsController extends MerchantBaseController
             $mainMin = (int) $row['min_price'];
             $mainMax = (int) ($row['max_price'] ?? 0);
             $markup = (int) $row['markup_rate'];
-            $wholesale = \App\Model\GoodsModel::resolveGoodsWholesalePriceRange((int) $row['goods_id'], $ownerUserId, $discountRate);
+            $wholesale = app(\App\Model\GoodsModel::class)->resolveGoodsWholesalePriceRange((int) $row['goods_id'], $ownerUserId, $discountRate);
             // 同上：0 元专属拿货价是合法值，用 hasExclusive 判断而不是 > 0
-            $hasExclusiveWholesale = \App\Model\GoodsModel::goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
+            $hasExclusiveWholesale = app(\App\Model\GoodsModel::class)->goodsHasWholesaleExclusivePrice((int) $row['goods_id'], $ownerUserId);
             $cost = $hasExclusiveWholesale ? $wholesale['min'] : mcCalcRefOwnerCost($mainMin, $discountRate);
             $maxCost = $hasExclusiveWholesale ? $wholesale['max'] : mcCalcRefOwnerCost($mainMax, $discountRate);
             if ($maxCost < $cost) {
@@ -942,11 +942,11 @@ final class GoodsController extends MerchantBaseController
             $gid = (int) $this->input->get('id', 0);
             if ($gid <= 0) exit('商品ID不能为空');
             // 库存管理弹窗：用 raw 价，避免库存面板里展示的价被当前登录商户的买家折扣污染
-            $goods = \App\Model\GoodsModel::getById($gid, false);
+            $goods = app(\App\Model\GoodsModel::class)->getById($gid, false);
             if ($goods === null || (int) $goods['owner_id'] !== $ownerUserId) {
                 exit('商品不存在或无权限');
             }
-            $specs = \App\Model\GoodsModel::getSpecsByGoodsId($gid, false);
+            $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($gid, false);
 
             $csrfToken = $this->csrf->token();
             $pageTitle = '库存管理';
@@ -976,12 +976,12 @@ final class GoodsController extends MerchantBaseController
             if ($editId > 0) {
                 // 编辑表单：用 raw 价，把"成交价配置"原值显示给商户，
                 // 不能被当前登录商户账号的买家折扣污染（曾经报过 10 元变 9.9 元的 bug）
-                $g = \App\Model\GoodsModel::getById($editId, false);
+                $g = app(\App\Model\GoodsModel::class)->getById($editId, false);
                 if ($g === null || (int) $g['owner_id'] !== $ownerUserId) {
                     exit('商品不存在或无权限');
                 }
                 $goods = $g;
-                $specs = \App\Model\GoodsModel::getSpecsByGoodsId($editId, false);
+                $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($editId, false);
                 $specDimNames = $this->db->query(
                     'SELECT `name` FROM `' . $this->db->prefix() . 'goods_spec_dim` WHERE `goods_id` = ? ORDER BY `sort` ASC',
                     [$editId]

@@ -75,7 +75,7 @@ class OrderController extends BaseController
         }
 
         // —— 读取商品，用于附加选项/规格校验
-        $goodsRow = \App\Model\GoodsModel::getById($goodsId);
+        $goodsRow = app(\App\Model\GoodsModel::class)->getById($goodsId);
         if (!$goodsRow
             || (int) $goodsRow['status'] !== 1
             || (int) $goodsRow['is_on_sale'] !== 1
@@ -89,7 +89,7 @@ class OrderController extends BaseController
         }
 
         // —— 规格校验：多规格商品必须显式选中一个
-        $allSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
+        $allSpecs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId);
         if (count($allSpecs) > 1 && $specId <= 0) {
             $this->response->error('请选择规格');
         }
@@ -115,13 +115,13 @@ class OrderController extends BaseController
         $orderPassword = trim((string) $this->input->post('guest_find_password_query', ''));
 
         if ($isGuest) {
-            if (\App\Model\GuestFindModel::isContactEnabled()) {
-                $contactError = \App\Model\GuestFindModel::validateContactQuery($contactQuery);
+            if (app(\App\Model\GuestFindModel::class)->isContactEnabled()) {
+                $contactError = app(\App\Model\GuestFindModel::class)->validateContactQuery($contactQuery);
                 if ($contactError !== null) {
                     $this->response->error($contactError);
                 }
             }
-            if (\App\Model\GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
+            if (app(\App\Model\GuestFindModel::class)->isPasswordEnabled() && $orderPassword === '') {
                 $this->response->error('请设置订单密码');
             }
         }
@@ -167,7 +167,7 @@ class OrderController extends BaseController
 
             // 附加选项 → contact_info（含 title 快照）；游客联系方式 → guest_contact
             if (!empty($extraFields)) {
-                $createData['contact_info'] = \App\Model\OrderModel::packExtraContactInfo(
+                $createData['contact_info'] = app(\App\Model\OrderModel::class)->packExtraContactInfo(
                     $goodsConfigs['extra_fields'] ?? [],
                     $extraFields
                 );
@@ -190,11 +190,11 @@ class OrderController extends BaseController
                 $couponService = new \App\Service\CouponService();
                 try {
                     // 商品详情页下单金额 = 单商品价 × 数量
-                    //   price_raw 是 GoodsModel::getSpecsByGoodsId() 动态计算字段（商户站会乘 factor），
+                    //   price_raw 是 app(\App\Model\GoodsModel::class)->getSpecsByGoodsId() 动态计算字段（商户站会乘 factor），
                     //   不能直接 Database::find 查 raw 表（那样只有 price 字段，拿不到带重写的价格）。
                     //   走 GoodsModel 保证和详情页展示价 / OrderModel::create 实扣价三端一致。
                     $priceRaw = 0;
-                    foreach (\App\Model\GoodsModel::getSpecsByGoodsId($goodsId) as $_s) {
+                    foreach (app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId) as $_s) {
                         if ((int) $_s['id'] === $specId) {
                             $priceRaw = (int) ($_s['price_raw'] ?? $_s['price']);
                             break;
@@ -221,22 +221,22 @@ class OrderController extends BaseController
             }
 
             // 返佣归因快照（2 级：直推 / 间推）
-            [$in1, $in2] = \App\Service\RebateService::resolveOrderInviters($identity['user_id']);
+            [$in1, $in2] = app(\App\Service\RebateService::class)->resolveOrderInviters($identity['user_id']);
             if ($in1) $createData['inviter_l1'] = $in1;
             if ($in2) $createData['inviter_l2'] = $in2;
 
             // create() 抛出的 RuntimeException 由外层 catch 统一响应
-            $result = \App\Model\OrderModel::create($createData, [
+            $result = app(\App\Model\OrderModel::class)->create($createData, [
                 ['goods_id' => $goodsId, 'spec_id' => $specId, 'quantity' => $quantity],
             ]);
 
             // 0 元订单：直接标记已支付，不走任何支付插件
             $paidNow = false;
             if ((int) $result['pay_amount'] <= 0) {
-                \App\Model\OrderModel::payFreeOrder((int) $result['order_id']);
+                app(\App\Model\OrderModel::class)->payFreeOrder((int) $result['order_id']);
                 $paidNow = true;
             } elseif ($paymentCode === 'balance' && $identity['user_id'] > 0) {
-                \App\Model\OrderModel::payWithBalance($result['order_id'], $identity['user_id']);
+                app(\App\Model\OrderModel::class)->payWithBalance($result['order_id'], $identity['user_id']);
                 $paidNow = true;
             }
 
@@ -245,8 +245,8 @@ class OrderController extends BaseController
             // 切到 'main' 让插件 Storage::getInstance 读到主站凭证（商户 scope 没存这些凭证）
             $payPayload = ['pay_url' => '', 'qrcode' => ''];
             if (!$paidNow) {
-                $orderRow = \App\Model\OrderModel::getById((int) $result['order_id']);
-                $payPayload = \App\Service\PaymentService::createPaymentPayload($orderRow, $payment);
+                $orderRow = app(\App\Model\OrderModel::class)->getById((int) $result['order_id']);
+                $payPayload = app(\App\Service\PaymentService::class)->createPaymentPayload($orderRow, $payment);
             }
 
             $this->response->success('下单成功', [
@@ -272,7 +272,7 @@ class OrderController extends BaseController
             return [];
         }
 
-        $methods = \App\Service\PaymentService::getMethods();
+        $methods = app(\App\Service\PaymentService::class)->getMethods();
         foreach ($methods as $m) {
             if ($m['code'] === $code) {
                 return $m;

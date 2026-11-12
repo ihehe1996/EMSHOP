@@ -49,17 +49,17 @@ final class BlogEditController extends MerchantBaseController
 
             try {
                 if ($id > 0) {
-                    $existing = \App\Model\BlogModel::getById($id);
+                    $existing = app(\App\Model\BlogModel::class)->getById($id);
                     if (!$existing || (int) $existing['merchant_id'] !== $merchantId) {
                         $this->response->error('文章不存在');
                     }
-                    \App\Model\BlogModel::update($id, $data);
+                    app(\App\Model\BlogModel::class)->update($id, $data);
                     $articleId = $id;
                 } else {
                     $data['user_id']     = (int) ($frontUser['id'] ?? 0);
                     $data['created_by']  = (int) ($frontUser['id'] ?? 0);
                     $data['merchant_id'] = $merchantId;
-                    $articleId = \App\Model\BlogModel::create($data);
+                    $articleId = app(\App\Model\BlogModel::class)->create($data);
                 }
 
                 if (!$articleId) $this->response->error('保存失败');
@@ -70,10 +70,10 @@ final class BlogEditController extends MerchantBaseController
                 $tagIds = [];
                 foreach ($tagNames as $name) {
                     if ($name === '') continue;
-                    $tagIds[] = \App\Model\BlogTagModel::findOrCreate($name, $merchantId);
+                    $tagIds[] = app(\App\Model\BlogTagModel::class)->findOrCreate($name, $merchantId);
                 }
-                \App\Model\BlogTagModel::syncBlogTags($articleId, $tagIds);
-                \App\Model\BlogTagModel::refreshAllCounts();
+                app(\App\Model\BlogTagModel::class)->syncBlogTags($articleId, $tagIds);
+                app(\App\Model\BlogTagModel::class)->refreshAllCounts();
             } catch (\Throwable $e) {
                 $this->response->error('保存失败：' . $e->getMessage());
             }
@@ -85,7 +85,7 @@ final class BlogEditController extends MerchantBaseController
         $id = (int) $this->input->get('id', 0);
         $article = null;
         if ($id > 0) {
-            $article = \App\Model\BlogModel::getById($id);
+            $article = app(\App\Model\BlogModel::class)->getById($id);
             if ($article && (int) $article['merchant_id'] !== $merchantId) {
                 $article = null;
             }

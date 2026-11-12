@@ -247,7 +247,7 @@ final class CliServer
      *
      * 返回值里**总是**包含一条核心自有的 `heartbeat`（能力心跳维护，见 HeartbeatWorker）。
      * 除它以外没有业务 worker 时，`php server start` 会正常驻留但不跑任何业务任务，
-     * 发货改走 OrderModel::triggerDelivery() 的 FPM 同步路径。
+     * 发货改走 app(\App\Model\OrderModel::class)->triggerDelivery() 的 FPM 同步路径。
      *
      * 结果按 type 去重（先注册的赢），并过滤掉格式非法的条目。
      * 核心自有的 type 在插件之前注册，所以插件无法覆盖它们。

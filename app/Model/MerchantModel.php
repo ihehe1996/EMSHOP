@@ -14,14 +14,15 @@ namespace App\Model;
  * 店铺余额（shop_balance）不落在本表，而是在 em_user.shop_balance ——
  * 这样商户主、普通用户共用一张用户表，余额字段自然共享账务视图。
  */
-final class MerchantModel
+final class MerchantModel extends Model
 {
     /** @var string 带前缀完整表名 */
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'merchant';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'merchant';
     }
 
     /**
@@ -38,11 +39,11 @@ final class MerchantModel
 
         [$where, $params] = $this->buildWhere($filter);
 
-        $userTable = \Database::prefix() . 'user';
-        $levelTable = \Database::prefix() . 'merchant_level';
+        $userTable = $this->db->prefix() . 'user';
+        $levelTable = $this->db->prefix() . 'merchant_level';
 
         $countSql = 'SELECT COUNT(*) AS c FROM `' . $this->table . '` m ' . $where;
-        $total = (int) (\Database::fetchOne($countSql, $params)['c'] ?? 0);
+        $total = (int) ($this->db->fetchOne($countSql, $params)['c'] ?? 0);
 
         $sql = 'SELECT m.*,
                        u.username AS user_username,
@@ -57,7 +58,7 @@ final class MerchantModel
                 ' . $where . '
                  ORDER BY m.created_at DESC
                  LIMIT ' . $pageSize . ' OFFSET ' . $offset;
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         return ['data' => $rows, 'total' => $total];
     }
 
@@ -71,8 +72,8 @@ final class MerchantModel
         if ($id <= 0) {
             return null;
         }
-        $userTable = \Database::prefix() . 'user';
-        $levelTable = \Database::prefix() . 'merchant_level';
+        $userTable = $this->db->prefix() . 'user';
+        $levelTable = $this->db->prefix() . 'merchant_level';
         $sql = 'SELECT m.*,
                        u.username AS user_username,
                        u.nickname AS user_nickname,
@@ -85,7 +86,7 @@ final class MerchantModel
              LEFT JOIN `' . $this->table . '` p ON p.id = m.parent_id
                  WHERE m.id = ? AND m.deleted_at IS NULL
                  LIMIT 1';
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -100,7 +101,7 @@ final class MerchantModel
         }
         $sql = 'SELECT * FROM `' . $this->table . '`
                  WHERE `user_id` = ? AND `deleted_at` IS NULL LIMIT 1';
-        return \Database::fetchOne($sql, [$userId]);
+        return $this->db->fetchOne($sql, [$userId]);
     }
 
     /**
@@ -141,15 +142,15 @@ final class MerchantModel
         $insertData['opened_via'] = $insertData['opened_via'] ?? 'admin';
         $insertData['status'] = $insertData['status'] ?? 1;
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $merchantId = \Database::insert('merchant', $insertData);
+            $merchantId = $this->db->insert('merchant', $insertData);
             // 反向绑定到 em_user
-            \Database::update('user', ['merchant_id' => $merchantId], $userId);
-            \Database::commit();
+            $this->db->update('user', ['merchant_id' => $merchantId], $userId);
+            $this->db->commit();
             return $merchantId;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -169,7 +170,7 @@ final class MerchantModel
         if ($update === []) {
             return false;
         }
-        return \Database::update('merchant', $update, $id) > 0;
+        return $this->db->update('merchant', $update, $id) > 0;
     }
 
     /**
@@ -180,7 +181,7 @@ final class MerchantModel
         if ($id <= 0) {
             return false;
         }
-        return \Database::update('merchant', ['status' => $status === 1 ? 1 : 0], $id) > 0;
+        return $this->db->update('merchant', ['status' => $status === 1 ? 1 : 0], $id) > 0;
     }
 
     /**
@@ -194,18 +195,18 @@ final class MerchantModel
         if ($m === null) {
             return false;
         }
-        \Database::begin();
+        $this->db->begin();
         try {
-            \Database::update('merchant', ['deleted_at' => date('Y-m-d H:i:s')], $id);
-            \Database::update('user', ['merchant_id' => 0], (int) $m['user_id']);
-            \Database::execute(
+            $this->db->update('merchant', ['deleted_at' => date('Y-m-d H:i:s')], $id);
+            $this->db->update('user', ['merchant_id' => 0], (int) $m['user_id']);
+            $this->db->execute(
                 'UPDATE `' . $this->table . '` SET `parent_id` = 0 WHERE `parent_id` = ?',
                 [$id]
             );
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -221,11 +222,11 @@ final class MerchantModel
         if ($excludeId > 0) {
             $sql = 'SELECT `id` FROM `' . $this->table . '`
                      WHERE `' . $field . '` = ? AND `id` != ? AND `deleted_at` IS NULL LIMIT 1';
-            $row = \Database::fetchOne($sql, [$value, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$value, $excludeId]);
         } else {
             $sql = 'SELECT `id` FROM `' . $this->table . '`
                      WHERE `' . $field . '` = ? AND `deleted_at` IS NULL LIMIT 1';
-            $row = \Database::fetchOne($sql, [$value]);
+            $row = $this->db->fetchOne($sql, [$value]);
         }
         return $row !== null;
     }

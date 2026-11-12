@@ -8,8 +8,8 @@ $esc = function (string $s) use (&$esc): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
-$typeOptions  = \App\Model\CouponModel::typeOptions();
-$scopeOptions = \App\Model\CouponModel::scopeOptions();
+$typeOptions  = app(\App\Model\CouponModel::class)->typeOptions();
+$scopeOptions = app(\App\Model\CouponModel::class)->scopeOptions();
 
 $cur = [
     'code'              => $isEdit ? (string) $editRow['code'] : '',

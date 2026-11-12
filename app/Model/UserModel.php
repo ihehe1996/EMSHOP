@@ -13,7 +13,7 @@ namespace App\Model;
  *
  * 当前模型只处理后台管理员登录相关查询，前台用户登录后续单独扩展。
  */
-final class UserModel
+final class UserModel extends Model
 {
     /**
      * @var string
@@ -22,7 +22,8 @@ final class UserModel
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user';
     }
 
     /**
@@ -39,7 +40,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, [
+        return $this->db->fetchOne($sql, [
             'status' => 1,
             'role' => 'admin',
             'username' => $account,
@@ -61,7 +62,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, [
+        return $this->db->fetchOne($sql, [
             'status' => 1,
             'role' => 'admin',
             'remember_token' => hash('sha256', $token),
@@ -82,7 +83,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, [
+        return $this->db->fetchOne($sql, [
             'id' => $userId,
             'status' => 1,
             'role' => 'admin',
@@ -104,7 +105,7 @@ final class UserModel
             $this->table
         );
 
-        \Database::execute($sql, [
+        $this->db->execute($sql, [
             'id' => $userId,
             'last_login_ip' => $ip,
             'remember_token' => $rememberHash,
@@ -129,7 +130,7 @@ final class UserModel
             $this->table
         );
 
-        \Database::execute($sql, ['id' => $userId]);
+        $this->db->execute($sql, ['id' => $userId]);
     }
 
     /**
@@ -144,7 +145,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['id' => $userId]);
+        return $this->db->fetchOne($sql, ['id' => $userId]);
     }
 
     /**
@@ -177,7 +178,7 @@ final class UserModel
             implode(', ', $sets)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
     }
 
     /**
@@ -193,7 +194,7 @@ final class UserModel
             $this->table
         );
 
-        \Database::execute($sql, [
+        $this->db->execute($sql, [
             'id' => $userId,
             'password' => $hashedPassword,
         ]);
@@ -209,7 +210,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['email' => $email, 'id' => $excludeUserId]) !== null;
+        return $this->db->fetchOne($sql, ['email' => $email, 'id' => $excludeUserId]) !== null;
     }
 
     /**
@@ -225,7 +226,7 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['mobile' => $mobile, 'id' => $excludeUserId]) !== null;
+        return $this->db->fetchOne($sql, ['mobile' => $mobile, 'id' => $excludeUserId]) !== null;
     }
 
     /**
@@ -238,6 +239,6 @@ final class UserModel
             $this->table
         );
 
-        return \Database::fetchOne($sql, ['username' => $username, 'id' => $excludeUserId]) !== null;
+        return $this->db->fetchOne($sql, ['username' => $username, 'id' => $excludeUserId]) !== null;
     }
 }

@@ -262,7 +262,7 @@ abstract class BaseController extends \App\Core\AbstractController
      */
     public static function formatStockText(int $stock): string
     {
-        return \App\Service\FrontDataService::formatStockText($stock);
+        return app(\App\Service\FrontDataService::class)->formatStockText($stock);
     }
 
     /**
@@ -274,7 +274,7 @@ abstract class BaseController extends \App\Core\AbstractController
      */
     protected static function resolveOriginalPrice(?array $spec): ?float
     {
-        return \App\Service\FrontDataService::resolveOriginalPrice($spec);
+        return app(\App\Service\FrontDataService::class)->resolveOriginalPrice($spec);
     }
 
 }

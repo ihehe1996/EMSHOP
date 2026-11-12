@@ -36,7 +36,7 @@ final class WalletController extends UserBaseController
 
         // 充值可用的支付方式（排除"余额支付"，不能自己给自己充值）
         $paymentMethods = array_values(array_filter(
-            \App\Service\PaymentService::getMethods(),
+            app(\App\Service\PaymentService::class)->getMethods(),
             static fn(array $m): bool => ($m['code'] ?? '') !== 'balance'
         ));
 

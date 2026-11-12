@@ -19,7 +19,7 @@ if (!defined('EM_ROOT')) {
  *
  * @package EM\Core\Model
  */
-class UserAddressModel
+class UserAddressModel extends Model
 {
     /** 单用户最多地址数（防滥用）；前端 & 控制器双层限制 */
     public const MAX_PER_USER = 20;
@@ -29,10 +29,10 @@ class UserAddressModel
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function listByUserId(int $userId): array
+    public function listByUserId(int $userId): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT * FROM {$prefix}user_address WHERE user_id = ? ORDER BY is_default DESC, id DESC",
             [$userId]
         );
@@ -43,10 +43,10 @@ class UserAddressModel
      *
      * @return array<string, mixed>|null
      */
-    public static function getDefault(int $userId): ?array
+    public function getDefault(int $userId): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}user_address WHERE user_id = ? ORDER BY is_default DESC, id DESC LIMIT 1",
             [$userId]
         );
@@ -58,10 +58,10 @@ class UserAddressModel
      *
      * @return array<string, mixed>|null
      */
-    public static function findById(int $id, int $userId): ?array
+    public function findById(int $id, int $userId): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT * FROM {$prefix}user_address WHERE id = ? AND user_id = ?",
             [$id, $userId]
         );
@@ -71,10 +71,10 @@ class UserAddressModel
     /**
      * 用户地址条数（给 Controller 做 MAX_PER_USER 限制时用）。
      */
-    public static function countByUserId(int $userId): int
+    public function countByUserId(int $userId): int
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$prefix}user_address WHERE user_id = ?",
             [$userId]
         );
@@ -88,21 +88,21 @@ class UserAddressModel
      *
      * @return int 新记录 id
      */
-    public static function create(int $userId, array $data): int
+    public function create(int $userId, array $data): int
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $isDefault = (int) ($data['is_default'] ?? 0) === 1 ? 1 : 0;
 
-        \Database::begin();
+        $this->db->begin();
         try {
             if ($isDefault === 1) {
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$prefix}user_address SET is_default = 0 WHERE user_id = ? AND is_default = 1",
                     [$userId]
                 );
             }
             // Database::insert() 内部自动加前缀，这里传裸表名
-            $id = \Database::insert('user_address', [
+            $id = $this->db->insert('user_address', [
                 'user_id'   => $userId,
                 'recipient' => (string) ($data['recipient'] ?? ''),
                 'mobile'    => (string) ($data['mobile']    ?? ''),
@@ -112,10 +112,10 @@ class UserAddressModel
                 'detail'    => (string) ($data['detail']    ?? ''),
                 'is_default'=> $isDefault,
             ]);
-            \Database::commit();
+            $this->db->commit();
             return $id;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -125,21 +125,21 @@ class UserAddressModel
      *
      * @return bool 是否命中
      */
-    public static function update(int $id, int $userId, array $data): bool
+    public function update(int $id, int $userId, array $data): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $isDefault = (int) ($data['is_default'] ?? 0) === 1 ? 1 : 0;
 
-        \Database::begin();
+        $this->db->begin();
         try {
             if ($isDefault === 1) {
                 // 升级为默认：先清空该用户所有默认标记
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$prefix}user_address SET is_default = 0 WHERE user_id = ? AND is_default = 1",
                     [$userId]
                 );
             }
-            $affected = \Database::execute(
+            $affected = $this->db->execute(
                 "UPDATE {$prefix}user_address SET
                     recipient = ?, mobile = ?, province = ?, city = ?, district = ?, detail = ?, is_default = ?
                  WHERE id = ? AND user_id = ?",
@@ -155,10 +155,10 @@ class UserAddressModel
                     $userId,
                 ]
             );
-            \Database::commit();
+            $this->db->commit();
             return $affected > 0;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }
@@ -166,10 +166,10 @@ class UserAddressModel
     /**
      * 硬删除地址（owner 校验内置）。
      */
-    public static function delete(int $id, int $userId): bool
+    public function delete(int $id, int $userId): bool
     {
-        $prefix = \Database::prefix();
-        $affected = \Database::execute(
+        $prefix = $this->db->prefix();
+        $affected = $this->db->execute(
             "DELETE FROM {$prefix}user_address WHERE id = ? AND user_id = ?",
             [$id, $userId]
         );
@@ -180,23 +180,23 @@ class UserAddressModel
      * 把指定地址设为默认：事务里把其他置 0，再把当前置 1。
      * owner 校验：id 不属于 user 时第二步 update 命中 0 行，自动失败。
      */
-    public static function setDefault(int $id, int $userId): bool
+    public function setDefault(int $id, int $userId): bool
     {
-        $prefix = \Database::prefix();
-        \Database::begin();
+        $prefix = $this->db->prefix();
+        $this->db->begin();
         try {
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}user_address SET is_default = 0 WHERE user_id = ? AND is_default = 1",
                 [$userId]
             );
-            $affected = \Database::execute(
+            $affected = $this->db->execute(
                 "UPDATE {$prefix}user_address SET is_default = 1 WHERE id = ? AND user_id = ?",
                 [$id, $userId]
             );
-            \Database::commit();
+            $this->db->commit();
             return $affected > 0;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             throw $e;
         }
     }

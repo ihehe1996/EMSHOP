@@ -56,7 +56,7 @@ final class PageEditController extends MerchantBaseController
             if (in_array($slug, $reserved, true)) {
                 $this->response->error('URL 别名 "' . $slug . '" 是系统保留字，请换一个');
             }
-            if (\App\Model\PageModel::slugExists($slug, $id, $merchantId)) {
+            if (app(\App\Model\PageModel::class)->slugExists($slug, $id, $merchantId)) {
                 $this->response->error('URL 别名 "' . $slug . '" 在本店已被占用');
             }
             if ($templateName !== '' && !preg_match('/^[a-z0-9_\-]+$/', $templateName)) {
@@ -77,15 +77,15 @@ final class PageEditController extends MerchantBaseController
 
             try {
                 if ($id) {
-                    $existing = \App\Model\PageModel::getById($id);
+                    $existing = app(\App\Model\PageModel::class)->getById($id);
                     if (!$existing || (int) $existing['merchant_id'] !== $merchantId) {
                         $this->response->error('页面不存在');
                     }
-                    \App\Model\PageModel::update($id, $data);
+                    app(\App\Model\PageModel::class)->update($id, $data);
                     $pageId = $id;
                 } else {
                     $data['merchant_id'] = $merchantId;
-                    $pageId = \App\Model\PageModel::create($data);
+                    $pageId = app(\App\Model\PageModel::class)->create($data);
                 }
                 if (!$pageId) $this->response->error('保存失败');
             } catch (\Throwable $e) {
@@ -97,7 +97,7 @@ final class PageEditController extends MerchantBaseController
 
         // 渲染弹窗
         $id = (int) $this->input->get('id', 0);
-        $pageRow = $id ? \App\Model\PageModel::getById($id) : null;
+        $pageRow = $id ? app(\App\Model\PageModel::class)->getById($id) : null;
         if ($pageRow && (int) $pageRow['merchant_id'] !== $merchantId) {
             $pageRow = null;
         }

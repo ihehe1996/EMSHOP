@@ -34,12 +34,13 @@ Env::load(EM_ROOT);
 // 只注册自动加载，先不 init 整站（主进程不需要连数据库）
 require_once EM_ROOT . '/bootstrap/Autoloader.php';
 Autoloader::register([
-    EM_ROOT . '/include/cli',
-    EM_ROOT . '/include/lib',
-    EM_ROOT . '/include/model',
-    EM_ROOT . '/include/service',
-    EM_ROOT . '/include/controller',
+    EM_ROOT . '/app/Vendor',
 ]);
+
+// 全局短名别名 + app() 解析助手（管家进程不加载 init 时也要能解析服务）
+require_once EM_ROOT . '/bootstrap/aliases.php';
+em_register_facade_aliases();
+require_once EM_ROOT . '/app/helpers/app.php';
 
 // $argv[0]=脚本路径，$argv[1]=命令，$argv[2]=更多参数
 // 例：php server start  → $command = 'start'

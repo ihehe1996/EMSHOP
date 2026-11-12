@@ -12,7 +12,7 @@ if (!defined('EM_ROOT')) {
  * 管理标签 CRUD 和商品-标签关联关系。
  * goods_count 为冗余字段，通过 refreshAllCounts() 刷新。
  */
-class GoodsTagModel
+class GoodsTagModel extends Model
 {
     // ============================================================
     // 标签 CRUD
@@ -21,10 +21,10 @@ class GoodsTagModel
     /**
      * 获取所有标签（按 sort ASC, id ASC 排序）
      */
-    public static function getAll(): array
+    public function getAll(): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT * FROM {$prefix}goods_tag ORDER BY sort ASC, id ASC"
         );
     }
@@ -32,9 +32,9 @@ class GoodsTagModel
     /**
      * 后台标签列表（分页 + 搜索）
      */
-    public static function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
+    public function getAdminList(array $where = [], int $page = 1, int $limit = 20): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = [];
         $params = [];
 
@@ -45,14 +45,14 @@ class GoodsTagModel
 
         $whereSql = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
-        $total = \Database::fetchOne(
+        $total = $this->db->fetchOne(
             "SELECT COUNT(*) as count FROM {$prefix}goods_tag {$whereSql}",
             $params
         );
         $totalCount = (int) ($total['count'] ?? 0);
 
         $offset = ($page - 1) * $limit;
-        $list = \Database::query(
+        $list = $this->db->query(
             "SELECT * FROM {$prefix}goods_tag {$whereSql} ORDER BY sort ASC, id ASC LIMIT {$offset}, {$limit}",
             $params
         );
@@ -68,20 +68,20 @@ class GoodsTagModel
     /**
      * 根据 ID 获取标签
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne("SELECT * FROM {$prefix}goods_tag WHERE id = ?", [$id]);
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne("SELECT * FROM {$prefix}goods_tag WHERE id = ?", [$id]);
         return $row ?: null;
     }
 
     /**
      * 根据名称获取标签
      */
-    public static function getByName(string $name): ?array
+    public function getByName(string $name): ?array
     {
-        $prefix = \Database::prefix();
-        $row = \Database::fetchOne("SELECT * FROM {$prefix}goods_tag WHERE name = ?", [$name]);
+        $prefix = $this->db->prefix();
+        $row = $this->db->fetchOne("SELECT * FROM {$prefix}goods_tag WHERE name = ?", [$name]);
         return $row ?: null;
     }
 
@@ -90,56 +90,56 @@ class GoodsTagModel
      *
      * @return int 新标签 ID
      */
-    public static function create(array $data): int
+    public function create(array $data): int
     {
         $data['created_at'] = date('Y-m-d H:i:s');
-        return \Database::insert('goods_tag', $data);
+        return $this->db->insert('goods_tag', $data);
     }
 
     /**
      * 更新标签
      */
-    public static function update(int $id, array $data): bool
+    public function update(int $id, array $data): bool
     {
-        return \Database::update('goods_tag', $data, $id) !== false;
+        return $this->db->update('goods_tag', $data, $id) !== false;
     }
 
     /**
      * 删除标签（同时删除关联）
      */
-    public static function delete(int $id): bool
+    public function delete(int $id): bool
     {
-        $prefix = \Database::prefix();
-        \Database::execute("DELETE FROM {$prefix}goods_tag_relation WHERE tag_id = ?", [$id]);
-        return \Database::execute("DELETE FROM {$prefix}goods_tag WHERE id = ?", [$id]) > 0;
+        $prefix = $this->db->prefix();
+        $this->db->execute("DELETE FROM {$prefix}goods_tag_relation WHERE tag_id = ?", [$id]);
+        return $this->db->execute("DELETE FROM {$prefix}goods_tag WHERE id = ?", [$id]) > 0;
     }
 
     /**
      * 检查标签名是否已存在
      */
-    public static function nameExists(string $name, int $excludeId = 0): bool
+    public function nameExists(string $name, int $excludeId = 0): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $sql = "SELECT id FROM {$prefix}goods_tag WHERE name = ?";
         $params = [$name];
         if ($excludeId > 0) {
             $sql .= ' AND id != ?';
             $params[] = $excludeId;
         }
-        return \Database::fetchOne($sql, $params) !== null;
+        return $this->db->fetchOne($sql, $params) !== null;
     }
 
     /**
      * 按名称查找或创建标签，返回标签 ID
      */
-    public static function findOrCreate(string $name): int
+    public function findOrCreate(string $name): int
     {
         $name = trim($name);
-        $existing = self::getByName($name);
+        $existing = $this->getByName($name);
         if ($existing) {
             return (int) $existing['id'];
         }
-        return self::create(['name' => $name]);
+        return $this->create(['name' => $name]);
     }
 
     // ============================================================
@@ -149,10 +149,10 @@ class GoodsTagModel
     /**
      * 获取商品的所有标签
      */
-    public static function getTagsByGoodsId(int $goodsId): array
+    public function getTagsByGoodsId(int $goodsId): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT t.* FROM {$prefix}goods_tag t
              INNER JOIN {$prefix}goods_tag_relation r ON t.id = r.tag_id
              WHERE r.goods_id = ?
@@ -164,12 +164,12 @@ class GoodsTagModel
     /**
      * 获取多个商品的标签（批量，返回 goods_id => [tags] 映射）
      */
-    public static function getTagsByGoodsIds(array $goodsIds): array
+    public function getTagsByGoodsIds(array $goodsIds): array
     {
         if (empty($goodsIds)) return [];
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($goodsIds), '?'));
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT r.goods_id, t.id, t.name, t.color FROM {$prefix}goods_tag t
              INNER JOIN {$prefix}goods_tag_relation r ON t.id = r.tag_id
              WHERE r.goods_id IN ({$placeholders})
@@ -186,12 +186,12 @@ class GoodsTagModel
     /**
      * 同步商品的标签（先删旧关联，再插入新关联）
      */
-    public static function syncGoodsTags(int $goodsId, array $tagIds): void
+    public function syncGoodsTags(int $goodsId, array $tagIds): void
     {
-        $prefix = \Database::prefix();
-        \Database::execute("DELETE FROM {$prefix}goods_tag_relation WHERE goods_id = ?", [$goodsId]);
+        $prefix = $this->db->prefix();
+        $this->db->execute("DELETE FROM {$prefix}goods_tag_relation WHERE goods_id = ?", [$goodsId]);
         foreach (array_unique(array_filter($tagIds)) as $tagId) {
-            \Database::insert('goods_tag_relation', [
+            $this->db->insert('goods_tag_relation', [
                 'goods_id' => $goodsId,
                 'tag_id'   => (int) $tagId,
             ]);
@@ -201,10 +201,10 @@ class GoodsTagModel
     /**
      * 刷新所有标签的 goods_count
      */
-    public static function refreshAllCounts(): void
+    public function refreshAllCounts(): void
     {
-        $prefix = \Database::prefix();
-        \Database::execute(
+        $prefix = $this->db->prefix();
+        $this->db->execute(
             "UPDATE {$prefix}goods_tag t SET t.goods_count = (
                 SELECT COUNT(DISTINCT r.goods_id)
                 FROM {$prefix}goods_tag_relation r
@@ -217,10 +217,10 @@ class GoodsTagModel
     /**
      * 获取热门标签（按商品数量排序）
      */
-    public static function getPopularTags(int $limit = 20): array
+    public function getPopularTags(int $limit = 20): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT * FROM {$prefix}goods_tag WHERE goods_count > 0
              ORDER BY goods_count DESC, sort ASC, id ASC
              LIMIT ?",

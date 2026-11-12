@@ -13,13 +13,14 @@ namespace App\Model;
  *
  * 数据存储于 language 表。
  */
-final class LanguageModel
+final class LanguageModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'language';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'language';
     }
 
     /**
@@ -30,7 +31,7 @@ final class LanguageModel
     public function getAll(): array
     {
         $sql = sprintf('SELECT * FROM `%s` ORDER BY `id` ASC', $this->table);
-        return \Database::query($sql, []);
+        return $this->db->query($sql, []);
     }
 
     /**
@@ -40,12 +41,12 @@ final class LanguageModel
      */
     public function getEnabled(): array
     {
-        return \Cache::remember('language:list', 'language', function (): array {
+        return $this->cache->remember('language:list', 'language', function (): array {
             $sql = sprintf(
                 'SELECT * FROM `%s` WHERE `enabled` = \'y\' ORDER BY `id` ASC',
                 $this->table
             );
-            return \Database::query($sql, []);
+            return $this->db->query($sql, []);
         }, 86400);
     }
 
@@ -57,7 +58,7 @@ final class LanguageModel
     public function findById(int $id): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$id]);
+        $row = $this->db->fetchOne($sql, [$id]);
         return $row !== false ? $row : null;
     }
 
@@ -69,7 +70,7 @@ final class LanguageModel
     public function findByCode(string $code): ?array
     {
         $sql = sprintf('SELECT * FROM `%s` WHERE `code` = ? LIMIT 1', $this->table);
-        $row = \Database::fetchOne($sql, [$code]);
+        $row = $this->db->fetchOne($sql, [$code]);
         return $row !== false ? $row : null;
     }
 
@@ -80,10 +81,10 @@ final class LanguageModel
     {
         if ($excludeId > 0) {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `code` = ? AND `id` != ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$code, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$code, $excludeId]);
         } else {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `code` = ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$code]);
+            $row = $this->db->fetchOne($sql, [$code]);
         }
         return $row !== null;
     }
@@ -95,10 +96,10 @@ final class LanguageModel
     {
         if ($excludeId > 0) {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `name` = ? AND `id` != ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$name, $excludeId]);
+            $row = $this->db->fetchOne($sql, [$name, $excludeId]);
         } else {
             $sql = sprintf('SELECT `id` FROM `%s` WHERE `name` = ? LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, [$name]);
+            $row = $this->db->fetchOne($sql, [$name]);
         }
         return $row !== null;
     }
@@ -131,9 +132,9 @@ final class LanguageModel
             implode(', ', $placeholders)
         );
 
-        \Database::execute($sql, $params);
+        $this->db->execute($sql, $params);
 
-        $row = \Database::fetchOne('SELECT LAST_INSERT_ID() AS id', []);
+        $row = $this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', []);
         $newId = (int) ($row['id'] ?? 0);
 
         // 如果设为默认，先清除其他默认
@@ -141,7 +142,7 @@ final class LanguageModel
             $this->clearDefaultExcept($newId);
         }
 
-        \Cache::deleteGroup('language');
+        $this->cache->deleteGroup('language');
 
         return $newId;
     }
@@ -177,14 +178,14 @@ final class LanguageModel
             implode(', ', $sets)
         );
 
-        $result = \Database::execute($sql, $params) > 0;
+        $result = $this->db->execute($sql, $params) > 0;
 
         // 如果设为默认，先清除其他默认
         if ($result && isset($data['is_default']) && $data['is_default'] === 'y') {
             $this->clearDefaultExcept($id);
         }
 
-        \Cache::deleteGroup('language');
+        $this->cache->deleteGroup('language');
 
         return $result;
     }
@@ -198,7 +199,7 @@ final class LanguageModel
             'UPDATE `%s` SET `is_default` = \'n\' WHERE `id` != ? AND `is_default` = \'y\'',
             $this->table
         );
-        \Database::execute($sql, [$excludeId]);
+        $this->db->execute($sql, [$excludeId]);
     }
 
     /**
@@ -208,9 +209,9 @@ final class LanguageModel
      */
     public function getDefault(): ?array
     {
-        return \Cache::remember('language:default', 'language', function (): ?array {
+        return $this->cache->remember('language:default', 'language', function (): ?array {
             $sql = sprintf('SELECT * FROM `%s` WHERE `is_default` = \'y\' LIMIT 1', $this->table);
-            $row = \Database::fetchOne($sql, []);
+            $row = $this->db->fetchOne($sql, []);
             return $row !== false ? $row : null;
         }, 86400);
     }
@@ -222,10 +223,10 @@ final class LanguageModel
     {
         // 外键级联删除 lang 表中的翻译
         $sql = sprintf('DELETE FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        $result = \Database::execute($sql, [$id]) > 0;
+        $result = $this->db->execute($sql, [$id]) > 0;
         if ($result) {
-            \Cache::deleteGroup('language');
-            \Cache::deleteGroup('lang');
+            $this->cache->deleteGroup('language');
+            $this->cache->deleteGroup('lang');
         }
         return $result;
     }
@@ -239,9 +240,9 @@ final class LanguageModel
             'UPDATE `%s` SET `enabled` = IF(`enabled` = \'y\', \'n\', \'y\') WHERE `id` = ? LIMIT 1',
             $this->table
         );
-        $result = \Database::execute($sql, [$id]) > 0;
+        $result = $this->db->execute($sql, [$id]) > 0;
         if ($result) {
-            \Cache::deleteGroup('language');
+            $this->cache->deleteGroup('language');
         }
         return $result;
     }
@@ -252,7 +253,7 @@ final class LanguageModel
     public function count(): int
     {
         $sql = sprintf('SELECT COUNT(*) AS cnt FROM `%s`', $this->table);
-        $row = \Database::fetchOne($sql, []);
+        $row = $this->db->fetchOne($sql, []);
         return (int) ($row['cnt'] ?? 0);
     }
 }

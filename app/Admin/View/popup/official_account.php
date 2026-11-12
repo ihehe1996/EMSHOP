@@ -2,7 +2,7 @@
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
-/** @var array<string, mixed> $officialAccount 见 LicenseService::officialAccount()，未登录为空数组 */
+/** @var array<string, mixed> $officialAccount 见 app(\App\Service\LicenseService::class)->officialAccount()，未登录为空数组 */
 /** @var string $csrfToken */
 
 $pageTitle = '管理官方账号';

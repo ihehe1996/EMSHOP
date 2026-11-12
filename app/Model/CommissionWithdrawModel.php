@@ -11,13 +11,14 @@ namespace App\Model;
 /**
  * 佣金提现记录模型（em_commission_withdraw）。
  */
-class CommissionWithdrawModel
+class CommissionWithdrawModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'commission_withdraw';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'commission_withdraw';
     }
 
     public function insert(array $data): int
@@ -31,7 +32,7 @@ class CommissionWithdrawModel
             'remark'         => (string) ($data['remark'] ?? ''),
             'created_at'     => date('Y-m-d H:i:s'),
         ];
-        return (int) \Database::insert('commission_withdraw', $row);
+        return (int) $this->db->insert('commission_withdraw', $row);
     }
 
     /**
@@ -47,14 +48,14 @@ class CommissionWithdrawModel
         }
         $whereSql = implode(' AND ', $where);
 
-        $countRow = \Database::fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM {$this->table} WHERE {$whereSql}", $params);
         $total = (int) ($countRow['cnt'] ?? 0);
         $totalPages = max(1, (int) ceil($total / $perPage));
         if ($page > $totalPages) $page = $totalPages;
         if ($page < 1) $page = 1;
         $offset = ($page - 1) * $perPage;
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT * FROM {$this->table} WHERE {$whereSql} ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             $params
         );

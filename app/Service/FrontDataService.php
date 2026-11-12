@@ -23,7 +23,7 @@ namespace App\Service;
  * goodsRefSpecColumnSql / resolvePersonalizedMinPrice / buildCategoryTree 等调用因此无需改动，
  * 对敏感代码的改动面为零。服务本身无状态，实例可安全复用。
  */
-final class FrontDataService
+final class FrontDataService extends BaseService
 {
     /**
      * 取当前 scope 的店铺公告（富文本 + 显示位置数组）。
@@ -35,18 +35,18 @@ final class FrontDataService
      */
     public function getCurrentAnnouncement(): array
     {
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
         if ($merchantId > 0) {
-            $row = \Database::fetchOne(
-                'SELECT `announcement`, `announcement_positions` FROM `' . \Database::prefix() . 'merchant`
+            $row = $this->db->fetchOne(
+                'SELECT `announcement`, `announcement_positions` FROM `' . $this->db->prefix() . 'merchant`
                   WHERE `id` = ? LIMIT 1',
                 [$merchantId]
             );
             $html = (string) ($row['announcement'] ?? '');
             $posStr = (string) ($row['announcement_positions'] ?? '');
         } else {
-            $html = (string) (\Config::get('shop_announcement') ?? '');
-            $posStr = (string) (\Config::get('shop_announcement_positions') ?? '');
+            $html = (string) ($this->config->get('shop_announcement') ?? '');
+            $posStr = (string) ($this->config->get('shop_announcement_positions') ?? '');
         }
         $positions = array_values(array_filter(array_map('trim', explode(',', $posStr))));
         return ['html' => $html, 'positions' => $positions];
@@ -62,7 +62,7 @@ final class FrontDataService
      */
     public function queryGoodsList(array $where = [], int $limit = 8, string $orderBy = 'g.sort ASC, g.id DESC'): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = ['g.status = 1', 'g.is_on_sale = 1', 'g.deleted_at IS NULL'];
         // 分开收集：JOIN 里的 ? 要绑的参数放 $joinParams，WHERE 里的放 $whereParams；
         // 最终 SQL 里 JOIN 排在 WHERE 之前，参数也按 joinParams ++ whereParams 顺序拼接。
@@ -112,7 +112,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (\MerchantContext::currentId() > 0)
+            $conditions[] = ($this->merchantContext->currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }
@@ -148,18 +148,18 @@ final class FrontDataService
                 WHERE {$whereSql}
                 ORDER BY {$orderBy}{$limitTail}";
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         $list = [];
-        [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
+        [$buyerId] = app(\App\Model\GoodsModel::class)->resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
-            $minPrice = (float) \App\Model\GoodsModel::moneyFromDb($row['min_price']);
+            $minPrice = (float) app(\App\Model\GoodsModel::class)->moneyFromDb($row['min_price']);
             if ($buyerId > 0) {
                 $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
             }
             $marketPrice = $row['default_market_price']
-                ? (float) \App\Model\GoodsModel::moneyFromDb($row['default_market_price'])
+                ? (float) app(\App\Model\GoodsModel::class)->moneyFromDb($row['default_market_price'])
                 : null;
 
             $covers = json_decode($row['cover_images'] ?? '[]', true) ?: [];
@@ -169,7 +169,7 @@ final class FrontDataService
             //   2) filter 没响应 → 兜底读 goods_type_register 注册的 delivery_type 字段（physical 静态 manual 走这条）
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
             if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
-                $typeCfg = \GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
+                $typeCfg = $this->goodsTypeManager->getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];
                 }
@@ -184,7 +184,7 @@ final class FrontDataService
                 // stock 是原始整数，供 JS/业务逻辑判断是否有货
                 'stock'          => $stock,
                 // stock_text 是展示文字（核心默认千分位；插件可通过 goods_stock_display 过滤器重写）
-                'stock_text'     => self::formatStockText($stock),
+                'stock_text'     => $this->formatStockText($stock),
                 'sold'           => (int) $row['total_sold'],
                 'goods_type'     => $row['goods_type'] ?? 'default',
                 'delivery_type'  => $deliveryType,     // '' / 'auto' / 'manual'
@@ -200,7 +200,7 @@ final class FrontDataService
      */
     public function goodsRefSpecColumnSql(string $column): string
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         if (!preg_match('/^[a-z_]+$/', $column)) {
             $column = 'market_price';
         }
@@ -241,7 +241,7 @@ final class FrontDataService
      */
     public function queryGoodsListPaginated(array $where = [], int $page = 1, int $perPage = 20, string $orderBy = 'g.sort ASC, g.id DESC'): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = ['g.status = 1', 'g.is_on_sale = 1', 'g.deleted_at IS NULL'];
         // 分开收集 JOIN / WHERE 两类占位符参数；最终拼 params 前者在前后者在后
         $joinParams = [];
@@ -274,7 +274,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (\MerchantContext::currentId() > 0)
+            $conditions[] = ($this->merchantContext->currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }
@@ -299,7 +299,7 @@ final class FrontDataService
 
         // 查询总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}goods g{$join} WHERE {$whereSql}";
-        $countRow = \Database::fetchOne($countSql, $params);
+        $countRow = $this->db->fetchOne($countSql, $params);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -318,18 +318,18 @@ final class FrontDataService
                 ORDER BY {$orderBy}
                 LIMIT {$perPage} OFFSET {$offset}";
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         $list = [];
-        [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
+        [$buyerId] = app(\App\Model\GoodsModel::class)->resolveBuyerIdentity();
         foreach ($rows as $row) {
             $this->rewritePriceFactor($row);
 
-            $minPrice = (float) \App\Model\GoodsModel::moneyFromDb($row['min_price']);
+            $minPrice = (float) app(\App\Model\GoodsModel::class)->moneyFromDb($row['min_price']);
             if ($buyerId > 0) {
                 $minPrice = $this->resolvePersonalizedMinPrice((int) $row['id'], $minPrice);
             }
             $marketPrice = $row['default_market_price']
-                ? (float) \App\Model\GoodsModel::moneyFromDb($row['default_market_price'])
+                ? (float) app(\App\Model\GoodsModel::class)->moneyFromDb($row['default_market_price'])
                 : null;
 
             $covers = json_decode($row['cover_images'] ?? '[]', true) ?: [];
@@ -337,7 +337,7 @@ final class FrontDataService
             // 发货类型解析（同 queryGoodsList）：filter 优先，没响应时兜底读 goods_type_register 注册的 delivery_type
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
             if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
-                $typeCfg = \GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
+                $typeCfg = $this->goodsTypeManager->getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];
                 }
@@ -352,7 +352,7 @@ final class FrontDataService
                 // stock 是原始整数，供 JS/业务逻辑判断是否有货
                 'stock'          => $stock,
                 // stock_text 是展示文字（核心默认千分位；插件可通过 goods_stock_display 过滤器重写）
-                'stock_text'     => self::formatStockText($stock),
+                'stock_text'     => $this->formatStockText($stock),
                 'sold'           => (int) $row['total_sold'],
                 'goods_type'     => $row['goods_type'] ?? 'default',
                 'delivery_type'  => $deliveryType,     // '' / 'auto' / 'manual'
@@ -383,14 +383,14 @@ final class FrontDataService
      */
     private function applyMerchantScope(array &$conditions, array &$whereParams, array &$joinParams): array
     {
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
         if ($merchantId <= 0) {
             // 主站前台：只看主站自营商品（owner_id=0），避免商户自建商品漏到主站前台
             $conditions[] = 'g.owner_id = 0';
             return ['', ''];
         }
-        $ownerUserId = \MerchantContext::currentOwnerId();
-        $prefix = \Database::prefix();
+        $ownerUserId = $this->merchantContext->currentOwnerId();
+        $prefix = $this->db->prefix();
 
         // JOIN 里的 ? 在最终 SQL 中排在 WHERE 之前，参数必须写入 $joinParams
         $join = " LEFT JOIN {$prefix}goods_merchant_ref mgr ON mgr.goods_id = g.id AND mgr.merchant_id = ?";
@@ -424,14 +424,14 @@ final class FrontDataService
      */
     private function rewritePriceFactor(array &$row): void
     {
-        $buyerDiscount = \App\Model\GoodsModel::resolveBuyerDiscountRate();
+        $buyerDiscount = app(\App\Model\GoodsModel::class)->resolveBuyerDiscountRate();
         $factor = $buyerDiscount;
 
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
         if ($merchantId > 0 && (int) ($row['owner_id'] ?? 0) === 0) {
             $markup = isset($row['mgr_markup_rate']) && $row['mgr_markup_rate'] !== null
                 ? (int) $row['mgr_markup_rate']
-                : self::resolveMerchantDefaultMarkup($merchantId);
+                : $this->resolveMerchantDefaultMarkup($merchantId);
             $factor = 1 + $markup / 10000;
         }
         // 商户站的自建商品（owner = ownerUserId）和主站作用域，都只乘 buyer_discount
@@ -452,12 +452,12 @@ final class FrontDataService
      * 读取商户默认加价率（万分位）。同一请求内缓存。
      * 没配 / 读不到 → 1000（10%，InstallService 的默认值）。
      */
-    private static function resolveMerchantDefaultMarkup(int $merchantId): int
+    private function resolveMerchantDefaultMarkup(int $merchantId): int
     {
         static $cache = [];
         if (isset($cache[$merchantId])) return $cache[$merchantId];
-        $row = \Database::fetchOne(
-            'SELECT `default_markup_rate` FROM `' . \Database::prefix() . 'merchant` WHERE `id` = ? LIMIT 1',
+        $row = $this->db->fetchOne(
+            'SELECT `default_markup_rate` FROM `' . $this->db->prefix() . 'merchant` WHERE `id` = ? LIMIT 1',
             [$merchantId]
         );
         return $cache[$merchantId] = (int) ($row['default_markup_rate'] ?? 1000);
@@ -472,7 +472,7 @@ final class FrontDataService
         if (isset($cache[$goodsId])) {
             return $cache[$goodsId];
         }
-        $specs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
+        $specs = app(\App\Model\GoodsModel::class)->getSpecsByGoodsId($goodsId);
         if ($specs === []) {
             return $cache[$goodsId] = $fallback;
         }
@@ -499,9 +499,9 @@ final class FrontDataService
      */
     public function queryArticleList(array $where = [], int $limit = 6): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         // 前台按当前 MerchantContext 过滤：主站只看主站文章，商户只看自己的文章
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
         $conditions = ['a.status = 1', 'a.deleted_at IS NULL', 'a.merchant_id = ?'];
         $params = [$merchantId];
 
@@ -527,7 +527,7 @@ final class FrontDataService
                 ORDER BY a.is_top DESC, a.sort ASC, a.id DESC
                 LIMIT {$limit}";
 
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         $list = [];
         $blogIds = [];
         foreach ($rows as $row) {
@@ -547,7 +547,7 @@ final class FrontDataService
 
         // 批量加载标签
         if ($blogIds) {
-            $tagMap = \App\Model\BlogTagModel::getTagsByBlogIds($blogIds);
+            $tagMap = app(\App\Model\BlogTagModel::class)->getTagsByBlogIds($blogIds);
             foreach ($list as &$item) {
                 $item['tags'] = $tagMap[$item['id']] ?? [];
             }
@@ -567,9 +567,9 @@ final class FrontDataService
      */
     public function queryArticleListPaginated(array $where = [], int $page = 1, int $perPage = 10): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         // 前台按当前 MerchantContext 过滤
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
         $conditions = ['a.status = 1', 'a.deleted_at IS NULL', 'a.merchant_id = ?'];
         $params = [$merchantId];
 
@@ -610,7 +610,7 @@ final class FrontDataService
 
         // 查询总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}blog a {$joinTag} WHERE {$whereSql}";
-        $countRow = \Database::fetchOne($countSql, $bindings);
+        $countRow = $this->db->fetchOne($countSql, $bindings);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -629,7 +629,7 @@ final class FrontDataService
                 ORDER BY a.is_top DESC, a.sort ASC, a.id DESC
                 LIMIT {$perPage} OFFSET {$offset}";
 
-        $rows = \Database::query($sql, $bindings);
+        $rows = $this->db->query($sql, $bindings);
         $list = [];
         $blogIds = [];
         foreach ($rows as $row) {
@@ -649,7 +649,7 @@ final class FrontDataService
 
         // 批量加载标签
         if ($blogIds) {
-            $tagMap = \App\Model\BlogTagModel::getTagsByBlogIds($blogIds);
+            $tagMap = app(\App\Model\BlogTagModel::class)->getTagsByBlogIds($blogIds);
             foreach ($list as &$item) {
                 $item['tags'] = $tagMap[$item['id']] ?? [];
             }
@@ -677,8 +677,8 @@ final class FrontDataService
      */
     public function getGoodsSidebarData(): array
     {
-        $prefix = \Database::prefix();
-        $merchantId = \MerchantContext::currentId();
+        $prefix = $this->db->prefix();
+        $merchantId = $this->merchantContext->currentId();
 
         // ---- 主站分类（商户上下文下应用别名 + 隐藏 + 商品计数限定 source=main） ----
         if ($merchantId > 0) {
@@ -697,7 +697,7 @@ final class FrontDataService
                       AND (mcm.is_hidden IS NULL OR mcm.is_hidden = 0)
                     GROUP BY c.id
                     ORDER BY c.sort ASC, c.id ASC";
-            $mainRows = \Database::query($sql, [$merchantId]);
+            $mainRows = $this->db->query($sql, [$merchantId]);
             foreach ($mainRows as &$r) {
                 $r['source'] = 'main';
                 // 商户后台设了别名 → 用别名；否则用主站原名
@@ -705,7 +705,7 @@ final class FrontDataService
             }
             unset($r);
         } else {
-            $mainRows = \Database::query(
+            $mainRows = $this->db->query(
                 "SELECT c.id, c.parent_id, c.name, c.slug, c.icon, c.cover_image, COUNT(g.id) as goods_count
                  FROM {$prefix}goods_category c
                  LEFT JOIN {$prefix}goods g ON g.category_id = c.id
@@ -723,7 +723,7 @@ final class FrontDataService
         // ---- 商户自建分类（仅商户上下文）----
         $merchantRows = [];
         if ($merchantId > 0) {
-            $merchantRows = \Database::query(
+            $merchantRows = $this->db->query(
                 "SELECT c.id, c.parent_id, c.name, '' AS slug, c.icon, '' AS cover_image,
                         COUNT(g.id) as goods_count
                  FROM {$prefix}merchant_category c
@@ -750,7 +750,7 @@ final class FrontDataService
 
         return [
             'goods_categories' => $tree,
-            'popular_tags'     => \App\Model\GoodsTagModel::getPopularTags(20),
+            'popular_tags'     => app(\App\Model\GoodsTagModel::class)->getPopularTags(20),
         ];
     }
 
@@ -787,10 +787,10 @@ final class FrontDataService
      */
     public function getBlogSidebarData(): array
     {
-        $prefix = \Database::prefix();
-        $merchantId = \MerchantContext::currentId();
+        $prefix = $this->db->prefix();
+        $merchantId = $this->merchantContext->currentId();
         // 分类 + 各分类文章数（仅统计已发布未删除的文章），全部按当前 merchant_id 过滤
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT c.id, c.parent_id, c.name, c.icon, COUNT(a.id) as article_count
              FROM {$prefix}blog_category c
              LEFT JOIN {$prefix}blog a ON a.category_id = c.id
@@ -821,7 +821,7 @@ final class FrontDataService
 
         return [
             'blog_categories'   => $tree,
-            'popular_blog_tags' => \App\Model\BlogTagModel::getPopularTags(20, $merchantId),
+            'popular_blog_tags' => app(\App\Model\BlogTagModel::class)->getPopularTags(20, $merchantId),
         ];
     }
 
@@ -835,7 +835,7 @@ final class FrontDataService
      * @param int $stock 原始库存数量（整数）
      * @return string 展示文本
      */
-    public static function formatStockText(int $stock): string
+    public function formatStockText(int $stock): string
     {
         $default = number_format($stock);
         $filtered = applyFilter('goods_stock_display', $stock);
@@ -850,7 +850,7 @@ final class FrontDataService
      *
      * @param array<string, mixed>|null $spec
      */
-    public static function resolveOriginalPrice(?array $spec): ?float
+    public function resolveOriginalPrice(?array $spec): ?float
     {
         if (!$spec || empty($spec['market_price'])) {
             return null;

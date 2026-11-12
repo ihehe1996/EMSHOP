@@ -21,13 +21,14 @@ namespace App\Model;
  *   - listByMerchant / purchasedCodes / isPurchased — 商户后台读已购清单
  *   - create — 留给后续购买功能实现时调
  */
-final class AppPurchaseModel
+final class AppPurchaseModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'app_purchase';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'app_purchase';
     }
 
     /**
@@ -55,7 +56,7 @@ final class AppPurchaseModel
         $paidAmount    = (int) ($data['paid_amount'] ?? 0);
         $balanceLogId  = (int) ($data['balance_log_id'] ?? 0);
 
-        \Database::execute(
+        $this->db->execute(
             'INSERT INTO `' . $this->table . '`
                 (`merchant_id`, `user_id`, `app_code`, `type`,
                  `market_id`, `paid_amount`, `balance_log_id`, `purchased_at`)
@@ -65,7 +66,7 @@ final class AppPurchaseModel
                 $marketId, $paidAmount, $balanceLogId,
             ]
         );
-        return (int) (\Database::fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
+        return (int) ($this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
     }
 
     /**
@@ -85,7 +86,7 @@ final class AppPurchaseModel
               LIMIT 1',
             $this->table
         );
-        return \Database::fetchOne($sql, [$merchantId, $appCode, $type]);
+        return $this->db->fetchOne($sql, [$merchantId, $appCode, $type]);
     }
 
     /**
@@ -112,7 +113,7 @@ final class AppPurchaseModel
             $params[] = $type;
         }
         $sql .= ' ORDER BY `purchased_at` DESC';
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     /**
@@ -125,12 +126,12 @@ final class AppPurchaseModel
         if ($merchantId <= 0 || !in_array($type, ['plugin', 'template'], true)) {
             return [];
         }
-        $rows = \Database::query(
+        $rows = $this->db->query(
             'SELECT `app_code` FROM `' . $this->table . '`
               WHERE `merchant_id` = ? AND `type` = ?',
             [$merchantId, $type]
         );
-        return array_map(static fn ($r) => (string) $r['app_code'], $rows);
+        return array_map(fn ($r) => (string) $r['app_code'], $rows);
     }
 
     /**
@@ -139,7 +140,7 @@ final class AppPurchaseModel
     public function countByMarket(int $marketId): int
     {
         if ($marketId <= 0) return 0;
-        $row = \Database::fetchOne(
+        $row = $this->db->fetchOne(
             'SELECT COUNT(*) AS c FROM `' . $this->table . '` WHERE `market_id` = ?',
             [$marketId]
         );

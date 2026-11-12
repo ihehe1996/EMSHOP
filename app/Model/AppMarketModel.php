@@ -21,15 +21,16 @@ namespace App\Model;
  *   分站购买扣库存的 SELECT … FOR UPDATE / 事务边界由调用 Service 控制(分站购买功能暂未上线),
  *   本类只提供原子的 incrementConsumed / addQuota 单 SQL 操作。
  */
-final class AppMarketModel
+final class AppMarketModel extends Model
 {
     private string $table;
     private string $logTable;
 
     public function __construct()
     {
-        $this->table    = \Database::prefix() . 'app_market';
-        $this->logTable = \Database::prefix() . 'app_market_log';
+        parent::__construct();
+        $this->table    = $this->db->prefix() . 'app_market';
+        $this->logTable = $this->db->prefix() . 'app_market_log';
     }
 
     // -----------------------------------------------------------------
@@ -47,7 +48,7 @@ final class AppMarketModel
             return null;
         }
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? LIMIT 1', $this->table);
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -64,7 +65,7 @@ final class AppMarketModel
             'SELECT * FROM `%s` WHERE `app_code` = ? AND `type` = ? LIMIT 1',
             $this->table
         );
-        return \Database::fetchOne($sql, [$appCode, $type]);
+        return $this->db->fetchOne($sql, [$appCode, $type]);
     }
 
     /**
@@ -78,7 +79,7 @@ final class AppMarketModel
             return null;
         }
         $sql = sprintf('SELECT * FROM `%s` WHERE `id` = ? FOR UPDATE', $this->table);
-        return \Database::fetchOne($sql, [$id]);
+        return $this->db->fetchOne($sql, [$id]);
     }
 
     /**
@@ -96,11 +97,11 @@ final class AppMarketModel
         [$where, $params] = $this->buildWhere($filter);
 
         $countSql = 'SELECT COUNT(*) AS c FROM `' . $this->table . '` ' . $where;
-        $total = (int) (\Database::fetchOne($countSql, $params)['c'] ?? 0);
+        $total = (int) ($this->db->fetchOne($countSql, $params)['c'] ?? 0);
 
         $sql = 'SELECT * FROM `' . $this->table . '` ' . $where
              . ' ORDER BY `updated_at` DESC LIMIT ' . $pageSize . ' OFFSET ' . $offset;
-        $rows = \Database::query($sql, $params);
+        $rows = $this->db->query($sql, $params);
         return ['data' => $rows, 'total' => $total];
     }
 
@@ -119,7 +120,7 @@ final class AppMarketModel
             $params[] = $type;
         }
         $sql .= ' ORDER BY `updated_at` DESC';
-        return \Database::query($sql, $params);
+        return $this->db->query($sql, $params);
     }
 
     // -----------------------------------------------------------------
@@ -157,7 +158,7 @@ final class AppMarketModel
                 $params[] = (int) $existing['id'];
                 $sql = 'UPDATE `' . $this->table . '` SET ' . implode(', ', $sets)
                      . ' WHERE `id` = ? LIMIT 1';
-                \Database::execute($sql, $params);
+                $this->db->execute($sql, $params);
             }
             return (int) $existing['id'];
         }
@@ -173,8 +174,8 @@ final class AppMarketModel
         }
         $sql = 'INSERT INTO `' . $this->table . '` (' . implode(',', $cols) . ')'
              . ' VALUES (' . implode(',', $placeholders) . ')';
-        \Database::execute($sql, $params);
-        return (int) (\Database::fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
+        $this->db->execute($sql, $params);
+        return (int) ($this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
     }
 
     /**
@@ -203,7 +204,7 @@ final class AppMarketModel
         $totalCost = $costPerUnit * $qty;
 
         // 更新 market:total_quota 累加;cost_price 缓存最近单价;last_purchased_at 更新
-        \Database::execute(
+        $this->db->execute(
             'UPDATE `' . $this->table . '`
                 SET `total_quota` = `total_quota` + ?,
                     `cost_price` = ?,
@@ -213,7 +214,7 @@ final class AppMarketModel
         );
 
         // 写流水
-        \Database::execute(
+        $this->db->execute(
             'INSERT INTO `' . $this->logTable . '`
                 (`market_id`, `app_code`, `type`, `purchase_qty`, `cost_per_unit`,
                  `total_cost`, `remote_order_no`, `remark`)
@@ -229,7 +230,7 @@ final class AppMarketModel
                 $remark,
             ]
         );
-        return (int) (\Database::fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
+        return (int) ($this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
     }
 
     /**
@@ -242,7 +243,7 @@ final class AppMarketModel
         if ($marketId <= 0) {
             throw new \InvalidArgumentException('marketId 非法');
         }
-        \Database::execute(
+        $this->db->execute(
             'UPDATE `' . $this->table . '`
                 SET `consumed_quota` = `consumed_quota` + 1
               WHERE `id` = ? LIMIT 1',
@@ -258,7 +259,7 @@ final class AppMarketModel
         if ($marketId <= 0 || $price < 0) {
             return false;
         }
-        return \Database::execute(
+        return $this->db->execute(
             'UPDATE `' . $this->table . '` SET `retail_price` = ? WHERE `id` = ? LIMIT 1',
             [$price, $marketId]
         ) > 0;
@@ -273,7 +274,7 @@ final class AppMarketModel
         if ($marketId <= 0) {
             return false;
         }
-        return \Database::execute(
+        return $this->db->execute(
             'UPDATE `' . $this->table . '` SET `is_listed` = ? WHERE `id` = ? LIMIT 1',
             [$listed ? 1 : 0, $marketId]
         ) > 0;
@@ -290,7 +291,7 @@ final class AppMarketModel
             return false;
         }
 
-        $affected = \Database::execute(
+        $affected = $this->db->execute(
             'DELETE FROM `' . $this->table . '` WHERE `id` = ? LIMIT 1',
             [$marketId]
         );
@@ -299,7 +300,7 @@ final class AppMarketModel
         }
 
         if ($deleteLogs) {
-            \Database::execute(
+            $this->db->execute(
                 'DELETE FROM `' . $this->logTable . '` WHERE `market_id` = ?',
                 [$marketId]
             );
@@ -326,7 +327,7 @@ final class AppMarketModel
                   WHERE `market_id` = ?
                   ORDER BY `id` DESC
                   LIMIT ' . $limit;
-        return \Database::query($sql, [$marketId]);
+        return $this->db->query($sql, [$marketId]);
     }
 
     // -----------------------------------------------------------------

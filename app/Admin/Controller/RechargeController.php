@@ -58,7 +58,7 @@ final class RechargeController extends BaseAdminController
                 // 走 PaymentService 拿当前可用支付方式元数据去解析）
                 $paymentMap = [];
                 try {
-                    foreach (\App\Service\PaymentService::getMethods() as $m) {
+                    foreach (app(\App\Service\PaymentService::class)->getMethods() as $m) {
                         $code = (string) ($m['code'] ?? '');
                         if ($code !== '') {
                             $paymentMap[$code] = [

@@ -13,13 +13,14 @@ namespace App\Model;
  *
  * 记录分站站长在商户端应用商店的购买流水（当前仅余额支付）。
  */
-final class AppOrderModel
+final class AppOrderModel extends Model
 {
     private string $table;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'app_order';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'app_order';
     }
 
     /**
@@ -56,7 +57,7 @@ final class AppOrderModel
             throw new \InvalidArgumentException('应用类型非法');
         }
 
-        \Database::execute(
+        $this->db->execute(
             'INSERT INTO `' . $this->table . '`
                 (`order_no`, `merchant_id`, `user_id`, `market_id`, `app_code`, `type`,
                  `app_title`, `amount`, `pay_method`, `status`,
@@ -70,7 +71,7 @@ final class AppOrderModel
             ]
         );
 
-        return (int) (\Database::fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
+        return (int) ($this->db->fetchOne('SELECT LAST_INSERT_ID() AS id', [])['id'] ?? 0);
     }
 
     /**
@@ -87,10 +88,10 @@ final class AppOrderModel
 
         [$whereSql, $params] = $this->buildWhere($filter);
 
-        $merchantTable = \Database::prefix() . 'merchant';
-        $userTable = \Database::prefix() . 'user';
+        $merchantTable = $this->db->prefix() . 'merchant';
+        $userTable = $this->db->prefix() . 'user';
 
-        $count = (int) (\Database::fetchOne(
+        $count = (int) ($this->db->fetchOne(
             'SELECT COUNT(*) AS c
                FROM `' . $this->table . '` ao
                LEFT JOIN `' . $merchantTable . '` m ON m.id = ao.merchant_id
@@ -99,7 +100,7 @@ final class AppOrderModel
             $params
         )['c'] ?? 0);
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             'SELECT ao.*,
                     m.name AS merchant_name,
                     u.username, u.nickname

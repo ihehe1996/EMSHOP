@@ -52,7 +52,7 @@ function mpay_show_status_text(string $status, bool $isRecharge): string
         return $map[$status] ?? ($status !== '' ? $status : '未知状态');
     }
 
-    return \App\Model\OrderModel::statusName($status);
+    return app(\App\Model\OrderModel::class)->statusName($status);
 }
 
 function mpay_show_channel_label(string $paymentCode): string
@@ -110,7 +110,7 @@ function mpay_show_trade_context(string $orderNo): array
         ];
     }
 
-    $order = \App\Model\OrderModel::getByOrderNo($orderNo);
+    $order = app(\App\Model\OrderModel::class)->getByOrderNo($orderNo);
     if (!$order) {
         throw new RuntimeException('订单不存在');
     }
@@ -129,7 +129,7 @@ function mpay_show_trade_context(string $orderNo): array
     }
 
     $items = [];
-    foreach (\App\Model\OrderModel::getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
+    foreach (app(\App\Model\OrderModel::class)->getOrderGoods((int) ($order['id'] ?? 0)) as $og) {
         $items[] = [
             'title' => (string) ($og['goods_title'] ?? ''),
             'spec' => (string) ($og['spec_name'] ?? ''),

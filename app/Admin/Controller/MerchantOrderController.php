@@ -101,7 +101,7 @@ final class MerchantOrderController extends BaseAdminController
                 // 支付方式 code → image 映射（订单表存了 payment_name 但没存 image，得走 PaymentService 取）
                 $paymentImageMap = [];
                 try {
-                    foreach (\App\Service\PaymentService::getMethods() as $m) {
+                    foreach (app(\App\Service\PaymentService::class)->getMethods() as $m) {
                         $code = (string) ($m['code'] ?? '');
                         if ($code !== '') {
                             $paymentImageMap[$code] = (string) ($m['image'] ?? '');
@@ -115,7 +115,7 @@ final class MerchantOrderController extends BaseAdminController
                 foreach ($rows as &$row) {
                     $row['goods_amount_fmt'] = number_format((float) bcdiv((string) ($row['goods_amount'] ?? 0), '1000000', 2), 2, '.', ',');
                     $row['pay_amount_fmt'] = number_format((float) bcdiv((string) ($row['pay_amount'] ?? 0), '1000000', 2), 2, '.', ',');
-                    $row['status_name'] = \App\Model\OrderModel::statusName((string) $row['status']);
+                    $row['status_name'] = app(\App\Model\OrderModel::class)->statusName((string) $row['status']);
                     $row['payment_image'] = $paymentImageMap[(string) ($row['payment_code'] ?? '')] ?? '';
                     $row['goods'] = [];
                     $row['goods_count'] = 0;

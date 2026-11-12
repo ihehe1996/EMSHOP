@@ -11,15 +11,16 @@ namespace App\Model;
 /**
  * 用户余额变动记录模型。
  */
-class UserBalanceLogModel
+class UserBalanceLogModel extends Model
 {
     private string $table;
     private string $userTable;
 
     public function __construct()
     {
-        $this->table = \Database::prefix() . 'user_balance_log';
-        $this->userTable = \Database::prefix() . 'user';
+        parent::__construct();
+        $this->table = $this->db->prefix() . 'user_balance_log';
+        $this->userTable = $this->db->prefix() . 'user';
     }
 
     /**
@@ -38,15 +39,15 @@ class UserBalanceLogModel
             return false;
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
             // 查询当前余额（加锁）
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT money FROM {$this->userTable} WHERE id = ? FOR UPDATE",
                 [$userId]
             );
             if ($row === null) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return false;
             }
 
@@ -54,7 +55,7 @@ class UserBalanceLogModel
             $after = $before + $amount;
 
             // 更新余额
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$this->userTable} SET money = ? WHERE id = ?",
                 [$after, $userId]
             );
@@ -62,10 +63,10 @@ class UserBalanceLogModel
             // 写入日志
             $this->insertLog($userId, 'increase', $amount, $before, $after, $remark, $operatorId, $operatorName);
 
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             return false;
         }
     }
@@ -81,35 +82,35 @@ class UserBalanceLogModel
             return false;
         }
 
-        \Database::begin();
+        $this->db->begin();
         try {
-            $row = \Database::fetchOne(
+            $row = $this->db->fetchOne(
                 "SELECT money FROM {$this->userTable} WHERE id = ? FOR UPDATE",
                 [$userId]
             );
             if ($row === null) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return false;
             }
 
             $before = (int) $row['money'];
             $after = $before - $amount;
             if ($after < 0) {
-                \Database::rollBack();
+                $this->db->rollBack();
                 return false;
             }
 
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$this->userTable} SET money = ? WHERE id = ?",
                 [$after, $userId]
             );
 
             $this->insertLog($userId, 'decrease', $amount, $before, $after, $remark, $operatorId, $operatorName);
 
-            \Database::commit();
+            $this->db->commit();
             return true;
         } catch (\Throwable $e) {
-            \Database::rollBack();
+            $this->db->rollBack();
             return false;
         }
     }
@@ -121,7 +122,7 @@ class UserBalanceLogModel
      */
     public function getListByUser(int $userId, int $page = 1, int $perPage = 15): array
     {
-        $countRow = \Database::fetchOne(
+        $countRow = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM {$this->table} WHERE user_id = ?",
             [$userId]
         );
@@ -130,7 +131,7 @@ class UserBalanceLogModel
         $page = max(1, min($page, $totalPages));
         $offset = ($page - 1) * $perPage;
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT * FROM {$this->table} WHERE user_id = ? ORDER BY id DESC LIMIT {$perPage} OFFSET {$offset}",
             [$userId]
         );
@@ -150,7 +151,7 @@ class UserBalanceLogModel
     {
         $sql = "INSERT INTO {$this->table} (user_id, type, amount, before_balance, after_balance, remark, operator_id, operator_name, ip)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        \Database::execute($sql, [
+        $this->db->execute($sql, [
             $userId, $type, $amount, $before, $after,
             $remark, $operatorId, $operatorName,
             $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',

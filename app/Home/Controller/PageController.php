@@ -28,7 +28,7 @@ class PageController extends BaseController
         $page = null;
         if ($slug !== '' && preg_match('/^[a-z0-9_\-]+$/', $slug)) {
             // 限定到当前 scope：主站只能看主站页面，商户只能看自己的页面
-            $page = \App\Model\PageModel::getBySlug($slug, $this->merchantContext->currentId());
+            $page = app(\App\Model\PageModel::class)->getBySlug($slug, $this->merchantContext->currentId());
         }
 
         if ($page === null) {
@@ -38,7 +38,7 @@ class PageController extends BaseController
         }
 
         // 浏览量 +1
-        \App\Model\PageModel::incrementViews((int) $page['id']);
+        app(\App\Model\PageModel::class)->incrementViews((int) $page['id']);
 
         // 确定模板名（View::renderBody 会先查主题目录，找不到再查 default/）
         $templateName = $this->resolveTemplate(

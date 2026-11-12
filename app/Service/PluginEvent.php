@@ -38,7 +38,7 @@ namespace App\Service;
  * 事件按时间清理（默认保留 7 天）。游标落后于清理范围时，那些事件就永久错过了 ——
  * 订阅方如果在意，应该在启用时把游标跳到 latestId()。
  */
-final class PluginEvent
+final class PluginEvent extends BaseService
 {
     /** 清理时保留多少天的事件 */
     public const RETAIN_DAYS = 7;
@@ -50,7 +50,7 @@ final class PluginEvent
      * @param array<int, mixed>  $args  位置参数数组，顺序与订阅方钩子签名一致
      * @return int 事件 id（写失败返回 0）
      */
-    public static function publish(string $event, array $args = []): int
+    public function publish(string $event, array $args = []): int
     {
         $event = trim($event);
         if ($event === '') {
@@ -63,7 +63,7 @@ final class PluginEvent
         }
 
         try {
-            return (int) \Database::insert('plugin_event', [
+            return (int) $this->db->insert('plugin_event', [
                 'event'      => $event,
                 'args'       => $json,
                 'created_at' => date('Y-m-d H:i:s'),
@@ -84,7 +84,7 @@ final class PluginEvent
      * @param int    $limit   一批最多取多少条
      * @return list<array{id: int, args: array<int, mixed>}>
      */
-    public static function since(string $event, int $afterId, int $limit = 50): array
+    public function since(string $event, int $afterId, int $limit = 50): array
     {
         $event = trim($event);
         if ($event === '') {
@@ -93,8 +93,8 @@ final class PluginEvent
         $limit = max(1, min(500, $limit));
 
         try {
-            $rows = \Database::query(
-                'SELECT `id`, `args` FROM `' . \Database::prefix() . 'plugin_event`
+            $rows = $this->db->query(
+                'SELECT `id`, `args` FROM `' . $this->db->prefix() . 'plugin_event`
                  WHERE `event` = ? AND `id` > ?
                  ORDER BY `id` ASC LIMIT ?',
                 [$event, max(0, $afterId), $limit]
@@ -120,15 +120,15 @@ final class PluginEvent
      *
      * @param string $event 事件名；传空字符串则取全表最新
      */
-    public static function latestId(string $event = ''): int
+    public function latestId(string $event = ''): int
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         try {
             if (trim($event) === '') {
-                $row = \Database::fetchOne("SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event`");
+                $row = $this->db->fetchOne("SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event`");
             } else {
-                $row = \Database::fetchOne(
+                $row = $this->db->fetchOne(
                     "SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event` WHERE `event` = ?",
                     [trim($event)]
                 );
@@ -148,13 +148,13 @@ final class PluginEvent
      *
      * @return int 删除的行数
      */
-    public static function cleanup(int $retainDays = self::RETAIN_DAYS): int
+    public function cleanup(int $retainDays = self::RETAIN_DAYS): int
     {
         $retainDays = max(1, $retainDays);
 
         try {
-            return (int) \Database::execute(
-                'DELETE FROM `' . \Database::prefix() . 'plugin_event`
+            return (int) $this->db->execute(
+                'DELETE FROM `' . $this->db->prefix() . 'plugin_event`
                  WHERE `created_at` < DATE_SUB(NOW(), INTERVAL ? DAY)',
                 [$retainDays]
             );

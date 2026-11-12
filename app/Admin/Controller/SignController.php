@@ -8,7 +8,7 @@ namespace App\Admin\Controller;
  * 新后台登录页（/admin/sign）。
  *
  *   - 已登录直接进后台首页
- *   - POST 校验 CSRF 后交给 AuthService::attemptAdminLogin()
+ *   - POST 校验 CSRF 后交给 app(\App\Service\AuthService::class)->attemptAdminLogin()
  *   - 登录成功进入 /admin/home，失败时重新渲染页面并显示错误
  *
  * 旧后台的 admin_entry_key 安全入口已随旧后台一起废弃，本页不再校验 ?s= 参数。

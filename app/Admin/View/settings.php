@@ -823,7 +823,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <div class="layui-form-item">
                             <label class="layui-form-label">联系方式类型</label>
                             <div class="layui-input-block">
-                                <?php echo formRadio('guest_find_contact_type', \App\Model\GuestFindModel::getContactTypeOptions(), $cfg['guest_find_contact_type'] ?? 'any'); ?>
+                                <?php echo formRadio('guest_find_contact_type', app(\App\Model\GuestFindModel::class)->getContactTypeOptions(), $cfg['guest_find_contact_type'] ?? 'any'); ?>
                             </div>
                             <div class="layui-form-mid layui-word-aux">"任意"表示不限制类型；选定具体类型后将做格式校验</div>
                         </div>

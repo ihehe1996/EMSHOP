@@ -3,7 +3,7 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 $csrfToken = Csrf::token();
-$typeOptions = \App\Model\CouponModel::typeOptions();
+$typeOptions = app(\App\Model\CouponModel::class)->typeOptions();
 ?>
 <!-- 搜索条件（em-filter 风格） -->
 <div class="em-filter" id="couponFilter">

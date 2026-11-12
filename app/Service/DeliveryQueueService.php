@@ -16,7 +16,7 @@ namespace App\Service;
  *
  * 注意：本类不做定时，也不 reload 配置 —— 那是调用方（worker 循环）的事。
  */
-final class DeliveryQueueService
+final class DeliveryQueueService extends BaseService
 {
     /**
      * 按条件取一条待处理任务并原子抢占。
@@ -37,9 +37,9 @@ final class DeliveryQueueService
      * @param array<string, mixed> $filter 支持的键：goods_type（字符串或字符串数组）
      * @return array<string, mixed>|null 抢占成功返回任务行，无任务返回 null
      */
-    public static function claimFor(array $filter = []): ?array
+    public function claimFor(array $filter = []): ?array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         $where = [
             "status IN ('pending','retry')",
@@ -63,7 +63,7 @@ final class DeliveryQueueService
             $params = array_merge($params, $types);
         }
 
-        $task = \Database::fetchOne(
+        $task = $this->db->fetchOne(
             "SELECT * FROM {$prefix}delivery_queue
              WHERE " . implode(' AND ', $where) . "
              ORDER BY id ASC LIMIT 1",
@@ -75,7 +75,7 @@ final class DeliveryQueueService
         }
 
         $taskId = (int) $task['id'];
-        $claimed = self::claim($taskId, $task);
+        $claimed = $this->claim($taskId, $task);
         if ($claimed === null) {
             return null; // 被别人抢走了，正常现象，不必记日志
         }
@@ -89,9 +89,9 @@ final class DeliveryQueueService
      *
      * @return array<string, mixed>|null
      */
-    public static function claimNext(): ?array
+    public function claimNext(): ?array
     {
-        return self::claimFor();
+        return $this->claimFor();
     }
 
     /**
@@ -100,11 +100,11 @@ final class DeliveryQueueService
      * @param array<string, mixed> $task 抢占前读到的任务行（用于返回原值）
      * @return array<string, mixed>|null 抢占失败返回 null
      */
-    private static function claim(int $taskId, array $task): ?array
+    private function claim(int $taskId, array $task): ?array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $affected = \Database::execute(
+        $affected = $this->db->execute(
             "UPDATE {$prefix}delivery_queue SET status='processing', attempts=attempts+1
              WHERE id=? AND status IN ('pending','retry')",
             [$taskId]
@@ -134,9 +134,9 @@ final class DeliveryQueueService
      *                                         false=失败直接终态、订单转 delivery_failed（FPM 同步模式）
      * @return bool 是否发货成功
      */
-    public static function runTask(array $task, callable $runner, bool $allowRetry): bool
+    public function runTask(array $task, callable $runner, bool $allowRetry): bool
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
         $taskId       = (int) $task['id'];
         $orderId      = (int) $task['order_id'];
@@ -145,12 +145,12 @@ final class DeliveryQueueService
         try {
             $runner($task);
 
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE {$prefix}delivery_queue SET status='success', completed_at=NOW() WHERE id=?",
                 [$taskId]
             );
 
-            \App\Model\OrderModel::notifyDeliveryCallback($orderGoodsId);
+            app(\App\Model\OrderModel::class)->notifyDeliveryCallback($orderGoodsId);
 
             // 「发货完成」通知。两条路径的处理方式**刻意不同**：
             //
@@ -165,7 +165,7 @@ final class DeliveryQueueService
             //
             // 参数是**位置数组**，与订阅方原有的钩子签名一一对应，所以插件代码不用改。
             if ($allowRetry) {
-                PluginEvent::publish('order_goods_delivery_queued_success', [$orderId, $orderGoodsId, $taskId, $task]);
+                app(\App\Service\PluginEvent::class)->publish('order_goods_delivery_queued_success', [$orderId, $orderGoodsId, $taskId, $task]);
             } else {
                 try {
                     doAction('order_goods_delivery_queued_success', $orderId, $orderGoodsId, $taskId, $task);
@@ -174,7 +174,7 @@ final class DeliveryQueueService
                 }
             }
 
-            \App\Model\OrderModel::checkDeliveryComplete($orderId);
+            app(\App\Model\OrderModel::class)->checkDeliveryComplete($orderId);
             return true;
 
         } catch (\Throwable $e) {
@@ -186,7 +186,7 @@ final class DeliveryQueueService
             $shouldGiveUp = !$allowRetry || $isPermanent || $attempts >= $maxAttempts;
 
             if ($shouldGiveUp) {
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$prefix}delivery_queue SET status='failed', last_error=? WHERE id=?",
                     [($isPermanent ? '[永久失败] ' : '') . $e->getMessage(), $taskId]
                 );
@@ -195,10 +195,10 @@ final class DeliveryQueueService
                 \App\Cli\CliServer::log(
                     "发货失败，不再重试 >>> 任务 {$taskId} / 订单 {$orderId} >>> " . $e->getMessage()
                 );
-                self::markOrderDeliveryFailed($orderId);
+                $this->markOrderDeliveryFailed($orderId);
             } else {
                 $delay = (int) min(300, 30 * pow(2, $attempts - 1));
-                \Database::execute(
+                $this->db->execute(
                     "UPDATE {$prefix}delivery_queue SET status='retry', last_error=?,
                      next_retry_at=DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE id=?",
                     [$e->getMessage(), $delay, $taskId]
@@ -222,11 +222,11 @@ final class DeliveryQueueService
      * @param array<string, mixed> $task 已抢占的任务行
      * @return bool 是否发货成功
      */
-    public static function execute(array $task, bool $allowRetry): bool
+    public function execute(array $task, bool $allowRetry): bool
     {
         $goodsType = (string) ($task['goods_type'] ?? '');
 
-        return self::runTask($task, static function (array $t) use ($goodsType): void {
+        return $this->runTask($task, function (array $t) use ($goodsType): void {
             $payload = json_decode((string) ($t['payload'] ?? '{}'), true) ?: [];
             doAction(
                 "goods_type_{$goodsType}_order_paid",
@@ -255,12 +255,12 @@ final class DeliveryQueueService
      * @param int $staleSeconds 多久没动静算中断。默认 300 秒，远大于单次发货耗时
      * @return int 被回收的任务数
      */
-    public static function recoverStaleTasks(int $staleSeconds = 300): int
+    public function recoverStaleTasks(int $staleSeconds = 300): int
     {
         $staleSeconds = max(60, $staleSeconds);
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        return (int) \Database::execute(
+        return (int) $this->db->execute(
             "UPDATE {$prefix}delivery_queue
              SET status='retry', next_retry_at=NOW(),
                  last_error=?
@@ -273,17 +273,17 @@ final class DeliveryQueueService
     /**
      * FPM 同步发货：对本单刚写入的队列行立即逐条执行，不重试。
      *
-     * 只在「没有发货队列消费者在线」时被 OrderModel::triggerDelivery() 调用。
+     * 只在「没有发货队列消费者在线」时被 app(\App\Model\OrderModel::class)->triggerDelivery() 调用。
      * 只处理本单自己的行 —— 这不是机会式消费，不会去碰别的订单积压的任务。
      *
      * 同步模式下失败的订单会流转到 delivery_failed，由站长人工发货或退款；
      * 这是刻意的：FPM 部署没有常驻进程，没人能在退避时间到了之后重试。
      */
-    public static function drainOrderSync(int $orderId): void
+    public function drainOrderSync(int $orderId): void
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT * FROM {$prefix}delivery_queue
              WHERE order_id = ? AND status IN ('pending','retry')
              ORDER BY id ASC",
@@ -291,12 +291,12 @@ final class DeliveryQueueService
         );
 
         foreach ($rows as $row) {
-            $task = self::claim((int) $row['id'], $row);
+            $task = $this->claim((int) $row['id'], $row);
             if ($task === null) {
                 // 已被别的消费者抢走（并发下单/守护进程刚好在线），交给它
                 continue;
             }
-            self::execute($task, false);
+            $this->execute($task, false);
         }
     }
 
@@ -306,14 +306,14 @@ final class DeliveryQueueService
      * changeStatus 会校验流转合法性：订单可能已经因为别的行成功而离开 delivering，
      * 也可能人工发货已经把它推到 delivered —— 这些情况直接跳过，不报错。
      */
-    private static function markOrderDeliveryFailed(int $orderId): void
+    private function markOrderDeliveryFailed(int $orderId): void
     {
         if ($orderId <= 0) {
             return;
         }
 
         try {
-            \App\Model\OrderModel::changeStatus($orderId, 'delivery_failed');
+            app(\App\Model\OrderModel::class)->changeStatus($orderId, 'delivery_failed');
         } catch (\Throwable $e) {
             // 状态已不是 delivering（或已是终态）时不强推，避免把正常订单改成失败
         }

@@ -64,7 +64,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
         }
 
         try {
-            $task = \App\Service\DeliveryQueueService::claimFor($claim);
+            $task = app(\App\Service\DeliveryQueueService::class)->claimFor($claim);
         } catch (\Throwable $e) {
             CliServer::log('异常：领取发货任务失败，' . $e->getMessage());
             return;
@@ -76,7 +76,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
 
         $hook = trim((string) ($this->def['hook'] ?? ''));
 
-        \App\Service\DeliveryQueueService::runTask($task, function (array $t) use ($hook): void {
+        app(\App\Service\DeliveryQueueService::class)->runTask($task, function (array $t) use ($hook): void {
             if ($hook === '') {
                 // 插件注册有误（声明了 claim 却没给 hook）。
                 // 用永久失败收尾，别让任务卡在 processing 里没人管。
@@ -111,7 +111,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
         $this->nextRecoverAt = $now + self::RECOVER_INTERVAL;
 
         try {
-            $recovered = \App\Service\DeliveryQueueService::recoverStaleTasks();
+            $recovered = app(\App\Service\DeliveryQueueService::class)->recoverStaleTasks();
             if ($recovered > 0) {
                 CliServer::log("发货队列：回收了 {$recovered} 条被中断的任务，已重新排队");
             }

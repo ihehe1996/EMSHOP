@@ -67,17 +67,17 @@ final class AddressController extends UserBaseController
 
                         if ($id > 0) {
                             // 编辑：Model 层 owner 校验内置，非自己的 id 不会命中
-                            if (\App\Model\UserAddressModel::findById($id, $userId) === null) {
+                            if (app(\App\Model\UserAddressModel::class)->findById($id, $userId) === null) {
                                 $this->response->error('地址不存在或无权操作');
                             }
-                            \App\Model\UserAddressModel::update($id, $userId, $payload);
+                            app(\App\Model\UserAddressModel::class)->update($id, $userId, $payload);
                             $this->response->success('已保存', ['csrf_token' => $this->csrf->refresh()]);
                         } else {
                             // 新建：先卡数量上限，防止刷接口造大量脏数据
-                            if (\App\Model\UserAddressModel::countByUserId($userId) >= \App\Model\UserAddressModel::MAX_PER_USER) {
+                            if (app(\App\Model\UserAddressModel::class)->countByUserId($userId) >= \App\Model\UserAddressModel::MAX_PER_USER) {
                                 $this->response->error('每个账户最多只能保存 ' . \App\Model\UserAddressModel::MAX_PER_USER . ' 个地址');
                             }
-                            \App\Model\UserAddressModel::create($userId, $payload);
+                            app(\App\Model\UserAddressModel::class)->create($userId, $payload);
                             $this->response->success('已添加', ['csrf_token' => $this->csrf->refresh()]);
                         }
                         break;
@@ -86,7 +86,7 @@ final class AddressController extends UserBaseController
                     case 'delete': {
                         $id = (int) $this->input->post('id', 0);
                         if ($id <= 0) $this->response->error('参数错误');
-                        $ok = \App\Model\UserAddressModel::delete($id, $userId);
+                        $ok = app(\App\Model\UserAddressModel::class)->delete($id, $userId);
                         if (!$ok) $this->response->error('地址不存在或无权操作');
                         $this->response->success('已删除', ['csrf_token' => $this->csrf->refresh()]);
                         break;
@@ -95,7 +95,7 @@ final class AddressController extends UserBaseController
                     case 'set_default': {
                         $id = (int) $this->input->post('id', 0);
                         if ($id <= 0) $this->response->error('参数错误');
-                        $ok = \App\Model\UserAddressModel::setDefault($id, $userId);
+                        $ok = app(\App\Model\UserAddressModel::class)->setDefault($id, $userId);
                         if (!$ok) $this->response->error('地址不存在或无权操作');
                         $this->response->success('已设为默认', ['csrf_token' => $this->csrf->refresh()]);
                         break;
@@ -110,7 +110,7 @@ final class AddressController extends UserBaseController
         }
 
         // GET 渲染
-        $addressList = \App\Model\UserAddressModel::listByUserId($userId);
+        $addressList = app(\App\Model\UserAddressModel::class)->listByUserId($userId);
 
         if ($this->request->isPjax()) {
             echo '<div id="userContent" class="uc-content">';

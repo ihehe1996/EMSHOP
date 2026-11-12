@@ -20,7 +20,7 @@ namespace App\Service;
  *   - 折扣返回金额 BIGINT，不能超过订单商品总额
  *   - 使用次数用 UPDATE 条件扣减保证并发安全（参见 CouponModel::incrementUsedCount）
  */
-class CouponService
+class CouponService extends BaseService
 {
     /**
      * 校验一个券码能否用于指定订单上下文；返回折扣金额 BIGINT 与简要信息。

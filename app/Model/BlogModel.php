@@ -13,7 +13,7 @@ if (!defined('EM_ROOT')) {
  *
  * @package EM\Core\Model
  */
-class BlogModel
+class BlogModel extends Model
 {
     /**
      * 获取文章列表（前台：仅已发布、未删除）
@@ -24,9 +24,9 @@ class BlogModel
      * @param string $orderBy 排序
      * @return array{total:int, page:int, limit:int, list:array}
      */
-    public static function getList(array $where = [], int $page = 1, int $limit = 20, string $orderBy = 'a.is_top DESC, a.sort ASC, a.id DESC'): array
+    public function getList(array $where = [], int $page = 1, int $limit = 20, string $orderBy = 'a.is_top DESC, a.sort ASC, a.id DESC'): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $conditions = ['a.deleted_at IS NULL'];
         $params = [];
 
@@ -69,7 +69,7 @@ class BlogModel
         // 按 SQL 中出现顺序拼装：先 JOIN 的参数，再 WHERE 的参数
         $bindings = array_merge($joinParams ?? [], $params);
 
-        $total = \Database::query(
+        $total = $this->db->query(
             "SELECT COUNT(*) as count FROM {$prefix}blog a {$joinTag} {$whereSql}",
             $bindings
         );
@@ -85,7 +85,7 @@ class BlogModel
                 {$whereSql}
                 ORDER BY {$orderBy}
                 LIMIT {$offset}, {$limit}";
-        $list = \Database::query($sql, $bindings);
+        $list = $this->db->query($sql, $bindings);
 
         return [
             'total' => $totalCount,
@@ -98,10 +98,10 @@ class BlogModel
     /**
      * 获取文章详情（含分类名）—— 不带 merchant_id ACL，调用方负责
      */
-    public static function getById(int $id): ?array
+    public function getById(int $id): ?array
     {
-        $prefix = \Database::prefix();
-        $result = \Database::query(
+        $prefix = $this->db->prefix();
+        $result = $this->db->query(
             "SELECT a.*, c.name as category_name,
                     COALESCE(u.nickname, u.username, '管理员') as author
              FROM {$prefix}blog a
@@ -116,10 +116,10 @@ class BlogModel
     /**
      * 获取文章详情（带 merchant_id ACL，前台用）
      */
-    public static function getByIdForScope(int $id, int $merchantId): ?array
+    public function getByIdForScope(int $id, int $merchantId): ?array
     {
-        $prefix = \Database::prefix();
-        $result = \Database::query(
+        $prefix = $this->db->prefix();
+        $result = $this->db->query(
             "SELECT a.*, c.name as category_name,
                     COALESCE(u.nickname, u.username, '管理员') as author
              FROM {$prefix}blog a
@@ -136,10 +136,10 @@ class BlogModel
      *
      * @return array<array{id:int, title:string}>
      */
-    public static function getPopular(int $limit = 5, int $merchantId = 0): array
+    public function getPopular(int $limit = 5, int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
-        return \Database::query(
+        $prefix = $this->db->prefix();
+        return $this->db->query(
             "SELECT id, title, views_count FROM {$prefix}blog
              WHERE status = 1 AND deleted_at IS NULL AND merchant_id = ?
              ORDER BY views_count DESC, id DESC
@@ -153,17 +153,17 @@ class BlogModel
      *
      * @return array{prev_id:int|null, next_id:int|null}
      */
-    public static function getPrevNextId(int $id, int $merchantId = 0): array
+    public function getPrevNextId(int $id, int $merchantId = 0): array
     {
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
 
-        $prev = \Database::fetchOne(
+        $prev = $this->db->fetchOne(
             "SELECT id, title FROM {$prefix}blog
              WHERE id < ? AND status = 1 AND deleted_at IS NULL AND merchant_id = ?
              ORDER BY id DESC LIMIT 1",
             [$id, $merchantId]
         );
-        $next = \Database::fetchOne(
+        $next = $this->db->fetchOne(
             "SELECT id, title FROM {$prefix}blog
              WHERE id > ? AND status = 1 AND deleted_at IS NULL AND merchant_id = ?
              ORDER BY id ASC LIMIT 1",
@@ -181,10 +181,10 @@ class BlogModel
     /**
      * 递增文章浏览量
      */
-    public static function incrementViews(int $id): void
+    public function incrementViews(int $id): void
     {
-        $prefix = \Database::prefix();
-        \Database::execute(
+        $prefix = $this->db->prefix();
+        $this->db->execute(
             "UPDATE {$prefix}blog SET views_count = views_count + 1 WHERE id = ?",
             [$id]
         );
@@ -195,29 +195,29 @@ class BlogModel
      *
      * @return int 新文章 ID
      */
-    public static function create(array $data): int
+    public function create(array $data): int
     {
         $data['created_at'] = date('Y-m-d H:i:s');
         $data['updated_at'] = date('Y-m-d H:i:s');
-        return \Database::insert('blog', $data);
+        return $this->db->insert('blog', $data);
     }
 
     /**
      * 更新文章。merchant_id 不应通过 update 修改（调用方禁止传入）。
      */
-    public static function update(int $id, array $data): bool
+    public function update(int $id, array $data): bool
     {
         unset($data['merchant_id']); // 防越权改归属
         $data['updated_at'] = date('Y-m-d H:i:s');
-        return \Database::update('blog', $data, $id) !== false;
+        return $this->db->update('blog', $data, $id) !== false;
     }
 
     /**
      * 逻辑删除文章
      */
-    public static function delete(int $id): bool
+    public function delete(int $id): bool
     {
-        return \Database::update('blog', [
+        return $this->db->update('blog', [
             'status'     => 0,
             'deleted_at' => date('Y-m-d H:i:s'),
         ], $id) !== false;
@@ -226,9 +226,9 @@ class BlogModel
     /**
      * 物理删除文章
      */
-    public static function forceDelete(int $id): bool
+    public function forceDelete(int $id): bool
     {
-        $prefix = \Database::prefix();
-        return \Database::execute("DELETE FROM {$prefix}blog WHERE id = ?", [$id]) > 0;
+        $prefix = $this->db->prefix();
+        return $this->db->execute("DELETE FROM {$prefix}blog WHERE id = ?", [$id]) > 0;
     }
 }
