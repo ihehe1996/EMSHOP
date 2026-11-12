@@ -284,7 +284,7 @@ final class DashboardController extends BaseAdminController
     }
 
     /**
-     * 列表页：Pjax 输出片段，直接访问套旧后台框架壳。
+     * 列表页：Pjax 输出片段，直接访问套后台框架壳。
      */
     private function renderHome(): void
     {

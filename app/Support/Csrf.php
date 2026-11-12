@@ -272,7 +272,7 @@ final class Csrf
      * 获取 cookie 签名密钥（基于配置派生）。
      *
      * 没有密钥时返回 null，调用方据此停用 cookie 兜底；
-     * 老站的密钥由 CsrfSecret 在后台首次访问时写入 config.php。
+     * config.php 里没有密钥时，由 CsrfSecret 在后台首次访问时生成并写入。
      */
     private function getCookieSecret(): ?string
     {

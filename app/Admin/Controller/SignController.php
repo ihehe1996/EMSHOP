@@ -11,7 +11,7 @@ namespace App\Admin\Controller;
  *   - POST 校验 CSRF 后交给 app(\App\Service\AuthService::class)->attemptAdminLogin()
  *   - 登录成功进入 /admin/home，失败时重新渲染页面并显示错误
  *
- * 旧后台的 admin_entry_key 安全入口已随旧后台一起废弃，本页不再校验 ?s= 参数。
+ * 旧的 admin_entry_key 安全入口已废弃，本页不校验 ?s= 参数。
  */
 final class SignController extends AbstractAdminController
 {

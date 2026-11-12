@@ -7,7 +7,7 @@ namespace App\User\Controller;
 /**
  * 用户中心控制器基类。
  *
- * 与原 user/global.php 的 userRequireLogin() 行为一致：
+ * 用户中心登录守卫：
  *   - 未登录：普通请求 302 到前台登录页，Pjax / AJAX 返回 JSON 错误
  *   - 已登录：从数据库刷新余额、昵称、头像等实时字段
  */

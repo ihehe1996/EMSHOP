@@ -36,14 +36,14 @@ abstract class BaseAdminController extends AbstractAdminController
 
         $this->adminUser = $user;
 
-        // 老站 config.php 没有安装时生成的 auth.secret：补齐并写回，
-        // 保证后续 CSRF 校验统一走带密钥的 cookie 兜底（与旧后台一致）。
+        // config.php 缺少安装时生成的 auth.secret：补齐并写回，
+        // 保证后续 CSRF 校验统一走带密钥的 cookie 兜底。
         \CsrfSecret::ensure();
 
         // 后台固定主站作用域：TemplateStorage / Storage / PluginModel 都读这个全局
         $GLOBALS['__em_current_scope'] = 'main';
 
-        // 演示模式：登录放行，写操作一律拦掉（与旧后台 adminDemoGuard 同口径）
+        // 演示模式：登录放行，写操作一律拦掉。
         $this->enforceDemoGuard();
     }
 

@@ -7,7 +7,7 @@ namespace App\User\Controller;
 /**
  * 用户中心公开页控制器基类（不强制登录）。
  *
- * 对应原 user/global_public.php：游客可访问订单详情 / 查单 / 货币切换 / 轮询接口，
+ * 公开页基类：游客可访问订单详情 / 查单 / 货币切换 / 轮询接口，
  * 已登录时刷新当前用户资料。
  */
 abstract class UserPublicBaseController extends \App\Core\AbstractController

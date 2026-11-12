@@ -663,7 +663,7 @@ final class CliServerManager
                 \App\Cli\CliServer::log("异常：文件版本升级后写入重载标记失败（自 {$applied} 变更为 {$pending}）");
                 return;
             }
-            // applied + 旧 key 双写，过渡期内任一侧 bump 都能对齐
+            // applied 与旧 key 双写，任一侧 bump 都能对齐
             \App\Cli\CliServer::setAppliedFileVersion($pending);
         } catch (\Throwable $e) {
             \App\Cli\CliServer::log('代码热更新检查失败，' . $e->getMessage());

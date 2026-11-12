@@ -394,7 +394,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                             <div class="layui-input-block">
                                 <?php
                                 // 只有两档：商城首页 / 商品列表页（原「博客首页」已去掉）。
-                                // 库里若残留别的值（例如老站的 blog），一律按商城首页显示与保存。
+                                // 库里若残留别的值（例如历史遗留的 blog），一律按商城首页显示与保存。
                                 $currentHm = (string) ($cfg['homepage_mode'] ?? 'mall');
                                 if ($currentHm !== 'goods_list') {
                                     $currentHm = 'mall';

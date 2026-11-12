@@ -426,7 +426,7 @@ final class View
         'index.php'         => ['goods_index.php'],
         'goods_content.php' => ['goods.php'],
         'blog_content.php'  => ['blog.php'],
-        // 找回/重置密码原先在 include/view/auth/ 下，主题按老路径覆盖的仍能找到
+        // 找回/重置密码的旧模板名是 auth/xxx.php，旧主题按这个名字覆盖的仍能找到
         'forgot_password.php' => ['auth/forgot_password.php'],
         'reset_password.php'  => ['auth/reset_password.php'],
     ];

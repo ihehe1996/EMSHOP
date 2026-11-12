@@ -29,7 +29,7 @@ final class LicenseClient
      * 顺序只决定后台列表的展示顺序；实际请求只走当前选中索引那一条。
      *
      * 为什么写死在代码里而不是配置文件里：地址必须**跟着程序版本走**。
-     * 放 config.php 的话，老站升级后残留的旧地址会继续生效（见 `serverUrl()`）。
+     * 放 config.php 的话，升级后残留的旧地址会继续生效（见 `serverUrl()`）。
      */
     // public const OFFICIAL_BASE_URL = 'https://bs.ihehe.me/';
 
@@ -1023,7 +1023,7 @@ final class LicenseClient
      * 当前生效的线路列表。
      *
      * 后台「设置 › 安全设置 › 开发模式」开启时整组换成 DEV_BASE_URL。
-     * 地址不读 config.php：线路必须跟着程序版本走，否则老站升级后残留的旧地址会生效。
+     * 地址不读 config.php：线路必须跟着程序版本走，否则升级后残留的旧地址会生效。
      *
      * @return array<int, array{url:string, name:string}>
      */

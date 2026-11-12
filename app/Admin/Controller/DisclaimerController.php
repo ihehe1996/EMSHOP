@@ -14,7 +14,7 @@ final class DisclaimerController extends BaseAdminController
 {
     public function index(): void
     {
-        // 框架壳上的签署弹窗提交到这里（旧入口是 admin/index.php?_action=disclaimer_accept）
+        // 框架壳上的签署弹窗提交到这里
         if ($this->request->isPost()) {
             $this->handleAccept();
             return;

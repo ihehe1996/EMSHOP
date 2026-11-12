@@ -9,7 +9,7 @@ use App\User\Controller\UserBaseController;
 /**
  * 商户后台控制器基类。
  *
- * 与原 user/merchant/global.php 的 merchantRequireLogin() 行为一致：
+ * 商户后台的登录 / 开通状态守卫：
  *   - 先要求前台用户登录
  *   - 未开通商户 → 跳开通申请页；商户被禁用 → 跳回用户中心
  *   - 当前请求固定 merchant_{id} scope，并记录最近访问的店铺

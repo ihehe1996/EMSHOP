@@ -7,7 +7,7 @@ namespace App\Admin\Controller;
 /**
  * 后台清缓存（/admin/cache）。
  *
- * 对应旧入口 /admin/index.php 的 POST _action=clear_cache。
+ * POST _action=clear_cache 清空缓存。
  */
 final class CacheController extends BaseAdminController
 {

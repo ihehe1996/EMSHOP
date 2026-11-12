@@ -24,7 +24,7 @@ final class GoodsEditController extends BaseAdminController
         // 与迁移前一致：GET 优先（哪怕为空串），没有再取 POST 的 _action
         $action = (string) ($this->input->get('_action', null) ?? $this->input->post('_action', ''));
         // 用户搜索（规格"用户专属价"弹窗内联搜索用）
-        // GET /admin/goods_edit.php?_action=search_users&q=keyword
+        // GET /admin/goods_edit?_action=search_users&q=keyword
         // 按用户名 / 昵称 / 邮箱模糊匹配，status=1，最多 10 条。
         // 不按 role 过滤：这里是给买家设专属价，管理账号也能在前台下单，一样要能设。
         if ($action === 'search_users') {

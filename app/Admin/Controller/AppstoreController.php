@@ -530,7 +530,7 @@ final class AppstoreController extends BaseAdminController
 
                     // tab=merchant:主站为分站采购 → 落 em_app_market + 写流水(走 MainAppPurchaseService)
                     // 元数据从磁盘 header 读(物理文件主站采购时已经下好/解压好);售价默认等于成本价,主站可在
-                    // 分站市场管理页(/admin/merchant_market.php)修改
+                    // 分站市场管理页(/admin/merchant_market)修改
                     $title = $name; $version = ''; $category = ''; $cover = ''; $description = '';
                     if ($type === 'plugin') {
                         $mainFile = $targetDir . '/' . $name . '.php';

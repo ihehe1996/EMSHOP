@@ -36,9 +36,9 @@ final class CsrfSecret
     }
 
     /**
-     * 确保密钥存在；老站没有时生成并写回 config.php。
+     * 确保密钥存在；缺失时生成并写回 config.php。
      *
-     * 只在后台登录后的入口调用（admin/global.php 的 adminRequireLogin），
+     * 只在后台登录后的入口调用，
      * 保证公开页面不会触发文件写入。
      *
      * @return string 密钥；无法写入时返回空串

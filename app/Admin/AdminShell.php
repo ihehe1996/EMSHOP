@@ -7,9 +7,9 @@ namespace App\Admin;
 /**
  * 新后台框架壳（侧边栏 + 顶栏 + 内容区）。
  *
- * 对应旧后台的 admin/index.php + admin/view/index.php 组合：负责统一准备布局变量，
+ * 负责统一准备布局变量（侧边栏、顶栏、菜单状态），
  * 再把子页面视图渲染进 #adminContent 内容区。所有需要整页布局的控制器都应调用
- * AdminShell::render()，不要再去 require 旧后台的框架壳 —— 后台目录最终会删除。
+ * 页面统一走 AdminShell::render()，不要再自己拼框架壳。
  */
 final class AdminShell
 {

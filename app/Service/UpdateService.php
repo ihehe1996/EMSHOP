@@ -727,7 +727,7 @@ final class UpdateService extends BaseService
     }
 
     /**
-     * 保证 em_migrations 表存在（老站第一次进入升级流程时走这里）。
+     * 保证 em_migrations 表存在（首次进入升级流程时走这里）。
      */
     private function ensureMigrationsTable(): void
     {

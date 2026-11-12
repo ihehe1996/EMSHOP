@@ -7,7 +7,7 @@ namespace App\Merchant;
 /**
  * 商户后台框架壳。
  *
- * 对应原 user/merchant/global.php 的 merchantRenderPage()：Pjax 返回 #merchantContent 片段，
+ * 商户后台框架壳：Pjax 返回 #merchantContent 片段，
  * 普通请求套 user/merchant/view/index.php 同款布局（现已迁到 app/Merchant/View/shell.php）。
  */
 final class MerchantShell
