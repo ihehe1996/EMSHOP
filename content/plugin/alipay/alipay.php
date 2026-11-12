@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 支付宝支付
-Version: 1.0.1
+Version: 1.0.2
 Plugin URL:
 Description: 官方支付宝在线支付插件，支持当面付、电脑端支付、手机端支付。
 Author: EMSHOP

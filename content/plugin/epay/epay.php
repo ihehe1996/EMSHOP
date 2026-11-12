@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 易支付
-Version: 1.0.1
+Version: 1.0.2
 Plugin URL:
 Description: 易支付聚合支付插件，支持支付宝、微信、QQ钱包，可选页面跳转或API下单模式。
 Author: EMSHOP

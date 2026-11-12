@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 小贴士
-Version: 1.0.1
+Version: 1.0.2
 Plugin URL: 
 Description: 在后台首页展示一句使用小提示，也可作为插件开发的demo。
 Author: 驳手

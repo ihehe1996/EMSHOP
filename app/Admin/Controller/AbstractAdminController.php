@@ -28,7 +28,12 @@ abstract class AbstractAdminController extends \App\Core\AbstractController
             throw new \RuntimeException('视图不存在：' . $relative);
         }
 
-        header('Content-Type: text/html; charset=utf-8');
+        // 同一次请求会多次 render（header / 设置页 / footer）。设置页输出超过 PHP
+        // 输出缓冲区大小后 headers 已经发出，再调 header() 会报
+        // "Cannot modify header information" 警告（所有插件设置页都会触发）。
+        if (!headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+        }
         extract($data, EXTR_SKIP);
         require $file;
     }

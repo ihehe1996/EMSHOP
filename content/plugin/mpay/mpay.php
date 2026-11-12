@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 官方码支付
-Version: 1.0.2
+Version: 1.0.3
 Plugin URL: https://m.ynile.cn/
 Description: 无需资质 注册即用 收款实时到账 资金无中转
 Author: EMSHOP
