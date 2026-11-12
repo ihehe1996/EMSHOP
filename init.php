@@ -6,7 +6,6 @@ if (defined('EM_INITIALIZED')) {
     return;
 }
 
-
 if (
     isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
     $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https'
@@ -146,14 +145,8 @@ define('EM_ADMIN_PATH', '/' . \App\Admin\AdminRouter::normalizeEntry((string) EM
 // 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
 \App\Core\Application::instance();
 
-// 数据库服务注册进容器（必须在 Config::load() 之前，Config 依赖它）
-\App\Core\Application::instance()->container()->instance(\App\Support\Database::class, Database::instance());
-
-// 配置服务注册进容器（必须在 Config::load() 之前）
-\App\Core\Application::instance()->container()->instance(\App\Support\Config::class, Config::instance());
-
-// 钩子服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Hooks::class, Hooks::instance());
+// 核心服务注册进容器（懒加载：登记取法，首次 make 才创建）
+\App\Core\ServiceProvider::register(\App\Core\Application::instance()->container());
 
 Hooks::boot();
 
@@ -177,92 +170,8 @@ if ($emTimezone !== '' && @date_default_timezone_set($emTimezone) === false) {
 
 Cache::init();
 
-// 缓存实例注册进容器：静态门面和容器拿到同一个对象
-\App\Core\Application::instance()->container()->instance(\App\Support\Cache::class, Cache::instance());
-
-// 输入服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Input::class, Input::instance());
-
-// 请求服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Http\Request::class, Request::instance());
-
-// 响应服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Http\Response::class, Response::instance());
-
-// 游客身份服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\GuestToken::class, GuestToken::instance());
-
-// CSRF 服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Csrf::class, Csrf::instance());
-
-// 货币服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Currency::class, Currency::service());
-
-// 视图服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\View::class, View::service());
-
-// 路由调度服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Http\Dispatcher::class, Dispatcher::service());
-
-// 商品类型服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\GoodsTypeManager::class, GoodsTypeManager::instance());
-
-// 限流服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\RateLimit::class, RateLimit::instance());
-
-// 推广归因服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\InviteToken::class, InviteToken::instance());
-
-// 后台任务心跳服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\WorkerHeartbeat::class, WorkerHeartbeat::instance());
-
-// 商户域名校验服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\MerchantDomainGuard::class, MerchantDomainGuard::instance());
-
-// 邮件服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Mailer::class, Mailer::instance());
-
-// CSRF 密钥服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\CsrfSecret::class, CsrfSecret::instance());
-
-// 统一消息页服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Emmsg::class, Emmsg::instance());
-
-// 展示名称校验服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\DisplayName::class, DisplayName::instance());
-
-// 输出响应别名服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Http\Output::class, Output::instance());
-
-// 日志脱敏服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\LogSanitizer::class, LogSanitizer::instance());
-
-// 算术验证码服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Captcha::class, Captcha::instance());
-
-// 下载地址校验服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\DownloadUrlGuard::class, DownloadUrlGuard::instance());
-
-// HTML 清洗服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\HtmlSanitizer::class, HtmlSanitizer::instance());
-
-// Key-Value 配置存储服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Option::class, Option::instance());
-
-// 授权服务器客户端服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\LicenseClient::class, LicenseClient::instance());
-
-// 后台路由注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Admin\AdminRouter::class, \App\Admin\AdminRouter::instance());
-
-// 金额服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\Money::class, Money::instance());
-
 // 加载模板辅助函数（提供 url_goods()、url_blog() 等模板函数）
 require_once EM_ROOT . '/include/lib/TemplateHelpers.php';
-
-// 商户上下文服务注册进容器
-\App\Core\Application::instance()->container()->instance(\App\Support\MerchantContext::class, MerchantContext::instance());
 
 // 商户（分站）上下文识别：提前到插件/模板加载之前，让后面能按商户 scope 隔离
 //   - 命中 /s/{slug}/ 模式会同步改写 $_SERVER['REQUEST_URI']/PATH_INFO，让 Dispatcher 按正常路径解析
