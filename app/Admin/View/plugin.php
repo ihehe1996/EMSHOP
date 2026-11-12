@@ -2,6 +2,9 @@
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
+// 视图内取 CSRF：控制器（整页 / PJAX 两个分支）都没传这个变量，
+// 直接引用会在 <script> 里输出 Warning，导致前端整段脚本语法错误。
+$csrfToken = $csrfToken ?? \Csrf::token();
 ?>
 <style>
 /* 和控制台 / 模板管理一致：去掉 .admin-page 默认白底，卡片浮在灰底画布上 */
