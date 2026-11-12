@@ -8,7 +8,7 @@ namespace App\Support;
  * 插件配置存储类。
  *
  * 配置存储在 em_options 表中,以 (type, title, merchant_id, name) 四元组区分。
- * 插件可通过 Storage::getInstance('插件名') 获取自己的存储实例;
+ * 插件可通过 app(\App\Support\Storage::class)->forPlugin('插件名') 获取自己的存储实例;
  * 当前 scope 由请求入口写入的 $GLOBALS['__em_current_scope'] 决定:
  *   - 'main'           → merchant_id = 0
  *   - 'merchant_{id}'  → merchant_id = {id}
@@ -18,7 +18,7 @@ namespace App\Support;
  * 避免 CLI 长驻进程读到后台已更新但内存未失效的旧配置。（单例仍复用实例，仅避免重复建对象。）
  *
  * @example
- * $storage = Storage::getInstance('tips');
+ * $storage = app(\App\Support\Storage::class)->forPlugin('tips');
  * $storage->setValue('api_key', 'hello');
  * $value = $storage->getValue('api_key');
  * $storage->deleteAllName('YES'); // 插件卸载时清理所有配置
@@ -37,13 +37,24 @@ final class Storage
      * 获取指定插件的存储实例(按 plugin+scope 做单例)。
      * scope 优先从 $GLOBALS['__em_current_scope'] 读,缺省 'main'。
      */
-    public static function getInstance(string $plugin): self
+    public function __construct()
+    {
+    }
+
+    /**
+     * 获取指定插件的存储实例（按 plugin+scope 做单例）。
+     */
+    public function forPlugin(string $plugin): self
     {
         $scope = (string) ($GLOBALS['__em_current_scope'] ?? 'main');
         if ($scope === '') $scope = 'main';
         $key = $plugin . '@' . $scope;
         if (!isset(self::$instances[$key])) {
-            self::$instances[$key] = new self($plugin, $scope);
+            $instance = new self();
+            $instance->plugin     = $plugin;
+            $instance->scope      = $scope;
+            $instance->merchantId = self::parseMerchantId($scope);
+            self::$instances[$key] = $instance;
         }
         return self::$instances[$key];
     }
@@ -54,7 +65,7 @@ final class Storage
      *
      * @param string $scope 仅允许 main 或 merchant_{正整数}
      */
-    public static function getInstanceForScope(string $plugin, string $scope): self
+    public function inScope(string $plugin, string $scope): self
     {
         if ($plugin === '' || !preg_match('/^[a-zA-Z0-9_\-]+$/', $plugin)) {
             throw new InvalidArgumentException('Invalid plugin name');
@@ -70,7 +81,11 @@ final class Storage
         }
         $key = $plugin . '@' . $scope;
         if (!isset(self::$instances[$key])) {
-            self::$instances[$key] = new self($plugin, $scope);
+            $instance = new self();
+            $instance->plugin     = $plugin;
+            $instance->scope      = $scope;
+            $instance->merchantId = self::parseMerchantId($scope);
+            self::$instances[$key] = $instance;
         }
         return self::$instances[$key];
     }
@@ -81,13 +96,6 @@ final class Storage
     public function reload(): void
     {
         $this->data = [];
-    }
-
-    private function __construct(string $plugin, string $scope)
-    {
-        $this->plugin     = $plugin;
-        $this->scope      = $scope;
-        $this->merchantId = self::parseMerchantId($scope);
     }
 
     /**

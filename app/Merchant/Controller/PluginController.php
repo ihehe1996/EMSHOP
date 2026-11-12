@@ -101,7 +101,7 @@ final class PluginController extends MerchantBaseController
                         }
                         // 通用兜底:全部 POST 字段(除框架字段)逐个写 Storage
                         // Storage 实例的 scope 自动从 $GLOBALS['__em_current_scope'](merchant_X)读
-                        $storage = \Storage::getInstance($name);
+                        $storage = app(\App\Support\Storage::class)->forPlugin($name);
                         foreach ($this->input->allPost() as $k => $v) {
                             if (in_array($k, ['_action', 'csrf_token', 'name'], true)) continue;
                             $storage->setValue($k, $v);

@@ -52,7 +52,7 @@ class UserWithdrawModel extends Model
         $this->db->begin();
         try {
             // 扣用户余额（同时写 balance_log，方便对账）
-            $ok = (new UserBalanceLogModel())->decrease($userId, $amountRaw, '提现申请（冻结）');
+            $ok = (new \App\Model\UserBalanceLogModel())->decrease($userId, $amountRaw, '提现申请（冻结）');
             if (!$ok) throw new \RuntimeException('余额不足');
 
             $id = (int) $this->db->insert('user_withdraw', [
@@ -108,7 +108,7 @@ class UserWithdrawModel extends Model
             if ($affected === 0) { $this->db->rollBack(); return false; }
 
             // 退回余额
-            $ok = (new UserBalanceLogModel())->increase(
+            $ok = (new \App\Model\UserBalanceLogModel())->increase(
                 (int) $row['user_id'],
                 (int) $row['amount'],
                 '提现驳回退回（#' . $id . '）',

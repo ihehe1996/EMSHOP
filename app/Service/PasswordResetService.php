@@ -232,7 +232,7 @@ final class PasswordResetService extends BaseService
     private function logSendFailure(string $email): void
     {
         try {
-            if (class_exists('SystemLogModel')) {
+            if (class_exists(\App\Model\SystemLogModel::class)) {
                 (new \App\Model\SystemLogModel())->error(
                     'system',
                     '重置密码邮件发送失败',
@@ -297,7 +297,7 @@ final class PasswordResetService extends BaseService
     private function logResetUrlMissing(string $email): void
     {
         try {
-            if (class_exists('SystemLogModel')) {
+            if (class_exists(\App\Model\SystemLogModel::class)) {
                 (new \App\Model\SystemLogModel())->error(
                     'system',
                     '重置密码链接无法生成',

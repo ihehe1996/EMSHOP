@@ -27,7 +27,7 @@ namespace App\Cli;
  * worker 自己的进程里执行。**插件的 worker 里不要 doAction 别人的钩子**，
  * 那会破坏这个隔离（别人的代码会住进你的进程）。
  */
-final class DeliveryTaskWorker implements ServerWorkerInterface
+final class DeliveryTaskWorker implements \App\Cli\ServerWorkerInterface
 {
     /** 两次领任务之间的间隔（秒） */
     private const CLAIM_INTERVAL = 2;
@@ -66,7 +66,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
         try {
             $task = app(\App\Service\DeliveryQueueService::class)->claimFor($claim);
         } catch (\Throwable $e) {
-            CliServer::log('异常：领取发货任务失败，' . $e->getMessage());
+            \App\Cli\CliServer::log('异常：领取发货任务失败，' . $e->getMessage());
             return;
         }
 
@@ -80,7 +80,7 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
             if ($hook === '') {
                 // 插件注册有误（声明了 claim 却没给 hook）。
                 // 用永久失败收尾，别让任务卡在 processing 里没人管。
-                throw new \PermanentDeliveryException(
+                throw new \App\Exception\PermanentDeliveryException(
                     '发货 worker 未配置 hook，请检查插件的 server_worker_types 注册'
                 );
             }
@@ -113,10 +113,10 @@ final class DeliveryTaskWorker implements ServerWorkerInterface
         try {
             $recovered = app(\App\Service\DeliveryQueueService::class)->recoverStaleTasks();
             if ($recovered > 0) {
-                CliServer::log("发货队列：回收了 {$recovered} 条被中断的任务，已重新排队");
+                \App\Cli\CliServer::log("发货队列：回收了 {$recovered} 条被中断的任务，已重新排队");
             }
         } catch (\Throwable $e) {
-            CliServer::log('异常：回收僵尸发货任务失败，' . $e->getMessage());
+            \App\Cli\CliServer::log('异常：回收僵尸发货任务失败，' . $e->getMessage());
         }
     }
 }

@@ -420,7 +420,7 @@ final class OrderController extends BaseAdminController
             }
 
             $this->db->commit();
-        } catch (\OrderStatusConflictException $e) {
+        } catch (\App\Exception\OrderStatusConflictException $e) {
             // 并发下的重复标记：若订单已被并发改成已支付，按成功返回
             $this->db->rollBack();
             $nowRow = $this->db->fetchOne(

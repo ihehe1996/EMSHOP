@@ -25,7 +25,7 @@ function alipay_get_mode_value($raw, bool $defaultEnabled): string
 
 function alipay_get_config(): array
 {
-    $storage = Storage::getInstance('alipay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('alipay');
     return [
         'display_name'       => (string) ($storage->getValue('display_name') ?: ''),
         'app_id'             => trim((string) ($storage->getValue('app_id') ?: '')),

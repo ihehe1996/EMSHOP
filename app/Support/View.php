@@ -356,7 +356,7 @@ final class View
 
         $level      = 'none';
         $levelLabel = '未授权';
-        if (class_exists('LicenseService')) {
+        if (class_exists(\App\Service\LicenseService::class)) {
             $level      = app(\App\Service\LicenseService::class)->currentLevel();
             $levelLabel = app(\App\Service\LicenseService::class)->levelLabel($level);
         }
@@ -398,7 +398,7 @@ final class View
     {
         // isActivated() 只读本地 Config（init.php 已经预热过），
         // 不发任何远程请求、不触发授权核对 —— 前台每次渲染都走这里，必须零网络开销。
-        if (!class_exists('LicenseService') || app(\App\Service\LicenseService::class)->isActivated()) {
+        if (!class_exists(\App\Service\LicenseService::class) || app(\App\Service\LicenseService::class)->isActivated()) {
             return '';
         }
 

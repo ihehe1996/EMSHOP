@@ -180,7 +180,7 @@ final class DeliveryQueueService extends BaseService
         } catch (\Throwable $e) {
             $attempts    = (int) $task['attempts'] + 1;
             $maxAttempts = (int) $task['max_attempts'];
-            $isPermanent = $e instanceof \PermanentDeliveryException;
+            $isPermanent = $e instanceof \App\Exception\PermanentDeliveryException;
 
             // FPM 同步模式（$allowRetry=false）没有「下次」，一律直接终态。
             $shouldGiveUp = !$allowRetry || $isPermanent || $attempts >= $maxAttempts;

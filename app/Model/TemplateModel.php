@@ -175,7 +175,7 @@ final class TemplateModel extends Model
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return false;
-        return (new AppPurchaseModel())->isPurchased($merchantId, $name, 'template');
+        return (new \App\Model\AppPurchaseModel())->isPurchased($merchantId, $name, 'template');
     }
 
     // -----------------------------------------------------------------

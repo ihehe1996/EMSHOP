@@ -134,7 +134,7 @@ function template_setting() {
         Output::fail('请求已失效，请刷新页面后重试');
     }
 
-    $storage = TemplateStorage::getInstance((string) Input::postStrVar('name') ?: 'default');
+    $storage = app(\App\Support\TemplateStorage::class)->forTemplate((string) Input::postStrVar('name') ?: 'default');
 
     // 精选商品显示数量：夹取到 1–30，非法值落回默认 6
     $count = (int) Input::postStrVar('featured_count');

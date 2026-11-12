@@ -704,7 +704,7 @@ final class Dispatcher
         if ($this->isHomepage) {
             // 优先级 1：页面首页 —— 主站和商户各自的 em_page.is_homepage 行
             $homepagePage = null;
-            if (class_exists('PageModel')) {
+            if (class_exists(\App\Model\PageModel::class)) {
                 $homepagePage = app(\App\Model\PageModel::class)->getHomepage(\MerchantContext::currentId());
             }
             if ($homepagePage !== null && !empty($homepagePage['slug'])) {

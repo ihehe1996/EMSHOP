@@ -100,7 +100,7 @@ function virtualCardGetGlobalIssueOrder(int $merchantId = 0): string
 {
     try {
         $scope = $merchantId > 0 ? ('merchant_' . $merchantId) : 'main';
-        $storage = Storage::getInstanceForScope('virtual_card', $scope);
+        $storage = app(\App\Support\Storage::class)->inScope('virtual_card', $scope);
         return virtualCardNormalizeIssueOrder($storage->getValue('card_issue_order'));
     } catch (Throwable $e) {
         return 'old';
@@ -425,7 +425,7 @@ addAction('goods_type_virtual_card_order_paid', function ($orderId, $orderGoodsI
             if (count($cards) < $qty) {
                 // 用 StockShortageException 而非普通异常：卡密不足是**永久失败**，
                 // 让队列直接进终态，不要白白退避重试 max_attempts 轮
-                throw new StockShortageException((string) ($goods['title'] ?? ''), count($cards));
+                throw new \App\Exception\StockShortageException((string) ($goods['title'] ?? ''), count($cards));
             }
 
             // 标记卡密为已售（分批 UPDATE，避免单次 IN 过多导致 SQL 过大、解析慢、长时间锁行）

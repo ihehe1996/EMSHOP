@@ -112,7 +112,7 @@ final class TemplateController extends BaseAdminController
                     // 触发模板 callback_rm 清理它自己的私有数据（建表/资源等）
                     $this->callCallback($model, $name, 'callback_rm');
                     // 清掉 TemplateStorage 里的所有模板配置（per-template per-scope）
-                    \TemplateStorage::getInstance($name)->deleteAllName('YES');
+                    app(\App\Support\TemplateStorage::class)->forTemplate($name)->deleteAllName('YES');
                     // 递归删磁盘目录
                     $dir = EM_ROOT . '/content/template/' . $name;
                     if (is_dir($dir)) {

@@ -868,7 +868,7 @@ class GoodsModel extends Model
         if ($isMerchantRefGoods) {
             $ownerUserIdForWholesale = $this->merchantContext->currentOwnerId();
             if ($ownerUserIdForWholesale > 0) {
-                if (class_exists('MerchantLedgerService')) {
+                if (class_exists(\App\Service\MerchantLedgerService::class)) {
                     $ownerDiscountRate = app(\App\Service\MerchantLedgerService::class)->resolveOwnerDiscountRate($ownerUserIdForWholesale);
                 }
                 $ownerRow = $this->db->fetchOne(

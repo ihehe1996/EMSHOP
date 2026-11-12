@@ -1,7 +1,7 @@
 <?php
 defined('EM_ROOT') || exit('Access Denied');
 
-function mpay_setting_value(Storage $storage, array $keys, string $default = ''): string
+function mpay_setting_value(\App\Support\Storage $storage, array $keys, string $default = ''): string
 {
     foreach ($keys as $k) {
         $v = trim((string) ($storage->getValue($k) ?? ''));
@@ -12,7 +12,7 @@ function mpay_setting_value(Storage $storage, array $keys, string $default = '')
     return $default;
 }
 
-function mpay_setting_enabled(Storage $storage, string $code, bool $default = true): bool
+function mpay_setting_enabled(\App\Support\Storage $storage, string $code, bool $default = true): bool
 {
     $raw = $storage->getValue($code . '_enabled');
     if ($raw === null || (string) $raw === '') {
@@ -21,7 +21,7 @@ function mpay_setting_enabled(Storage $storage, string $code, bool $default = tr
     return (string) $raw === '1';
 }
 
-function mpay_setting_mode(Storage $storage, string $code): string
+function mpay_setting_mode(\App\Support\Storage $storage, string $code): string
 {
     $mode = strtolower(mpay_setting_value($storage, [$code . '_create_mode', 'create_mode'], 'submit'));
     return in_array($mode, ['submit', 'mapi'], true) ? $mode : 'submit';
@@ -29,7 +29,7 @@ function mpay_setting_mode(Storage $storage, string $code): string
 
 function plugin_setting_view(): void
 {
-    $storage = Storage::getInstance('mpay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('mpay');
     $csrfToken = Csrf::token();
     $registerUrl = 'https://m.ynile.cn/';
 
@@ -751,7 +751,7 @@ function plugin_setting(): void
         Response::error('请求已失效，请刷新页面后重试');
     }
 
-    $storage = Storage::getInstance('mpay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('mpay');
     $channels = ['mpay_alipay', 'mpay_wxpay', 'mpay_qqpay'];
 
     foreach ($channels as $code) {

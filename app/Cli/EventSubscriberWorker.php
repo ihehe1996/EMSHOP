@@ -33,7 +33,7 @@ namespace App\Cli;
  * 处理完一批才更新游标，所以 worker 崩在中间会**重新处理**那批事件。
  * 订阅方的处理必须幂等 —— 重复发一条通知是可接受的代价。
  */
-final class EventSubscriberWorker implements ServerWorkerInterface
+final class EventSubscriberWorker implements \App\Cli\ServerWorkerInterface
 {
     /** 订阅方的轮询周期（秒）。通知类场景几秒的延迟无所谓 */
     private const POLL_INTERVAL = 5;
@@ -74,9 +74,9 @@ final class EventSubscriberWorker implements ServerWorkerInterface
         }
 
         try {
-            $storage = \Storage::getInstance($plugin);
+            $storage = app(\App\Support\Storage::class)->forPlugin($plugin);
         } catch (\Throwable $e) {
-            CliServer::log('异常：事件订阅 worker 取不到插件存储，' . $e->getMessage());
+            \App\Cli\CliServer::log('异常：事件订阅 worker 取不到插件存储，' . $e->getMessage());
             return;
         }
 
@@ -102,7 +102,7 @@ final class EventSubscriberWorker implements ServerWorkerInterface
                 } catch (\Throwable $e) {
                     // 单条失败不阻塞后面的，但要记下来；游标仍然前进，
                     // 所以这条事件不会重试（通知场景可接受，避免一条坏数据卡死整个订阅）
-                    CliServer::log("异常：处理事件 {$event} #{$row['id']} 失败，" . $e->getMessage());
+                    \App\Cli\CliServer::log("异常：处理事件 {$event} #{$row['id']} 失败，" . $e->getMessage());
                 }
                 $last = (int) $row['id'];
             }
@@ -161,10 +161,10 @@ final class EventSubscriberWorker implements ServerWorkerInterface
         try {
             $deleted = app(\App\Service\PluginEvent::class)->cleanup();
             if ($deleted > 0) {
-                CliServer::log("插件事件：清理了 {$deleted} 条过期事件");
+                \App\Cli\CliServer::log("插件事件：清理了 {$deleted} 条过期事件");
             }
         } catch (\Throwable $e) {
-            CliServer::log('异常：清理插件事件失败，' . $e->getMessage());
+            \App\Cli\CliServer::log('异常：清理插件事件失败，' . $e->getMessage());
         }
     }
 }

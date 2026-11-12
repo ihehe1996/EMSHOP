@@ -148,60 +148,6 @@ define('EM_ADMIN_PATH', '/' . \App\Admin\AdminRouter::normalizeEntry((string) EM
 // 新内核骨架：先建应用/容器，供后续服务注册使用（不接管现有流程）
 \App\Core\Application::instance();
 
-// 支付插件（含第三方）仍按全局类名 'PaymentCallbackController' 调用；
-// 实现已迁到 app/Home/Controller，这里按需把全局别名指过去。
-spl_autoload_register(static function (string $class): void {
-    if ($class === 'PaymentCallbackController') {
-        class_alias(\App\Home\Controller\PaymentCallbackController::class, 'PaymentCallbackController');
-    }
-});
-
-// 老代码 / 第三方插件仍按全局类名引用模型（new GoodsModel() 等）；
-// 实现已迁到 app/Model，这里在类不存在时按需转成别名，避免外部扩展直接报错。
-spl_autoload_register(static function (string $class): void {
-    static $models = null;
-    if ($models === null) {
-        $models = [];
-        foreach (glob(EM_ROOT . '/app/Model/*Model.php') ?: [] as $file) {
-            $name = basename($file, '.php');
-            if (str_ends_with($name, 'Model')) {
-                $models[$name] = true;
-            }
-        }
-    }
-    if (isset($models[$class])) {
-        class_alias('\\App\\Model\\' . $class, $class);
-    }
-});
-
-// 同上：服务类已迁到 app/Service，老代码 / 第三方插件仍按全局类名调用。
-spl_autoload_register(static function (string $class): void {
-    static $services = null;
-    if ($services === null) {
-        $services = [];
-        foreach (glob(EM_ROOT . '/app/Service/*.php') ?: [] as $file) {
-            $services[basename($file, '.php')] = true;
-        }
-    }
-    if (isset($services[$class])) {
-        class_alias('\\App\\Service\\' . $class, $class);
-    }
-});
-
-// 后台任务 worker 类已迁到 app/Cli；插件注册 worker 时仍可能写全局类名。
-spl_autoload_register(static function (string $class): void {
-    static $cli = null;
-    if ($cli === null) {
-        $cli = [];
-        foreach (glob(EM_ROOT . '/app/Cli/*.php') ?: [] as $file) {
-            $cli[basename($file, '.php')] = true;
-        }
-    }
-    if (isset($cli[$class])) {
-        class_alias('\\App\\Cli\\' . $class, $class);
-    }
-});
-
 // 核心服务注册进容器（懒加载：登记取法，首次 make 才创建）
 \App\Core\ServiceProvider::register(\App\Core\Application::instance()->container());
 

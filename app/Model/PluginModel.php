@@ -361,7 +361,7 @@ final class PluginModel extends Model
         }
         $merchantId = $this->parseMerchantScope($scope);
         if ($merchantId <= 0) return false;
-        return (new AppPurchaseModel())->isPurchased($merchantId, $name, 'plugin');
+        return (new \App\Model\AppPurchaseModel())->isPurchased($merchantId, $name, 'plugin');
     }
 
     // -----------------------------------------------------------------

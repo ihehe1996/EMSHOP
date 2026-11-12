@@ -39,7 +39,7 @@ function epay_channels(): array
     ];
 }
 
-function epay_storage_value(Storage $storage, array $keys, string $default = ''): string
+function epay_storage_value(\App\Support\Storage $storage, array $keys, string $default = ''): string
 {
     foreach ($keys as $k) {
         $v = (string) ($storage->getValue($k) ?? '');
@@ -51,7 +51,7 @@ function epay_storage_value(Storage $storage, array $keys, string $default = '')
     return $default;
 }
 
-function epay_storage_enabled(Storage $storage, array $keys, bool $default = true): bool
+function epay_storage_enabled(\App\Support\Storage $storage, array $keys, bool $default = true): bool
 {
     foreach ($keys as $k) {
         $raw = $storage->getValue($k);
@@ -182,7 +182,7 @@ function epay_get_channel_config(string $code): ?array
     }
 
     $ch = $channels[$code];
-    $storage = Storage::getInstance('epay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('epay');
 
     $enabled = epay_storage_enabled($storage, [$code . '_enabled']);
     if (!$enabled) {

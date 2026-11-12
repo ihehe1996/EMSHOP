@@ -3,7 +3,7 @@ defined('EM_ROOT') || exit('Access Denied');
 
 function plugin_setting_view(): void
 {
-    $storage = Storage::getInstance('alipay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('alipay');
     $displayName = (string) ($storage->getValue('display_name') ?: '');
     $appId = (string) ($storage->getValue('app_id') ?: '');
     $alipayPublicKey = (string) ($storage->getValue('alipay_public_key') ?: '');
@@ -109,7 +109,7 @@ function plugin_setting(): void
     $modeWap = Input::post('mode_wap', '') === '1' ? '1' : '0';
     $modeFace = Input::post('mode_face', '') === '1' ? '1' : '0';
 
-    $storage = Storage::getInstance('alipay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('alipay');
     $storage->setValue('display_name', (string) Input::post('display_name', ''));
     $storage->setValue('app_id', $appId);
     $storage->setValue('alipay_public_key', $alipayPublicKey);

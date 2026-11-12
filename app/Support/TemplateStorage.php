@@ -28,22 +28,26 @@ final class TemplateStorage
      * 获取指定模板的存储实例(按 template+scope 做单例)。
      * scope 优先从 $GLOBALS['__em_current_scope'] 读,缺省 'main'。
      */
-    public static function getInstance(string $template): self
+    public function __construct()
+    {
+    }
+
+    /**
+     * 获取指定模板的存储实例（按 template+scope 做单例）。
+     */
+    public function forTemplate(string $template): self
     {
         $scope = (string) ($GLOBALS['__em_current_scope'] ?? 'main');
         if ($scope === '') $scope = 'main';
         $key = $template . '@' . $scope;
         if (!isset(self::$instances[$key])) {
-            self::$instances[$key] = new self($template, $scope);
+            $instance = new self();
+            $instance->template   = $template;
+            $instance->scope      = $scope;
+            $instance->merchantId = self::parseMerchantId($scope);
+            self::$instances[$key] = $instance;
         }
         return self::$instances[$key];
-    }
-
-    private function __construct(string $template, string $scope)
-    {
-        $this->template   = $template;
-        $this->scope      = $scope;
-        $this->merchantId = self::parseMerchantId($scope);
     }
 
     /**

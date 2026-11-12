@@ -273,7 +273,7 @@ final class CliServer
             'heartbeat' => [
                 'type'       => 'heartbeat',
                 'label'      => '心跳维护',
-                'class'      => HeartbeatWorker::class,
+                'class'      => \App\Cli\HeartbeatWorker::class,
                 'plugin'     => '',
                 'claim'      => [],
                 'hook'       => '',
@@ -342,7 +342,7 @@ final class CliServer
             return $declared;
         }
 
-        if (is_a($class, DeliveryTaskWorker::class, true)) {
+        if (is_a($class, \App\Cli\DeliveryTaskWorker::class, true)) {
             return \WorkerHeartbeat::CAPABILITY_DELIVERY;
         }
 

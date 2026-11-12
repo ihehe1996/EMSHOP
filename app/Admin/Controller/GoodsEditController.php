@@ -685,7 +685,7 @@ final class GoodsEditController extends BaseAdminController
             };
             // 所有启用的用户等级，供规格"用户等级专属价"弹窗渲染
             $userLevels = [];
-            if (class_exists('UserLevelModel')) {
+            if (class_exists(\App\Model\UserLevelModel::class)) {
                 try {
                     $userLevels = (new \App\Model\UserLevelModel())->getAll();
                 } catch (\Throwable $e) {

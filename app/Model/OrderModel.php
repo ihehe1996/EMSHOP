@@ -562,7 +562,7 @@ class OrderModel extends Model
                     'target_status'   => $newStatus,
                 ]
             );
-            throw new \OrderStatusConflictException($orderId, $currentStatus, $newStatus);
+            throw new \App\Exception\OrderStatusConflictException($orderId, $currentStatus, $newStatus);
         }
 
         $ok = true;
@@ -644,7 +644,7 @@ class OrderModel extends Model
         $this->db->begin();
         try {
             // 扣款
-            $balanceLog = new UserBalanceLogModel();
+            $balanceLog = new \App\Model\UserBalanceLogModel();
             $ok = $balanceLog->decrease($userId, $payAmount, '购买商品：' . $order['order_no']);
             if (!$ok) {
                 throw new \RuntimeException('余额不足');
@@ -1292,7 +1292,7 @@ class OrderModel extends Model
             if (!defined('EM_ROOT')) {
                 return;
             }
-            if (!class_exists('SystemLogModel')) {
+            if (!class_exists(\App\Model\SystemLogModel::class)) {
                 return;
             }
             $m = new \App\Model\SystemLogModel();

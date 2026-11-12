@@ -55,7 +55,7 @@ final class CliServerWorker
         if ($def === null) {
             $msg = "worker 退出：{$type} —— 没有任何插件注册这个任务类型，"
                  . '请确认提供该任务的插件已安装并启用（管家会在 5 秒内自动调整 worker）';
-            CliServer::log($msg);
+            \App\Cli\CliServer::log($msg);
             fwrite(STDERR, $msg . "\n");
             return 1;
         }
@@ -63,7 +63,7 @@ final class CliServerWorker
         $className = (string) $def['class'];
         if (!class_exists($className)) {
             $msg = "worker 退出：{$type} —— 实现类不存在 {$className}";
-            CliServer::log($msg);
+            \App\Cli\CliServer::log($msg);
             fwrite(STDERR, $msg . "\n");
             return 1;
         }
@@ -75,15 +75,15 @@ final class CliServerWorker
         // 插件自己的 worker 类通常没有构造函数，多传一个参数 PHP 不会报错
         // （userland 函数允许多余实参），所以这是向后兼容的。
         $worker = new $className($def);
-        if (!$worker instanceof ServerWorkerInterface) {
+        if (!$worker instanceof \App\Cli\ServerWorkerInterface) {
             $msg = "worker 退出：{$type} —— {$className} 未实现 ServerWorkerInterface";
-            CliServer::log($msg);
+            \App\Cli\CliServer::log($msg);
             fwrite(STDERR, $msg . "\n");
             return 1;
         }
 
         $label = (string) ($def['label'] ?? $type);
-        CliServer::log("worker 启动：{$type}（{$label}），PID " . getmypid());
+        \App\Cli\CliServer::log("worker 启动：{$type}（{$label}），PID " . getmypid());
 
         return self::runLoop($type, $worker);
     }
@@ -101,7 +101,7 @@ final class CliServerWorker
      * 类型心跳刻意放在 tick() **之后**：tick 卡死时它不刷新，
      * 上层据此就能把「这个 worker 卡住了」如实识别出来。
      */
-    private static function runLoop(string $type, ServerWorkerInterface $worker): int
+    private static function runLoop(string $type, \App\Cli\ServerWorkerInterface $worker): int
     {
         $interval = max(1, $worker->interval());
 
@@ -117,7 +117,7 @@ final class CliServerWorker
                 try {
                     \Config::reload();
                 } catch (\Throwable $e) {
-                    CliServer::log("异常：{$type} 重载配置失败，" . $e->getMessage());
+                    \App\Cli\CliServer::log("异常：{$type} 重载配置失败，" . $e->getMessage());
                 }
                 $lastConfigReload = time();
             }
@@ -125,7 +125,7 @@ final class CliServerWorker
             try {
                 $worker->tick();
             } catch (\Throwable $e) {
-                CliServer::log("异常：{$type} 执行失败，" . $e->getMessage());
+                \App\Cli\CliServer::log("异常：{$type} 执行失败，" . $e->getMessage());
             }
 
             \WorkerHeartbeat::touchWorker($type);
@@ -134,7 +134,7 @@ final class CliServerWorker
         }
 
         \WorkerHeartbeat::clearAll([$type]);
-        CliServer::log("worker 退出：{$type}，PID " . getmypid());
+        \App\Cli\CliServer::log("worker 退出：{$type}，PID " . getmypid());
         return 0;
     }
 
@@ -145,7 +145,7 @@ final class CliServerWorker
      */
     private static function resolveDefinition(string $type): ?array
     {
-        foreach (CliServer::workerDefinitions() as $def) {
+        foreach (\App\Cli\CliServer::workerDefinitions() as $def) {
             if ((string) ($def['type'] ?? '') === $type) {
                 return $def;
             }
@@ -216,7 +216,7 @@ final class CliServerWorker
 
     private static function typeLabel(string $type): string
     {
-        foreach (CliServer::workerDefinitions() as $def) {
+        foreach (\App\Cli\CliServer::workerDefinitions() as $def) {
             if ($def['type'] === $type) {
                 return $def['label'];
             }

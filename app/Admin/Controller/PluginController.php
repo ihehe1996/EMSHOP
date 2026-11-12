@@ -136,7 +136,7 @@ final class PluginController extends BaseAdminController
                 }
 
                 // 通用兜底：全部 POST 字段（除框架字段）逐个写 Storage
-                $storage = \Storage::getInstance($name);
+                $storage = app(\App\Support\Storage::class)->forPlugin($name);
                 foreach ($this->input->allPost() as $k => $v) {
                     if (in_array($k, ['_action', 'csrf_token', 'name'], true)) {
                         continue;
@@ -237,7 +237,7 @@ final class PluginController extends BaseAdminController
 
                     $model->uninstall($name, $scope);
                     // 清掉 Storage 里的所有插件配置（per-plugin per-scope）
-                    \Storage::getInstance($name)->deleteAllName('YES');
+                    app(\App\Support\Storage::class)->forPlugin($name)->deleteAllName('YES');
 
                     // 递归删磁盘目录：卸载 = 彻底移除
                     $dir = EM_ROOT . '/content/plugin/' . $name;

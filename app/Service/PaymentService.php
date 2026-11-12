@@ -211,7 +211,7 @@ class PaymentService extends BaseService
      *   1. 从 em_plugin 读 scope='main' 且 category=支付插件 且 is_enabled=1 的插件名单
      *   2. include_once 每个插件主文件（幂等，重复加载是 no-op）
      *   3. 临时把 $GLOBALS['__em_current_scope'] 切到 'main'，让插件钩子里的
-     *      Storage::getInstance() 读到主站存储；触发 payment_methods_register 过滤器
+     *      app(\App\Support\Storage::class)->forPlugin() 读到主站存储；触发 payment_methods_register 过滤器
      *   4. 用 em_plugin 主站启用名单做白名单过滤（钩子注册是全局的；同一个 epay.php 若曾被
      *      其它 scope 加载过，回调依然会 fire，要靠 enabledNames 卡掉）
      *   5. 恢复 scope

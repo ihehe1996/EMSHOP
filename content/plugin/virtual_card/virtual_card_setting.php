@@ -18,7 +18,7 @@ function virtualCardSettingNormalizeIssueOrder($value): string
 
 function plugin_setting_view(): void
 {
-    $storage = Storage::getInstance('virtual_card');
+    $storage = app(\App\Support\Storage::class)->forPlugin('virtual_card');
     $issueOrder = virtualCardSettingNormalizeIssueOrder($storage->getValue('card_issue_order'));
     $csrfToken = Csrf::token();
     ?>
@@ -96,7 +96,7 @@ function plugin_setting(): void
     }
 
     $issueOrder = virtualCardSettingNormalizeIssueOrder(Input::post('card_issue_order', 'old'));
-    $storage = Storage::getInstance('virtual_card');
+    $storage = app(\App\Support\Storage::class)->forPlugin('virtual_card');
     $storage->setValue('card_issue_order', $issueOrder);
 
     Response::success('配置已保存', ['csrf_token' => Csrf::refresh()]);

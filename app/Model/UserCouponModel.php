@@ -126,13 +126,13 @@ class UserCouponModel extends Model
         $sql .= " ORDER BY uc.id DESC LIMIT {$limit}";
 
         $rows = $this->db->query($sql, $params);
-        $couponModel = new CouponModel();
+        $couponModel = new \App\Model\CouponModel();
 
         // 复用 CouponModel 的转换逻辑（借反射）—— 简单起见，直接调用其 public 查询会多一次 DB
         // 这里手动还原 value/min_amount/max_discount
         foreach ($rows as &$r) {
             $type = $r['type'] ?? '';
-            if ($type !== CouponModel::TYPE_PERCENT) {
+            if ($type !== \App\Model\CouponModel::TYPE_PERCENT) {
                 $r['value']        = bcdiv((string) ($r['value'] ?? 0), '1000000', 2);
             } else {
                 $r['value'] = (int) ($r['value'] ?? 0);

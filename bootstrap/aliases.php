@@ -52,15 +52,6 @@ function em_register_facade_aliases(): void
         'Response'            => \App\Facade\Response::class,
         'View'                => \App\Facade\View::class,
         'WorkerHeartbeat'     => \App\Facade\WorkerHeartbeat::class,
-
-        // 不是门面、但仍是全局类名的基础设施
-        'Storage'             => \App\Support\Storage::class,
-        'TemplateStorage'     => \App\Support\TemplateStorage::class,
-        'Smtp'                => \App\Vendor\Smtp::class,
-        'PasswordHash'        => \App\Vendor\PasswordHash::class,
-        'OrderStatusConflictException' => \App\Exception\OrderStatusConflictException::class,
-        'PermanentDeliveryException'   => \App\Exception\PermanentDeliveryException::class,
-        'StockShortageException'       => \App\Exception\StockShortageException::class,
     ];
 
     spl_autoload_register(static function (string $class) use ($aliases): void {

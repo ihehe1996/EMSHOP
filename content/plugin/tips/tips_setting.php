@@ -2,7 +2,7 @@
 defined('EM_ROOT') || exit('access denied!');
 
 function plugin_setting_view() {
-    $plugin_storage = Storage::getInstance('tips');
+    $plugin_storage = app(\App\Support\Storage::class)->forPlugin('tips');
     $demo = $plugin_storage->getValue('demo');
 ?>
 
@@ -86,7 +86,7 @@ function plugin_setting() {
         Output::fail('请求已失效，请刷新页面后重试');
     }
     $demo = Input::postStrVar('demo');
-    $plugin_storage = Storage::getInstance('tips');
+    $plugin_storage = app(\App\Support\Storage::class)->forPlugin('tips');
     $plugin_storage->setValue('demo', $demo);
     Output::ok('配置已保存', ['csrf_token' => Csrf::refresh()]);
 }

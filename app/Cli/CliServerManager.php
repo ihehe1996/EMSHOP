@@ -36,11 +36,11 @@ final class CliServerManager
      */
     public static function run(array $argv): int
     {
-        CliServer::ensureRuntimeDir(); // 创建运行目录
+        \App\Cli\CliServer::ensureRuntimeDir(); // 创建运行目录
 
         // 控制台编码适配（Windows 转 GBK）：必须在任何 echo 之前，
         // 否则宝塔的 Supervisor 会因为解不了 UTF-8 汉字而把服务判成「已停止」。
-        CliServer::adaptConsoleEncoding();
+        \App\Cli\CliServer::adaptConsoleEncoding();
 
         $command = strtolower(trim((string) ($argv[1] ?? 'start')));
 
@@ -83,14 +83,14 @@ final class CliServerManager
         //    检测的是「实际能不能调用」而不是去解析 disable_functions 字符串：
         //    function_exists() 对禁用函数返回 false，且不受 php.ini 写法差异影响
         //    （有的环境写 shell_exec，有的写 shell_exec ，还可能带空格）。
-        $missingFunctions = CliServer::missingProcessFunctions();
+        $missingFunctions = \App\Cli\CliServer::missingProcessFunctions();
 
         if ($missingFunctions !== []) {
             $disabled = (string) ini_get('disable_functions');
             $missingNames = array_keys($missingFunctions);
             $msg = 'EMShop 任务服务依赖的 PHP 函数被禁用：' . implode('、', $missingNames);
             $fix = '请在 宝塔 - 软件商店 - PHP - 设置 - 禁用函数 中删除后重新启动';
-            CliServer::log('启动失败：' . $msg . '；' . $fix);
+            \App\Cli\CliServer::log('启动失败：' . $msg . '；' . $fix);
 
             $c = self::consoleColors();
 
@@ -130,26 +130,26 @@ final class CliServerManager
         }
 
         // 1) 已有实例在跑则先停旧再起新
-        $runningPid = CliServer::readPid();
-        if ($runningPid > 0 && CliServer::isProcessAlive($runningPid)) {
+        $runningPid = \App\Cli\CliServer::readPid();
+        if ($runningPid > 0 && \App\Cli\CliServer::isProcessAlive($runningPid)) {
             echo "检测到 EMSHOP 任务服务（PID {$runningPid}）已在运行，正在停止旧进程…\n";
-            CliServer::stopProcess($runningPid);
-            if (!CliServer::waitForProcessExit($runningPid, 15)) {
-                CliServer::log("启动失败：旧主进程 PID {$runningPid} 停止超时");
+            \App\Cli\CliServer::stopProcess($runningPid);
+            if (!\App\Cli\CliServer::waitForProcessExit($runningPid, 15)) {
+                \App\Cli\CliServer::log("启动失败：旧主进程 PID {$runningPid} 停止超时");
                 echo "旧进程（PID {$runningPid}）未能及时退出，启动中止。\n";
                 return 1;
             }
-            CliServer::clearPid();
+            \App\Cli\CliServer::clearPid();
             echo "旧进程已停止，正在启动新实例…\n";
-            CliServer::log("启动：已停止旧主进程 PID {$runningPid}，准备拉起新实例");
+            \App\Cli\CliServer::log("启动：已停止旧主进程 PID {$runningPid}，准备拉起新实例");
         }
 
         // 2) 启动前探一下数据库；连不上就失败退出，交给 Supervisor 稍后重试
         try {
-            CliServer::probeMysql();
-            CliServer::log('数据库连接成功，准备启动 CLI 任务服务');
+            \App\Cli\CliServer::probeMysql();
+            \App\Cli\CliServer::log('数据库连接成功，准备启动 CLI 任务服务');
         } catch (\Throwable $e) {
-            CliServer::log('启动失败：数据库未就绪，' . $e->getMessage());
+            \App\Cli\CliServer::log('启动失败：数据库未就绪，' . $e->getMessage());
             echo "数据库未就绪，退出进程，等待重试\n";
             sleep(6);
             return 1;
@@ -159,28 +159,28 @@ final class CliServerManager
         $dotServer = EM_ROOT . '/.server';
         if (is_file($dotServer)) {
             @unlink($dotServer);
-            CliServer::log('已移除升级标记文件 .server');
+            \App\Cli\CliServer::log('已移除升级标记文件 .server');
         }
 
         // 4) 写下主进程 PID，供 stop/status/reload 找到我们
         $masterPid = (int) getmypid();
-        CliServer::writePid($masterPid);
+        \App\Cli\CliServer::writePid($masterPid);
         self::installSignalHandlers();
 
         // 5) 立即写下宿主心跳：管家自己就是「服务在跑」的标志。
         //    能力心跳（后台首页运行模式卡片读的那份）由核心自有的 HeartbeatWorker
         //    子进程维护，见该类注释。
-        CliServer::touchHeartbeat();
+        \App\Cli\CliServer::touchHeartbeat();
 
         // 加载站点上下文：管家自己只需要读配置（判断插件是否变化），
         // worker 定义一律走探测子进程 —— 与运行中变更时同一条路径，行为必然一致。
-        CliServer::loadSiteContext();
+        \App\Cli\CliServer::loadSiteContext();
 
         $defs = self::probeDesiredWorkers();
         if ($defs === null) {
             // 探测失败：退回进程内直接读（管家刚启动，插件是新鲜的，这次读取可信）
-            $defs = CliServer::workerDefinitions();
-            CliServer::log('提示：worker 探测失败，本次退回进程内读取；运行中变更将依赖探测');
+            $defs = \App\Cli\CliServer::workerDefinitions();
+            \App\Cli\CliServer::log('提示：worker 探测失败，本次退回进程内读取；运行中变更将依赖探测');
         }
 
         echo "========================================\n";
@@ -188,7 +188,7 @@ final class CliServerManager
         echo "主进程 PID：{$masterPid}；PHP 版本：" . PHP_VERSION . "\n";
         echo "由本进程监护 " . count($defs) . " 个 工作任务子进程\n";
         echo "========================================\n";
-        CliServer::log("启动：主进程 PID {$masterPid}，worker 数量 " . count($defs));
+        \App\Cli\CliServer::log("启动：主进程 PID {$masterPid}，worker 数量 " . count($defs));
 
         // 没有任何插件注册业务 worker（只剩核心自有的 heartbeat）。
         // 不退出 —— Supervisor 会把它当成崩溃反复重拉，日志刷屏。
@@ -199,7 +199,7 @@ final class CliServerManager
             echo "      网站功能不受影响：订单发货会走 FPM 同步路径（失败不重试）。\n";
             echo "      需要异步发货/自动重试/订单超时关闭，请到后台应用商店启用对应插件。\n";
             echo "\n";
-            CliServer::log('启动完成：无任何插件注册 worker，进入空转驻留模式');
+            \App\Cli\CliServer::log('启动完成：无任何插件注册 worker，进入空转驻留模式');
         }
 
         // 6) 按定义逐个拉起子进程（每个都是：php server worker --type=xxx）
@@ -210,12 +210,12 @@ final class CliServerManager
             $child = self::spawnWorker($def['type'], $def['label'], (string) ($def['capability'] ?? ''));
             if ($child === null) {
                 echo "worker {$def['type']} 启动失败\n";
-                CliServer::log("异常：worker {$def['type']} 启动失败");
+                \App\Cli\CliServer::log("异常：worker {$def['type']} 启动失败");
                 continue;
             }
             $children[$def['type']] = $child;
             echo "已启动 worker {$def['type']}（{$def['label']}），PID {$child['pid']}\n";
-            CliServer::log("worker 已拉起：{$def['type']}，PID {$child['pid']}");
+            \App\Cli\CliServer::log("worker 已拉起：{$def['type']}，PID {$child['pid']}");
         }
 
         // 一个子进程都没拉起来。期望集合里还有业务 worker 时说明是 proc_open 之外的
@@ -223,9 +223,9 @@ final class CliServerManager
         //（$defs 永远非空，不能再用 $defs !== [] 判断）。
         if ($children === [] && self::hasBusinessWorkerDefs($defs)) {
             echo "没有 worker 启动成功，主进程退出。\n";
-            CliServer::log('启动失败：worker 定义存在但全部拉起失败');
+            \App\Cli\CliServer::log('启动失败：worker 定义存在但全部拉起失败');
             \WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
-            CliServer::clearPid();
+            \App\Cli\CliServer::clearPid();
             return 1;
         }
 
@@ -233,7 +233,7 @@ final class CliServerManager
 
         // 变更检测基准：主站启用插件名单（便宜，只读配置）。
         // 名单一变才去跑探测子进程 —— 不然每 5 秒起一个进程太重。
-        $enabledAtLastProbe = CliServer::enabledPluginsSignature();
+        $enabledAtLastProbe = \App\Cli\CliServer::enabledPluginsSignature();
         $nextCheckAt = time() + self::CHECK_INTERVAL;
 
         // 7) 主循环：只要没要求停止，就一直待在这里（所以 Supervisor 觉得服务「在运行」）
@@ -241,10 +241,10 @@ final class CliServerManager
             // 7) 先把上一轮攒下的控制台输出吐出去并转码。
             //    Windows 下控制台输出走的是带回调的输出缓冲（转 GBK），
             //    而回调缓冲不会自动 flush —— 不显式刷就会一直攒着看不到。
-            CliServer::flushConsole();
+            \App\Cli\CliServer::flushConsole();
 
             // 7a) 刷新宿主心跳（管家活着 = 服务在跑）
-            CliServer::touchHeartbeat();
+            \App\Cli\CliServer::touchHeartbeat();
 
             // 7a-2) 每 5 秒一档的两件事：代码热更新检测、插件变化 → 增删 worker。
             if (time() >= $nextCheckAt) {
@@ -258,13 +258,13 @@ final class CliServerManager
                     self::checkFileVersionAndReload();
                     self::checkPluginReloadRequests($children, $defs);
 
-                    $enabledNow = CliServer::enabledPluginsSignature();
+                    $enabledNow = \App\Cli\CliServer::enabledPluginsSignature();
                     if ($enabledNow !== $enabledAtLastProbe) {
                         $enabledAtLastProbe = $enabledNow;
                         $desired = self::probeDesiredWorkers();
                         if ($desired === null) {
                             // 探测失败：保持现状，下一轮再试。绝不能因为读不到就把 worker 全停了。
-                            CliServer::log('插件变化探测失败，本轮不调整 worker，稍后重试');
+                            \App\Cli\CliServer::log('插件变化探测失败，本轮不调整 worker，稍后重试');
                         } else {
                             self::applyWorkerSet($children, $desired);
                             // **必须同步更新「期望集合」**：$defs 下面要用来判断
@@ -285,20 +285,20 @@ final class CliServerManager
                     // 就是 720 行重复日志，会把真正有用的信息淹掉。
                     if (!self::$configReadWarned) {
                         self::$configReadWarned = true;
-                        CliServer::log('周期检查：读取配置失败，本轮跳过：' . $e->getMessage());
+                        \App\Cli\CliServer::log('周期检查：读取配置失败，本轮跳过：' . $e->getMessage());
                     }
                 }
             }
 
             // 7b) 有人写了 reload.flag（或发了 SIGUSR1）→ 重启全部 worker，主进程自己不退
-            if (CliServer::consumeReloadRequest()) {
+            if (\App\Cli\CliServer::consumeReloadRequest()) {
                 self::$reloadRequested = true;
             }
 
             if (self::$reloadRequested) {
                 self::$reloadRequested = false;
                 echo "收到 reload，正在重启全部 worker…\n";
-                CliServer::log('重载：主进程开始重启全部 worker');
+                \App\Cli\CliServer::log('重载：主进程开始重启全部 worker');
                 self::stopAllWorkers($children);
                 $children = [];
 
@@ -309,9 +309,9 @@ final class CliServerManager
                 $freshDefs = self::probeDesiredWorkers();
                 if ($freshDefs !== null) {
                     $defs = $freshDefs;
-                    $enabledAtLastProbe = CliServer::enabledPluginsSignature();
+                    $enabledAtLastProbe = \App\Cli\CliServer::enabledPluginsSignature();
                 } else {
-                    CliServer::log('重载：探测 worker 失败，沿用当前列表');
+                    \App\Cli\CliServer::log('重载：探测 worker 失败，沿用当前列表');
                 }
 
                 foreach ($defs as $def) {
@@ -322,7 +322,7 @@ final class CliServerManager
                     }
                     $children[$def['type']] = $child;
                     echo "已重载 worker {$def['type']}，PID {$child['pid']}\n";
-                    CliServer::log("worker 已重载：{$def['type']}，PID {$child['pid']}");
+                    \App\Cli\CliServer::log("worker 已重载：{$def['type']}，PID {$child['pid']}");
                 }
                 self::saveWorkersState($children);
             }
@@ -373,13 +373,13 @@ final class CliServerManager
         // 8) 离开主循环 = 要停服：先杀光 worker，再清 PID 与心跳
         echo "正在停止全部 worker…\n";
         self::stopAllWorkers($children);
-        CliServer::clearPid();
-        @unlink(CliServer::workersStateFile());
+        \App\Cli\CliServer::clearPid();
+        @unlink(\App\Cli\CliServer::workersStateFile());
         // 清掉宿主心跳、每个 worker 的类型心跳，以及所有能力心跳：进程已经不在了，
         // 留着文件会让后台首页在 TTL 窗口内继续显示「运行中」，也会让发货继续走异步路径。
         \WorkerHeartbeat::clearAll(self::heartbeatKeysOf($defs));
-        @unlink(CliServer::heartbeatFile());
-        CliServer::log('关闭：CLI 主进程已退出');
+        @unlink(\App\Cli\CliServer::heartbeatFile());
+        \App\Cli\CliServer::log('关闭：CLI 主进程已退出');
         echo "EMSHOP CLI 任务服务已停止。\n";
 
         return 0;
@@ -419,11 +419,11 @@ final class CliServerManager
 
         foreach ($byPlugin as $slug => $pluginDefs) {
             try {
-                if ((string) \Config::get(CliServer::pluginReloadKey($slug), '') === '') {
+                if ((string) \Config::get(\App\Cli\CliServer::pluginReloadKey($slug), '') === '') {
                     continue;
                 }
                 // 先清标记：即使下面重启失败，也不会下一轮再触发一遍
-                \Config::set(CliServer::pluginReloadKey($slug), '');
+                \Config::set(\App\Cli\CliServer::pluginReloadKey($slug), '');
             } catch (\Throwable $e) {
                 continue; // 读不到配置就跳过，下一轮再说
             }
@@ -435,12 +435,12 @@ final class CliServerManager
                 }
 
                 echo "插件更新：重启 worker {$type}\n";
-                CliServer::log("插件更新：重启 worker {$type}（插件 {$slug}）");
+                \App\Cli\CliServer::log("插件更新：重启 worker {$type}（插件 {$slug}）");
 
                 self::stopOneWorker($children, $type);
                 $child = self::spawnWorker($type, (string) ($def['label'] ?? $type), (string) ($def['capability'] ?? ''));
                 if ($child === null) {
-                    CliServer::log("插件更新：worker {$type} 重启失败");
+                    \App\Cli\CliServer::log("插件更新：worker {$type} 重启失败");
                     continue;
                 }
                 $children[$type] = $child;
@@ -461,12 +461,12 @@ final class CliServerManager
      */
     private static function probeDesiredWorkers(): ?array
     {
-        $defsFile = CliServer::workerDefsFile();
+        $defsFile = \App\Cli\CliServer::workerDefsFile();
         @unlink($defsFile); // 先删掉旧结果，避免把上一轮的文件当成这一轮的
 
         $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
         $proc = @proc_open(
-            [CliServer::phpBinary(), EM_ROOT . DIRECTORY_SEPARATOR . 'server', 'probe-workers'],
+            [\App\Cli\CliServer::phpBinary(), EM_ROOT . DIRECTORY_SEPARATOR . 'server', 'probe-workers'],
             [
                 0 => ['file', $nullDevice, 'r'],
                 1 => ['file', $nullDevice, 'w'],                              // 结果走文件，stdout 丢弃
@@ -483,7 +483,7 @@ final class CliServerManager
         $deadline = time() + 10;
         $stillRunning = true;
         while (time() < $deadline) {
-            $status = CliServer::procCall('proc_get_status', static function () use ($proc) {
+            $status = \App\Cli\CliServer::procCall('proc_get_status', static function () use ($proc) {
                 return proc_get_status($proc);
             }, null);
             if (!is_array($status) || empty($status['running'])) {
@@ -494,11 +494,11 @@ final class CliServerManager
         }
         if ($stillRunning) {
             // 卡住了就杀掉 —— 否则下面的 proc_close 会一直等它，把管家自己冻住
-            CliServer::procCall('proc_terminate', static function () use ($proc) {
+            \App\Cli\CliServer::procCall('proc_terminate', static function () use ($proc) {
                 return @proc_terminate($proc, 9);
             });
         }
-        CliServer::procCall('proc_close', static function () use ($proc) {
+        \App\Cli\CliServer::procCall('proc_close', static function () use ($proc) {
             return @proc_close($proc);
         });
 
@@ -556,7 +556,7 @@ final class CliServerManager
                 continue;
             }
             echo "已停止 worker {$type}  / (动态监控)\n";
-            CliServer::log("已停止 worker {$type} / (动态监控)");
+            \App\Cli\CliServer::log("已停止 worker {$type} / (动态监控)");
             self::stopOneWorker($children, $type);
         }
 
@@ -568,12 +568,12 @@ final class CliServerManager
             $child = self::spawnWorker($type, (string) $def['label'], (string) ($def['capability'] ?? ''));
             if ($child === null) {
                 echo "插件变化：worker {$type} 启动失败\n";
-                CliServer::log("插件变化：worker {$type} 启动失败");
+                \App\Cli\CliServer::log("插件变化：worker {$type} 启动失败");
                 continue;
             }
             $children[$type] = $child;
             echo "已启动 worker {$type}（{$def['label']}），PID {$child['pid']} / (动态监控)\n";
-            CliServer::log("已启动 worker {$type}，PID {$child['pid']} / (动态监控)");
+            \App\Cli\CliServer::log("已启动 worker {$type}，PID {$child['pid']} / (动态监控)");
         }
 
         self::saveWorkersState($children);
@@ -614,7 +614,7 @@ final class CliServerManager
         foreach ($defs as $def) {
             $keys[] = (string) $def['type'];
         }
-        return array_merge($keys, HeartbeatWorker::capabilities());
+        return array_merge($keys, \App\Cli\HeartbeatWorker::capabilities());
     }
 
     /**
@@ -652,21 +652,21 @@ final class CliServerManager
     private static function checkFileVersionAndReload(): void
     {
         try {
-            $applied = CliServer::getAppliedFileVersion();
-            $pending = CliServer::getPendingFileVersion();
+            $applied = \App\Cli\CliServer::getAppliedFileVersion();
+            $pending = \App\Cli\CliServer::getPendingFileVersion();
             if ($pending === '' || !@version_compare($pending, $applied, '>')) {
                 return;
             }
 
-            CliServer::log("重载：检测到文件版本升级（自 {$applied} 变更为 {$pending}），正在通知主进程重启 worker");
-            if (!CliServer::requestReload()) {
-                CliServer::log("异常：文件版本升级后写入重载标记失败（自 {$applied} 变更为 {$pending}）");
+            \App\Cli\CliServer::log("重载：检测到文件版本升级（自 {$applied} 变更为 {$pending}），正在通知主进程重启 worker");
+            if (!\App\Cli\CliServer::requestReload()) {
+                \App\Cli\CliServer::log("异常：文件版本升级后写入重载标记失败（自 {$applied} 变更为 {$pending}）");
                 return;
             }
             // applied + 旧 key 双写，过渡期内任一侧 bump 都能对齐
-            CliServer::setAppliedFileVersion($pending);
+            \App\Cli\CliServer::setAppliedFileVersion($pending);
         } catch (\Throwable $e) {
-            CliServer::log('代码热更新检查失败，' . $e->getMessage());
+            \App\Cli\CliServer::log('代码热更新检查失败，' . $e->getMessage());
         }
     }
 
@@ -677,10 +677,10 @@ final class CliServerManager
     /** 向正在运行的主进程发停止信号；主进程自己会收尾并退出 */
     private static function cmdStop(): int
     {
-        $pid = CliServer::readPid();
-        if ($pid > 0 && CliServer::isProcessAlive($pid)) {
-            CliServer::stopProcess($pid);
-            CliServer::log("停止：已向主进程发送退出信号（PID {$pid}）");
+        $pid = \App\Cli\CliServer::readPid();
+        if ($pid > 0 && \App\Cli\CliServer::isProcessAlive($pid)) {
+            \App\Cli\CliServer::stopProcess($pid);
+            \App\Cli\CliServer::log("停止：已向主进程发送退出信号（PID {$pid}）");
             echo "已向主进程发送停止信号（PID {$pid}），服务即将退出。\n";
 
             // 等它真的退出，再清理残留的运行文件。
@@ -689,9 +689,9 @@ final class CliServerManager
             // 这段只是幂等的保险；但 **Windows 下 stopProcess 走的是 `taskkill /F`，
             // 主进程被强杀，收尾代码根本轮不到执行** —— 没有这段，
             // server.pid 和 workers.json 会一直留着死进程的信息。
-            if (CliServer::waitForProcessExit($pid, 10)) {
-                CliServer::clearPid();
-                @unlink(CliServer::workersStateFile());
+            if (\App\Cli\CliServer::waitForProcessExit($pid, 10)) {
+                \App\Cli\CliServer::clearPid();
+                @unlink(\App\Cli\CliServer::workersStateFile());
                 echo "服务已停止。\n";
             } else {
                 echo "进程未在 10 秒内退出，请稍后再确认；如仍残留可手动结束 PID {$pid}。\n";
@@ -699,17 +699,17 @@ final class CliServerManager
             return 0;
         }
 
-        CliServer::log('停止：当前没有正在运行的主进程');
+        \App\Cli\CliServer::log('停止：当前没有正在运行的主进程');
         echo "当前没有正在运行的任务服务。\n";
-        CliServer::clearPid();
-        @unlink(CliServer::workersStateFile());
+        \App\Cli\CliServer::clearPid();
+        @unlink(\App\Cli\CliServer::workersStateFile());
         return 0;
     }
 
     private static function cmdStatus(): int
     {
-        $pid = CliServer::readPid();
-        if ($pid > 0 && CliServer::isProcessAlive($pid)) {
+        $pid = \App\Cli\CliServer::readPid();
+        if ($pid > 0 && \App\Cli\CliServer::isProcessAlive($pid)) {
             $hostAge = \WorkerHeartbeat::hostAge();
             $hostDesc = $hostAge === null ? '心跳缺失' : "心跳 {$hostAge}s 前";
             echo "任务服务正在运行（主进程 PID：{$pid}，{$hostDesc}）\n";
@@ -726,7 +726,7 @@ final class CliServerManager
             foreach ($workers as $row) {
                 $type = (string) ($row['type'] ?? '');
                 $wPid = (int) ($row['pid'] ?? 0);
-                $alive = $wPid > 0 && CliServer::isProcessAlive($wPid) ? '运行中' : '已退出';
+                $alive = $wPid > 0 && \App\Cli\CliServer::isProcessAlive($wPid) ? '运行中' : '已退出';
                 // 能力心跳：进程在 ≠ 任务在跑（可能卡死在一次上游请求里）
                 $hbAge = \WorkerHeartbeat::age($type);
                 $hbDesc = $hbAge === null ? '心跳缺失' : ($hbAge <= \WorkerHeartbeat::TTL ? "心跳 {$hbAge}s 前" : "心跳停滞 {$hbAge}s");
@@ -742,9 +742,9 @@ final class CliServerManager
     /** 不杀主进程，只让主进程重启全部 worker（读新代码） */
     private static function cmdReload(): int
     {
-        $pid = CliServer::readPid();
-        if ($pid > 0 && CliServer::isProcessAlive($pid)) {
-            if (!CliServer::requestReload()) {
+        $pid = \App\Cli\CliServer::readPid();
+        if ($pid > 0 && \App\Cli\CliServer::isProcessAlive($pid)) {
+            if (!\App\Cli\CliServer::requestReload()) {
                 echo "写入重载标记失败。\n";
                 return 1;
             }
@@ -752,12 +752,12 @@ final class CliServerManager
             if (PHP_OS_FAMILY !== 'Windows' && function_exists('posix_kill') && defined('SIGUSR1')) {
                 @posix_kill($pid, SIGUSR1);
             }
-            CliServer::log("重载：已请求主进程重启 worker（PID {$pid}）");
+            \App\Cli\CliServer::log("重载：已请求主进程重启 worker（PID {$pid}）");
             echo "已请求重载（PID {$pid}）。\n";
             return 0;
         }
 
-        CliServer::log('重载失败：没有正在运行的主进程，无法重载');
+        \App\Cli\CliServer::log('重载失败：没有正在运行的主进程，无法重载');
         echo "服务未在运行，无法重载。\n";
         return 1;
     }
@@ -779,9 +779,9 @@ final class CliServerManager
      */
     private static function workerLogFile(string $type, string $suffix): string
     {
-        CliServer::ensureRuntimeDir();
+        \App\Cli\CliServer::ensureRuntimeDir();
         $safe = preg_replace('/[^A-Za-z0-9_]/', '', $type);
-        return CliServer::runtimeDir() . '/worker.' . ($safe === '' ? 'unknown' : $safe) . '.' . $suffix . '.log';
+        return \App\Cli\CliServer::runtimeDir() . '/worker.' . ($safe === '' ? 'unknown' : $safe) . '.' . $suffix . '.log';
     }
 
     private static function spawnWorker(string $type, string $label, string $capability = ''): ?array
@@ -789,16 +789,16 @@ final class CliServerManager
         // 先确认 proc_* 齐全再 proc_open。
         // 拉起来却拿不到 PID 的话，这个子进程就没人监护、没人回收，
         // 会变成一个孤儿 worker 一直跑下去 —— 宁可不拉。
-        $missingProc = CliServer::missingProcFunctions();
+        $missingProc = \App\Cli\CliServer::missingProcFunctions();
         if ($missingProc !== []) {
-            CliServer::log(
+            \App\Cli\CliServer::log(
                 "拉起 worker {$type} 失败：缺少函数 " . implode('、', array_keys($missingProc))
             );
             return null;
         }
 
         $cmd = [
-            CliServer::phpBinary(),
+            \App\Cli\CliServer::phpBinary(),
             EM_ROOT . DIRECTORY_SEPARATOR . 'server',
             'worker',
             '--type=' . $type,
@@ -850,7 +850,7 @@ final class CliServerManager
             $stderr = $pipes[2];
         }
 
-        $status = CliServer::procCall('proc_get_status', static function () use ($proc) {
+        $status = \App\Cli\CliServer::procCall('proc_get_status', static function () use ($proc) {
             return proc_get_status($proc);
         }, null);
 
@@ -930,7 +930,7 @@ final class CliServerManager
                 continue;
             }
 
-            $status = CliServer::procCall('proc_get_status', static function () use ($child) {
+            $status = \App\Cli\CliServer::procCall('proc_get_status', static function () use ($child) {
                 return proc_get_status($child['proc']);
             }, null);
             if (!is_array($status)) {
@@ -954,13 +954,13 @@ final class CliServerManager
                 self::relayStream($child['stderr'], $type, true, $children[$type]['stderr_buf'], true);
                 fclose($child['stderr']);
             }
-            CliServer::procCall('proc_close', static function () use ($child) {
+            \App\Cli\CliServer::procCall('proc_close', static function () use ($child) {
                 return @proc_close($child['proc']);
             });
 
             $code = (int) ($status['exitcode'] ?? 0);
             echo "[{$type}] 已退出，code {$code}\n";
-            CliServer::log("worker 退出：{$type}，code {$code}");
+            \App\Cli\CliServer::log("worker 退出：{$type}，code {$code}");
             unset($children[$type]);
 
             // 正在整体停止或 reload 时，不要在这里偷偷再拉起
@@ -973,7 +973,7 @@ final class CliServerManager
             // 只要还残留在 $children 里被判定为「已退出」，就会在这里被重新拉起来 ——
             // 子进程加载时插件已经没了，于是又立刻退出，白白刷一串日志。
             if (!isset($desiredByType[$type])) {
-                CliServer::log("worker {$type} 已不在期望集合中，不再自动拉起");
+                \App\Cli\CliServer::log("worker {$type} 已不在期望集合中，不再自动拉起");
                 continue;
             }
 
@@ -982,12 +982,12 @@ final class CliServerManager
             $newChild = self::spawnWorker($type, $label, (string) ($child['capability'] ?? ''));
             if ($newChild === null) {
                 echo "[{$type}] 自动拉起失败\n";
-                CliServer::log("异常：worker {$type} 自动拉起失败");
+                \App\Cli\CliServer::log("异常：worker {$type} 自动拉起失败");
                 continue;
             }
             $children[$type] = $newChild;
             echo "[{$type}] 已自动拉起，PID {$newChild['pid']}\n";
-            CliServer::log("worker 自动拉起：{$type}，PID {$newChild['pid']}");
+            \App\Cli\CliServer::log("worker 自动拉起：{$type}，PID {$newChild['pid']}");
         }
     }
 
@@ -1020,7 +1020,7 @@ final class CliServerManager
     private static function terminateWorker(array $child): void
     {
         if (is_resource($child['proc'])) {
-            CliServer::procCall('proc_terminate', static function () use ($child) {
+            \App\Cli\CliServer::procCall('proc_terminate', static function () use ($child) {
                 return @proc_terminate($child['proc']);
             });
         }
@@ -1037,12 +1037,12 @@ final class CliServerManager
             return;
         }
 
-        $status = CliServer::procCall('proc_get_status', static function () use ($child) {
+        $status = \App\Cli\CliServer::procCall('proc_get_status', static function () use ($child) {
             return proc_get_status($child['proc']);
         }, null);
         // 探测不可用时保守强杀，免得留下停不掉的子进程
         if (!is_array($status) || !empty($status['running'])) {
-            CliServer::procCall('proc_terminate', static function () use ($child) {
+            \App\Cli\CliServer::procCall('proc_terminate', static function () use ($child) {
                 return @proc_terminate($child['proc'], 9); // SIGKILL
             });
         }
@@ -1052,7 +1052,7 @@ final class CliServerManager
         if (is_resource($child['stderr'])) {
             fclose($child['stderr']);
         }
-        CliServer::procCall('proc_close', static function () use ($child) {
+        \App\Cli\CliServer::procCall('proc_close', static function () use ($child) {
             return @proc_close($child['proc']);
         });
     }
@@ -1074,7 +1074,7 @@ final class CliServerManager
         }
 
         @file_put_contents(
-            CliServer::workersStateFile(),
+            \App\Cli\CliServer::workersStateFile(),
             json_encode([
                 'master_pid' => (int) getmypid(),
                 'updated_at' => date('Y-m-d H:i:s'),
@@ -1089,7 +1089,7 @@ final class CliServerManager
      */
     private static function loadWorkersState(): ?array
     {
-        $file = CliServer::workersStateFile();
+        $file = \App\Cli\CliServer::workersStateFile();
         if (!is_file($file)) {
             return null;
         }

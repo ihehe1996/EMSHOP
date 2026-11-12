@@ -45,7 +45,7 @@ function mpay_channels(): array
     ];
 }
 
-function mpay_storage_value(Storage $storage, array $keys, string $default = ''): string
+function mpay_storage_value(\App\Support\Storage $storage, array $keys, string $default = ''): string
 {
     foreach ($keys as $k) {
         $v = (string) ($storage->getValue($k) ?? '');
@@ -57,7 +57,7 @@ function mpay_storage_value(Storage $storage, array $keys, string $default = '')
     return $default;
 }
 
-function mpay_storage_enabled(Storage $storage, array $keys, bool $default = true): bool
+function mpay_storage_enabled(\App\Support\Storage $storage, array $keys, bool $default = true): bool
 {
     foreach ($keys as $k) {
         $raw = $storage->getValue($k);
@@ -188,7 +188,7 @@ function mpay_get_channel_config(string $code): ?array
     }
 
     $ch = $channels[$code];
-    $storage = Storage::getInstance('mpay');
+    $storage = app(\App\Support\Storage::class)->forPlugin('mpay');
 
     $enabled = mpay_storage_enabled($storage, [$code . '_enabled']);
     if (!$enabled) {

@@ -1311,7 +1311,7 @@ class ApiController extends BaseController
     private function writeSystemLog(string $level, string $action, string $message, array $detail = []): void
     {
         try {
-            if (!class_exists('SystemLogModel')) {
+            if (!class_exists(\App\Model\SystemLogModel::class)) {
                 return;
             }
             $m = new \App\Model\SystemLogModel();

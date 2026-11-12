@@ -575,7 +575,7 @@ function template_config(?string $theme = null): array
     }
 
     try {
-        return TemplateStorage::getInstance($name)->getAll();
+        return app(\App\Support\TemplateStorage::class)->forTemplate($name)->getAll();
     } catch (Throwable $e) {
         return [];
     }
