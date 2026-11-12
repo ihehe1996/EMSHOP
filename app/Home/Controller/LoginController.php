@@ -29,7 +29,7 @@ class LoginController extends BaseController
      */
     public function display(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handleLogin();
             return;
         }
@@ -41,8 +41,8 @@ class LoginController extends BaseController
         }
 
         // 未开放登录时直接提示
-        if ((string) \Config::get('user_login', '1') !== '1') {
-            \Response::error('当前站点已关闭登录功能');
+        if ((string) $this->config->get('user_login', '1') !== '1') {
+            $this->response->error('当前站点已关闭登录功能');
         }
 
         $this->view->setTitle('登录');
@@ -55,17 +55,17 @@ class LoginController extends BaseController
      */
     private function handleLogin(): void
     {
-        if ((string) \Config::get('user_login', '1') !== '1') {
-            \Response::error('当前站点已关闭登录功能');
+        if ((string) $this->config->get('user_login', '1') !== '1') {
+            $this->response->error('当前站点已关闭登录功能');
         }
 
-        $csrf = \Input::post('csrf_token', '');
-        if (!\Csrf::validate((string) $csrf)) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        $csrf = $this->input->post('csrf_token', '');
+        if (!$this->csrf->validate((string) $csrf)) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        $account  = trim(\Input::post('account', ''));
-        $password = (string) \Input::post('password', '');
+        $account  = trim($this->input->post('account', ''));
+        $password = (string) $this->input->post('password', '');
 
         // 登录前置拦截：登录频率限制等插件在此「计一次请求 / 判断是否封禁」，
         // 返回非空字符串即视为拦截（文案直接回给用户）。
@@ -74,11 +74,11 @@ class LoginController extends BaseController
         // 挡在后台之外（管理账号也能在前台登录的场景尤其重要）。
         $blocked = (string) applyFilter('login_before_attempt', '', 'front', $account);
         if ($blocked !== '') {
-            \Response::error($blocked);
+            $this->response->error($blocked);
         }
 
         if ($account === '' || $password === '') {
-            \Response::error('请输入账号和密码');
+            $this->response->error('请输入账号和密码');
         }
 
         // 查找账号（支持账号、手机号、邮箱登录）。
@@ -90,13 +90,13 @@ class LoginController extends BaseController
         // 提升隐患），而要由密码决定。
         // ORDER BY 让精确用户名匹配优先（该列唯一、语义最明确），其余按 id 兜底使顺序确定。
         // LIMIT 20 是防御性上界：bcrypt cost 8 约 10ms/次，把最坏耗时封在 ~200ms。
-        $table = \Database::prefix() . 'user';
+        $table = $this->db->prefix() . 'user';
         $sql = sprintf(
             'SELECT * FROM `%s` WHERE (`username` = ? OR `email` = ? OR `mobile` = ?)
               ORDER BY (`username` = ?) DESC, `id` ASC LIMIT 20',
             $table
         );
-        $rows = \Database::query($sql, [$account, $account, $account, $account]);
+        $rows = $this->db->query($sql, [$account, $account, $account, $account]);
 
         $hasher = new \PasswordHash(8, true);
         $user = null;
@@ -109,7 +109,7 @@ class LoginController extends BaseController
 
         if ($user === null) {
             doAction('login_attempt_failed', 'front', $account);
-            \Response::error('账号或密码错误');
+            $this->response->error('账号或密码错误');
         }
 
         // 检查账号状态。放在验密通过之后按行判断：否则密码输错也会拿到「已被禁用」，
@@ -118,7 +118,7 @@ class LoginController extends BaseController
             // 禁用也计一次失败（与后台一致：后台把 status=1 写进登录 SQL，禁用即算失败），
             // 否则「禁用账号的密码对不对」能从是否被限流侧信道读出来。
             doAction('login_attempt_failed', 'front', $account);
-            \Response::error('账号已被禁用，请联系管理员');
+            $this->response->error('账号已被禁用，请联系管理员');
         }
 
         doAction('login_attempt_succeeded', 'front', $account);
@@ -143,15 +143,15 @@ class LoginController extends BaseController
 
         // 更新最后登录信息
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        \Database::execute(
+        $this->db->execute(
             sprintf("UPDATE `%s` SET `last_login_ip` = ?, `last_login_at` = NOW() WHERE `id` = ?", $table),
             [$ip, (int) $user['id']]
         );
 
         // 刷新 CSRF token
-        \Csrf::refresh();
+        $this->csrf->refresh();
 
-        \Response::success('登录成功');
+        $this->response->success('登录成功');
     }
 
     /**
@@ -165,8 +165,8 @@ class LoginController extends BaseController
         unset($_SESSION['em_front_user']);
 
         // PJAX 请求返回 JSON，普通请求重定向首页
-        if (\Request::isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            \Response::success('已退出登录');
+        if ($this->request->isPjax() || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            $this->response->success('已退出登录');
         }
 
         header('Location: ?');
@@ -178,10 +178,10 @@ class LoginController extends BaseController
      */
     public function forgot(): void
     {
-        if (\Request::isPost()) {
-            $action = (string) \Input::post('action', '');
+        if ($this->request->isPost()) {
+            $action = (string) $this->input->post('action', '');
             if ($action === 'refresh_captcha') {
-                \Response::success('', ['expr' => \Captcha::issue('forgot_password')]);
+                $this->response->success('', ['expr' => \Captcha::issue('forgot_password')]);
             }
             $this->handleForgotSendRequest();
             return;
@@ -192,8 +192,8 @@ class LoginController extends BaseController
             exit;
         }
 
-        if ((string) \Config::get('user_login', '1') !== '1') {
-            \Response::error('当前站点已关闭登录功能');
+        if ((string) $this->config->get('user_login', '1') !== '1') {
+            $this->response->error('当前站点已关闭登录功能');
         }
 
         $this->view->setTitle('找回密码');
@@ -206,7 +206,7 @@ class LoginController extends BaseController
      */
     public function reset(): void
     {
-        if (\Request::isPost()) {
+        if ($this->request->isPost()) {
             $this->handleResetSubmit();
             return;
         }
@@ -218,17 +218,17 @@ class LoginController extends BaseController
 
     private function handleForgotSendRequest(): void
     {
-        if ((string) \Config::get('user_login', '1') !== '1') {
-            \Response::error('当前站点已关闭登录功能');
+        if ((string) $this->config->get('user_login', '1') !== '1') {
+            $this->response->error('当前站点已关闭登录功能');
         }
 
-        $csrf = \Input::post('csrf_token', '');
-        if (!\Csrf::validate((string) $csrf)) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        $csrf = $this->input->post('csrf_token', '');
+        if (!$this->csrf->validate((string) $csrf)) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        $email = trim(\Input::post('email', ''));
-        $captcha = trim(\Input::post('captcha', ''));
+        $email = trim($this->input->post('email', ''));
+        $captcha = trim($this->input->post('captcha', ''));
 
         $service = new \App\Service\PasswordResetService();
         $result = $service->requestReset($email, $captcha);
@@ -238,32 +238,32 @@ class LoginController extends BaseController
             if (!empty($result['captcha_expr'])) {
                 $data['captcha_expr'] = $result['captcha_expr'];
             }
-            \Response::error($result['msg'], $data);
+            $this->response->error($result['msg'], $data);
         }
 
-        \Csrf::refresh();
-        \Response::success($result['msg']);
+        $this->csrf->refresh();
+        $this->response->success($result['msg']);
     }
 
     private function handleResetSubmit(): void
     {
-        $csrf = \Input::post('csrf_token', '');
-        if (!\Csrf::validate((string) $csrf)) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        $csrf = $this->input->post('csrf_token', '');
+        if (!$this->csrf->validate((string) $csrf)) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        $token = trim(\Input::post('token', ''));
-        $password = (string) \Input::post('password', '');
-        $confirm = (string) \Input::post('password_confirm', '');
+        $token = trim($this->input->post('token', ''));
+        $password = (string) $this->input->post('password', '');
+        $confirm = (string) $this->input->post('password_confirm', '');
 
         $service = new \App\Service\PasswordResetService();
         $result = $service->resetPassword($token, $password, $confirm);
 
         if (!$result['ok']) {
-            \Response::error($result['msg']);
+            $this->response->error($result['msg']);
         }
 
-        \Csrf::refresh();
-        \Response::success($result['msg']);
+        $this->csrf->refresh();
+        $this->response->success($result['msg']);
     }
 }

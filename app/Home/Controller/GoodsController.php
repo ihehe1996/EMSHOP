@@ -61,7 +61,7 @@ class GoodsController extends BaseController
             && !empty($row["jump_url"])
             && (int) $this->getArg("_preview", 0) !== 1
         ) {
-            \Response::redirect((string) $row["jump_url"]);
+            $this->response->redirect((string) $row["jump_url"]);
             return;
         }
 
@@ -72,7 +72,7 @@ class GoodsController extends BaseController
             && $row["deleted_at"] === null
             && (int) $row["is_on_sale"] === 1;
         if ($canView
-            && (string) \Config::get("shop_block_sold_out_access", "1") !== "0"
+            && (string) $this->config->get("shop_block_sold_out_access", "1") !== "0"
             && (int) ($row["total_stock"] ?? 0) === 0
         ) {
             $canView = false;

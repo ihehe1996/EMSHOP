@@ -41,29 +41,29 @@ class OrderController extends BaseController
      */
     public function create(): void
     {
-        if (!\Request::isPost()) {
-            \Response::error('无效请求');
+        if (!$this->request->isPost()) {
+            $this->response->error('无效请求');
         }
 
         // 跨站/跨子域提交必须带 token；旧主题没有 token 时仅允许同源请求。
-        if (!\Csrf::validateOrSameOrigin((string) \Input::post('csrf_token', ''))) {
-            \Response::error('请求已失效，请刷新页面后重试');
+        if (!$this->csrf->validateOrSameOrigin((string) $this->input->post('csrf_token', ''))) {
+            $this->response->error('请求已失效，请刷新页面后重试');
         }
 
-        $goodsId     = (int) \Input::post('goods_id', 0);
-        $specId      = (int) \Input::post('spec_id', 0);
-        $quantity    = (int) \Input::post('quantity', 1);
-        $paymentCode = trim((string) \Input::post('payment_code', ''));
+        $goodsId     = (int) $this->input->post('goods_id', 0);
+        $specId      = (int) $this->input->post('spec_id', 0);
+        $quantity    = (int) $this->input->post('quantity', 1);
+        $paymentCode = trim((string) $this->input->post('payment_code', ''));
 
         // —— 基础参数校验
         if ($goodsId <= 0) {
-            \Response::error('请选择商品');
+            $this->response->error('请选择商品');
         }
         if ($quantity <= 0) {
             $quantity = 1;
         }
         if ($paymentCode === '') {
-            \Response::error('请选择支付方式');
+            $this->response->error('请选择支付方式');
         }
 
         // —— 身份信息（提前到余额支付校验使用）
@@ -71,7 +71,7 @@ class OrderController extends BaseController
 
         // —— 余额支付仅登录用户可用
         if ($paymentCode === 'balance' && $identity['user_id'] <= 0) {
-            \Response::error('未登录用户无法使用余额支付');
+            $this->response->error('未登录用户无法使用余额支付');
         }
 
         // —— 读取商品，用于附加选项/规格校验
@@ -81,17 +81,17 @@ class OrderController extends BaseController
             || (int) $goodsRow['is_on_sale'] !== 1
             || $goodsRow['deleted_at'] !== null
         ) {
-            \Response::error('商品不存在或已下架');
+            $this->response->error('商品不存在或已下架');
         }
         // 作用域校验：主站前台只能下主站商品；商户前台只能下本店自建 + 主站引用
         if (!\MerchantContext::isGoodsVisibleToCurrentScope($goodsRow)) {
-            \Response::error('商品不存在或已下架');
+            $this->response->error('商品不存在或已下架');
         }
 
         // —— 规格校验：多规格商品必须显式选中一个
         $allSpecs = \App\Model\GoodsModel::getSpecsByGoodsId($goodsId);
         if (count($allSpecs) > 1 && $specId <= 0) {
-            \Response::error('请选择规格');
+            $this->response->error('请选择规格');
         }
 
         // —— 附加选项必填校验（商品 configs.extra_fields 里 required=1 的项）
@@ -101,9 +101,9 @@ class OrderController extends BaseController
         foreach (($goodsConfigs['extra_fields'] ?? []) as $ef) {
             $name = (string) ($ef['name'] ?? '');
             if ($name === '') continue;
-            $val = trim((string) \Input::post('extra_' . $name, ''));
+            $val = trim((string) $this->input->post('extra_' . $name, ''));
             if (!empty($ef['required']) && $val === '') {
-                \Response::error('请填写 ' . ($ef['title'] ?? $name));
+                $this->response->error('请填写 ' . ($ef['title'] ?? $name));
             }
             $extraFields[$name] = $val;
         }
@@ -111,18 +111,18 @@ class OrderController extends BaseController
         // —— 游客查单字段必填校验（仅未登录用户；登录用户 DOM 里本就没这些字段）
         $isGuest = $identity['user_id'] === 0;
 
-        $contactQuery = trim((string) \Input::post('guest_find_contact_query', ''));
-        $orderPassword = trim((string) \Input::post('guest_find_password_query', ''));
+        $contactQuery = trim((string) $this->input->post('guest_find_contact_query', ''));
+        $orderPassword = trim((string) $this->input->post('guest_find_password_query', ''));
 
         if ($isGuest) {
             if (\App\Model\GuestFindModel::isContactEnabled()) {
                 $contactError = \App\Model\GuestFindModel::validateContactQuery($contactQuery);
                 if ($contactError !== null) {
-                    \Response::error($contactError);
+                    $this->response->error($contactError);
                 }
             }
             if (\App\Model\GuestFindModel::isPasswordEnabled() && $orderPassword === '') {
-                \Response::error('请设置订单密码');
+                $this->response->error('请设置订单密码');
             }
         }
 
@@ -140,7 +140,7 @@ class OrderController extends BaseController
             $identity['user_id']
         );
         if (is_string($payMethodError) && $payMethodError !== '') {
-            \Response::error($payMethodError);
+            $this->response->error($payMethodError);
         }
 
         try {
@@ -161,8 +161,8 @@ class OrderController extends BaseController
                 // 收货地址：OrderModel 按 goods_type_register.needs_address 判断是否必填
                 //   - 登录用户：address_id 指向地址簿记录
                 //   - 游客：guest_address 是下单页手填的 6 字段数组
-                'address_id'          => (int) \Input::post('address_id', 0),
-                'guest_address'       => \Input::post('guest_address', null),
+                'address_id'          => (int) $this->input->post('address_id', 0),
+                'guest_address'       => $this->input->post('guest_address', null),
             ];
 
             // 附加选项 → contact_info（含 title 快照）；游客联系方式 → guest_contact
@@ -182,9 +182,9 @@ class OrderController extends BaseController
             }
 
             // —— 优惠券（可选）：前端已通过 coupon/check 校验过折扣；此处再次后端校验后一起入创建事务
-            $couponCode = trim((string) \Input::post('coupon_code', ''));
+            $couponCode = trim((string) $this->input->post('coupon_code', ''));
             if ($couponCode !== '' && !shop_coupon_enabled()) {
-                \Response::error('优惠券功能未启用');
+                $this->response->error('优惠券功能未启用');
             }
             if ($couponCode !== '') {
                 $couponService = new \App\Service\CouponService();
@@ -216,7 +216,7 @@ class OrderController extends BaseController
                     $createData['coupon'] = $checkRes['coupon'];
                     $createData['coupon_discount'] = $checkRes['discount_raw'];
                 } catch (\RuntimeException $e) {
-                    \Response::error($e->getMessage());
+                    $this->response->error($e->getMessage());
                 }
             }
 
@@ -249,7 +249,7 @@ class OrderController extends BaseController
                 $payPayload = \App\Service\PaymentService::createPaymentPayload($orderRow, $payment);
             }
 
-            \Response::success('下单成功', [
+            $this->response->success('下单成功', [
                 'order_id'   => $result['order_id'],
                 'order_no'   => $result['order_no'],
                 'pay_amount' => bcdiv((string) $result['pay_amount'], '1000000', 2),
@@ -259,7 +259,7 @@ class OrderController extends BaseController
             ]);
 
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         }
     }
 

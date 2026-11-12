@@ -17,7 +17,7 @@ class RechargeController extends BaseController
         if (session_status() === PHP_SESSION_NONE) session_start();
         $user = $_SESSION['em_front_user'] ?? null;
         if (empty($user['id'])) {
-            \Response::error('请先登录');
+            $this->response->error('请先登录');
         }
         return $user;
     }
@@ -29,7 +29,7 @@ class RechargeController extends BaseController
      */
     public function create(): void
     {
-        if (!\Request::isPost()) \Response::error('无效请求');
+        if (!$this->request->isPost()) $this->response->error('无效请求');
 
         $user   = $this->requireLogin();
         $userId = (int) $user['id'];
@@ -39,32 +39,32 @@ class RechargeController extends BaseController
         // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
         // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
         try {
-            $amountRaw = \Money::parse(\Input::post('amount', ''));
+            $amountRaw = \Money::parse($this->input->post('amount', ''));
         } catch (\InvalidArgumentException $e) {
-            \Response::error('请输入正确的充值金额');
+            $this->response->error('请输入正确的充值金额');
         }
 
         // 后台配置的限额
-        $minRaw = (int) \Config::get('shop_min_recharge', '1000000');
-        $maxRaw = (int) \Config::get('shop_max_recharge', '1000000000000');
+        $minRaw = (int) $this->config->get('shop_min_recharge', '1000000');
+        $maxRaw = (int) $this->config->get('shop_max_recharge', '1000000000000');
         if ($amountRaw < $minRaw || $amountRaw > $maxRaw) {
-            $sym = ($p = \Currency::getInstance()->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
-            \Response::error(sprintf('充值金额须在 %s%s ~ %s%s 之间',
+            $sym = ($p = $this->currency->getPrimary()) ? ($p['symbol'] ?? '¥') : '¥';
+            $this->response->error(sprintf('充值金额须在 %s%s ~ %s%s 之间',
                 $sym, bcdiv((string) $minRaw, '1000000', 2),
                 $sym, bcdiv((string) $maxRaw, '1000000', 2)));
         }
 
         // —— 校验支付方式
-        $paymentCode = trim((string) \Input::post('payment_code', ''));
-        if ($paymentCode === '') \Response::error('请选择支付方式');
-        if ($paymentCode === 'balance') \Response::error('充值不能用余额支付');
+        $paymentCode = trim((string) $this->input->post('payment_code', ''));
+        if ($paymentCode === '') $this->response->error('请选择支付方式');
+        if ($paymentCode === 'balance') $this->response->error('充值不能用余额支付');
 
         $methods = \App\Service\PaymentService::getMethods();
         $payment = null;
         foreach ($methods as $m) {
             if (($m['code'] ?? '') === $paymentCode) { $payment = $m; break; }
         }
-        if ($payment === null) \Response::error('支付方式不可用');
+        if ($payment === null) $this->response->error('支付方式不可用');
 
         try {
             // —— 创建 pending 充值单
@@ -90,15 +90,15 @@ class RechargeController extends BaseController
                 throw new \RuntimeException('支付方式未生成支付链接');
             }
 
-            \Response::success('', [
+            $this->response->success('', [
                 'order_no'     => $created['order_no'],
                 'pay_url'      => $payUrl,
                 'qrcode'       => (string) ($payPayload['qrcode'] ?? ''),
             ]);
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('创建充值订单失败，请稍后重试');
+            $this->response->error('创建充值订单失败，请稍后重试');
         }
     }
 }

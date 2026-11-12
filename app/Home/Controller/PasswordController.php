@@ -19,7 +19,7 @@ class PasswordController extends BaseController
     {
         $this->view->setTitle('密码保护');
         $this->view->setData([
-            'is_post' => \Request::isPost(),
+            'is_post' => $this->request->isPost(),
             'error' => '',
         ]);
         $this->view->render('password');

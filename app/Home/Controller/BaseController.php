@@ -9,7 +9,7 @@ namespace App\Home\Controller;
  *
  * 所有前台控制器继承此类，获取视图实例和调度器引用。
  */
-abstract class BaseController
+abstract class BaseController extends \App\Core\AbstractController
 {
     /** @var View */
     protected \View $view;
@@ -30,6 +30,8 @@ abstract class BaseController
      */
     public function __construct(\View $view, \Dispatcher $dispatcher, string $controllerName)
     {
+        parent::__construct();
+
         $this->view = $view;
         $this->dispatcher = $dispatcher;
         $this->controllerName = $controllerName;

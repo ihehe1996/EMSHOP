@@ -29,9 +29,9 @@ class ApiController extends BaseController
 
     public function _index(): void
     {
-        $act = trim((string) (\Input::post('act', '') ?: \Input::get('act', '')));
+        $act = trim((string) ($this->input->post('act', '') ?: $this->input->get('act', '')));
         if ($act === '') {
-            \Response::error('缺少 act 参数');
+            $this->response->error('缺少 act 参数');
         }
 
         switch ($act) {
@@ -65,7 +65,7 @@ class ApiController extends BaseController
                 $this->goodsList();
                 return;
             default:
-                \Response::error('未知 act');
+                $this->response->error('未知 act');
         }
     }
 
@@ -90,8 +90,8 @@ class ApiController extends BaseController
      */
     private function createOrder(): void
     {
-        if (!\Request::isPost()) {
-            \Response::error('create_order 仅支持 POST 请求');
+        if (!$this->request->isPost()) {
+            $this->response->error('create_order 仅支持 POST 请求');
         }
 
         $params = $this->requestParams();
@@ -104,7 +104,7 @@ class ApiController extends BaseController
         $couponCode = trim((string) ($params['coupon_code'] ?? ''));
 
         if ($goodsId <= 0) {
-            \Response::error('goods_id 参数错误');
+            $this->response->error('goods_id 参数错误');
         }
 
         $orderResult = [];
@@ -170,12 +170,12 @@ class ApiController extends BaseController
                 });
             });
         } catch (\RuntimeException $e) {
-            \Response::error($e->getMessage());
+            $this->response->error($e->getMessage());
         } catch (\Throwable $e) {
-            \Response::error('下单失败，请稍后重试');
+            $this->response->error('下单失败，请稍后重试');
         }
 
-        \Response::success('下单成功', $orderResult);
+        $this->response->success('下单成功', $orderResult);
     }
 
     /**
@@ -195,7 +195,7 @@ class ApiController extends BaseController
         $quantity = max(1, (int) ($params['quantity'] ?? 1));
         $couponCode = trim((string) ($params['coupon_code'] ?? ''));
         if ($goodsId <= 0) {
-            \Response::error('goods_id 参数错误');
+            $this->response->error('goods_id 参数错误');
         }
 
         $preview = [];
@@ -245,18 +245,18 @@ class ApiController extends BaseController
                 });
             });
         } catch (\RuntimeException $e) {
-            \Response::success($e->getMessage(), [
+            $this->response->success($e->getMessage(), [
                 'can_order' => false,
                 'reason'    => $e->getMessage(),
             ]);
         } catch (\Throwable $e) {
-            \Response::success('模拟下单校验失败', [
+            $this->response->success('模拟下单校验失败', [
                 'can_order' => false,
                 'reason'    => '模拟下单校验失败',
             ]);
         }
 
-        \Response::success('校验通过', $preview);
+        $this->response->success('校验通过', $preview);
     }
 
     /**
@@ -272,27 +272,27 @@ class ApiController extends BaseController
 
         $orderNo = trim((string) ($params['order_no'] ?? ''));
         if ($orderNo === '') {
-            \Response::error('order_no 不能为空');
+            $this->response->error('order_no 不能为空');
         }
 
         $order = \App\Model\OrderModel::getByOrderNo($orderNo);
         if ($order === null) {
-            \Response::error('订单不存在');
+            $this->response->error('订单不存在');
         }
 
         // 只能是本 appid 创建的订单；只按 Host scope 校验会允许任何 API 账号查别人的单
         if ((int) ($order['user_id'] ?? 0) !== (int) ($apiUser['id'] ?? 0)) {
-            \Response::error('无权查询该订单');
+            $this->response->error('无权查询该订单');
         }
 
         // 订单归属校验：防止跨商户/跨主站查询
         $merchantId = (int) ($order['merchant_id'] ?? 0);
         $ownerId = (int) ($order['owner_id'] ?? 0);
         if ($merchantId !== (int) $scope['merchant_id'] || $ownerId !== (int) $scope['owner_id']) {
-            \Response::error('无权查询该订单');
+            $this->response->error('无权查询该订单');
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'order_no'          => (string) $order['order_no'],
             'status'            => (string) $order['status'],
             'status_name'       => \App\Model\OrderModel::statusName((string) $order['status']),
@@ -316,12 +316,12 @@ class ApiController extends BaseController
         $params = $this->requestParams();
         $apiUser = $this->authUser($params);
 
-        $siteName = trim((string) \Config::get('sitename', 'EMSHOP'));
+        $siteName = trim((string) $this->config->get('sitename', 'EMSHOP'));
         if ($siteName === '') {
             $siteName = 'EMSHOP';
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'site_name' => $siteName,
             'account'   => (string) ($apiUser['username'] ?? ''),
             'email'     => (string) ($apiUser['email'] ?? ''),
@@ -341,11 +341,11 @@ class ApiController extends BaseController
         $this->authUser($params);
         $scope = $this->resolveGoodsApiHostScope();
 
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $merchantId = (int) ($scope['merchant_id'] ?? 0);
 
         if ($merchantId > 0) {
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT c.`id`, c.`parent_id`,
                         CASE
                             WHEN mcm.`alias_name` IS NULL OR mcm.`alias_name` = '' THEN c.`name`
@@ -361,7 +361,7 @@ class ApiController extends BaseController
                 [$merchantId]
             );
         } else {
-            $rows = \Database::query(
+            $rows = $this->db->query(
                 "SELECT `id`, `parent_id`, `name`, `cover_image`
                  FROM `{$prefix}goods_category`
                  WHERE `status` = 1
@@ -379,7 +379,7 @@ class ApiController extends BaseController
             ];
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'list' => $list,
         ]);
     }
@@ -473,7 +473,7 @@ class ApiController extends BaseController
             $outList[] = $item;
         }
 
-        \Response::success('', [
+        $this->response->success('', [
             'list'  => $outList,
             'total' => count($outList),
         ]);
@@ -491,10 +491,10 @@ class ApiController extends BaseController
         if ($goodsIds === []) {
             return [];
         }
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($goodsIds), '?'));
         // 不按「必有默认规格」内连接：否则无默认行/规格停用时整商品明细丢失，导入侧简介/多图/configs 全空
-        $rows = \Database::query(
+        $rows = $this->db->query(
             "SELECT g.`id`, g.`intro`, g.`content`, g.`cover_images`, g.`configs`, g.`goods_type` AS upstream_goods_type,
                     (SELECT gs.`min_buy` FROM `{$prefix}goods_spec` gs
                      WHERE gs.`goods_id` = g.`id` AND gs.`status` = 1
@@ -570,10 +570,10 @@ class ApiController extends BaseController
         if ($goodsIds === []) {
             return [];
         }
-        $prefix = \Database::prefix();
+        $prefix = $this->db->prefix();
         $placeholders = implode(',', array_fill(0, count($goodsIds), '?'));
 
-        $specRows = \Database::query(
+        $specRows = $this->db->query(
             "SELECT `id`, `goods_id`, `name`, `spec_no`, `price`, `cost_price`, `market_price`, `stock`,
                     `tags`, `configs`, `min_buy`, `max_buy`, `sort`, `is_default`, `status`
              FROM `{$prefix}goods_spec`
@@ -596,7 +596,7 @@ class ApiController extends BaseController
                 $resolvedPriceMap[$sid] = number_format((float) ($sp['price'] ?? 0), 2, '.', '');
             }
         }
-        $dimRows = \Database::query(
+        $dimRows = $this->db->query(
             "SELECT `goods_id`, `name`
              FROM `{$prefix}goods_spec_dim`
              WHERE `goods_id` IN ({$placeholders})
@@ -732,7 +732,7 @@ class ApiController extends BaseController
      */
     private function requestParams(): array
     {
-        $params = array_merge(\Input::allGet(), \Input::allPost());
+        $params = array_merge($this->input->allGet(), $this->input->allPost());
 
         $ct = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
         if (strpos($ct, 'application/json') !== false) {
@@ -762,29 +762,29 @@ class ApiController extends BaseController
         $signType = strtoupper(trim((string) ($params['sign_type'] ?? 'MD5')));
 
         if ($appId <= 0) {
-            \Response::error('appid 参数错误');
+            $this->response->error('appid 参数错误');
         }
         if ($timestamp <= 0) {
-            \Response::error('timestamp 参数错误');
+            $this->response->error('timestamp 参数错误');
         }
         if ($sign === '') {
-            \Response::error('sign 不能为空');
+            $this->response->error('sign 不能为空');
         }
         if ($signType !== 'MD5') {
-            \Response::error('仅支持 MD5 签名');
+            $this->response->error('仅支持 MD5 签名');
         }
         if (abs(time() - $timestamp) > self::SIGN_TTL) {
-            \Response::error('请求已过期');
+            $this->response->error('请求已过期');
         }
 
         $user = (new \App\Model\UserListModel())->findById($appId);
         if ($user === null || (int) ($user['status'] ?? 0) !== 1) {
-            \Response::error('API 用户不存在或已禁用');
+            $this->response->error('API 用户不存在或已禁用');
         }
 
         $secret = trim((string) ($user['secret'] ?? ''));
         if ($secret === '') {
-            \Response::error('该账号未生成 API SECRET');
+            $this->response->error('该账号未生成 API SECRET');
         }
 
         // 新版签名覆盖 act；写操作必须用新版签名，避免把 simulate_order 改成 real_order 后重放。
@@ -798,13 +798,13 @@ class ApiController extends BaseController
         // 旧版签名不含 act / c / a：只读 act 继续兼容；写操作默认拒绝，
         // 极端情况下可用 Config 的 api_allow_legacy_sign=1 临时放行（不推荐）。
         if (hash_equals($this->signLegacy($params, $secret), $sign)) {
-            if (!$stateChanging || (string) \Config::get('api_allow_legacy_sign', '0') === '1') {
+            if (!$stateChanging || (string) $this->config->get('api_allow_legacy_sign', '0') === '1') {
                 return $user;
             }
-            \Response::error('签名校验失败：写操作需要把 act（以及请求里的 c / a）一起参与签名，旧版签名已不再接受');
+            $this->response->error('签名校验失败：写操作需要把 act（以及请求里的 c / a）一起参与签名，旧版签名已不再接受');
         }
 
-        \Response::error('签名错误');
+        $this->response->error('签名错误');
     }
 
     /**
@@ -867,10 +867,10 @@ class ApiController extends BaseController
 
         $merchant = (new \App\Model\MerchantModel())->findById($merchantId);
         if ($merchant === null || (int) ($merchant['status'] ?? 0) !== 1) {
-            \Response::error('商户不存在或已停用');
+            $this->response->error('商户不存在或已停用');
         }
         if ((int) ($merchant['user_id'] ?? 0) !== (int) ($apiUser['id'] ?? 0)) {
-            \Response::error('API 账号与商户归属不匹配');
+            $this->response->error('API 账号与商户归属不匹配');
         }
 
         return [
@@ -1134,11 +1134,11 @@ class ApiController extends BaseController
             $this->writeSystemLog('warning', '发货回调参数缺失', '收到的发货回调参数不完整', [
                 'local_order_goods_id' => $localOrderGoodsId,
             ]);
-            \Response::error('回调参数缺失');
+            $this->response->error('回调参数缺失');
         }
 
-        $prefix = \Database::prefix();
-        $og = \Database::fetchOne(
+        $prefix = $this->db->prefix();
+        $og = $this->db->fetchOne(
             "SELECT `id`, `order_id`, `goods_id`, `spec_id`, `quantity`, `delivery_content`, `plugin_data`
              FROM `{$prefix}order_goods` WHERE `id` = ? LIMIT 1",
             [$localOrderGoodsId]
@@ -1147,7 +1147,7 @@ class ApiController extends BaseController
             $this->writeSystemLog('warning', '发货回调目标不存在', '收到发货回调但本地订单商品不存在', [
                 'local_order_goods_id' => $localOrderGoodsId,
             ]);
-            \Response::error('订单商品不存在');
+            $this->response->error('订单商品不存在');
         }
 
         $pd = json_decode((string) ($og['plugin_data'] ?? '{}'), true);
@@ -1163,7 +1163,7 @@ class ApiController extends BaseController
             $this->writeSystemLog('warning', '发货回调鉴权失败', '收到发货回调但鉴权不通过', [
                 'local_order_goods_id' => $localOrderGoodsId,
             ]);
-            \Response::error('回调鉴权失败');
+            $this->response->error('回调鉴权失败');
         }
 
         // 幂等：已写过发货内容直接返回成功
@@ -1172,7 +1172,7 @@ class ApiController extends BaseController
                 'local_order_goods_id' => $localOrderGoodsId,
                 'order_id' => (int) ($og['order_id'] ?? 0),
             ]);
-            \Response::success('ok', ['handled' => true, 'duplicate' => true]);
+            $this->response->success('ok', ['handled' => true, 'duplicate' => true]);
         }
 
         $em['upstream_status'] = trim((string) ($params['upstream_status'] ?? ''));
@@ -1184,9 +1184,9 @@ class ApiController extends BaseController
             $this->writeSystemLog('error', '发货回调写入失败', '发货内容写入明细表失败', [
                 'local_order_goods_id' => $localOrderGoodsId,
             ]);
-            \Response::error('发货内容写入失败，请先执行升级迁移');
+            $this->response->error('发货内容写入失败，请先执行升级迁移');
         }
-        \Database::execute(
+        $this->db->execute(
             "UPDATE `{$prefix}order_goods`
              SET `delivery_at` = NOW(), `plugin_data` = ?
              WHERE `id` = ?",
@@ -1205,7 +1205,7 @@ class ApiController extends BaseController
         $remainStock = $this->parseSpecRemainingStockFromCallback($params);
         $gid = (int) ($og['goods_id'] ?? 0);
         if ($remainStock !== null && $specId > 0) {
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE `{$prefix}goods_spec` SET `stock` = ? WHERE `id` = ?",
                 [$remainStock, $specId]
             );
@@ -1216,7 +1216,7 @@ class ApiController extends BaseController
 
         $goodsTotalStock = $this->parseGoodsTotalStockFromCallback($params);
         if ($goodsTotalStock !== null && $gid > 0) {
-            \Database::execute(
+            $this->db->execute(
                 "UPDATE `{$prefix}goods` SET `total_stock` = ? WHERE `id` = ?",
                 [$goodsTotalStock, $gid]
             );
@@ -1231,7 +1231,7 @@ class ApiController extends BaseController
             'upstream_query_string'   => (string) ($_SERVER['QUERY_STRING'] ?? ''),
             'upstream_request_params' => $this->requestParamsForSystemLog($params),
         ]);
-        \Response::success('ok', ['handled' => true]);
+        $this->response->success('ok', ['handled' => true]);
     }
 
     /**

@@ -28,7 +28,7 @@ class IndexController extends BaseController
      */
     public function display(): void
     {
-        $mode = (string) \Config::get('homepage_mode', 'mall');
+        $mode = (string) $this->config->get('homepage_mode', 'mall');
 
         $this->view->render($mode === 'goods_list' ? 'goods_list' : 'index');
     }
