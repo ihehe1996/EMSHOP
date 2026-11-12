@@ -28,7 +28,7 @@ class PageController extends BaseController
         $page = null;
         if ($slug !== '' && preg_match('/^[a-z0-9_\-]+$/', $slug)) {
             // 限定到当前 scope：主站只能看主站页面，商户只能看自己的页面
-            $page = \App\Model\PageModel::getBySlug($slug, \MerchantContext::currentId());
+            $page = \App\Model\PageModel::getBySlug($slug, $this->merchantContext->currentId());
         }
 
         if ($page === null) {

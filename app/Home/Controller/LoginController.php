@@ -181,7 +181,7 @@ class LoginController extends BaseController
         if ($this->request->isPost()) {
             $action = (string) $this->input->post('action', '');
             if ($action === 'refresh_captcha') {
-                $this->response->success('', ['expr' => \Captcha::issue('forgot_password')]);
+                $this->response->success('', ['expr' => $this->captcha->issue('forgot_password')]);
             }
             $this->handleForgotSendRequest();
             return;

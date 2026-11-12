@@ -31,7 +31,7 @@ final class WithdrawController extends MerchantBaseController
                         // 原先的 (float) + round 走浮点，虽然不会抛错，但金额入参不该经过
                         // 浮点运算；且它与前台提现/充值的口径统一后更易维护。
                         try {
-                            $amount = \Money::parse($this->input->post('amount', ''));
+                            $amount = $this->money->parse($this->input->post('amount', ''));
                         } catch (InvalidArgumentException $e) {
                             $this->response->error('请填写有效的提现金额');
                         }

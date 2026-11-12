@@ -53,7 +53,7 @@ class BlogCommentController extends BaseController
         }
 
         // 验证文章属于当前 scope
-        $blog = \App\Model\BlogModel::getByIdForScope($blogId, \MerchantContext::currentId());
+        $blog = \App\Model\BlogModel::getByIdForScope($blogId, $this->merchantContext->currentId());
         if (!$blog) {
             $this->response->error('文章不存在');
             return;
@@ -111,7 +111,7 @@ class BlogCommentController extends BaseController
             return;
         }
         // 必须给当前 scope 的文章发评论
-        $blog = \App\Model\BlogModel::getByIdForScope($blogId, \MerchantContext::currentId());
+        $blog = \App\Model\BlogModel::getByIdForScope($blogId, $this->merchantContext->currentId());
         if (!$blog) {
             $this->response->error('文章不存在');
             return;

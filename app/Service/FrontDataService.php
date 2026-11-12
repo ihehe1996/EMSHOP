@@ -112,7 +112,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (class_exists('MerchantContext') && \MerchantContext::currentId() > 0)
+            $conditions[] = (\MerchantContext::currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }
@@ -274,7 +274,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (class_exists('MerchantContext') && \MerchantContext::currentId() > 0)
+            $conditions[] = (\MerchantContext::currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }

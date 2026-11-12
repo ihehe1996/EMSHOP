@@ -96,7 +96,7 @@ final class FindOrderController extends UserPublicBaseController
             if ($action === 'refresh_captcha') {
                 echo json_encode([
                     'code' => 200,
-                    'data' => ['expr' => \Captcha::issue('find_order')],
+                    'data' => ['expr' => $this->captcha->issue('find_order')],
                 ], JSON_UNESCAPED_UNICODE);
                 exit;
             }
@@ -114,22 +114,22 @@ final class FindOrderController extends UserPublicBaseController
                 //   2) 算术 captcha（人类友好门槛，过滤无脑脚本）
                 // token 模式跳过：只认 v2 签名 Cookie，身份由服务端签名保证
                 if ($mode === 'credentials' || $mode === 'orderno') {
-                    $rlKey = 'find_order:' . \RateLimit::clientIp();
-                    if (\RateLimit::tooManyAttempts($rlKey, 10)) {
-                        $wait = \RateLimit::availableIn($rlKey);
+                    $rlKey = 'find_order:' . $this->rateLimit->clientIp();
+                    if ($this->rateLimit->tooManyAttempts($rlKey, 10)) {
+                        $wait = $this->rateLimit->availableIn($rlKey);
                         // 限流命中也刷新一次 captcha，避免攻击者用同一个答案做 retry burst
-                        \Captcha::issue('find_order');
+                        $this->captcha->issue('find_order');
                         throw new \RuntimeException("请求过于频繁，请 {$wait} 秒后再试");
                     }
                     // 先记 hit（即使 captcha 错也算一次，这样答错+重试也吃配额，逼着攻击者降速）
-                    \RateLimit::hit($rlKey, 60);
+                    $this->rateLimit->hit($rlKey, 60);
 
-                    if (!\Captcha::verify($captchaInput, 'find_order')) {
+                    if (!$this->captcha->verify($captchaInput, 'find_order')) {
                         // 答错时返回一道新题，前端要刷新显示
                         echo json_encode([
                             'code' => 400,
                             'msg' => '验证码错误，请重试',
-                            'data' => ['captcha_expr' => \Captcha::issue('find_order')],
+                            'data' => ['captcha_expr' => $this->captcha->issue('find_order')],
                         ], JSON_UNESCAPED_UNICODE);
                         exit;
                     }
@@ -284,7 +284,7 @@ final class FindOrderController extends UserPublicBaseController
                 // 失败时给 captcha 模式补发一道新题（已 consume，不发新的会让用户误以为还能用旧值）
                 $errPayload = ['code' => 400, 'msg' => $e->getMessage()];
                 if ($mode === 'credentials' || $mode === 'orderno') {
-                    $errPayload['data'] = ['captcha_expr' => \Captcha::issue('find_order')];
+                    $errPayload['data'] = ['captcha_expr' => $this->captcha->issue('find_order')];
                 }
                 echo json_encode($errPayload, JSON_UNESCAPED_UNICODE);
                 exit;
@@ -314,7 +314,7 @@ final class FindOrderController extends UserPublicBaseController
         // 注意：每次页面渲染（含 PJAX 切 tab）都会重新签发，自然替换旧题
         $captchaExpr = '';
         if ($currentTab === 'credentials' || $currentTab === 'orderno') {
-            $captchaExpr = \Captcha::issue('find_order');
+            $captchaExpr = $this->captcha->issue('find_order');
         }
 
         // GET ?order_no=xxx → 渲染单订单详情（游客场景，无侧边栏）

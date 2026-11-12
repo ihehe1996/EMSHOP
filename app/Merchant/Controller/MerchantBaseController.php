@@ -41,7 +41,7 @@ abstract class MerchantBaseController extends UserBaseController
         $this->merchant = (array) $merchant;
 
         $GLOBALS['__em_current_scope'] = 'merchant_' . $merchantId;
-        \MerchantContext::rememberLastMerchant($this->merchant);
+        $this->merchantContext->rememberLastMerchant($this->merchant);
 
         $level = (new \App\Model\MerchantLevelModel())->findById((int) ($merchant['level_id'] ?? 0));
         $this->level = is_array($level) ? $level : null;

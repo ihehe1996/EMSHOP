@@ -55,8 +55,8 @@ final class AppstoreController extends BaseAdminController
             try {
                 // tab=merchant 仍保留分支，便于后续在服务端做差异化策略
                 $data = $tab === 'merchant'
-                    ? \LicenseClient::merchantAppCreateOrder($emkey, $host, $appId)
-                    : \LicenseClient::mainAppCreateOrder($emkey, $host, $appId);
+                    ? $this->licenseClient->merchantAppCreateOrder($emkey, $host, $appId)
+                    : $this->licenseClient->mainAppCreateOrder($emkey, $host, $appId);
 
                 $orderNo = trim((string) ($data['order_no'] ?? ''));
                 if ($orderNo === '') {
@@ -98,7 +98,7 @@ final class AppstoreController extends BaseAdminController
             }
             $channelId = (int) $this->input->post('channel_id', 0);
             try {
-                $data = \LicenseClient::appOrderQrcode($orderNo, $channelId);
+                $data = $this->licenseClient->appOrderQrcode($orderNo, $channelId);
                 $data['csrf_token'] = $this->csrf->refresh();
                 $this->response->success('', $data);
             } catch (\Throwable $e) {
@@ -117,7 +117,7 @@ final class AppstoreController extends BaseAdminController
             }
             try {
                 // 轮询很频繁，不轮换 CSRF（否则前端拿到的 token 会和并发的请求互相打脸）
-                $this->response->success('', \LicenseClient::appOrderStatus($orderNo));
+                $this->response->success('', $this->licenseClient->appOrderStatus($orderNo));
             } catch (\Throwable $e) {
                 $this->response->error($e->getMessage());
             }
@@ -143,8 +143,8 @@ final class AppstoreController extends BaseAdminController
                 // 阶段 8:走拆分后的 mainAppDetail / merchantAppDetail
                 $officialToken = \App\Service\LicenseService::officialAccountToken();
                 $data = $tab === 'merchant'
-                    ? \LicenseClient::merchantAppDetail($appId, $emkey, $host, $officialToken)
-                    : \LicenseClient::mainAppDetail($appId, $emkey, $host, $officialToken);
+                    ? $this->licenseClient->merchantAppDetail($appId, $emkey, $host, $officialToken)
+                    : $this->licenseClient->mainAppDetail($appId, $emkey, $host, $officialToken);
                 $this->response->success('', $data);
             } catch (\Throwable $e) {
                 $this->response->error($e->getMessage());
@@ -220,8 +220,8 @@ final class AppstoreController extends BaseAdminController
             try {
                 // scope 由镜像方法注入：mainAppList → 'main' / merchantAppList → 'branch'
                 $result = $tab === 'merchant'
-                    ? \LicenseClient::merchantAppList($params, $officialToken)
-                    : \LicenseClient::mainAppList($params, $officialToken);
+                    ? $this->licenseClient->merchantAppList($params, $officialToken)
+                    : $this->licenseClient->mainAppList($params, $officialToken);
 
                 // 这次列表是带着本地激活码去问的：服务端明确回未授权 → 清空本地授权
                 // （码不存在 / 已作废 / 域名对不上都是这个值，口径与 license/status 一致）
@@ -625,7 +625,7 @@ final class AppstoreController extends BaseAdminController
      */
     private function assertDownloadUrl(string $url): void
     {
-        foreach (\LicenseClient::lines() as $line) {
+        foreach ($this->licenseClient->lines() as $line) {
             $base = rtrim((string) ($line['url'] ?? ''), '/');
             if ($base !== '' && \DownloadUrlGuard::isAllowed($url, $base, true)) {
                 return;
@@ -650,10 +650,10 @@ final class AppstoreController extends BaseAdminController
             $this->assertDownloadUrl($url);
             return $url;
         }
-        if (!\LicenseClient::lines()) {
+        if (!$this->licenseClient->lines()) {
             $this->response->error('未配置授权服务器地址');
         }
-        return rtrim(\LicenseClient::currentBaseUrl(), '/') . '/' . ltrim($url, '/');
+        return rtrim($this->licenseClient->currentBaseUrl(), '/') . '/' . ltrim($url, '/');
     }
 
     /**
@@ -708,7 +708,7 @@ final class AppstoreController extends BaseAdminController
             CURLOPT_CONNECTTIMEOUT  => 10,
             CURLOPT_USERAGENT       => 'emshop-' . EM_VERSION,
             // 证书校验默认开启；自签线路由 config 的 license_insecure_tls=1 显式降级
-        ] + \LicenseClient::tlsOptions());
+        ] + $this->licenseClient->tlsOptions());
         $ok = curl_exec($ch);
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
@@ -730,8 +730,8 @@ final class AppstoreController extends BaseAdminController
         $url = trim($url);
         if ($url === '') return '';
         if (stripos($url, 'http://') === 0 || stripos($url, 'https://') === 0) return $url;
-        if (!\LicenseClient::lines()) return $url;
-        return rtrim(\LicenseClient::currentBaseUrl(), '/') . '/' . ltrim($url, '/');
+        if (!$this->licenseClient->lines()) return $url;
+        return rtrim($this->licenseClient->currentBaseUrl(), '/') . '/' . ltrim($url, '/');
     }
 
     private function requireWritablePath(string $path): void

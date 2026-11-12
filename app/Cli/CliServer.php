@@ -630,9 +630,7 @@ final class CliServer
         // 统一脱敏后再落盘：日志文件在 web 根内，可被直接下载，
         // 里面不能出现订单号（游客查单凭据）、联系方式、哈希令牌、密钥等。
         // 详见 LogSanitizer 的类注释。
-        $safeMessage = class_exists('LogSanitizer')
-            ? \LogSanitizer::sanitize($message)
-            : $message;
+        $safeMessage = \LogSanitizer::sanitize($message);
 
         $line = '[' . date('Y-m-d H:i:s') . '] ' . $safeMessage . "\n";
         @file_put_contents(self::logFile(), $line, FILE_APPEND | \LOCK_EX);

@@ -21,7 +21,7 @@ class BlogTagController extends BaseController
     public function _detail(): void
     {
         $tagId = (int) $this->getArg('id', 0);
-        $merchantId = \MerchantContext::currentId();
+        $merchantId = $this->merchantContext->currentId();
 
         $tag = null;
         if ($tagId > 0) {

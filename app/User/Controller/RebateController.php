@@ -12,7 +12,7 @@ final class RebateController extends UserBaseController
     public function index(): void
     {
         $frontUser = $this->user();
-        if (\MerchantContext::currentId() > 0) {
+        if ($this->merchantContext->currentId() > 0) {
             header('Location: /user/home');
             exit;
         }

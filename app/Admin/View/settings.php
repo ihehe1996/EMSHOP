@@ -10,7 +10,7 @@ $esc = function (string $str) use (&$esc): string {
 $cfg = Config::load();
 $siteUrlConfigured = trim((string) ($cfg['site_url'] ?? '')) !== '';
 $placeholderImg = defined('EM_PLACEHOLDER_IMG') ? EM_PLACEHOLDER_IMG : '';
-$templateModel = class_exists('TemplateModel') ? new \App\Model\TemplateModel() : null;
+$templateModel = new \App\Model\TemplateModel();
 $availableThemes = [];
 if ($templateModel !== null) {
     foreach ($templateModel->scanTemplates() as $themeName => $themeInfo) {

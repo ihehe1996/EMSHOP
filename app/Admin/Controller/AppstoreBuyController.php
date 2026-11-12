@@ -20,7 +20,7 @@ final class AppstoreBuyController extends BaseAdminController
             $tab = 'main';
         }
 
-        $lines = \LicenseClient::lines();
+        $lines = $this->licenseClient->lines();
         $assetHost = $lines ? rtrim((string) $lines[0]['url'], '/') : '';
 
         $this->render('appstore_buy', [

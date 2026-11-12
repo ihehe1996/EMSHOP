@@ -50,7 +50,7 @@ final class DisclaimerController extends BaseAdminController
         $saved = \App\Service\DisclaimerService::accept(
             (int) $admin['id'],
             (string) $admin['username'],
-            \RateLimit::clientIp()
+            $this->rateLimit->clientIp()
         );
         if (!$saved) {
             $this->response->error('签署记录保存失败，请稍后重试');

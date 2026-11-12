@@ -198,7 +198,7 @@ class GoodsModel
         $markup = 0;
         $factor = $buyerDiscount;
 
-        $merchantId = class_exists('MerchantContext') ? \MerchantContext::currentId() : 0;
+        $merchantId = \MerchantContext::currentId();
         if ($merchantId > 0) {
             $ownerUserId = \MerchantContext::currentOwnerId();
             $goodsOwner = (int) ($row['owner_id'] ?? 0);
@@ -836,7 +836,7 @@ class GoodsModel
         $markup = 0;
         $isMerchantRefGoods = false;
 
-        $merchantId = class_exists('MerchantContext') ? \MerchantContext::currentId() : 0;
+        $merchantId = \MerchantContext::currentId();
         if ($merchantId > 0) {
             $goods = \Database::fetchOne(
                 'SELECT `owner_id` FROM `' . \Database::prefix() . 'goods` WHERE `id` = ? LIMIT 1',

@@ -284,7 +284,7 @@ class OrderModel
             $needsAddress = false;
             $goodsCfgCache = [];
             foreach ($orderGoodsRows as $r) {
-                $typeCfg = class_exists('GoodsTypeManager') ? \GoodsTypeManager::getTypeConfig((string) ($r['goods_type'] ?? '')) : null;
+                $typeCfg = \GoodsTypeManager::getTypeConfig((string) ($r['goods_type'] ?? ''));
                 $need = !empty($typeCfg['needs_address']);
                 $cfgArr = json_decode((string) ($r['_goods_configs'] ?? '{}'), true) ?: [];
                 if ($cfgArr === []) {

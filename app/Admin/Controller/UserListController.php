@@ -461,7 +461,7 @@ final class UserListController extends BaseAdminController
                     }
 
                     try {
-                        $amount = \Money::parse($amountStr);
+                        $amount = $this->money->parse($amountStr);
                     } catch (\InvalidArgumentException $e) {
                         $this->response->error('请输入有效的金额');
                     }
@@ -592,7 +592,7 @@ final class UserListController extends BaseAdminController
             'merchantDetail' => $merchantDetail,
             'merchantLevel'  => $merchantLevel,
             'merchantOwner'  => $merchantOwner,
-            'storefrontUrl'  => \MerchantContext::storefrontUrl($merchantDetail),
+            'storefrontUrl'  => $this->merchantContext->storefrontUrl($merchantDetail),
             'pageTitle'      => '商户详情',
         ]);
     }

@@ -81,11 +81,11 @@ final class SettingsController extends BaseAdminController
             'port'       => (int) $this->input->post('port', 465),
         ];
         $bodyHtml = '<p style="font-size:14px;color:#374151;">欢迎使用 EMSHOP 免费开源程序 · 基于 PHP 的商城程序及 CMS 建站系统</p>';
-        $ok = \Mailer::sendWith($cfg, $to, '[EMSHOP] SMTP 测试邮件', $bodyHtml);
+        $ok = $this->mailer->sendWith($cfg, $to, '[EMSHOP] SMTP 测试邮件', $bodyHtml);
         if ($ok) {
             $this->response->success('发送成功，请查收');
         }
-        $this->response->error(\Mailer::lastError() ?: '发送失败');
+        $this->response->error($this->mailer->lastError() ?: '发送失败');
     }
 
     /**
@@ -212,7 +212,7 @@ final class SettingsController extends BaseAdminController
                         'shop_withdraw_min', 'shop_withdraw_max',
                     ];
                     foreach ($amountFields as $field) {
-                        $rawMicro = \Money::tryParse($this->input->post($field, '0'), true);
+                        $rawMicro = $this->money->tryParse($this->input->post($field, '0'), true);
                         $this->config->set($field, (string) ($rawMicro ?? 0));
                         $saved++;
                     }

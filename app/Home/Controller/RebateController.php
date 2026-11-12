@@ -39,7 +39,7 @@ class RebateController extends BaseController
     {
         if (!$this->request->isPost()) $this->response->error('无效请求');
 
-        if (\MerchantContext::currentId() > 0) {
+        if ($this->merchantContext->currentId() > 0) {
             $this->response->error('商户站不支持推广返佣');
         }
 
@@ -50,7 +50,7 @@ class RebateController extends BaseController
         // 原先的 is_numeric + bcmul 会放行 1e5 这类科学计数法字符串，而 bcmul 在
         // PHP 8 遇到它会抛未捕获的 ValueError（接口直接 500），PHP 7.4 下则静默截断成错误金额。
         try {
-            $amountRaw = \Money::parse($this->input->post('amount', ''));
+            $amountRaw = $this->money->parse($this->input->post('amount', ''));
         } catch (\InvalidArgumentException $e) {
             $this->response->error('请输入正确的提现金额');
         }

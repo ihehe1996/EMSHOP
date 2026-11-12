@@ -16,7 +16,7 @@ final class ApplyController extends \App\User\Controller\UserBaseController
         $frontUser = $this->user();
         // 禁止在分站（商户站）内开通新分站：避免商户之间形成层级关系（传销风险）。
         // POST 返回 JSON 错误；GET 跳到主站的 apply 页（Host 改为主域名）
-        if (\MerchantContext::currentId() > 0) {
+        if ($this->merchantContext->currentId() > 0) {
             if ($this->request->isPost()) {
                 $this->response->error('请在主站开通分站，不可在分站内开通');
             }

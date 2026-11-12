@@ -341,7 +341,7 @@ if ($this->request->isPost()) {
             // 只读：后台线路列表展开时并发测一遍各线路延迟（不轮换 CSRF）
             case 'line_ping':
                 $this->response->success('', [
-                    'lines'         => \LicenseClient::measureLatency(),
+                    'lines'         => $this->licenseClient->measureLatency(),
                     'current_index' => \App\Service\LicenseService::currentLineIndex(),
                 ]);
                 break;

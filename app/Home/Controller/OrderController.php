@@ -84,7 +84,7 @@ class OrderController extends BaseController
             $this->response->error('商品不存在或已下架');
         }
         // 作用域校验：主站前台只能下主站商品；商户前台只能下本店自建 + 主站引用
-        if (!\MerchantContext::isGoodsVisibleToCurrentScope($goodsRow)) {
+        if (!$this->merchantContext->isGoodsVisibleToCurrentScope($goodsRow)) {
             $this->response->error('商品不存在或已下架');
         }
 
@@ -145,8 +145,8 @@ class OrderController extends BaseController
 
         try {
             // 商户上下文：在商户店铺下单 → 订单归属该商户
-            $merchantId = \MerchantContext::currentId();
-            $merchantOwnerId = \MerchantContext::currentOwnerId();
+            $merchantId = $this->merchantContext->currentId();
+            $merchantOwnerId = $this->merchantContext->currentOwnerId();
 
             $createData = [
                 'user_id'             => $identity['user_id'],

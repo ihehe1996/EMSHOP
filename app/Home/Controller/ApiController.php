@@ -506,7 +506,7 @@ class ApiController extends BaseController
              WHERE g.`id` IN ({$placeholders})",
             $goodsIds
         );
-        $tagMap = class_exists('GoodsTagModel') ? \App\Model\GoodsTagModel::getTagsByGoodsIds($goodsIds) : [];
+        $tagMap = \App\Model\GoodsTagModel::getTagsByGoodsIds($goodsIds);
         $specMap = $this->fetchGoodsSpecsForImport($goodsIds);
         $out = [];
         foreach ($rows as $r) {
@@ -897,7 +897,7 @@ class ApiController extends BaseController
             ];
         }
 
-        $hostMerchantId = \MerchantContext::currentId();
+        $hostMerchantId = $this->merchantContext->currentId();
         if ($hostMerchantId <= 0) {
             return [
                 'merchant_id'  => 0,
@@ -906,7 +906,7 @@ class ApiController extends BaseController
             ];
         }
 
-        $hostRow = \MerchantContext::current();
+        $hostRow = $this->merchantContext->current();
         if ($hostRow === null || (int) ($hostRow['id'] ?? 0) !== $hostMerchantId) {
             return [
                 'merchant_id'  => 0,
@@ -932,12 +932,12 @@ class ApiController extends BaseController
      */
     private function runWithMerchantScope(?array $merchant, callable $fn)
     {
-        $saved = \MerchantContext::current();
-        \MerchantContext::setCurrent($merchant);
+        $saved = $this->merchantContext->current();
+        $this->merchantContext->setCurrent($merchant);
         try {
             return $fn();
         } finally {
-            \MerchantContext::setCurrent($saved);
+            $this->merchantContext->setCurrent($saved);
         }
     }
 
