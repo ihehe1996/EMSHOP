@@ -1361,13 +1361,19 @@ if (@file_put_contents(EM_INSTALL_LOCK, (string) $lockPayload, LOCK_EX) === fals
 // **放在最后一步**：前面的步骤全过了才报，装失败的机器不该留一条安装记录。
 // **绝不影响安装**：InstallReporter 内部把所有异常都吞了、超时压到 5 秒、不重试，
 // 连不上就是这一次记录丢掉（细节和代价见那个类的注释）—— 所以这里不用判返回值。
-InstallReporter::report([
-    'version' => installer_system_version(),
-    'site_url' => installer_detect_site_url(),
-    'admin_username' => $adminClean['username'],
-    'admin_email' => $adminClean['email'],
-    'is_reinstall' => $droppedTables > 0,
-]);
+// 服务是实例类（app() 解析），且安装环境不加载 init.php：容器解析依赖失败也要吞掉，
+// 否则最后一步会抛 Fatal，让一个已经装好的站点显示成安装失败。
+try {
+    app(\App\Service\InstallReporter::class)->report([
+        'version' => installer_system_version(),
+        'site_url' => installer_detect_site_url(),
+        'admin_username' => $adminClean['username'],
+        'admin_email' => $adminClean['email'],
+        'is_reinstall' => $droppedTables > 0,
+    ]);
+} catch (\Throwable $ignored) {
+    // 上报失败不影响安装结果
+}
 
 installer_success_response(
     $action,
