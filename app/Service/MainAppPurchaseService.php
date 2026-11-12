@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 应用商店 · 主站采购服务。
  *
@@ -48,16 +54,16 @@ final class MainAppPurchaseService
         $remark      = (string) ($data['remark'] ?? '');
 
         if ($appCode === '' || !in_array($type, ['plugin', 'template'], true)) {
-            throw new InvalidArgumentException('app_code/type 非法');
+            throw new \InvalidArgumentException('app_code/type 非法');
         }
         if ($qty <= 0) {
-            throw new InvalidArgumentException('qty 必须为正整数');
+            throw new \InvalidArgumentException('qty 必须为正整数');
         }
         if ($costPerUnit < 0) {
-            throw new InvalidArgumentException('cost_per_unit 不能为负');
+            throw new \InvalidArgumentException('cost_per_unit 不能为负');
         }
 
-        Database::begin();
+        \Database::begin();
         try {
             // 1. upsert market 行(只动元数据 / 价格 / 上下架,不动配额)
             $marketId = $this->marketModel->upsert([
@@ -85,10 +91,10 @@ final class MainAppPurchaseService
                 $remark !== '' ? $remark : '主站采购'
             );
 
-            Database::commit();
+            \Database::commit();
             return ['market_id' => $marketId, 'log_id' => $logId];
-        } catch (Throwable $e) {
-            Database::rollBack();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
     }
@@ -99,7 +105,7 @@ final class MainAppPurchaseService
     public function updateRetailPrice(int $marketId, int $retailPrice): bool
     {
         if ($retailPrice < 0) {
-            throw new InvalidArgumentException('售价不能为负');
+            throw new \InvalidArgumentException('售价不能为负');
         }
         return $this->marketModel->setRetailPrice($marketId, $retailPrice);
     }

@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 支付服务。
  *
@@ -29,7 +35,7 @@ class PaymentService
         $methods = self::collectMainPluginMethods();
 
         // 余额支付（内置，受后台开关控制，放在最后）
-        $balanceEnabled = Config::get('shop_balance_enabled', '1');
+        $balanceEnabled = \Config::get('shop_balance_enabled', '1');
         if ($balanceEnabled === '1') {
             // 登录用户：在显示名后拼当前余额，方便用户一眼看到够不够付
             $displayName = '余额支付';
@@ -37,7 +43,7 @@ class PaymentService
             $fu = $_SESSION['em_front_user'] ?? null;
             if (is_array($fu) && isset($fu['money'])) {
                 $bal = bcdiv((string) $fu['money'], '1000000', 2);
-                $cur = Currency::getInstance()->getPrimary();
+                $cur = \Currency::getInstance()->getPrimary();
                 $sym = $cur ? ($cur['symbol'] ?? '¥') : '¥';
                 $displayName = '余额支付 ' . $sym . $bal;
             }

@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Service;
+
 /**
  * 发货队列消费服务。
  *
@@ -37,7 +39,7 @@ final class DeliveryQueueService
      */
     public static function claimFor(array $filter = []): ?array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
         $where = [
             "status IN ('pending','retry')",
@@ -61,7 +63,7 @@ final class DeliveryQueueService
             $params = array_merge($params, $types);
         }
 
-        $task = Database::fetchOne(
+        $task = \Database::fetchOne(
             "SELECT * FROM {$prefix}delivery_queue
              WHERE " . implode(' AND ', $where) . "
              ORDER BY id ASC LIMIT 1",
@@ -78,7 +80,7 @@ final class DeliveryQueueService
             return null; // 被别人抢走了，正常现象，不必记日志
         }
 
-        CliServer::log('抢占任务成功 >>> ' . $taskId);
+        \CliServer::log('抢占任务成功 >>> ' . $taskId);
         return $claimed;
     }
 
@@ -100,9 +102,9 @@ final class DeliveryQueueService
      */
     private static function claim(int $taskId, array $task): ?array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
-        $affected = Database::execute(
+        $affected = \Database::execute(
             "UPDATE {$prefix}delivery_queue SET status='processing', attempts=attempts+1
              WHERE id=? AND status IN ('pending','retry')",
             [$taskId]
@@ -134,7 +136,7 @@ final class DeliveryQueueService
      */
     public static function runTask(array $task, callable $runner, bool $allowRetry): bool
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
         $taskId       = (int) $task['id'];
         $orderId      = (int) $task['order_id'];
@@ -143,7 +145,7 @@ final class DeliveryQueueService
         try {
             $runner($task);
 
-            Database::execute(
+            \Database::execute(
                 "UPDATE {$prefix}delivery_queue SET status='success', completed_at=NOW() WHERE id=?",
                 [$taskId]
             );
@@ -167,7 +169,7 @@ final class DeliveryQueueService
             } else {
                 try {
                     doAction('order_goods_delivery_queued_success', $orderId, $orderGoodsId, $taskId, $task);
-                } catch (Throwable $hookErr) {
+                } catch (\Throwable $hookErr) {
                     // 钩子失败不影响发货结果
                 }
             }
@@ -175,28 +177,28 @@ final class DeliveryQueueService
             \App\Model\OrderModel::checkDeliveryComplete($orderId);
             return true;
 
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $attempts    = (int) $task['attempts'] + 1;
             $maxAttempts = (int) $task['max_attempts'];
-            $isPermanent = $e instanceof PermanentDeliveryException;
+            $isPermanent = $e instanceof \PermanentDeliveryException;
 
             // FPM 同步模式（$allowRetry=false）没有「下次」，一律直接终态。
             $shouldGiveUp = !$allowRetry || $isPermanent || $attempts >= $maxAttempts;
 
             if ($shouldGiveUp) {
-                Database::execute(
+                \Database::execute(
                     "UPDATE {$prefix}delivery_queue SET status='failed', last_error=? WHERE id=?",
                     [($isPermanent ? '[永久失败] ' : '') . $e->getMessage(), $taskId]
                 );
                 // FPM 同步模式下这条日志是「发货失败」的唯一主动信号
                 // （异步模式下站长还能在后台看到 retry 行），别去掉。
-                CliServer::log(
+                \CliServer::log(
                     "发货失败，不再重试 >>> 任务 {$taskId} / 订单 {$orderId} >>> " . $e->getMessage()
                 );
                 self::markOrderDeliveryFailed($orderId);
             } else {
                 $delay = (int) min(300, 30 * pow(2, $attempts - 1));
-                Database::execute(
+                \Database::execute(
                     "UPDATE {$prefix}delivery_queue SET status='retry', last_error=?,
                      next_retry_at=DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE id=?",
                     [$e->getMessage(), $delay, $taskId]
@@ -256,9 +258,9 @@ final class DeliveryQueueService
     public static function recoverStaleTasks(int $staleSeconds = 300): int
     {
         $staleSeconds = max(60, $staleSeconds);
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
-        return (int) Database::execute(
+        return (int) \Database::execute(
             "UPDATE {$prefix}delivery_queue
              SET status='retry', next_retry_at=NOW(),
                  last_error=?
@@ -279,9 +281,9 @@ final class DeliveryQueueService
      */
     public static function drainOrderSync(int $orderId): void
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
-        $rows = Database::query(
+        $rows = \Database::query(
             "SELECT * FROM {$prefix}delivery_queue
              WHERE order_id = ? AND status IN ('pending','retry')
              ORDER BY id ASC",
@@ -312,7 +314,7 @@ final class DeliveryQueueService
 
         try {
             \App\Model\OrderModel::changeStatus($orderId, 'delivery_failed');
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             // 状态已不是 delivering（或已是终态）时不强推，避免把正常订单改成失败
         }
     }

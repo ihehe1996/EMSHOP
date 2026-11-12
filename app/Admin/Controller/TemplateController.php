@@ -142,7 +142,7 @@ final class TemplateController extends BaseAdminController
         $scanned = $model->scanWithStatus(self::SCOPE);
 
         // 已装模板问一次中心"哪些有新版本"；中心不可达时 service 内已降级成空数组
-        $latestVersions = \AppUpdateService::checkInstalled($scanned, 'template');
+        $latestVersions = \App\Service\AppUpdateService::checkInstalled($scanned, 'template');
 
         $data = [];
         foreach ($scanned as $name => $info) {

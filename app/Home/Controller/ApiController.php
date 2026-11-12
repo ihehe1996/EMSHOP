@@ -1093,7 +1093,7 @@ class ApiController extends BaseController
             throw new \RuntimeException('优惠券功能未启用');
         }
         if ($couponCode !== '') {
-            $couponService = new \CouponService();
+            $couponService = new \App\Service\CouponService();
             $checkRes = $couponService->check($couponCode, [
                 'goods_amount_raw' => $estimatedPayRaw,
                 'goods_items'      => [[

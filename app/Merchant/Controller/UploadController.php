@@ -27,7 +27,7 @@ final class UploadController extends MerchantBaseController
             $this->response->error('请选择图片文件');
         }
 
-        $uploader = new \UploadService();
+        $uploader = new \App\Service\UploadService();
         $context = (string) $this->input->post('context', 'default');
 
         try {

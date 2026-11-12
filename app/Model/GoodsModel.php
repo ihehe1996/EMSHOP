@@ -869,7 +869,7 @@ class GoodsModel
             $ownerUserIdForWholesale = \MerchantContext::currentOwnerId();
             if ($ownerUserIdForWholesale > 0) {
                 if (class_exists('MerchantLedgerService')) {
-                    $ownerDiscountRate = \MerchantLedgerService::resolveOwnerDiscountRate($ownerUserIdForWholesale);
+                    $ownerDiscountRate = \App\Service\MerchantLedgerService::resolveOwnerDiscountRate($ownerUserIdForWholesale);
                 }
                 $ownerRow = \Database::fetchOne(
                     'SELECT `level_id` FROM `' . \Database::prefix() . 'user` WHERE `id` = ? LIMIT 1',

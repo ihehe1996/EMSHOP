@@ -5,7 +5,7 @@ if (!defined('EM_ROOT')) {
 $csrfToken = Csrf::token();
 
 // 未签署免责协议时强制弹出签署窗（演示模式不弹：后台写操作被禁用，签了也存不进去）
-$emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerService::accepted();
+$emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !\App\Service\DisclaimerService::accepted();
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -314,8 +314,8 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !DisclaimerSe
                     $__lines = [];
                     $__lineIdx = 0;
                     try {
-                        $__lines = LicenseService::getAllLines();
-                        $__lineIdx = LicenseService::currentLineIndex();
+                        $__lines = \App\Service\LicenseService::getAllLines();
+                        $__lineIdx = \App\Service\LicenseService::currentLineIndex();
                     } catch (Throwable $e) {
                         // 不影响布局
                     }

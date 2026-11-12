@@ -47,7 +47,7 @@ final class DisclaimerController extends BaseAdminController
         }
 
         $admin = $this->user();
-        $saved = \DisclaimerService::accept(
+        $saved = \App\Service\DisclaimerService::accept(
             (int) $admin['id'],
             (string) $admin['username'],
             \RateLimit::clientIp()

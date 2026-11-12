@@ -230,7 +230,7 @@ class LoginController extends BaseController
         $email = trim(\Input::post('email', ''));
         $captcha = trim(\Input::post('captcha', ''));
 
-        $service = new \PasswordResetService();
+        $service = new \App\Service\PasswordResetService();
         $result = $service->requestReset($email, $captcha);
 
         if (!$result['ok']) {
@@ -256,7 +256,7 @@ class LoginController extends BaseController
         $password = (string) \Input::post('password', '');
         $confirm = (string) \Input::post('password_confirm', '');
 
-        $service = new \PasswordResetService();
+        $service = new \App\Service\PasswordResetService();
         $result = $service->resetPassword($token, $password, $confirm);
 
         if (!$result['ok']) {

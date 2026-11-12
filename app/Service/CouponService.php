@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 优惠券服务 —— 校验可用性、计算折扣、执行"使用"动作。
  *
@@ -32,47 +38,47 @@ class CouponService
     {
         $code = trim($code);
         if ($code === '') {
-            throw new RuntimeException('请输入优惠券码');
+            throw new \RuntimeException('请输入优惠券码');
         }
 
         $couponModel = new \App\Model\CouponModel();
         $coupon = $couponModel->findByCode($code);
         if (!$coupon) {
-            throw new RuntimeException('优惠券不存在');
+            throw new \RuntimeException('优惠券不存在');
         }
         if (!$coupon['is_enabled']) {
-            throw new RuntimeException('优惠券已下架');
+            throw new \RuntimeException('优惠券已下架');
         }
 
         $now = time();
         if (!empty($coupon['start_at']) && strtotime((string) $coupon['start_at']) > $now) {
-            throw new RuntimeException('优惠券尚未开始使用');
+            throw new \RuntimeException('优惠券尚未开始使用');
         }
         if (!empty($coupon['end_at']) && strtotime((string) $coupon['end_at']) < $now) {
-            throw new RuntimeException('优惠券已过期');
+            throw new \RuntimeException('优惠券已过期');
         }
 
         $total = (int) $coupon['total_usage_limit'];
         if ($total !== -1 && (int) $coupon['used_count'] >= $total) {
-            throw new RuntimeException('优惠券已被领完');
+            throw new \RuntimeException('优惠券已被领完');
         }
 
         $goodsAmountRaw = (int) ($context['goods_amount_raw'] ?? 0);
         $minAmountRaw   = (int) ($coupon['min_amount_raw'] ?? 0);
         if ($goodsAmountRaw < $minAmountRaw) {
             $minDisplay = bcdiv((string) $minAmountRaw, '1000000', 2);
-            throw new RuntimeException('订单满 ' . $minDisplay . ' 元可用');
+            throw new \RuntimeException('订单满 ' . $minDisplay . ' 元可用');
         }
 
         // 适用范围校验
         if (!$this->matchScope($coupon, $context['goods_items'] ?? [])) {
-            throw new RuntimeException('订单中无适用的商品');
+            throw new \RuntimeException('订单中无适用的商品');
         }
 
         // 计算折扣
         $discountRaw = $this->calcDiscount($coupon, $goodsAmountRaw);
         if ($discountRaw <= 0) {
-            throw new RuntimeException('本次订单无可抵扣金额');
+            throw new \RuntimeException('本次订单无可抵扣金额');
         }
 
         return [
@@ -95,7 +101,7 @@ class CouponService
     {
         $couponModel = new \App\Model\CouponModel();
         if (!$couponModel->incrementUsedCount((int) $coupon['id'])) {
-            throw new RuntimeException('优惠券已被领完');
+            throw new \RuntimeException('优惠券已被领完');
         }
 
         // 若用户已领取该券，标记为已使用

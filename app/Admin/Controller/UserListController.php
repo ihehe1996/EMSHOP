@@ -157,7 +157,7 @@ final class UserListController extends BaseAdminController
 
                     if ($userId > 0) {
                         try {
-                            \UserExperienceService::applyRegisterBonus($userId);
+                            \App\Service\UserExperienceService::applyRegisterBonus($userId);
                         } catch (\Throwable $e) {
                             // 初始经验发放失败不阻断创建
                         }
@@ -234,7 +234,7 @@ final class UserListController extends BaseAdminController
                     if ($id === $currentAdminId) {
                         $freshUser = (new \App\Model\UserModel())->findById($id);
                         if ($freshUser !== null) {
-                            $auth = new \AuthService();
+                            $auth = new \App\Service\AuthService();
                             $auth->refreshSession($freshUser);
                         }
                     }
@@ -319,7 +319,7 @@ final class UserListController extends BaseAdminController
                     if (empty($_FILES['file'])) {
                         $this->response->error('请选择图片文件');
                     }
-                    $uploader = new \UploadService();
+                    $uploader = new \App\Service\UploadService();
                     $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'avatar');
                     $csrfToken = $this->csrf->refresh();
                     $this->response->success('上传成功', [

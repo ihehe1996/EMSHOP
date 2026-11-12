@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 免责协议签署状态。
  *
@@ -36,7 +42,7 @@ final class DisclaimerService
      */
     public static function record(): ?array
     {
-        $raw = Config::get(self::CONFIG_KEY, '');
+        $raw = \Config::get(self::CONFIG_KEY, '');
         if ($raw === '') {
             return null;
         }
@@ -57,8 +63,8 @@ final class DisclaimerService
             'account'  => $account,
             'ip'       => $ip,
             'time'     => date('Y-m-d H:i:s'),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ], JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
 
-        return Config::set(self::CONFIG_KEY, (string) $payload);
+        return \Config::set(self::CONFIG_KEY, (string) $payload);
     }
 }

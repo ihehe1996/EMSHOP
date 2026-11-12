@@ -65,8 +65,8 @@ final class RebateController extends UserBaseController
         $commissionFrozenDisplay    = $this->currency->displayAmount((int) $frozen);
         $commissionAvailableDisplay = $this->currency->displayAmount((int) $available);
         $totalEarnedDisplay         = $this->currency->displayAmount((int) ($totalEarned['total'] ?? 0));
-        $rebateEnabled              = \RebateService::isEnabled();
-        $freezeDays                 = \RebateService::freezeDays();
+        $rebateEnabled              = \App\Service\RebateService::isEnabled();
+        $freezeDays                 = \App\Service\RebateService::freezeDays();
         $directCountNum             = (int) ($directCount['cnt'] ?? 0);
         $teamCountNum               = (int) ($teamCount['cnt'] ?? 0);
 

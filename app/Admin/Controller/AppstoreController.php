@@ -23,7 +23,7 @@ final class AppstoreController extends BaseAdminController
         $csrfToken = $this->csrf->token();
 
         // 应用商店的数据拉取必须带官方账号身份：没登录就锁页、不让拉
-        $officialAccount  = \LicenseService::officialAccount();
+        $officialAccount  = \App\Service\LicenseService::officialAccount();
         $officialLoggedIn = $officialAccount !== [];
         // 分类清单 SSOT 在 \PluginModel::MAIN_PLUGIN_CATEGORIES / MERCHANT_PLUGIN_CATEGORIES，
         // 两个视图直接引用那两个常量渲染 tab（"全部" / "未归类" / "已购买" 硬编码在视图里）。
@@ -42,7 +42,7 @@ final class AppstoreController extends BaseAdminController
 
             // 下单必须带授权码（应用列表不传也能看，买东西必须有）；未激活直接拦截，
             // 免得服务端兜底报一个看不懂的错误
-            $licenseRow = \LicenseService::currentLicense();
+            $licenseRow = \App\Service\LicenseService::currentLicense();
             $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
             if ($emkey === '') {
                 $this->response->error('请先激活正版授权');
@@ -51,7 +51,7 @@ final class AppstoreController extends BaseAdminController
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
 
             // 有绑定过主授权域名就用它，否则回退当前 HTTP_HOST（与 app-list 一致）
-            $host = \LicenseService::effectiveHost();
+            $host = \App\Service\LicenseService::effectiveHost();
             try {
                 // tab=merchant 仍保留分支，便于后续在服务端做差异化策略
                 $data = $tab === 'merchant'
@@ -134,14 +134,14 @@ final class AppstoreController extends BaseAdminController
                 $this->response->error('应用ID不能为空');
             }
             // 复用列表接口的身份注入逻辑（未激活时 emkey 为空，服务端会回退 VIP 价）
-            $licenseRow = \LicenseService::currentLicense();
+            $licenseRow = \App\Service\LicenseService::currentLicense();
             $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
-            $host  = \LicenseService::effectiveHost();
+            $host  = \App\Service\LicenseService::effectiveHost();
             $tab   = (string) $this->input->get('tab', 'main');
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
             try {
                 // 阶段 8:走拆分后的 mainAppDetail / merchantAppDetail
-                $officialToken = \LicenseService::officialAccountToken();
+                $officialToken = \App\Service\LicenseService::officialAccountToken();
                 $data = $tab === 'merchant'
                     ? \LicenseClient::merchantAppDetail($appId, $emkey, $host, $officialToken)
                     : \LicenseClient::mainAppDetail($appId, $emkey, $host, $officialToken);
@@ -161,15 +161,15 @@ final class AppstoreController extends BaseAdminController
                 $this->response->error('请先登录官方账号后再使用应用商店');
             }
 
-            \LicenseService::revalidateCurrent(); // 获取最新授权状态
+            \App\Service\LicenseService::revalidateCurrent(); // 获取最新授权状态
 
-            $officialToken = \LicenseService::officialAccountToken();
+            $officialToken = \App\Service\LicenseService::officialAccountToken();
             $accountName   = (string) ($officialAccount['username'] ?? '');
             // 取当前激活码和域名用于服务端计算 my_price（未激活时 emkey 为空，服务端会按 VIP 价返回）
-            $licenseRow = \LicenseService::currentLicense();
+            $licenseRow = \App\Service\LicenseService::currentLicense();
             $emkey = $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '';
             // 有绑定过主授权域名就用它，否则回退当前 HTTP_HOST（适配未激活场景）
-            $host  = \LicenseService::effectiveHost();
+            $host  = \App\Service\LicenseService::effectiveHost();
 
             $tab = (string) $this->input->get('tab', 'main');
             if (!in_array($tab, ['main', 'merchant'], true)) $tab = 'main';
@@ -228,7 +228,7 @@ final class AppstoreController extends BaseAdminController
                 // 前提是**确实带了码**：没带码时服务端照样回 false，那不是「码失效」，
                 // 不能拿它清本地（未激活时 local 就没有码，走不到这个分支）
                 if ($emkey !== '' && ($result['license']['authorized'] ?? null) === false) {
-                    \LicenseService::clearLocalAuthorization();
+                    \App\Service\LicenseService::clearLocalAuthorization();
                 }
 
                 if ($tab === 'main') {
@@ -555,7 +555,7 @@ final class AppstoreController extends BaseAdminController
                     }
 
                     $costPerUnit = max(0, (int) $this->input->post('cost_per_unit', 0));
-                    $service = new \MainAppPurchaseService();
+                    $service = new \App\Service\MainAppPurchaseService();
                     $result = $service->registerPurchase([
                         'app_code'        => $name,
                         'type'            => $type,
@@ -670,9 +670,9 @@ final class AppstoreController extends BaseAdminController
      */
     private function downloadAuth(): array
     {
-        $licenseRow = \LicenseService::currentLicense();
+        $licenseRow = \App\Service\LicenseService::currentLicense();
         return [
-            'domain' => \LicenseService::effectiveHost(),
+            'domain' => \App\Service\LicenseService::effectiveHost(),
             'code'   => $licenseRow ? (string) ($licenseRow['license_code'] ?? '') : '',
         ];
     }

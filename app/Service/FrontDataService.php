@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 前台页面取数服务。
  *
@@ -29,18 +35,18 @@ final class FrontDataService
      */
     public function getCurrentAnnouncement(): array
     {
-        $merchantId = MerchantContext::currentId();
+        $merchantId = \MerchantContext::currentId();
         if ($merchantId > 0) {
-            $row = Database::fetchOne(
-                'SELECT `announcement`, `announcement_positions` FROM `' . Database::prefix() . 'merchant`
+            $row = \Database::fetchOne(
+                'SELECT `announcement`, `announcement_positions` FROM `' . \Database::prefix() . 'merchant`
                   WHERE `id` = ? LIMIT 1',
                 [$merchantId]
             );
             $html = (string) ($row['announcement'] ?? '');
             $posStr = (string) ($row['announcement_positions'] ?? '');
         } else {
-            $html = (string) (Config::get('shop_announcement') ?? '');
-            $posStr = (string) (Config::get('shop_announcement_positions') ?? '');
+            $html = (string) (\Config::get('shop_announcement') ?? '');
+            $posStr = (string) (\Config::get('shop_announcement_positions') ?? '');
         }
         $positions = array_values(array_filter(array_map('trim', explode(',', $posStr))));
         return ['html' => $html, 'positions' => $positions];
@@ -56,7 +62,7 @@ final class FrontDataService
      */
     public function queryGoodsList(array $where = [], int $limit = 8, string $orderBy = 'g.sort ASC, g.id DESC'): array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         $conditions = ['g.status = 1', 'g.is_on_sale = 1', 'g.deleted_at IS NULL'];
         // 分开收集：JOIN 里的 ? 要绑的参数放 $joinParams，WHERE 里的放 $whereParams；
         // 最终 SQL 里 JOIN 排在 WHERE 之前，参数也按 joinParams ++ whereParams 顺序拼接。
@@ -106,7 +112,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (class_exists('MerchantContext') && MerchantContext::currentId() > 0)
+            $conditions[] = (class_exists('MerchantContext') && \MerchantContext::currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }
@@ -142,7 +148,7 @@ final class FrontDataService
                 WHERE {$whereSql}
                 ORDER BY {$orderBy}{$limitTail}";
 
-        $rows = Database::query($sql, $params);
+        $rows = \Database::query($sql, $params);
         $list = [];
         [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
@@ -163,7 +169,7 @@ final class FrontDataService
             //   2) filter 没响应 → 兜底读 goods_type_register 注册的 delivery_type 字段（physical 静态 manual 走这条）
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
             if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
-                $typeCfg = GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
+                $typeCfg = \GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];
                 }
@@ -194,7 +200,7 @@ final class FrontDataService
      */
     public function goodsRefSpecColumnSql(string $column): string
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         if (!preg_match('/^[a-z_]+$/', $column)) {
             $column = 'market_price';
         }
@@ -235,7 +241,7 @@ final class FrontDataService
      */
     public function queryGoodsListPaginated(array $where = [], int $page = 1, int $perPage = 20, string $orderBy = 'g.sort ASC, g.id DESC'): array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         $conditions = ['g.status = 1', 'g.is_on_sale = 1', 'g.deleted_at IS NULL'];
         // 分开收集 JOIN / WHERE 两类占位符参数；最终拼 params 前者在前后者在后
         $joinParams = [];
@@ -268,7 +274,7 @@ final class FrontDataService
         }
         if (!empty($where['is_recommended'])) {
             // 商户上下文下用 COALESCE（商户覆盖优先，否则跟随主站）
-            $conditions[] = (class_exists('MerchantContext') && MerchantContext::currentId() > 0)
+            $conditions[] = (class_exists('MerchantContext') && \MerchantContext::currentId() > 0)
                 ? 'COALESCE(mgr.is_recommended, g.is_recommended) = 1'
                 : 'g.is_recommended = 1';
         }
@@ -293,7 +299,7 @@ final class FrontDataService
 
         // 查询总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}goods g{$join} WHERE {$whereSql}";
-        $countRow = Database::fetchOne($countSql, $params);
+        $countRow = \Database::fetchOne($countSql, $params);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -312,7 +318,7 @@ final class FrontDataService
                 ORDER BY {$orderBy}
                 LIMIT {$perPage} OFFSET {$offset}";
 
-        $rows = Database::query($sql, $params);
+        $rows = \Database::query($sql, $params);
         $list = [];
         [$buyerId] = \App\Model\GoodsModel::resolveBuyerIdentity();
         foreach ($rows as $row) {
@@ -331,7 +337,7 @@ final class FrontDataService
             // 发货类型解析（同 queryGoodsList）：filter 优先，没响应时兜底读 goods_type_register 注册的 delivery_type
             $deliveryType = applyFilter('goods_delivery_type', '', $row);
             if ($deliveryType === '' && !empty($row['goods_type']) && class_exists('GoodsTypeManager')) {
-                $typeCfg = GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
+                $typeCfg = \GoodsTypeManager::getTypeConfig((string) $row['goods_type']);
                 if ($typeCfg && !empty($typeCfg['delivery_type'])) {
                     $deliveryType = (string) $typeCfg['delivery_type'];
                 }
@@ -377,14 +383,14 @@ final class FrontDataService
      */
     private function applyMerchantScope(array &$conditions, array &$whereParams, array &$joinParams): array
     {
-        $merchantId = MerchantContext::currentId();
+        $merchantId = \MerchantContext::currentId();
         if ($merchantId <= 0) {
             // 主站前台：只看主站自营商品（owner_id=0），避免商户自建商品漏到主站前台
             $conditions[] = 'g.owner_id = 0';
             return ['', ''];
         }
-        $ownerUserId = MerchantContext::currentOwnerId();
-        $prefix = Database::prefix();
+        $ownerUserId = \MerchantContext::currentOwnerId();
+        $prefix = \Database::prefix();
 
         // JOIN 里的 ? 在最终 SQL 中排在 WHERE 之前，参数必须写入 $joinParams
         $join = " LEFT JOIN {$prefix}goods_merchant_ref mgr ON mgr.goods_id = g.id AND mgr.merchant_id = ?";
@@ -421,7 +427,7 @@ final class FrontDataService
         $buyerDiscount = \App\Model\GoodsModel::resolveBuyerDiscountRate();
         $factor = $buyerDiscount;
 
-        $merchantId = MerchantContext::currentId();
+        $merchantId = \MerchantContext::currentId();
         if ($merchantId > 0 && (int) ($row['owner_id'] ?? 0) === 0) {
             $markup = isset($row['mgr_markup_rate']) && $row['mgr_markup_rate'] !== null
                 ? (int) $row['mgr_markup_rate']
@@ -450,8 +456,8 @@ final class FrontDataService
     {
         static $cache = [];
         if (isset($cache[$merchantId])) return $cache[$merchantId];
-        $row = Database::fetchOne(
-            'SELECT `default_markup_rate` FROM `' . Database::prefix() . 'merchant` WHERE `id` = ? LIMIT 1',
+        $row = \Database::fetchOne(
+            'SELECT `default_markup_rate` FROM `' . \Database::prefix() . 'merchant` WHERE `id` = ? LIMIT 1',
             [$merchantId]
         );
         return $cache[$merchantId] = (int) ($row['default_markup_rate'] ?? 1000);
@@ -493,9 +499,9 @@ final class FrontDataService
      */
     public function queryArticleList(array $where = [], int $limit = 6): array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         // 前台按当前 MerchantContext 过滤：主站只看主站文章，商户只看自己的文章
-        $merchantId = MerchantContext::currentId();
+        $merchantId = \MerchantContext::currentId();
         $conditions = ['a.status = 1', 'a.deleted_at IS NULL', 'a.merchant_id = ?'];
         $params = [$merchantId];
 
@@ -521,7 +527,7 @@ final class FrontDataService
                 ORDER BY a.is_top DESC, a.sort ASC, a.id DESC
                 LIMIT {$limit}";
 
-        $rows = Database::query($sql, $params);
+        $rows = \Database::query($sql, $params);
         $list = [];
         $blogIds = [];
         foreach ($rows as $row) {
@@ -561,9 +567,9 @@ final class FrontDataService
      */
     public function queryArticleListPaginated(array $where = [], int $page = 1, int $perPage = 10): array
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         // 前台按当前 MerchantContext 过滤
-        $merchantId = MerchantContext::currentId();
+        $merchantId = \MerchantContext::currentId();
         $conditions = ['a.status = 1', 'a.deleted_at IS NULL', 'a.merchant_id = ?'];
         $params = [$merchantId];
 
@@ -604,7 +610,7 @@ final class FrontDataService
 
         // 查询总数
         $countSql = "SELECT COUNT(*) as cnt FROM {$prefix}blog a {$joinTag} WHERE {$whereSql}";
-        $countRow = Database::fetchOne($countSql, $bindings);
+        $countRow = \Database::fetchOne($countSql, $bindings);
         $total = (int) ($countRow['cnt'] ?? 0);
 
         $page = max(1, $page);
@@ -623,7 +629,7 @@ final class FrontDataService
                 ORDER BY a.is_top DESC, a.sort ASC, a.id DESC
                 LIMIT {$perPage} OFFSET {$offset}";
 
-        $rows = Database::query($sql, $bindings);
+        $rows = \Database::query($sql, $bindings);
         $list = [];
         $blogIds = [];
         foreach ($rows as $row) {
@@ -671,8 +677,8 @@ final class FrontDataService
      */
     public function getGoodsSidebarData(): array
     {
-        $prefix = Database::prefix();
-        $merchantId = MerchantContext::currentId();
+        $prefix = \Database::prefix();
+        $merchantId = \MerchantContext::currentId();
 
         // ---- 主站分类（商户上下文下应用别名 + 隐藏 + 商品计数限定 source=main） ----
         if ($merchantId > 0) {
@@ -691,7 +697,7 @@ final class FrontDataService
                       AND (mcm.is_hidden IS NULL OR mcm.is_hidden = 0)
                     GROUP BY c.id
                     ORDER BY c.sort ASC, c.id ASC";
-            $mainRows = Database::query($sql, [$merchantId]);
+            $mainRows = \Database::query($sql, [$merchantId]);
             foreach ($mainRows as &$r) {
                 $r['source'] = 'main';
                 // 商户后台设了别名 → 用别名；否则用主站原名
@@ -699,7 +705,7 @@ final class FrontDataService
             }
             unset($r);
         } else {
-            $mainRows = Database::query(
+            $mainRows = \Database::query(
                 "SELECT c.id, c.parent_id, c.name, c.slug, c.icon, c.cover_image, COUNT(g.id) as goods_count
                  FROM {$prefix}goods_category c
                  LEFT JOIN {$prefix}goods g ON g.category_id = c.id
@@ -717,7 +723,7 @@ final class FrontDataService
         // ---- 商户自建分类（仅商户上下文）----
         $merchantRows = [];
         if ($merchantId > 0) {
-            $merchantRows = Database::query(
+            $merchantRows = \Database::query(
                 "SELECT c.id, c.parent_id, c.name, '' AS slug, c.icon, '' AS cover_image,
                         COUNT(g.id) as goods_count
                  FROM {$prefix}merchant_category c
@@ -781,10 +787,10 @@ final class FrontDataService
      */
     public function getBlogSidebarData(): array
     {
-        $prefix = Database::prefix();
-        $merchantId = MerchantContext::currentId();
+        $prefix = \Database::prefix();
+        $merchantId = \MerchantContext::currentId();
         // 分类 + 各分类文章数（仅统计已发布未删除的文章），全部按当前 merchant_id 过滤
-        $rows = Database::query(
+        $rows = \Database::query(
             "SELECT c.id, c.parent_id, c.name, c.icon, COUNT(a.id) as article_count
              FROM {$prefix}blog_category c
              LEFT JOIN {$prefix}blog a ON a.category_id = c.id

@@ -80,7 +80,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('分站插件不存在');
                 }
 
-                $service = new \MainAppPurchaseService();
+                $service = new \App\Service\MainAppPurchaseService();
                 $ok = $service->updateRetailPrice($marketId, $price);
                 if (!$ok) {
                     $this->response->error('价格未改动或目标不存在');
@@ -106,7 +106,7 @@ final class PluginController extends BaseAdminController
                     $this->response->error('参数不匹配,请刷新页面后重试');
                 }
 
-                $service = new \MainAppPurchaseService();
+                $service = new \App\Service\MainAppPurchaseService();
                 $ok = $service->setListed($marketId, $listed);
                 if (!$ok) {
                     $this->response->error('状态未改动或目标不存在');
@@ -349,7 +349,7 @@ final class PluginController extends BaseAdminController
         }
 
         $scanned = $model->scanWithStatus(self::SCOPE);
-        $latestVersions = \AppUpdateService::checkInstalled($scanned, 'plugin');
+        $latestVersions = \App\Service\AppUpdateService::checkInstalled($scanned, 'plugin');
         $licenseError = '';
 
         $data = [];

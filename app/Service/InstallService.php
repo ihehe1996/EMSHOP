@@ -1,11 +1,18 @@
 <?php
+
 declare(strict_types=1);
+
+namespace App\Service;
+
+
+
+
 final class InstallService
 {
     public function setup(array $options = []): void
     {
-        $config = Database::config();
-        $prefix = Database::prefix();
+        $config = \Database::config();
+        $prefix = \Database::prefix();
         $siteUrl = rtrim(trim((string) ($options['site_url'] ?? '')), '/');
         if ($siteUrl !== '') {
             $parts = @parse_url($siteUrl);
@@ -19,22 +26,22 @@ final class InstallService
             }
         }
 
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
             $config['dbname']
         ), true);
 
         // 建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP（MySQL 5.6.5 起才支持），
         // 低于此版本（如 5.5）建表会报 Invalid default value，这里提前给出明确提示。
-        if (!Database::mysqlVersionOk()) {
-            throw new RuntimeException(
-                '数据库版本过低：需要 MySQL ' . Database::MIN_MYSQL_VERSION . ' 及以上（或 MariaDB），'
-                . '当前 ' . Database::serverVersion() . '。请升级数据库后重试安装。'
+        if (!\Database::mysqlVersionOk()) {
+            throw new \RuntimeException(
+                '数据库版本过低：需要 MySQL ' . \Database::MIN_MYSQL_VERSION . ' 及以上（或 MariaDB），'
+                . '当前 ' . \Database::serverVersion() . '。请升级数据库后重试安装。'
             );
         }
 
         // 系统配置表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `config_name` VARCHAR(100) NOT NULL COMMENT \'配置项名称\',
@@ -106,10 +113,10 @@ final class InstallService
             ['config_name' => 'server_file_version_pending', 'config_value' => $serverVersionTs, 'description' => '任务服务代码版本（待 worker 加载）'],
             ['config_name' => 'enabled_plugins', 'config_value' => 'tips,virtual_card', 'description' => '主站默认启用插件'],
         ];
-        foreach ($defaultConfigs as $configRow) Database::execute($siteConfigSql, $configRow);
+        foreach ($defaultConfigs as $configRow) \Database::execute($siteConfigSql, $configRow);
 
         // 用户表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `username` VARCHAR(50) NOT NULL COMMENT \'用户名（登录账号）\',
@@ -152,8 +159,8 @@ final class InstallService
         $adminEmail = trim((string) ($admin['email'] ?? ''));
         $adminPassword = (string) ($admin['password'] ?? '');
         // 邮箱非必填：留空则写入空串（`user`.`email` 为 NOT NULL DEFAULT ''，且无唯一约束）
-        if ($adminUsername === '' || $adminPassword === '') throw new InvalidArgumentException('管理员账号信息不完整');
-        $hasher = new PasswordHash(8, true);
+        if ($adminUsername === '' || $adminPassword === '') throw new \InvalidArgumentException('管理员账号信息不完整');
+        $hasher = new \PasswordHash(8, true);
         $hash = $hasher->HashPassword($adminPassword);
         $sql = sprintf(
             'INSERT INTO `%s` (`username`, `email`, `password`, `nickname`, `avatar`, `role`, `status`)
@@ -168,7 +175,7 @@ final class InstallService
                 `updated_at` = CURRENT_TIMESTAMP',
             $prefix . 'user'
         );
-        Database::execute($sql, [
+        \Database::execute($sql, [
             'username' => $adminUsername,
             'email' => $adminEmail,
             'password' => $hash,
@@ -179,7 +186,7 @@ final class InstallService
         ]);
 
         // 优惠券定义表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `code` VARCHAR(32) NOT NULL COMMENT \'公共兑换码（全站唯一）\',
@@ -212,7 +219,7 @@ final class InstallService
         ));
 
         // 用户优惠券表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'用户ID\',
@@ -230,7 +237,7 @@ final class InstallService
         ));
 
         // 用户余额流水表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'用户ID\',
@@ -251,7 +258,7 @@ final class InstallService
         ));
 
         // 佣金流水表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'佣金归属用户\',
@@ -277,7 +284,7 @@ final class InstallService
         ));
 
         // 用户充值订单表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED NOT NULL,
@@ -298,7 +305,7 @@ final class InstallService
         ));
 
         // 用户提现申请表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED NOT NULL,
@@ -320,7 +327,7 @@ final class InstallService
         ));
 
         // 佣金提现记录表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED NOT NULL,
@@ -337,7 +344,7 @@ final class InstallService
         ));
 
         // 订单主表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `order_no` VARCHAR(32) NOT NULL COMMENT \'订单编号\',
@@ -386,7 +393,7 @@ final class InstallService
         ));
 
         // 订单经验/消费结算记录（幂等，不污染 order 表）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `order_id` BIGINT UNSIGNED NOT NULL COMMENT \'订单ID\',
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'用户ID\',
@@ -400,7 +407,7 @@ final class InstallService
         ));
 
         // 订单商品表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `order_id` BIGINT UNSIGNED NOT NULL COMMENT \'订单ID\',
@@ -427,7 +434,7 @@ final class InstallService
         ));
 
         // 订单商品发货明细表（支持海量发货内容按行存储）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `order_goods_id` BIGINT UNSIGNED NOT NULL COMMENT \'订单商品ID\',
@@ -441,7 +448,7 @@ final class InstallService
         ));
 
         // 订单支付记录表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `order_id` BIGINT UNSIGNED NOT NULL,
@@ -463,7 +470,7 @@ final class InstallService
         // 语言表
 
         // 发货队列表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `order_id` BIGINT UNSIGNED NOT NULL,
@@ -494,7 +501,7 @@ final class InstallService
         // 后台任务里的跨插件通知不再走内存钩子（那会让被通知方的代码住进
         // 通知方的进程，插件更新就必须重启别人的 worker），而是写一行事件，
         // 由订阅方自己的 worker 按游标取走处理。见 PluginEvent。
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键（同时是订阅方的游标值）\',
                 `event` VARCHAR(64) NOT NULL COMMENT \'事件名，如 order_goods_delivery_queued_success\',
@@ -507,7 +514,7 @@ final class InstallService
         ));
 
         // 语言表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `name` VARCHAR(50) NOT NULL COMMENT \'语言名称，如：简体中文\',
@@ -523,11 +530,11 @@ final class InstallService
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'语言表\'',
             $prefix . 'language'
         ));
-        Database::execute(sprintf(
+        \Database::execute(sprintf(
             'INSERT IGNORE INTO `%s` (`id`, `name`, `code`, `icon`, `sort`, `is_default`, `enabled`) VALUES (1, \'简体中文\', \'zh-cn\', \'\', 0, \'y\', \'y\')',
             $prefix . 'language'
         ), []);
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `lang_id` BIGINT UNSIGNED NOT NULL COMMENT \'关联语言ID\',
@@ -549,7 +556,7 @@ final class InstallService
         // 文章分类表
 
         // 导航表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `parent_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'父级ID，0=顶级\',
@@ -573,8 +580,8 @@ final class InstallService
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'商品分类表\'',
             $prefix . 'goods_category'
         ));
-        Database::insert('goods_category', ['parent_id' => 0, 'name' => '演示分类', 'slug' => 'demo-category', 'description' => '默认演示商品分类', 'sort' => 100, 'status' => 1]);
-        Database::statement(sprintf(
+        \Database::insert('goods_category', ['parent_id' => 0, 'name' => '演示分类', 'slug' => 'demo-category', 'description' => '默认演示商品分类', 'sort' => 100, 'status' => 1]);
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `parent_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'父级ID，0=顶级\',
@@ -599,7 +606,7 @@ final class InstallService
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'文章分类表\'',
             $prefix . 'blog_category'
         ));
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `parent_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'父级ID，0=顶级\',
@@ -629,17 +636,17 @@ final class InstallService
             ['name' => '博客', 'type' => 'system', 'link' => '?c=blog_list',  'sort' => 3, 'is_system' => 1],
         ];
         foreach ($defaultNavi as $row) {
-            $exists = Database::fetchOne(
+            $exists = \Database::fetchOne(
                 'SELECT `id` FROM `' . $prefix . 'navi' . '` WHERE `name` = ? AND `is_system` = 1 LIMIT 1',
                 [$row['name']]
             );
             if ($exists === null) {
-                Database::insert('navi', $row);
+                \Database::insert('navi', $row);
             }
         }
 
         // 文章表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `category_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'分类ID\',
@@ -669,7 +676,7 @@ final class InstallService
         ));
 
         // 博客标签表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'0=主站标签池；>0=商户标签池\',
@@ -686,7 +693,7 @@ final class InstallService
             $prefix . 'blog_tag'
         ));
         // 应用市场表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `app_code` VARCHAR(64) NOT NULL DEFAULT \'\' COMMENT \'应用 slug = 物理目录名\',
@@ -715,7 +722,7 @@ final class InstallService
         ));
 
         // 应用市场流水表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `market_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'关联 app_market.id\',
@@ -735,7 +742,7 @@ final class InstallService
         ));
 
         // 应用购买记录表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'分站商户 id\',
@@ -755,7 +762,7 @@ final class InstallService
         ));
 
         // 应用订单表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `order_no` VARCHAR(40) NOT NULL DEFAULT \'\' COMMENT \'应用订单号（AO 前缀）\',
@@ -786,7 +793,7 @@ final class InstallService
         ));
 
         // 附件表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED DEFAULT NULL COMMENT \'上传者用户ID，null表示游客或系统\',
@@ -811,7 +818,7 @@ final class InstallService
         ));
 
         // 博客评论表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `blog_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'文章ID\',
@@ -833,7 +840,7 @@ final class InstallService
         ));
 
         // 博客标签关联表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `blog_id` INT UNSIGNED NOT NULL COMMENT \'文章ID\',
@@ -846,7 +853,7 @@ final class InstallService
         ));
 
         // 友情链接表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `name` VARCHAR(100) NOT NULL DEFAULT \'\' COMMENT \'链接名称\',
@@ -866,7 +873,7 @@ final class InstallService
         ));
 
         // 迁移记录表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `filename` VARCHAR(255) NOT NULL COMMENT \'迁移文件名\',
@@ -880,7 +887,7 @@ final class InstallService
         ));
 
         // 配置项表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -897,7 +904,7 @@ final class InstallService
         ));
 
         // 系统日志表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'主键\',
                 `level` ENUM(\'info\', \'warning\', \'error\') NOT NULL DEFAULT \'info\' COMMENT \'日志级别\',
@@ -920,7 +927,7 @@ final class InstallService
         ));
 
         // 用户等级表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `name` VARCHAR(50) NOT NULL COMMENT \'等级名称\',
@@ -940,7 +947,7 @@ final class InstallService
             $prefix . 'user_levels'
         ));
         // 商品主表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `code` VARCHAR(32) NOT NULL COMMENT '商品唯一标识',
             `owner_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '所属者ID',
@@ -984,7 +991,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品主表'");
 
         // 商品规格表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `goods_id` INT UNSIGNED NOT NULL COMMENT '所属商品ID',
             `name` VARCHAR(255) NOT NULL COMMENT '规格名称',
@@ -1012,7 +1019,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品规格表'");
 
         // 商品规格维度表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_dim` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_dim` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `goods_id` INT UNSIGNED NOT NULL COMMENT '所属商品ID',
             `name` VARCHAR(64) NOT NULL COMMENT '维度名称',
@@ -1023,7 +1030,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='多维规格-维度表'");
 
         // 商品规格值表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_value` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_value` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `dim_id` INT UNSIGNED NOT NULL COMMENT '所属维度ID',
             `goods_id` INT UNSIGNED NOT NULL COMMENT '所属商品ID',
@@ -1037,7 +1044,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='多维规格-维度值表'");
 
         // 商品规格组合表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_combo` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_spec_combo` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `goods_id` INT UNSIGNED NOT NULL COMMENT '所属商品ID',
             `spec_id` INT UNSIGNED NOT NULL COMMENT 'SKU ID',
@@ -1054,7 +1061,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='多维规格-SKU组合映射表'");
 
         // 商品标签表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_tag` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_tag` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `name` VARCHAR(64) NOT NULL DEFAULT '' COMMENT '标签名',
             `slug` VARCHAR(64) NOT NULL DEFAULT '' COMMENT 'URL 别名',
@@ -1067,7 +1074,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品标签'");
 
         // 商品标签关联表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_tag_relation` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_tag_relation` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `goods_id` INT UNSIGNED NOT NULL DEFAULT 0,
             `tag_id` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -1077,7 +1084,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品-标签关联'");
 
         // 商品会员等级价格表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_price_level` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_price_level` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `spec_id` INT UNSIGNED NOT NULL COMMENT '规格ID',
             `level_id` INT UNSIGNED NOT NULL COMMENT '用户等级ID',
@@ -1091,7 +1098,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户等级价格表'");
 
         // 商品指定用户价格表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_price_user` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_price_user` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `spec_id` INT UNSIGNED NOT NULL COMMENT '规格ID',
             `user_id` INT UNSIGNED NOT NULL COMMENT '用户ID',
@@ -1105,7 +1112,7 @@ final class InstallService
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户专属价格表'");
 
         // 虚拟商品卡密表（与线上一致）
-        Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_virtual_card` (
+        \Database::statement("CREATE TABLE IF NOT EXISTS `{$prefix}goods_virtual_card` (
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `goods_id` INT UNSIGNED NOT NULL COMMENT '所属商品ID',
             `spec_id` INT UNSIGNED DEFAULT NULL COMMENT '所属规格ID（可选，关联 em_goods_spec.id）',
@@ -1134,7 +1141,7 @@ final class InstallService
             KEY `idx_goods_order_sold` (`goods_id`, `order_id`, `sold_at`, `status`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='虚拟商品（卡密）库存表'");
         // 商户等级表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `name` VARCHAR(64) NOT NULL COMMENT \'等级名称\',
@@ -1158,9 +1165,9 @@ final class InstallService
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'商户等级\'',
             $prefix . 'merchant_level'
         ));
-        $hasLevel = Database::fetchOne(sprintf('SELECT `id` FROM `%s` LIMIT 1', $prefix . 'merchant_level'));
+        $hasLevel = \Database::fetchOne(sprintf('SELECT `id` FROM `%s` LIMIT 1', $prefix . 'merchant_level'));
         if ($hasLevel === null) {
-            Database::insert('merchant_level', [
+            \Database::insert('merchant_level', [
                 'name' => '普通商户',
                 'price' => 0,
                 'self_goods_fee_rate' => 500,
@@ -1177,7 +1184,7 @@ final class InstallService
         }
 
         // 商户主表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'商户主 user_id\',
@@ -1216,7 +1223,7 @@ final class InstallService
         ));
 
         // 商户商品引用表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL,
@@ -1238,7 +1245,7 @@ final class InstallService
         ));
 
         // 商户分类表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL,
@@ -1256,7 +1263,7 @@ final class InstallService
         ));
 
         // 商户分类映射表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL,
@@ -1275,7 +1282,7 @@ final class InstallService
         // 防并发重复分账 / 重复退款（代码侧的「先查后写」不是原子的）。
         // withdraw / withdraw_fee 两类流水的 order_id 为 NULL，而 MySQL 唯一索引
         // 视 NULL 互不相同 —— 所以它们不受该约束，这正是该索引可行的前提，勿改成 NOT NULL。
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL,
@@ -1299,7 +1306,7 @@ final class InstallService
         ));
 
         // 商户提现记录表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL,
@@ -1323,7 +1330,7 @@ final class InstallService
         ));
 
         // 页面表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `merchant_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT \'0=主站；>0=商户\',
@@ -1352,7 +1359,7 @@ final class InstallService
         ));
 
         // 商户隐藏导航表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `merchant_id` INT UNSIGNED NOT NULL COMMENT \'商户 ID\',
                 `navi_id` BIGINT UNSIGNED NOT NULL COMMENT \'导航 ID（必须 is_system=1）\',
@@ -1364,7 +1371,7 @@ final class InstallService
         ));
 
         // 货币表（与线上一致）
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `code` VARCHAR(3) NOT NULL COMMENT \'货币代码（3位大写字母，如 CNY）\',
@@ -1384,10 +1391,10 @@ final class InstallService
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT=\'货币配置表\'',
             $prefix . 'currency'
         ));
-        $hasCurrency = Database::fetchOne(sprintf('SELECT `id` FROM `%s` LIMIT 1', $prefix . 'currency'));
+        $hasCurrency = \Database::fetchOne(sprintf('SELECT `id` FROM `%s` LIMIT 1', $prefix . 'currency'));
         if ($hasCurrency === null) {
             $now = time();
-            Database::insert('currency', [
+            \Database::insert('currency', [
                 'code' => 'CNY',
                 'name' => '人民币',
                 'symbol' => '¥',
@@ -1402,7 +1409,7 @@ final class InstallService
         }
 
         // 用户地址表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `user_id` INT UNSIGNED NOT NULL COMMENT \'em_user.id\',
@@ -1423,7 +1430,7 @@ final class InstallService
         ));
 
         // 密码重置令牌表
-        Database::statement(sprintf(
+        \Database::statement(sprintf(
             'CREATE TABLE IF NOT EXISTS `%s` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT \'自增主键\',
                 `user_id` BIGINT UNSIGNED NOT NULL COMMENT \'用户ID\',

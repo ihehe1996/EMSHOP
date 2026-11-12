@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 返佣业务服务 —— 所有佣金相关业务逻辑集中于此。
  *
@@ -27,7 +33,7 @@ class RebateService
     /** 返佣总开关 */
     public static function isEnabled(): bool
     {
-        return Config::get('shop_enable_rebate', '0') === '1';
+        return \Config::get('shop_enable_rebate', '0') === '1';
     }
 
     /**
@@ -35,7 +41,7 @@ class RebateService
      */
     public static function calculateMode(): string
     {
-        $mode = (string) Config::get('rebate_calculate_mode', 'amount');
+        $mode = (string) \Config::get('rebate_calculate_mode', 'amount');
         return in_array($mode, ['amount', 'profit'], true) ? $mode : 'amount';
     }
 
@@ -51,15 +57,15 @@ class RebateService
 
         $l1 = 0; $l2 = 0;
         if ($userId > 0) {
-            $u = Database::find('user', $userId);
+            $u = \Database::find('user', $userId);
             if ($u) {
                 $l1 = (int) ($u['inviter_l1'] ?? 0);
                 $l2 = (int) ($u['inviter_l2'] ?? 0);
             }
         } else {
-            $l1 = InviteToken::currentInviterId();
+            $l1 = \InviteToken::currentInviterId();
             if ($l1 > 0) {
-                $upper = Database::find('user', $l1);
+                $upper = \Database::find('user', $l1);
                 if ($upper) {
                     $l2 = (int) ($upper['inviter_l1'] ?? 0);
                 }
@@ -71,7 +77,7 @@ class RebateService
     /** 冷却天数（整数） */
     public static function freezeDays(): int
     {
-        return max(0, (int) Config::get('rebate_freeze_days', '7'));
+        return max(0, (int) \Config::get('rebate_freeze_days', '7'));
     }
 
     /**
@@ -81,8 +87,8 @@ class RebateService
     public static function globalRates(): array
     {
         return [
-            'l1' => (int) Config::get('rebate_level1_rate', '0'),
-            'l2' => (int) Config::get('rebate_level2_rate', '0'),
+            'l1' => (int) \Config::get('rebate_level1_rate', '0'),
+            'l2' => (int) \Config::get('rebate_level2_rate', '0'),
         ];
     }
 
@@ -106,7 +112,7 @@ class RebateService
         // 2) 分类级：goods_category.rebate_config
         $categoryId = (int) ($goodsRow['category_id'] ?? 0);
         if ($categoryId > 0) {
-            $catRow = Database::find('goods_category', $categoryId);
+            $catRow = \Database::find('goods_category', $categoryId);
             if ($catRow && !empty($catRow['rebate_config'])) {
                 $r = self::normalizeRate(json_decode((string) $catRow['rebate_config'], true) ?: []);
                 if (array_sum($r) > 0) return $r + ['source' => 'category'];
@@ -143,7 +149,7 @@ class RebateService
     {
         if (!self::isEnabled()) return;
 
-        $order = Database::find('order', $orderId);
+        $order = \Database::find('order', $orderId);
         if (!$order) return;
 
         // 仅 completed 状态才结算（防止被误触发）
@@ -159,10 +165,10 @@ class RebateService
         ];
         if ($inviters[1] === 0 && $inviters[2] === 0) return;
 
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
         // 取订单的所有商品项（带售价、成本价、数量）—— 只读，放在事务外
-        $items = Database::query(
+        $items = \Database::query(
             "SELECT og.goods_id, og.spec_id, og.price AS sold_price, og.quantity,
                     gs.cost_price AS cost_price_raw,
                     g.configs AS goods_configs, g.category_id
@@ -176,10 +182,10 @@ class RebateService
 
         $calcMode    = self::calculateMode();
         $freezeDays  = self::freezeDays();
-        $freezeUntil = $freezeDays > 0 ? date('Y-m-d H:i:s', time() + $freezeDays * 86400) : null;
+        $freezeUntil = $freezeDays > 0 ? \date('Y-m-d H:i:s', time() + $freezeDays * 86400) : null;
         $logModel    = new \App\Model\CommissionLogModel();
 
-        Database::begin();
+        \Database::begin();
         try {
             // 锁订单行：并发结算在这里串行化。
             //
@@ -187,19 +193,19 @@ class RebateService
             // 每个返佣等级都合法地占一行（见下方 foreach × for 两层循环），
             // 且部分提现拆单还会复制 (order_id, user_id, level)。
             // 所以这张表的幂等只能靠「持订单行锁后重查」保证。
-            Database::fetchOne(
+            \Database::fetchOne(
                 "SELECT `id` FROM {$prefix}order WHERE `id` = ? FOR UPDATE",
                 [$orderId]
             );
 
             // 幂等性：已有非 reverted 记录说明已结算过
             // （此刻在事务内且持有订单行锁，判断可靠；原先在事务外，是 check-then-write 竞态）
-            $exist = Database::fetchOne(
+            $exist = \Database::fetchOne(
                 "SELECT id FROM {$prefix}commission_log WHERE order_id = ? AND status != ? LIMIT 1",
                 [$orderId, \App\Model\CommissionLogModel::STATUS_REVERTED]
             );
             if ($exist) {
-                Database::commit();
+                \Database::commit();
                 return;
             }
 
@@ -250,23 +256,23 @@ class RebateService
                         // 有冷却期 → 冻结态，到期由 promoteMatured 转 available
                         $logPayload['frozen_until'] = $freezeUntil;
                         $logModel->createFrozen($logPayload);
-                        Database::execute(
+                        \Database::execute(
                             "UPDATE {$prefix}user SET commission_frozen = commission_frozen + ? WHERE id = ?",
                             [$amount, $uid]
                         );
                     } else {
                         // 冷却期 = 0 → 直接落到可提现，跳过冻结环节
                         $logModel->createAvailable($logPayload);
-                        Database::execute(
+                        \Database::execute(
                             "UPDATE {$prefix}user SET commission_available = commission_available + ? WHERE id = ?",
                             [$amount, $uid]
                         );
                     }
                 }
             }
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
+            \Database::commit();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
     }
@@ -277,7 +283,7 @@ class RebateService
     public static function revertOrder(int $orderId): void
     {
         // 商户订单由 MerchantLedgerService 处理，RebateService 跳过
-        $order = Database::find('order', $orderId);
+        $order = \Database::find('order', $orderId);
         if ($order !== null && (int) ($order['merchant_id'] ?? 0) > 0) return;
 
         (new \App\Model\CommissionLogModel())->revertByOrder($orderId);
@@ -294,28 +300,28 @@ class RebateService
     public static function withdraw(int $userId, int $amountRaw): int
     {
         if ($userId <= 0 || $amountRaw <= 0) {
-            throw new RuntimeException('参数错误');
+            throw new \RuntimeException('参数错误');
         }
 
         // 先惰性把到期 frozen 转 available
         (new \App\Model\CommissionLogModel())->promoteMatured($userId);
 
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
         $logModel = new \App\Model\CommissionLogModel();
         $withdrawModel = new \App\Model\CommissionWithdrawModel();
 
-        Database::begin();
+        \Database::begin();
         try {
-            $user = Database::fetchOne(
+            $user = \Database::fetchOne(
                 "SELECT commission_available FROM {$prefix}user WHERE id = ? FOR UPDATE",
                 [$userId]
             );
             if (!$user) {
-                throw new RuntimeException('用户不存在');
+                throw new \RuntimeException('用户不存在');
             }
             $available = (int) ($user['commission_available'] ?? 0);
             if ($amountRaw > $available) {
-                throw new RuntimeException('可提现佣金不足');
+                throw new \RuntimeException('可提现佣金不足');
             }
 
             // 按时间顺序消耗 available 明细，直到凑够金额
@@ -338,7 +344,7 @@ class RebateService
                 }
             }
             if ($todo > 0) {
-                throw new RuntimeException('佣金明细数据不一致，请联系管理员');
+                throw new \RuntimeException('佣金明细数据不一致，请联系管理员');
             }
 
             $withdrawId = $withdrawModel->insert([
@@ -352,7 +358,7 @@ class RebateService
 
             if ($fullIds) {
                 $in = implode(',', array_fill(0, count($fullIds), '?'));
-                Database::execute(
+                \Database::execute(
                     "UPDATE {$prefix}commission_log
                      SET status = ?, withdraw_id = ?, updated_at = NOW()
                      WHERE id IN ({$in}) AND status = ?",
@@ -363,7 +369,7 @@ class RebateService
                 $logModel->splitWithdraw((int) $partial['id'], (int) $partial['take'], $withdrawId);
             }
 
-            Database::execute(
+            \Database::execute(
                 "UPDATE {$prefix}user
                  SET commission_available = GREATEST(commission_available - ?, 0)
                  WHERE id = ?",
@@ -378,13 +384,13 @@ class RebateService
                 '系统'
             );
             if (!$ok) {
-                throw new RuntimeException('余额入账失败');
+                throw new \RuntimeException('余额入账失败');
             }
 
-            Database::commit();
+            \Database::commit();
             return $withdrawId;
-        } catch (Throwable $e) {
-            Database::rollBack();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
     }

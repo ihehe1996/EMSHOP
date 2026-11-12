@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 后台认证服务。
  *
@@ -34,7 +40,7 @@ final class AuthService
             'remember_days_checked' => EM_AUTH_REMEMBER_DAYS_CHECKED,
         ];
         $this->users = new \App\Model\UserModel();
-        $this->hasher = new PasswordHash(8, true);
+        $this->hasher = new \PasswordHash(8, true);
     }
 
     /**
@@ -96,7 +102,7 @@ final class AuthService
                     self::signSessionPayload(
                         $payload,
                         (string) ($user['password'] ?? ''),
-                        CsrfSecret::get()
+                        \CsrfSecret::get()
                     ),
                     (string) ($payload['sig'] ?? '')
                 )
@@ -160,17 +166,17 @@ final class AuthService
         // 作用域传 'admin'，与前台登录分开计数。
         $blocked = (string) applyFilter('login_before_attempt', '', 'admin', $account);
         if ($blocked !== '') {
-            throw new RuntimeException($blocked);
+            throw new \RuntimeException($blocked);
         }
 
         if ($account === '' || $password === '') {
-            throw new InvalidArgumentException('账号和密码不能为空');
+            throw new \InvalidArgumentException('账号和密码不能为空');
         }
 
         $user = $this->users->findAdminByAccount($account);
         if ($user === null || !$this->hasher->CheckPassword($password, (string) $user['password'])) {
             doAction('login_attempt_failed', 'admin', $account);
-            throw new RuntimeException('账号或密码错误');
+            throw new \RuntimeException('账号或密码错误');
         }
 
         doAction('login_attempt_succeeded', 'admin', $account);
@@ -245,7 +251,7 @@ final class AuthService
         $payload['sig'] = self::signSessionPayload(
             $payload,
             (string) ($user['password'] ?? ''),
-            CsrfSecret::ensure()
+            \CsrfSecret::ensure()
         );
 
         return $payload;

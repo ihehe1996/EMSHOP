@@ -30,7 +30,7 @@ final class AdminShell
         require_once EM_ROOT . '/include/lib/AdminLang.php';
 
         if ($user === []) {
-            $user = (new \AuthService())->user() ?? [];
+            $user = (new \App\Service\AuthService())->user() ?? [];
         }
 
         // 控制器局部变量原样带进内容视图（旧框架壳是同一作用域 require，视图一直依赖这些变量）

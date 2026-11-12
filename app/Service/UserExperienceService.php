@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 用户经验值与累计消费。
  *
@@ -14,7 +20,7 @@ final class UserExperienceService
 
     private static function settleTable(): string
     {
-        return Database::prefix() . 'user_experience_order';
+        return \Database::prefix() . 'user_experience_order';
     }
 
     /**
@@ -26,7 +32,7 @@ final class UserExperienceService
             return;
         }
 
-        $initial = max(0, (int) Config::get('user_credit_initial', '0'));
+        $initial = max(0, (int) \Config::get('user_credit_initial', '0'));
         if ($initial <= 0) {
             return;
         }
@@ -43,9 +49,9 @@ final class UserExperienceService
             return;
         }
 
-        $orderTable = Database::prefix() . 'order';
+        $orderTable = \Database::prefix() . 'order';
         $settleTable = self::settleTable();
-        $order = Database::fetchOne(
+        $order = \Database::fetchOne(
             'SELECT `id`, `user_id`, `pay_amount`, `status`
                FROM `' . $orderTable . '`
               WHERE `id` = ? LIMIT 1',
@@ -63,7 +69,7 @@ final class UserExperienceService
             return;
         }
 
-        $exists = Database::fetchOne(
+        $exists = \Database::fetchOne(
             'SELECT `order_id` FROM `' . $settleTable . '` WHERE `order_id` = ? LIMIT 1',
             [$orderId]
         );
@@ -72,7 +78,7 @@ final class UserExperienceService
         }
 
         $payAmount = max(0, (int) ($order['pay_amount'] ?? 0));
-        $expPerYuan = max(0, (int) Config::get('user_exp_per_yuan', '0'));
+        $expPerYuan = max(0, (int) \Config::get('user_exp_per_yuan', '0'));
         $yuan = intdiv($payAmount, self::MONEY_SCALE);
         $expGain = $yuan * $expPerYuan;
 
@@ -80,10 +86,10 @@ final class UserExperienceService
             return;
         }
 
-        Database::begin();
+        \Database::begin();
         try {
-            $userTable = Database::prefix() . 'user';
-            $userRow = Database::fetchOne(
+            $userTable = \Database::prefix() . 'user';
+            $userRow = \Database::fetchOne(
                 // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
                 // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
                 // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
@@ -91,17 +97,17 @@ final class UserExperienceService
                 [$userId]
             );
             if ($userRow === null) {
-                Database::rollBack();
+                \Database::rollBack();
                 return;
             }
 
-            Database::execute(
+            \Database::execute(
                 'INSERT INTO `' . $settleTable . '` (`order_id`, `user_id`, `pay_amount`, `exp_gained`) VALUES (?, ?, ?, ?)',
                 [$orderId, $userId, $payAmount, $expGain]
             );
 
             if ($payAmount > 0) {
-                Database::execute(
+                \Database::execute(
                     'UPDATE `' . $userTable . '`
                         SET `total_consumption` = `total_consumption` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -110,7 +116,7 @@ final class UserExperienceService
             }
 
             if ($expGain > 0) {
-                Database::execute(
+                \Database::execute(
                     'UPDATE `' . $userTable . '`
                         SET `experience` = `experience` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -118,9 +124,9 @@ final class UserExperienceService
                 );
             }
 
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
+            \Database::commit();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             // 并发重复结算：主键冲突视为已处理
             if (self::isDuplicateKey($e)) {
                 return;
@@ -140,10 +146,10 @@ final class UserExperienceService
             return;
         }
 
-        $userTable = Database::prefix() . 'user';
-        Database::begin();
+        $userTable = \Database::prefix() . 'user';
+        \Database::begin();
         try {
-            $userRow = Database::fetchOne(
+            $userRow = \Database::fetchOne(
                 // 不按 role 过滤：管理账号在前台也能下单，经验/消费额同样要结算。
                 // 过滤掉会出现「订单完成了但没给经验」——而且是 rollBack + return，
                 // 不抛异常也不写日志，完全无痕。这里的 FOR UPDATE 也依赖它真能锁到行。
@@ -151,12 +157,12 @@ final class UserExperienceService
                 [$userId]
             );
             if ($userRow === null) {
-                Database::rollBack();
+                \Database::rollBack();
                 return;
             }
 
             if ($consumptionDelta > 0) {
-                Database::execute(
+                \Database::execute(
                     'UPDATE `' . $userTable . '`
                         SET `total_consumption` = `total_consumption` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -164,7 +170,7 @@ final class UserExperienceService
                 );
             }
             if ($delta > 0) {
-                Database::execute(
+                \Database::execute(
                     'UPDATE `' . $userTable . '`
                         SET `experience` = `experience` + ?
                       WHERE `id` = ? LIMIT 1',
@@ -172,9 +178,9 @@ final class UserExperienceService
                 );
             }
 
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
+            \Database::commit();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
 
@@ -192,10 +198,10 @@ final class UserExperienceService
             return;
         }
 
-        $userTable = Database::prefix() . 'user';
-        $levelTable = Database::prefix() . 'user_levels';
+        $userTable = \Database::prefix() . 'user';
+        $levelTable = \Database::prefix() . 'user_levels';
 
-        $user = Database::fetchOne(
+        $user = \Database::fetchOne(
             'SELECT `level_id`, `experience` FROM `' . $userTable . '` WHERE `id` = ? LIMIT 1',
             [$userId]
         );
@@ -207,7 +213,7 @@ final class UserExperienceService
         $currentLevelNum = 0;
         $levelId = (int) ($user['level_id'] ?? 0);
         if ($levelId > 0) {
-            $cur = Database::fetchOne(
+            $cur = \Database::fetchOne(
                 'SELECT `level` FROM `' . $levelTable . '` WHERE `id` = ? AND `enabled` = \'y\' LIMIT 1',
                 [$levelId]
             );
@@ -216,7 +222,7 @@ final class UserExperienceService
             }
         }
 
-        $best = Database::fetchOne(
+        $best = \Database::fetchOne(
             'SELECT `id`, `level`
                FROM `' . $levelTable . '`
               WHERE `enabled` = \'y\'
@@ -236,19 +242,19 @@ final class UserExperienceService
             return;
         }
 
-        Database::execute(
+        \Database::execute(
             'UPDATE `' . $userTable . '` SET `level_id` = ? WHERE `id` = ? LIMIT 1',
             [$newLevelId, $userId]
         );
     }
 
-    private static function isDuplicateKey(Throwable $e): bool
+    private static function isDuplicateKey(\Throwable $e): bool
     {
         $msg = $e->getMessage();
         if (strpos($msg, '1062') !== false || strpos($msg, 'Duplicate entry') !== false) {
             return true;
         }
         $prev = $e->getPrevious();
-        return $prev instanceof Throwable && self::isDuplicateKey($prev);
+        return $prev instanceof \Throwable && self::isDuplicateKey($prev);
     }
 }

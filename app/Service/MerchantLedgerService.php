@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 商户账务服务。
  *
@@ -48,9 +54,9 @@ final class MerchantLedgerService
             return $cache[$ownerUserId];
         }
 
-        $userTable = Database::prefix() . 'user';
-        $levelTable = Database::prefix() . 'user_levels';
-        $row = Database::fetchOne(
+        $userTable = \Database::prefix() . 'user';
+        $levelTable = \Database::prefix() . 'user_levels';
+        $row = \Database::fetchOne(
             'SELECT ul.`discount`
                FROM `' . $userTable . '` u
           LEFT JOIN `' . $levelTable . '` ul ON ul.`id` = u.`level_id` AND ul.`enabled` = \'y\'
@@ -124,73 +130,73 @@ final class MerchantLedgerService
      */
     public static function settleOrder(int $orderId): void
     {
-        $order = Database::find('order', $orderId);
+        $order = \Database::find('order', $orderId);
         if ($order === null) return;
         $merchantId = (int) ($order['merchant_id'] ?? 0);
         if ($merchantId <= 0) return;
         if (($order['status'] ?? '') !== 'completed') return;
 
-        $logTable = Database::prefix() . 'merchant_balance_log';
+        $logTable = \Database::prefix() . 'merchant_balance_log';
 
         // 注意：幂等检查已移入下方事务内（且持订单行锁之后）。
         // 事务外做 check-then-write 是竞态 —— 两个并发请求（网关重投、后台与发货
         // 队列同时触发完成）都会读到「尚未结算」，然后各写一条 increase 流水。
-        $merchant = Database::find('merchant', $merchantId);
+        $merchant = \Database::find('merchant', $merchantId);
         if ($merchant === null || (int) $merchant['status'] !== 1) return;
 
         $ownerUserId = (int) $merchant['user_id'];
 
         // 汇总商户实得：Σ(line_price − cost − fee)
-        $items = Database::query(
+        $items = \Database::query(
             'SELECT `id`, `price`, `quantity`, `cost_amount`, `fee_amount`, `goods_owner_id`
-               FROM `' . Database::prefix() . 'order_goods`
+               FROM `' . \Database::prefix() . 'order_goods`
               WHERE `order_id` = ?',
             [$orderId]
         );
 
         $income = self::computeIncome($order, $items, $ownerUserId);
 
-        $orderTable = Database::prefix() . 'order';
+        $orderTable = \Database::prefix() . 'order';
 
-        Database::begin();
+        \Database::begin();
         try {
             // 先锁订单行：并发结算在这里串行化。后到的请求会阻塞到前一个提交，
             // 从而在下面的幂等检查里读到已写入的 increase 流水。
             // （SELECT ... FOR UPDATE 是本仓库既有的惯用法，见 CommissionLogModel::splitWithdraw）
-            Database::fetchOne(
+            \Database::fetchOne(
                 'SELECT `id` FROM `' . $orderTable . '` WHERE `id` = ? FOR UPDATE',
                 [$orderId]
             );
 
             // 幂等：已结算过则跳（此刻在事务内且持有订单行锁，判断可靠）
-            $existing = Database::fetchOne(
+            $existing = \Database::fetchOne(
                 'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
                 [$orderId, 'increase']
             );
             if ($existing !== null) {
-                Database::commit();
+                \Database::commit();
                 return;
             }
 
             // 锁用户行
-            $userTable = Database::prefix() . 'user';
-            $userRow = Database::fetchOne(
+            $userTable = \Database::prefix() . 'user';
+            $userRow = \Database::fetchOne(
                 'SELECT `shop_balance` FROM `' . $userTable . '` WHERE `id` = ? FOR UPDATE',
                 [$ownerUserId]
             );
             if ($userRow === null) {
-                throw new RuntimeException('商户主不存在');
+                throw new \RuntimeException('商户主不存在');
             }
             $before = (int) $userRow['shop_balance'];
             $after = $before + $income;
 
-            Database::execute(
+            \Database::execute(
                 'UPDATE `' . $userTable . '` SET `shop_balance` = ? WHERE `id` = ?',
                 [$after, $ownerUserId]
             );
 
             try {
-                Database::insert('merchant_balance_log', [
+                \Database::insert('merchant_balance_log', [
                     'merchant_id' => $merchantId,
                     'user_id' => $ownerUserId,
                     'type' => 'increase',
@@ -201,12 +207,12 @@ final class MerchantLedgerService
                     'remark' => '订单完成入账 #' . ($order['order_no'] ?? $orderId),
                     'operator_id' => 0,
                 ]);
-            } catch (Throwable $e) {
-                if (Database::isDuplicateKeyError($e)) {
+            } catch (\Throwable $e) {
+                if (\Database::isDuplicateKeyError($e)) {
                     // 唯一索引 uk_order_type 挡住 = 已被并发结算过。
                     // 上面已经给余额加过一次款，所以必须**回滚本次的加款**
                     // （不能 commit），让先到的那笔生效。
-                    Database::rollBack();
+                    \Database::rollBack();
                     return;
                 }
                 throw $e;
@@ -214,9 +220,9 @@ final class MerchantLedgerService
 
             // 子商户返佣已移除（规避传销风险）
 
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
+            \Database::commit();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
     }
@@ -229,68 +235,68 @@ final class MerchantLedgerService
      */
     public static function refundOrder(int $orderId): void
     {
-        $order = Database::find('order', $orderId);
+        $order = \Database::find('order', $orderId);
         if ($order === null) return;
         $merchantId = (int) ($order['merchant_id'] ?? 0);
         if ($merchantId <= 0) return;
 
-        $logTable = Database::prefix() . 'merchant_balance_log';
+        $logTable = \Database::prefix() . 'merchant_balance_log';
 
-        $merchant = Database::find('merchant', $merchantId);
+        $merchant = \Database::find('merchant', $merchantId);
         if ($merchant === null) return;
         $ownerUserId = (int) $merchant['user_id'];
 
-        $orderTable = Database::prefix() . 'order';
+        $orderTable = \Database::prefix() . 'order';
 
         // 幂等检查同样移入事务内（持订单行锁之后）—— 事务外检查是竞态：
         // 并发退款会写出两条 refund 流水，把商户余额扣两次。
-        Database::begin();
+        \Database::begin();
         try {
-            Database::fetchOne(
+            \Database::fetchOne(
                 'SELECT `id` FROM `' . $orderTable . '` WHERE `id` = ? FOR UPDATE',
                 [$orderId]
             );
 
             // 幂等：之前有过 refund → 跳过
-            $refundExist = Database::fetchOne(
+            $refundExist = \Database::fetchOne(
                 'SELECT `id` FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
                 [$orderId, 'refund']
             );
             if ($refundExist !== null) {
-                Database::commit();
+                \Database::commit();
                 return;
             }
 
             // 取原入账记录
-            $settle = Database::fetchOne(
+            $settle = \Database::fetchOne(
                 'SELECT * FROM `' . $logTable . '` WHERE `order_id` = ? AND `type` = ? LIMIT 1',
                 [$orderId, 'increase']
             );
             if ($settle === null) {
                 // 订单没 settle 过（可能 paid 阶段直接 refund），无需倒扣
-                Database::commit();
+                \Database::commit();
                 return;
             }
             $refundAmount = (int) $settle['amount'];
 
-            $userTable = Database::prefix() . 'user';
-            $userRow = Database::fetchOne(
+            $userTable = \Database::prefix() . 'user';
+            $userRow = \Database::fetchOne(
                 'SELECT `shop_balance` FROM `' . $userTable . '` WHERE `id` = ? FOR UPDATE',
                 [$ownerUserId]
             );
             if ($userRow === null) {
-                throw new RuntimeException('商户主不存在');
+                throw new \RuntimeException('商户主不存在');
             }
             $before = (int) $userRow['shop_balance'];
             $after = $before - $refundAmount; // 允许为负数（已提现走掉的情况）
 
-            Database::execute(
+            \Database::execute(
                 'UPDATE `' . $userTable . '` SET `shop_balance` = ? WHERE `id` = ?',
                 [$after, $ownerUserId]
             );
 
             try {
-                Database::insert('merchant_balance_log', [
+                \Database::insert('merchant_balance_log', [
                     'merchant_id' => $merchantId,
                     'user_id' => $ownerUserId,
                     'type' => 'refund',
@@ -301,18 +307,18 @@ final class MerchantLedgerService
                     'remark' => '订单退款倒扣 #' . ($order['order_no'] ?? $orderId),
                     'operator_id' => 0,
                 ]);
-            } catch (Throwable $e) {
-                if (Database::isDuplicateKeyError($e)) {
+            } catch (\Throwable $e) {
+                if (\Database::isDuplicateKeyError($e)) {
                     // 唯一索引挡住 = 已被并发退款过，回滚本次的倒扣，让先到的那笔生效
-                    Database::rollBack();
+                    \Database::rollBack();
                     return;
                 }
                 throw $e;
             }
 
-            Database::commit();
-        } catch (Throwable $e) {
-            Database::rollBack();
+            \Database::commit();
+        } catch (\Throwable $e) {
+            \Database::rollBack();
             throw $e;
         }
     }
@@ -331,9 +337,9 @@ final class MerchantLedgerService
         static $cache = [];
         if (array_key_exists($merchantId, $cache)) return $cache[$merchantId];
 
-        $m = Database::find('merchant', $merchantId);
+        $m = \Database::find('merchant', $merchantId);
         if ($m === null) return $cache[$merchantId] = null;
-        $l = Database::find('merchant_level', (int) $m['level_id']);
+        $l = \Database::find('merchant_level', (int) $m['level_id']);
         return $cache[$merchantId] = $l;
     }
 }

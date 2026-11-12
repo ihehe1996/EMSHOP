@@ -40,7 +40,7 @@ final class ProfileController extends BaseAdminController
             $userModel = new \App\Model\UserModel();
             $admin = $this->user();
             $userId = (int) ($admin['id'] ?? 0);
-            $auth = new \AuthService();
+            $auth = new \App\Service\AuthService();
 
             switch ($action) {
                 case 'profile':
@@ -108,7 +108,7 @@ final class ProfileController extends BaseAdminController
                         $this->response->error('请选择头像文件');
                     }
 
-                    $uploader = new \UploadService();
+                    $uploader = new \App\Service\UploadService();
                     $result = $uploader->upload($_FILES['avatar_file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'avatar');
 
                     $userModel->updateProfile($userId, [

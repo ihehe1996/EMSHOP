@@ -21,7 +21,7 @@ abstract class BaseController
     protected string $controllerName;
 
     /** @var FrontDataService|null 取数服务（无状态，请求内复用同一实例） */
-    private ?\FrontDataService $frontData = null;
+    private ?\App\Service\FrontDataService $frontData = null;
 
     /**
      * @param View       $view           视图实例
@@ -44,10 +44,10 @@ abstract class BaseController
      * 同名委托，让既有的 6 个控制器调用点一行都不用改。服务无状态，实例复用即可
      * （内部的 static 局部缓存因此仍在同一请求内共享）。
      */
-    private function frontData(): \FrontDataService
+    private function frontData(): \App\Service\FrontDataService
     {
         if ($this->frontData === null) {
-            $this->frontData = new \FrontDataService();
+            $this->frontData = new \App\Service\FrontDataService();
         }
         return $this->frontData;
     }
@@ -260,7 +260,7 @@ abstract class BaseController
      */
     public static function formatStockText(int $stock): string
     {
-        return \FrontDataService::formatStockText($stock);
+        return \App\Service\FrontDataService::formatStockText($stock);
     }
 
     /**
@@ -272,7 +272,7 @@ abstract class BaseController
      */
     protected static function resolveOriginalPrice(?array $spec): ?float
     {
-        return \FrontDataService::resolveOriginalPrice($spec);
+        return \App\Service\FrontDataService::resolveOriginalPrice($spec);
     }
 
 }

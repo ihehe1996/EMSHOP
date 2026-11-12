@@ -134,7 +134,7 @@ class CouponController extends BaseController
         }
         $goodsItems = json_decode($goodsItemsJson, true) ?: [];
 
-        $service = new \CouponService();
+        $service = new \App\Service\CouponService();
         try {
             $result = $service->check($code, [
                 'goods_amount_raw' => $goodsAmountRaw,

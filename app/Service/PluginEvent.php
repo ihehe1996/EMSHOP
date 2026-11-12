@@ -1,5 +1,7 @@
 <?php
 
+namespace App\Service;
+
 /**
  * 插件事件（跨插件通知的落库载体）。
  *
@@ -55,21 +57,21 @@ final class PluginEvent
             return 0;
         }
 
-        $json = json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($args, JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
         if (!is_string($json)) {
             $json = '[]';
         }
 
         try {
-            return (int) Database::insert('plugin_event', [
+            return (int) \Database::insert('plugin_event', [
                 'event'      => $event,
                 'args'       => $json,
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             // 发布失败不能拖垮主流程（比如发货）。订阅方会少收到一次通知，
             // 但发货本身必须成功 —— 这里记一条日志就够了。
-            CliServer::log("异常：发布插件事件 {$event} 失败，" . $e->getMessage());
+            \CliServer::log("异常：发布插件事件 {$event} 失败，" . $e->getMessage());
             return 0;
         }
     }
@@ -91,13 +93,13 @@ final class PluginEvent
         $limit = max(1, min(500, $limit));
 
         try {
-            $rows = Database::query(
-                'SELECT `id`, `args` FROM `' . Database::prefix() . 'plugin_event`
+            $rows = \Database::query(
+                'SELECT `id`, `args` FROM `' . \Database::prefix() . 'plugin_event`
                  WHERE `event` = ? AND `id` > ?
                  ORDER BY `id` ASC LIMIT ?',
                 [$event, max(0, $afterId), $limit]
             );
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             return [];
         }
 
@@ -106,7 +108,7 @@ final class PluginEvent
             $args = json_decode((string) ($row['args'] ?? '[]'), true);
             $out[] = [
                 'id'   => (int) ($row['id'] ?? 0),
-                'args' => is_array($args) ? array_values($args) : [],
+                'args' => is_array($args) ? \array_values($args) : [],
             ];
         }
 
@@ -120,18 +122,18 @@ final class PluginEvent
      */
     public static function latestId(string $event = ''): int
     {
-        $prefix = Database::prefix();
+        $prefix = \Database::prefix();
 
         try {
             if (trim($event) === '') {
-                $row = Database::fetchOne("SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event`");
+                $row = \Database::fetchOne("SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event`");
             } else {
-                $row = Database::fetchOne(
+                $row = \Database::fetchOne(
                     "SELECT COALESCE(MAX(`id`), 0) AS `m` FROM `{$prefix}plugin_event` WHERE `event` = ?",
                     [trim($event)]
                 );
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
 
@@ -151,12 +153,12 @@ final class PluginEvent
         $retainDays = max(1, $retainDays);
 
         try {
-            return (int) Database::execute(
-                'DELETE FROM `' . Database::prefix() . 'plugin_event`
+            return (int) \Database::execute(
+                'DELETE FROM `' . \Database::prefix() . 'plugin_event`
                  WHERE `created_at` < DATE_SUB(NOW(), INTERVAL ? DAY)',
                 [$retainDays]
             );
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             return 0;
         }
     }

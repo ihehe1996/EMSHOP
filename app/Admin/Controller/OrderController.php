@@ -169,7 +169,7 @@ final class OrderController extends BaseAdminController
         // 支付方式 code → image 映射
         $paymentImageMap = [];
         try {
-            foreach (\PaymentService::getMethods() as $m) {
+            foreach (\App\Service\PaymentService::getMethods() as $m) {
                 $code = (string) ($m['code'] ?? '');
                 if ($code !== '') {
                     $paymentImageMap[$code] = (string) ($m['image'] ?? '');

@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 找回密码业务：发重置邮件、校验令牌、更新密码。
  */
@@ -49,23 +55,23 @@ final class PasswordResetService
             return ['ok' => false, 'msg' => '请输入有效的邮箱地址'];
         }
 
-        $ipKey = 'forgot_pwd_ip:v2:' . RateLimit::clientIp();
-        if (RateLimit::tooManyAttempts($ipKey, self::IP_MAX_ATTEMPTS)) {
-            $wait = RateLimit::availableIn($ipKey);
-            return ['ok' => false, 'msg' => "请求过于频繁，请 {$wait} 秒后再试", 'captcha_expr' => Captcha::issue('forgot_password')];
+        $ipKey = 'forgot_pwd_ip:v2:' . \RateLimit::clientIp();
+        if (\RateLimit::tooManyAttempts($ipKey, self::IP_MAX_ATTEMPTS)) {
+            $wait = \RateLimit::availableIn($ipKey);
+            return ['ok' => false, 'msg' => "请求过于频繁，请 {$wait} 秒后再试", 'captcha_expr' => \Captcha::issue('forgot_password')];
         }
-        RateLimit::hit($ipKey, self::IP_WINDOW);
+        \RateLimit::hit($ipKey, self::IP_WINDOW);
 
-        if (!Captcha::verify($captchaInput, 'forgot_password')) {
-            return ['ok' => false, 'msg' => '验证码错误，请重试', 'captcha_expr' => Captcha::issue('forgot_password')];
+        if (!\Captcha::verify($captchaInput, 'forgot_password')) {
+            return ['ok' => false, 'msg' => '验证码错误，请重试', 'captcha_expr' => \Captcha::issue('forgot_password')];
         }
 
         $emailKey = 'forgot_pwd_email:v2:' . hash('sha256', $email);
-        if (RateLimit::tooManyAttempts($emailKey, self::EMAIL_MAX_ATTEMPTS)) {
-            $wait = RateLimit::availableIn($emailKey);
+        if (\RateLimit::tooManyAttempts($emailKey, self::EMAIL_MAX_ATTEMPTS)) {
+            $wait = \RateLimit::availableIn($emailKey);
             return ['ok' => false, 'msg' => "该邮箱请求过于频繁，请 {$wait} 秒后再试"];
         }
-        RateLimit::hit($emailKey, self::EMAIL_WINDOW);
+        \RateLimit::hit($emailKey, self::EMAIL_WINDOW);
 
         // 对外统一响应：**不区分**「邮箱未注册」「账号已被禁用」「已发送成功」。
         //
@@ -102,11 +108,11 @@ final class PasswordResetService
         $this->resetModel->create((int) $user['id'], $email, $tokenHash, $expiresAt);
 
         $resetUrl = $this->buildResetUrl($rawToken);
-        $siteName = (string) Config::get('sitename', 'EMSHOP');
+        $siteName = (string) \Config::get('sitename', 'EMSHOP');
         $subject = $siteName . ' - 重置登录密码';
         $html = $this->buildResetEmailHtml($siteName, $resetUrl, self::TOKEN_TTL / 60);
 
-        if (!Mailer::send($email, $subject, $html)) {
+        if (!\Mailer::send($email, $subject, $html)) {
             // 发信失败也返回**统一提示**：若这里单独报「发送失败」，
             // 攻击者就能用「未注册 → 统一提示」与「已注册 → 发送失败」的差异继续枚举账号。
             // 真实原因写系统日志，供站长排查（账号信息只记哈希前缀，不落明文邮箱）。
@@ -153,12 +159,12 @@ final class PasswordResetService
      */
     public function resetPassword(string $rawToken, string $password, string $confirm): array
     {
-        $ipKey = 'reset_pwd_ip:v2:' . RateLimit::clientIp();
-        if (RateLimit::tooManyAttempts($ipKey, self::RESET_IP_MAX_ATTEMPTS)) {
-            $wait = RateLimit::availableIn($ipKey);
+        $ipKey = 'reset_pwd_ip:v2:' . \RateLimit::clientIp();
+        if (\RateLimit::tooManyAttempts($ipKey, self::RESET_IP_MAX_ATTEMPTS)) {
+            $wait = \RateLimit::availableIn($ipKey);
             return ['ok' => false, 'msg' => "请求过于频繁，请 {$wait} 秒后再试"];
         }
-        RateLimit::hit($ipKey, self::RESET_IP_WINDOW);
+        \RateLimit::hit($ipKey, self::RESET_IP_WINDOW);
 
         $row = $this->validateToken($rawToken);
         if ($row === null) {
@@ -175,7 +181,7 @@ final class PasswordResetService
             return ['ok' => false, 'msg' => '两次输入的密码不一致'];
         }
 
-        $hasher = new PasswordHash(8, true);
+        $hasher = new \PasswordHash(8, true);
         $hash = $hasher->HashPassword($password);
 
         $userId = (int) ($row['user_id'] ?? 0);
@@ -194,7 +200,7 @@ final class PasswordResetService
      */
     private function findUserByEmail(string $email): ?array
     {
-        $table = Database::prefix() . 'user';
+        $table = \Database::prefix() . 'user';
         // 只允许普通用户走前台找回密码。管理账号只能通过 PHP 工具箱重置，
         // 不能走这条免登录的邮箱重置链路。
         // ORDER BY id ASC 让存量重复邮箱的取值确定。
@@ -203,15 +209,15 @@ final class PasswordResetService
             $table
         );
 
-        return Database::fetchOne($sql, [$email, 'user']);
+        return \Database::fetchOne($sql, [$email, 'user']);
     }
 
     private function isMailConfigured(): bool
     {
-        $from = trim((string) Config::get('mail_from_address', ''));
-        $host = trim((string) Config::get('mail_host', ''));
-        $password = (string) Config::get('mail_password', '');
-        $port = (int) (Config::get('mail_port', '465') ?: 465);
+        $from = trim((string) \Config::get('mail_from_address', ''));
+        $host = trim((string) \Config::get('mail_host', ''));
+        $password = (string) \Config::get('mail_password', '');
+        $port = (int) (\Config::get('mail_port', '465') ?: 465);
 
         return $from !== '' && $host !== '' && $password !== '' && $port > 0;
     }
@@ -233,7 +239,7 @@ final class PasswordResetService
                     ['email_hash' => substr(hash('sha256', strtolower(trim($email))), 0, 12)]
                 );
             }
-        } catch (Throwable $ignore) {
+        } catch (\Throwable $ignore) {
             // 日志失败不影响主流程
         }
     }
@@ -268,12 +274,12 @@ final class PasswordResetService
      */
     private function resetBaseUrl(): string
     {
-        $configured = rtrim(trim((string) Config::get('site_url', '')), '/');
+        $configured = rtrim(trim((string) \Config::get('site_url', '')), '/');
         if ($configured !== '') {
             return $configured;
         }
 
-        $main = trim((string) Config::get('main_domain', ''));
+        $main = trim((string) \Config::get('main_domain', ''));
         if ($main === '') {
             return '';
         }
@@ -298,7 +304,7 @@ final class PasswordResetService
                     ['email_hash' => substr(hash('sha256', strtolower(trim($email))), 0, 12)]
                 );
             }
-        } catch (Throwable $ignore) {
+        } catch (\Throwable $ignore) {
             // 日志失败不影响主流程
         }
     }

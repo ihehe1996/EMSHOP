@@ -31,7 +31,7 @@ final class GoodsController extends MerchantBaseController
                 return $cache[$userId];
             }
 
-            $rate = \MerchantLedgerService::resolveOwnerDiscountRate($userId);
+            $rate = \App\Service\MerchantLedgerService::resolveOwnerDiscountRate($userId);
             $levelName = '';
             $label = '';
             if ($rate < 1.0) {

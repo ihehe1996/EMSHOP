@@ -67,7 +67,7 @@ final class PasswordController extends BaseAdminController
             // 密码指纹变了，刷新当前会话，避免把自己也踢下线；其它终端会自动失效
             $freshUser = $userModel->findById($userId);
             if ($freshUser !== null) {
-                $auth = new \AuthService();
+                $auth = new \App\Service\AuthService();
                 $auth->refreshSession($freshUser);
             }
 

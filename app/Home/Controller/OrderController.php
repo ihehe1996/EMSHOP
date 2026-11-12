@@ -187,7 +187,7 @@ class OrderController extends BaseController
                 \Response::error('优惠券功能未启用');
             }
             if ($couponCode !== '') {
-                $couponService = new \CouponService();
+                $couponService = new \App\Service\CouponService();
                 try {
                     // 商品详情页下单金额 = 单商品价 × 数量
                     //   price_raw 是 GoodsModel::getSpecsByGoodsId() 动态计算字段（商户站会乘 factor），
@@ -221,7 +221,7 @@ class OrderController extends BaseController
             }
 
             // 返佣归因快照（2 级：直推 / 间推）
-            [$in1, $in2] = \RebateService::resolveOrderInviters($identity['user_id']);
+            [$in1, $in2] = \App\Service\RebateService::resolveOrderInviters($identity['user_id']);
             if ($in1) $createData['inviter_l1'] = $in1;
             if ($in2) $createData['inviter_l2'] = $in2;
 
@@ -246,7 +246,7 @@ class OrderController extends BaseController
             $payPayload = ['pay_url' => '', 'qrcode' => ''];
             if (!$paidNow) {
                 $orderRow = \App\Model\OrderModel::getById((int) $result['order_id']);
-                $payPayload = \PaymentService::createPaymentPayload($orderRow, $payment);
+                $payPayload = \App\Service\PaymentService::createPaymentPayload($orderRow, $payment);
             }
 
             \Response::success('下单成功', [
@@ -272,7 +272,7 @@ class OrderController extends BaseController
             return [];
         }
 
-        $methods = \PaymentService::getMethods();
+        $methods = \App\Service\PaymentService::getMethods();
         foreach ($methods as $m) {
             if ($m['code'] === $code) {
                 return $m;

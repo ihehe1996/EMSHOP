@@ -35,7 +35,7 @@ final class UpdateController extends BaseAdminController
                     $version = (string) $this->input->post('version', '');
                     $minFrom = (string) $this->input->post('min_from_version', '');
                     $packageSize = (int) $this->input->post('package_size', 0);
-                    $res = \UpdateService::preflight($version, $minFrom, $packageSize);
+                    $res = \App\Service\UpdateService::preflight($version, $minFrom, $packageSize);
                     // preflight 就算有 errors 也用 200 返回（让前端一次性拿到清单展示）
                     $this->response->success('', $res + ['csrf_token' => $this->csrf->token()]);
                 }
@@ -47,7 +47,7 @@ final class UpdateController extends BaseAdminController
                         $this->response->error('升级包 URL 不能为空');
                     }
 
-                    $res = \UpdateService::download($url, $sha256);
+                    $res = \App\Service\UpdateService::download($url, $sha256);
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '下载失败', $res);
                     }
@@ -60,7 +60,7 @@ final class UpdateController extends BaseAdminController
                         $this->response->error('缺少 zip_path 参数');
                     }
 
-                    $res = \UpdateService::extract($zipPath);
+                    $res = \App\Service\UpdateService::extract($zipPath);
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '解压失败', $res);
                     }
@@ -72,7 +72,7 @@ final class UpdateController extends BaseAdminController
                     if ($extractPath === '') {
                         $this->response->error('缺少 extract_path 参数');
                     }
-                    $res = \UpdateService::apply($extractPath);
+                    $res = \App\Service\UpdateService::apply($extractPath);
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '应用失败', $res);
                     }
@@ -80,7 +80,7 @@ final class UpdateController extends BaseAdminController
                 }
 
                 case 'migrate': {
-                    $res = \UpdateService::migrate();
+                    $res = \App\Service\UpdateService::migrate();
                     if (!$res['ok']) {
                         // 迁移失败不自动回滚 —— 返回详情让前端弹窗问用户
                         $this->response->error($res['error'] ?? '数据库迁移失败', $res);
@@ -93,7 +93,7 @@ final class UpdateController extends BaseAdminController
                     if ($extractPath === '') {
                         $this->response->error('缺少 extract_path 参数');
                     }
-                    $res = \UpdateService::runPackageScript($extractPath);
+                    $res = \App\Service\UpdateService::runPackageScript($extractPath);
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '更新脚本执行失败', $res);
                     }
@@ -105,14 +105,14 @@ final class UpdateController extends BaseAdminController
                 }
 
                 case 'finalize': {
-                    $res = \UpdateService::finalize();
+                    $res = \App\Service\UpdateService::finalize();
                     // 每次系统升级完成后 bump pending 版本，触发任务服务检测并重载 worker
                     \CliServer::bumpPendingFileVersion();
                     $this->response->success('升级完成', $res + ['csrf_token' => $this->csrf->refresh()]);
                 }
 
                 case 'rollback': {
-                    $res = \UpdateService::rollback();
+                    $res = \App\Service\UpdateService::rollback();
                     $this->response->success('回滚完成', $res + ['csrf_token' => $this->csrf->refresh()]);
                 }
 

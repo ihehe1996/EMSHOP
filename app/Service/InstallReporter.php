@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 安装上报：装完之后跟授权服务器说一声「谁在哪台机器上装了」。
  *
@@ -73,7 +79,7 @@ final class InstallReporter
             }
             
             self::post($url, self::payload($context));
-        } catch (Throwable $ignored) {
+        } catch (\Throwable $ignored) {
             /* 见类注释：这里**故意**什么也不做，连日志都不写 ——
                安装环境多半还没有日志文件，写进去也没人看，
                反而可能因为目录不可写再抛一次 */
@@ -97,7 +103,7 @@ final class InstallReporter
             return;
         }
 
-        $root = defined('EM_ROOT') ? (string) EM_ROOT : dirname(__DIR__, 2);
+        $root = defined('EM_ROOT') ? (string) EM_ROOT : \dirname(__DIR__, 2);
         $path = $root . '/base.php';
 
         if (is_file($path)) {
@@ -173,10 +179,10 @@ final class InstallReporter
     private static function dbVersion(): string
     {
         try {
-            $row = Database::fetchOne('SELECT VERSION() AS `v`');
+            $row = \Database::fetchOne('SELECT VERSION() AS `v`');
 
             return trim((string) ($row['v'] ?? ''));
-        } catch (Throwable $ignored) {
+        } catch (\Throwable $ignored) {
             return '';
         }
     }
@@ -213,9 +219,9 @@ final class InstallReporter
     {
         // 正常运行时 init.php 已 define（当前选中线路）；安装时还没有 init.php，
         // 直接取官方线路常量的第一条 —— 只碰常量，不读 Config（安装环境没有数据库）。
-        $base = defined('EM_LICENSE_SERVER_URL') ? trim((string) EM_LICENSE_SERVER_URL) : '';
+        $base = defined('EM_LICENSE_SERVER_URL') ? \trim((string) EM_LICENSE_SERVER_URL) : '';
         if ($base === '' && class_exists('LicenseClient')) {
-            $lines = LicenseClient::officialLines();
+            $lines = \LicenseClient::officialLines();
             $base  = trim((string) ($lines[0]['url'] ?? ''));
         }
 

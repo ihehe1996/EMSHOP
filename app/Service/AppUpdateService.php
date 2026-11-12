@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 已装应用（插件 / 模板）的新版本检测。
  *
@@ -61,8 +67,8 @@ final class AppUpdateService
         $out = [];
         foreach (array_chunk($apps, self::BATCH_SIZE) as $batch) {
             try {
-                $res = LicenseClient::appUpdateCheck($batch, $domain, $code);
-            } catch (Throwable $e) {
+                $res = \LicenseClient::appUpdateCheck($batch, $domain, $code);
+            } catch (\Throwable $e) {
                 // 中心不可达：静默降级，别让插件/模板列表页整体报错
                 continue;
             }

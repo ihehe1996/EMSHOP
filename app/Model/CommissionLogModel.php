@@ -91,7 +91,7 @@ class CommissionLogModel
     {
         $prefix = \Database::prefix();
         $now = date('Y-m-d H:i:s');
-        $freezeDays = \RebateService::freezeDays();
+        $freezeDays = \App\Service\RebateService::freezeDays();
 
         // 冷却期 = 0：历史冻结也应立即转可提现（配置变更后惰性迁移）
         if ($freezeDays === 0) {

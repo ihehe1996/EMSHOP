@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 在线升级服务。
  *
@@ -93,9 +99,9 @@ final class UpdateService
         }
 
         // 数据库版本：建表 DDL 依赖 DATETIME DEFAULT CURRENT_TIMESTAMP，MySQL 5.6.5 起才支持
-        if (!Database::mysqlVersionOk()) {
-            $errors[] = '数据库版本过低：需要 MySQL ' . Database::MIN_MYSQL_VERSION
-                . ' 及以上（或 MariaDB），当前 ' . Database::serverVersion();
+        if (!\Database::mysqlVersionOk()) {
+            $errors[] = '数据库版本过低：需要 MySQL ' . \Database::MIN_MYSQL_VERSION
+                . ' 及以上（或 MariaDB），当前 ' . \Database::serverVersion();
         }
 
         // 必需扩展
@@ -203,9 +209,9 @@ final class UpdateService
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT        => 120,  // 120秒下载不下来就退出，正常网络足够了
             CURLOPT_CONNECTTIMEOUT => 10,  // 10秒建立连接时间
-            CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? EM_VERSION : 'dev'),
+            CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? \EM_VERSION : 'dev'),
             // 证书与主机名校验默认开启；自签线路由 config 的 license_insecure_tls=1 显式降级
-        ] + (class_exists('LicenseClient') ? LicenseClient::tlsOptions() : [
+        ] + (class_exists('LicenseClient') ? \LicenseClient::tlsOptions() : [
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]));
@@ -275,7 +281,7 @@ final class UpdateService
         self::removeDir(EM_ROOT . self::EXTRACT_DIR);
         self::ensureDir(self::EXTRACT_DIR);
 
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         $open = $zip->open($zipPath);
         if ($open !== true) {
             return ['ok' => false, 'extract_path' => '', 'files' => 0, 'error' => '无法打开 zip 文件，错误码：' . $open];
@@ -330,8 +336,8 @@ final class UpdateService
 
         $replaced = 0; $added = 0; $skipped = 0;
 
-        $iter = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($srcRoot, FilesystemIterator::SKIP_DOTS)
+        $iter = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($srcRoot, \FilesystemIterator::SKIP_DOTS)
         );
 
         try {
@@ -355,11 +361,11 @@ final class UpdateService
 
                 if (!is_dir(dirname($dst))) {
                     if (!@mkdir(dirname($dst), 0755, true) && !is_dir(dirname($dst))) {
-                        throw new RuntimeException('无法创建目录：' . dirname($dst));
+                        throw new \RuntimeException('无法创建目录：' . dirname($dst));
                     }
                 }
                 if (@copy($fileInfo->getPathname(), $dst) === false) {
-                    throw new RuntimeException('写入失败：' . $rel);
+                    throw new \RuntimeException('写入失败：' . $rel);
                 }
 
                 $manifest['applied'][] = $rel;
@@ -371,7 +377,7 @@ final class UpdateService
                     $manifest['replaced'][] = $rel;
                 }
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             self::rollbackFromManifest($manifest);
             return [
                 'ok' => false, 'replaced' => $replaced, 'added' => $added, 'skipped' => $skipped,
@@ -381,7 +387,7 @@ final class UpdateService
 
         // 落 manifest 到磁盘，供后续 migrate 失败时回滚用
         $manifestPath = EM_ROOT . self::MANIFEST_FILE;
-        @file_put_contents($manifestPath, json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        @file_put_contents($manifestPath, json_encode($manifest, JSON_UNESCAPED_UNICODE | \JSON_PRETTY_PRINT));
 
         self::audit('update_apply', [
             'replaced' => $replaced,
@@ -418,8 +424,8 @@ final class UpdateService
         $allFiles = glob($dir . '/*.sql') ?: [];
         sort($allFiles, SORT_STRING);
 
-        $prefix = Database::prefix();
-        $done = Database::query('SELECT `filename` FROM `' . $prefix . 'migrations`');
+        $prefix = \Database::prefix();
+        $done = \Database::query('SELECT `filename` FROM `' . $prefix . 'migrations`');
         $doneSet = array_flip(array_column($done, 'filename'));
 
         $pending = [];
@@ -432,7 +438,7 @@ final class UpdateService
             return ['ok' => true, 'applied' => [], 'pending' => [], 'batch' => 0];
         }
 
-        $batchRow = Database::fetchOne('SELECT COALESCE(MAX(`batch`),0)+1 AS `n` FROM `' . $prefix . 'migrations`');
+        $batchRow = \Database::fetchOne('SELECT COALESCE(MAX(`batch`),0)+1 AS `n` FROM `' . $prefix . 'migrations`');
         $batch = (int) ($batchRow['n'] ?? 1);
 
         $applied = [];
@@ -448,15 +454,15 @@ final class UpdateService
             try {
                 foreach (self::splitSqlStatements($sql) as $stmt) {
                     if (trim($stmt) === '') continue;
-                    Database::statement($stmt);
+                    \Database::statement($stmt);
                 }
-                Database::insert('migrations', [
+                \Database::insert('migrations', [
                     'filename' => $name,
                     'batch'    => $batch,
                     'checksum' => $checksum,
                 ]);
                 $applied[] = $name;
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
                 return [
                     'ok' => false,
                     'applied' => $applied,
@@ -483,7 +489,7 @@ final class UpdateService
 
         self::ensureMigrationsTable();
 
-        $done = Database::query('SELECT `filename` FROM `' . Database::prefix() . 'migrations`');
+        $done = \Database::query('SELECT `filename` FROM `' . \Database::prefix() . 'migrations`');
         $doneSet = array_flip(array_column($done, 'filename'));
 
         $files = glob($dir . '/*.sql') ?: [];
@@ -495,7 +501,7 @@ final class UpdateService
                 continue;
             }
             $raw = (string) file_get_contents($file);
-            Database::insert('migrations', [
+            \Database::insert('migrations', [
                 'filename' => $name,
                 'batch'    => 0,
                 'checksum' => hash('sha256', $raw),
@@ -565,7 +571,7 @@ final class UpdateService
         ob_start();
         try {
             $runner($script);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $error = $e->getMessage();
         } finally {
             if (ob_get_level() > $level) {
@@ -615,7 +621,7 @@ final class UpdateService
         }
 
         if (strlen($output) > 4000) {
-            $output = (function_exists('mb_substr') ? mb_substr($output, 0, 4000) : substr($output, 0, 4000))
+            $output = (function_exists('mb_substr') ? \mb_substr($output, 0, 4000) : \substr($output, 0, 4000))
                 . "\n…（输出过长已截断）";
         }
 
@@ -661,7 +667,7 @@ final class UpdateService
 
         // 记录一下最后升级时间
         if (class_exists('Config')) {
-            Config::set('last_update_at', (string) time());
+            \Config::set('last_update_at', (string) time());
         }
 
         // 上报更新成功（官方站版本管理的「更新数」+1）。
@@ -671,8 +677,8 @@ final class UpdateService
         $reported = false;
         if (defined('EM_VERSION') && class_exists('LicenseClient')) {
             try {
-                $reported = LicenseClient::reportUpdateSuccess((string) EM_VERSION);
-            } catch (Throwable $e) {
+                $reported = \LicenseClient::reportUpdateSuccess((string) EM_VERSION);
+            } catch (\Throwable $e) {
                 $reported = false;
             }
         }
@@ -725,14 +731,14 @@ final class UpdateService
      */
     private static function ensureMigrationsTable(): void
     {
-        $table = Database::prefix() . 'migrations';
+        $table = \Database::prefix() . 'migrations';
 
         // 防御性兜底：MySQL < 5.6.5 不支持 DATETIME DEFAULT CURRENT_TIMESTAMP。
         // 正常流程里 install/upgrade 的版本守卫已先拦截，这里仅兜底。本表只有一个
         // applied_at 自增列，换成 TIMESTAMP 在 5.5 下也安全。
-        $appliedAtType = Database::mysqlVersionOk() ? 'DATETIME' : 'TIMESTAMP';
+        $appliedAtType = \Database::mysqlVersionOk() ? 'DATETIME' : 'TIMESTAMP';
 
-        Database::statement(
+        \Database::statement(
             'CREATE TABLE IF NOT EXISTS `' . $table . '` (
                 `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 `filename`   VARCHAR(255) NOT NULL,
@@ -765,7 +771,7 @@ final class UpdateService
 
         // 相对路径：补当前授权服务器的域名做前缀
         if (!class_exists('LicenseClient')) return $url;
-        $base = rtrim(LicenseClient::currentBaseUrl(), '/');
+        $base = rtrim(\LicenseClient::currentBaseUrl(), '/');
         if ($base === '') return $url;
 
         return $base . '/' . ltrim($url, '/');
@@ -779,9 +785,9 @@ final class UpdateService
         if (!class_exists('DownloadUrlGuard') || !class_exists('LicenseClient')) {
             return false;
         }
-        foreach (LicenseClient::lines() as $line) {
+        foreach (\LicenseClient::lines() as $line) {
             $base = rtrim((string) ($line['url'] ?? ''), '/');
-            if ($base !== '' && DownloadUrlGuard::isAllowed($url, $base, true)) {
+            if ($base !== '' && \DownloadUrlGuard::isAllowed($url, $base, true)) {
                 return true;
             }
         }
@@ -902,9 +908,9 @@ final class UpdateService
     private static function removeDir(string $abs): void
     {
         if (!is_dir($abs)) return;
-        $iter = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($abs, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
+        $iter = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($abs, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
         );
         /** @var SplFileInfo $f */
         foreach ($iter as $f) {
@@ -938,7 +944,7 @@ final class UpdateService
                 (int) ($operator['id'] ?? 0),
                 (string) ($operator['username'] ?? '')
             );
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             // 审计失败不阻断升级
         }
     }

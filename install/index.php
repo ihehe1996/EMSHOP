@@ -19,7 +19,6 @@ define('EM_ROOT', dirname(__DIR__));
 require_once EM_ROOT . '/include/lib/Autoloader.php';
 Autoloader::register([
     EM_ROOT . '/include/lib',
-    EM_ROOT . '/include/service',
 ]);
 
 // 读 .env 里的后台入口（EM_APP_ADMIN_ENTRY）；没有就让 Env 用默认值 admin
@@ -1252,7 +1251,7 @@ define('EM_DB_CHARSET', 'utf8mb4');
 define('EM_DB_PREFIX', (string) ($dbClean['prefix'] ?: 'em_'));
 
 try {
-    $installer = new InstallService();
+    $installer = new \App\Service\InstallService();
     $installer->setup([
         'site_url' => installer_detect_site_url(),
         'admin' => [

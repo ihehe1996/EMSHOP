@@ -401,7 +401,7 @@ class OrderModel
 
             // 事务内扣减券使用次数 + 标记用户券为 used
             if (!empty($orderData['coupon']) && is_array($orderData['coupon'])) {
-                $couponService = new \CouponService();
+                $couponService = new \App\Service\CouponService();
                 $couponService->apply(
                     $orderData['coupon'],
                     (int) ($orderData['user_id'] ?? 0),
@@ -424,14 +424,14 @@ class OrderModel
                         $ownerUnitCost = $row['_owner_cost'];
                         if ($ownerUnitCost === null) {
                             $ownerUnitCost = (int) round(
-                                (int) $row['_base_price'] * \MerchantLedgerService::resolveOwnerDiscountRate($ownerId)
+                                (int) $row['_base_price'] * \App\Service\MerchantLedgerService::resolveOwnerDiscountRate($ownerId)
                             );
                         }
                         $costAmount = $ownerUnitCost * max(1, (int) $row['quantity']);
                     } elseif ($goodsOwnerId === $ownerId) {
                         // 自建商品：fee = price × qty × self_goods_fee_rate / 10000
                         // 注意：price 是已乘买家折扣后的成交价，主站收的手续费按"实付"算
-                        $feeAmount = \MerchantLedgerService::computeSelfFee(
+                        $feeAmount = \App\Service\MerchantLedgerService::computeSelfFee(
                             $merchantId,
                             (int) $row['price'],
                             (int) $row['quantity']
@@ -592,16 +592,16 @@ class OrderModel
             try {
                 if ($newStatus === 'completed') {
                     if ($merchantId > 0) {
-                        \MerchantLedgerService::settleOrder($orderId);
+                        \App\Service\MerchantLedgerService::settleOrder($orderId);
                     } else {
-                        \RebateService::settleOrder($orderId);
+                        \App\Service\RebateService::settleOrder($orderId);
                     }
-                    \UserExperienceService::onOrderCompleted($orderId);
+                    \App\Service\UserExperienceService::onOrderCompleted($orderId);
                 } elseif ($newStatus === 'refunded') {
                     if ($merchantId > 0) {
-                        \MerchantLedgerService::refundOrder($orderId);
+                        \App\Service\MerchantLedgerService::refundOrder($orderId);
                     } else {
-                        \RebateService::revertOrder($orderId);
+                        \App\Service\RebateService::revertOrder($orderId);
                     }
                 }
             } catch (\Throwable $e) {
@@ -819,7 +819,7 @@ class OrderModel
         // 发货 worker 现在由各商品类型插件各自注册（deliver_virtual_card 等），
         // 核心硬编码任何一个类型名都会判错。
         if (!\WorkerHeartbeat::isAlive(\WorkerHeartbeat::CAPABILITY_DELIVERY)) {
-            \DeliveryQueueService::drainOrderSync($orderId);
+            \App\Service\DeliveryQueueService::drainOrderSync($orderId);
         }
     }
 

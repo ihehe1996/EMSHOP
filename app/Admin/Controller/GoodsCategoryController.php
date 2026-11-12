@@ -263,7 +263,7 @@ final class GoodsCategoryController extends BaseAdminController
                 if (empty($_FILES['file'])) {
                     $this->response->error('请选择图片文件');
                 }
-                $uploader = new \UploadService();
+                $uploader = new \App\Service\UploadService();
                 $result = $uploader->upload($_FILES['file'], ['jpg', 'jpeg', 'png', 'gif', 'webp'], 'goods_category');
                 $csrfToken = $this->csrf->refresh();
                 $this->response->success('上传成功', [

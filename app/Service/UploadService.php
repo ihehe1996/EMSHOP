@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace App\Service;
+
+
+
+
+
 /**
  * 文件上传服务。
  *
@@ -26,22 +32,22 @@ final class UploadService
     public function upload(array $file, array $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'], string $context = 'default', ?int $contextId = null): array
     {
         if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-            throw new RuntimeException('未接收到上传文件');
+            throw new \RuntimeException('未接收到上传文件');
         }
 
         if ((int) $file['error'] !== UPLOAD_ERR_OK) {
-            throw new RuntimeException('文件上传失败，错误码：' . $file['error']);
+            throw new \RuntimeException('文件上传失败，错误码：' . $file['error']);
         }
 
         if ((int) $file['size'] > $this->maxSize) {
-            throw new RuntimeException('文件大小超过限制（最大 ' . ($this->maxSize / 1024 / 1024) . 'MB）');
+            throw new \RuntimeException('文件大小超过限制（最大 ' . ($this->maxSize / 1024 / 1024) . 'MB）');
         }
 
         $originalName = (string) $file['name'];
         $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
         if (!in_array($ext, $allowedExts, true)) {
-            throw new RuntimeException('不支持的文件格式，仅允许：' . implode('、', $allowedExts));
+            throw new \RuntimeException('不支持的文件格式，仅允许：' . implode('、', $allowedExts));
         }
 
         // 计算 MD5 用于去重
@@ -73,11 +79,11 @@ final class UploadService
             if (!is_dir($uploadDir)) {
                 // 先判断父目录是否可写，避免无意义的 mkdir
                 if ((is_dir($baseDir) && !is_writable($baseDir)) || (!is_dir($baseDir) && !is_writable(dirname($baseDir)))) {
-                    throw new RuntimeException('上传目录不可写，请检查 content/uploads 权限');
+                    throw new \RuntimeException('上传目录不可写，请检查 content/uploads 权限');
                 }
                 // @ 抑制 Permission denied 的 Warning；并发下可能已创建成功，再确认一次
                 if (!@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
-                    throw new RuntimeException('上传目录创建失败，请检查服务器目录权限');
+                    throw new \RuntimeException('上传目录创建失败，请检查服务器目录权限');
                 }
             }
 
@@ -85,7 +91,7 @@ final class UploadService
             $destPath = $uploadDir . '/' . $newName;
 
             if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-                throw new RuntimeException('文件保存失败');
+                throw new \RuntimeException('文件保存失败');
             }
 
             $relativePath = '/content/uploads/' . $dateDir . '/' . $newName;

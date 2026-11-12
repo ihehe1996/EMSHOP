@@ -13,7 +13,7 @@ final class LogoutController extends AbstractAdminController
 {
     public function index(): void
     {
-        (new \AuthService())->logout();
+        (new \App\Service\AuthService())->logout();
 
         $this->response->redirect(EM_ADMIN_PATH . '/sign');
     }

@@ -56,7 +56,7 @@ class RebateController extends BaseController
         }
 
         try {
-            $withdrawId = \RebateService::withdraw($userId, $amountRaw);
+            $withdrawId = \App\Service\RebateService::withdraw($userId, $amountRaw);
         } catch (\RuntimeException $e) {
             \Response::error($e->getMessage());
         }

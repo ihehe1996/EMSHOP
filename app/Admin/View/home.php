@@ -9,9 +9,9 @@ $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
-$__licenseActivated = LicenseService::isActivated();
+$__licenseActivated = \App\Service\LicenseService::isActivated();
 // 安装本身有授权、但当前访问域名不是主授权域名 / 别名时，提示关联激活
-$__licenseRow        = $__licenseActivated ? LicenseService::currentLicense() : null;
+$__licenseRow        = $__licenseActivated ? \App\Service\LicenseService::currentLicense() : null;
 $__licenseHostMatched = $__licenseRow !== null && !empty($__licenseRow['host_matched']);
 $__licenseMainHost    = $__licenseRow !== null ? (string) ($__licenseRow['bound_domain'] ?? '') : '';
 $__licenseLevel       = $__licenseRow !== null ? (string) ($__licenseRow['level'] ?? 'none') : 'none';
@@ -243,7 +243,7 @@ $__runModeDesc   = $__deliveryAsync
 
 // 官方账号卡：登录态只读本地配置，不发请求；
 // 「管理」按钮打开 license.php?_popup=account 的大 iframe（激活码 / 账号信息 / 退出登录都在里面）
-$__officialAccount = LicenseService::officialAccount();
+$__officialAccount = \App\Service\LicenseService::officialAccount();
 
 /* ============================================================
  * 官方公告 / 广告推广 / 版本更新 / 代理商联系方式
@@ -308,8 +308,8 @@ $__officialAccount = LicenseService::officialAccount();
     <section class="dash-metrics">
         <?php
             // 系统版本卡（结构复用 dash-metric，不含环比 chip）
-            $__sysLevel = LicenseService::currentLevel();
-            $__sysLevelLabel = LicenseService::levelLabel($__sysLevel);
+            $__sysLevel = \App\Service\LicenseService::currentLevel();
+            $__sysLevelLabel = \App\Service\LicenseService::levelLabel($__sysLevel);
         ?>
         <div class="dash-metric dash-metric--system" style="--m-color: #6366f1; --m-soft: #eef2ff;">
             <div class="dash-metric__head">

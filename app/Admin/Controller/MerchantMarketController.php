@@ -73,7 +73,7 @@ final class MerchantMarketController extends BaseAdminController
                         $this->response->error('market_id 非法');
                     }
 
-                    $service = new \MainAppPurchaseService();
+                    $service = new \App\Service\MainAppPurchaseService();
                     $ok = $service->updateRetailPrice($marketId, $price);
                     if (!$ok) {
                         $this->response->error('价格未改动或目标不存在');
@@ -90,7 +90,7 @@ final class MerchantMarketController extends BaseAdminController
                         $this->response->error('market_id 非法');
                     }
 
-                    $service = new \MainAppPurchaseService();
+                    $service = new \App\Service\MainAppPurchaseService();
                     $ok = $service->setListed($marketId, $listed);
                     if (!$ok) {
                         $this->response->error('状态未改动或目标不存在');

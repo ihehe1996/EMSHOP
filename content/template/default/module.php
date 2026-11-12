@@ -391,7 +391,7 @@ $this->assign([
  */
 function template_home_data(): array
 {
-    $fs  = new FrontDataService();
+    $fs  = new \App\Service\FrontDataService();
     $cfg = template_config();
 
     // 精选商品显示几个：主题设置页可配，默认 6（保存时已校验，这里再兜一次防止库里被写成怪值）
@@ -416,7 +416,7 @@ function template_home_data(): array
  */
 function template_goods_list_data(array $q): array
 {
-    $fs = new FrontDataService();
+    $fs = new \App\Service\FrontDataService();
 
     $categoryId     = (int) ($q['category_id'] ?? 0);
     $categorySource = (string) ($q['category_source'] ?? 'main');
@@ -718,7 +718,7 @@ function template_goods_content_data(?array $row): array
                             'price'        => (float) $s['price'],
                             'market_price' => $s['market_price'] ? (float) $s['market_price'] : null,
                             'stock'        => $stockInt,
-                            'stock_text'   => FrontDataService::formatStockText($stockInt),
+                            'stock_text'   => \App\Service\FrontDataService::formatStockText($stockInt),
                             'sold_count'   => (int) ($s['sold_count'] ?? 0),
                             'min_buy'      => (int) ($s['min_buy'] ?? 1),
                             'max_buy'      => (int) ($s['max_buy'] ?? 0),
@@ -784,10 +784,10 @@ function template_goods_content_data(?array $row): array
                         'image'          => $covers[0] ?? '',
                         'images'         => $covers,
                         'price'          => $defaultSpec ? (float) $defaultSpec['price'] : (float) $row['min_price'],
-                        'original_price' => FrontDataService::resolveOriginalPrice($defaultSpec),
+                        'original_price' => \App\Service\FrontDataService::resolveOriginalPrice($defaultSpec),
                         // stock 是业务数字（整数），stock_text 是展示文字（默认千分位，可被插件替换）
                         'stock'          => $stock,
-                        'stock_text'     => FrontDataService::formatStockText($stock),
+                        'stock_text'     => \App\Service\FrontDataService::formatStockText($stock),
                         'min_buy'        => $defaultSpec ? (int) ($defaultSpec['min_buy'] ?? 1) : 1,
                         'max_buy'        => $defaultSpec ? (int) ($defaultSpec['max_buy'] ?? 0) : 0,
                         'category'       => $categoryName,
@@ -812,7 +812,7 @@ function template_goods_content_data(?array $row): array
         // 规则：
         //   - 余额支付 + 未登录 → disabled（不可选），避免前端错误提交
         //   - 默认选中：第一个 disabled=false 的方式
-        $paymentMethods = PaymentService::getMethods();
+        $paymentMethods = \App\Service\PaymentService::getMethods();
         $defaultAssigned = false;
         foreach ($paymentMethods as &$pm) {
             $pm['disabled'] = ($pm['code'] === 'balance' && $isGuest);
@@ -886,7 +886,7 @@ function template_goods_content_data(?array $row): array
  */
 function template_blog_list_data(array $q): array
 {
-    $fs = new FrontDataService();
+    $fs = new \App\Service\FrontDataService();
 
     $categoryId = (int) ($q['category_id'] ?? 0);
     $tagId      = (int) ($q['tag_id'] ?? 0);
@@ -980,7 +980,7 @@ function template_blog_content_data(?array $row): array
     }
 
     // 侧栏（分类树 + 热门标签）+ 最新文章
-    $fs = new FrontDataService();
+    $fs = new \App\Service\FrontDataService();
     $sidebarData = $fs->getBlogSidebarData();
 
     return [
@@ -1017,7 +1017,7 @@ function template_search_data(array $q): array
 
     // 关键词为空时是「搜索页」（只显示搜索框），不查库
     if ($keyword !== '') {
-        $fs = new FrontDataService();
+        $fs = new \App\Service\FrontDataService();
         // type=all 两边都查；goods / article 只查一边
         if ($type !== 'article') {
             $goodsResults = $fs->queryGoodsList(['keyword' => $keyword], 12);

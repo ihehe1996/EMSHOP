@@ -133,7 +133,6 @@ require_once EM_ROOT . '/include/lib/Autoloader.php';
 Autoloader::register([
     EM_ROOT . '/include/cli',
     EM_ROOT . '/include/lib',
-    EM_ROOT . '/include/service',
 ]);
 
 // 后台入口路径：默认 /admin，可在 .env 里用 EM_APP_ADMIN_ENTRY 改成 /xadmin 等。
@@ -166,6 +165,20 @@ spl_autoload_register(static function (string $class): void {
     }
     if (isset($models[$class])) {
         class_alias('\\App\\Model\\' . $class, $class);
+    }
+});
+
+// 同上：服务类已迁到 app/Service，老代码 / 第三方插件仍按全局类名调用。
+spl_autoload_register(static function (string $class): void {
+    static $services = null;
+    if ($services === null) {
+        $services = [];
+        foreach (glob(EM_ROOT . '/app/Service/*.php') ?: [] as $file) {
+            $services[basename($file, '.php')] = true;
+        }
+    }
+    if (isset($services[$class])) {
+        class_alias('\\App\\Service\\' . $class, $class);
     }
 });
 

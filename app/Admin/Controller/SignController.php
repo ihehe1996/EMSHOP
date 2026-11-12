@@ -17,7 +17,7 @@ final class SignController extends AbstractAdminController
 {
     public function index(): void
     {
-        $auth = new \AuthService();
+        $auth = new \App\Service\AuthService();
 
         if ($auth->check()) {
             $this->response->redirect(EM_ADMIN_PATH . '/home');

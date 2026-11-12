@@ -11,9 +11,9 @@ $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 };
 
-$__record = DisclaimerService::record();
-$__accepted = DisclaimerService::accepted();
-$__version = (string) DisclaimerService::VERSION;
+$__record = \App\Service\DisclaimerService::record();
+$__accepted = \App\Service\DisclaimerService::accepted();
+$__version = (string) \App\Service\DisclaimerService::VERSION;
 $__recordVersion = $__record !== null ? (string) ($__record['version'] ?? '') : '';
 ?>
 <div class="em-license-page">

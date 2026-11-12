@@ -101,7 +101,7 @@ final class MerchantOrderController extends BaseAdminController
                 // 支付方式 code → image 映射（订单表存了 payment_name 但没存 image，得走 PaymentService 取）
                 $paymentImageMap = [];
                 try {
-                    foreach (\PaymentService::getMethods() as $m) {
+                    foreach (\App\Service\PaymentService::getMethods() as $m) {
                         $code = (string) ($m['code'] ?? '');
                         if ($code !== '') {
                             $paymentImageMap[$code] = (string) ($m['image'] ?? '');
