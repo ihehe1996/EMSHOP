@@ -152,7 +152,7 @@ $(function () {
         function post(data) {
             data.csrf_token = csrfToken;
             return $.ajax({
-                url: '<?= EM_ADMIN_PATH ?>/_license',
+                url: '<?= EM_ADMIN_PATH ?>/official',
                 type: 'POST',
                 dataType: 'json',
                 data: data
@@ -328,7 +328,7 @@ $(function () {
             var vh = win.innerHeight || doc.documentElement.clientHeight;
             var width = Math.max(300, Math.min(560, vw - 24));
             var height = Math.max(320, Math.min(620, vh - 40));
-            var url = '<?= EM_ADMIN_PATH ?>/_license?_popup=ad_slot_form' + (id ? ('&id=' + encodeURIComponent(id)) : '');
+            var url = '<?= EM_ADMIN_PATH ?>/official?_popup=ad_slot_form' + (id ? ('&id=' + encodeURIComponent(id)) : '');
 
             /* 表单保存成功后由 iframe 回调这里：刷新列表、提示一次 */
             var afterSave = function () {

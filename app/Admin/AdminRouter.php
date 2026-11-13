@@ -162,7 +162,7 @@ final class AdminRouter extends PrefixRouter
         'media' => [MediaController::class, 'index'],
         'upload' => [UploadController::class, 'index'],
         'update' => [UpdateController::class, 'index'],
-        '_license' => [LicenseController::class, 'index'],
+        'official' => [LicenseController::class, 'index'],
         'logout' => [LogoutController::class, 'index'],
         'plugin_action' => [PluginActionController::class, 'index'],
         'cache' => [CacheController::class, 'index'],

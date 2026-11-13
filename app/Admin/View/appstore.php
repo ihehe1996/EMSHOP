@@ -1001,14 +1001,14 @@ $(function () {
         }
 
         // 获取正版激活码：与后台首页完全一致（460px、auto 高度、同样的卡片设计）。
-        // 数据走 {入口}/_license 的 agent_links（与首页同一个 base-data），本页缓存一份。
+        // 数据走 {入口}/official 的 agent_links（与首页同一个 base-data），本页缓存一份。
         var __agentLinksCache = null;
 
         function openAgentConfigPopup() {
             if (__agentLinksCache) { renderAgentPopup(__agentLinksCache); return; }
 
             var loadIdx = layer.load(2);
-            $.post('<?= EM_ADMIN_PATH ?>/_license', {
+            $.post('<?= EM_ADMIN_PATH ?>/official', {
                 _action: 'agent_links',
                 csrf_token: APPSTORE_CSRF
             }).done(function (res) {
@@ -1113,7 +1113,7 @@ $(function () {
                 var origHtml = $btn.html();
                 $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
                 $.ajax({
-                    url: '<?= EM_ADMIN_PATH ?>/_license',
+                    url: '<?= EM_ADMIN_PATH ?>/official',
                     type: 'POST',
                     dataType: 'json',
                     data: {

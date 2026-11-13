@@ -452,7 +452,7 @@ $(function () {
                 __linePinging = true;
                 $('#adminLineDropdown .admin-line-switch__ms').removeClass('is-ok is-warn is-bad').text('…');
                 $.ajax({
-                    url: '<?= EM_ADMIN_PATH ?>/_license',
+                    url: '<?= EM_ADMIN_PATH ?>/official',
                     type: 'POST',
                     dataType: 'json',
                     data: { _action: 'line_ping', csrf_token: window.adminCsrfToken },
@@ -485,7 +485,7 @@ $(function () {
                 var idx = parseInt($(this).data('idx'), 10);
                 var $item = $(this);
                 $.ajax({
-                    url: '<?= EM_ADMIN_PATH ?>/_license',
+                    url: '<?= EM_ADMIN_PATH ?>/official',
                     type: 'POST',
                     dataType: 'json',
                     data: {

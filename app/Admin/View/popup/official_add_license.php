@@ -84,7 +84,7 @@ $(function () {
         $btn.prop('disabled', true).text('绑定中…');
 
         $.ajax({
-            url: '<?= EM_ADMIN_PATH ?>/_license',
+            url: '<?= EM_ADMIN_PATH ?>/official',
             type: 'POST',
             dataType: 'json',
             data: {

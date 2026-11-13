@@ -35,7 +35,7 @@ $(function () {
                 skin: 'admin-modal',
                 area: [width + 'px', height + 'px'],
                 shadeClose: true,
-                content: '<?= EM_ADMIN_PATH ?>/_license?_popup=official_login',
+                content: '<?= EM_ADMIN_PATH ?>/official?_popup=official_login',
                 end: function () {
                     try { delete window.__officialLoginResize; } catch (e) {}
                 }
