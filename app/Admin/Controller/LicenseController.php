@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Admin\Controller;
 
 /**
- * 授权接口 / 弹窗入口（{入口}/license）。
+ * 授权接口 / 弹窗入口（{入口}/_license）。
  *
  * 直接访问回后台首页；POST 处理授权相关动作；?_popup= 渲染各类授权弹窗。
  */

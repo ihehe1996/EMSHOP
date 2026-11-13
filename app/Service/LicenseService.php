@@ -280,7 +280,7 @@ final class LicenseService extends BaseService
      * 数据源是 POST /api/open/v1/em/base-data（LicenseClient::baseData）。
      * 请求带「完整域名 + 本地保存的授权码」：上游据此按「码 + 域名」双重校验，
      * 域名取 effectiveHost()（有主授权域名就用它，没有才用当前访问域名）。
-     * 后台首页 `_action=admin_index_data` 与代理商弹窗（{入口}/license?_popup=agent）
+     * 后台首页 `_action=admin_index_data` 与代理商弹窗（{入口}/_license?_popup=agent）
      * 共用这里的输出结构，所以字段名以本方法为准，调用方不要再自行解析原始响应。
      *
      * 返回结构：
@@ -453,7 +453,7 @@ final class LicenseService extends BaseService
     {
         if ($returnUrl === '') {
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $returnUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . EM_ADMIN_PATH . '/license?from=buy';
+            $returnUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . EM_ADMIN_PATH . '/_license?from=buy';
         }
         return $this->licenseClient->getBuyUrl($level, $this->currentDomain(), $adminEmail, $returnUrl);
     }

@@ -77,7 +77,7 @@ include __DIR__ . '/header.php';
 
     <!-- 功能入口：两张卡，点开各自在新 iframe 窗口里展示 -->
     <div class="oa-grid">
-        <div class="oa-tile" role="button" tabindex="0" data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=licenses" data-title="我的激活码" data-w="560" data-h="540">
+        <div class="oa-tile" role="button" tabindex="0" data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=licenses" data-title="我的激活码" data-w="560" data-h="540">
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--indigo"><i class="fa fa-key"></i></span>
                 <span class="oa-tile__name">我的激活码</span>
@@ -91,7 +91,7 @@ include __DIR__ . '/header.php';
                 </button>
             </span>
         </div>
-        <div class="oa-tile" role="button" tabindex="0" data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=balance_logs" data-title="账户余额" data-w="560" data-h="560">
+        <div class="oa-tile" role="button" tabindex="0" data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=balance_logs" data-title="账户余额" data-w="560" data-h="560">
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--green"><i class="fa fa-jpy"></i></span>
                 <span class="oa-tile__name">账户余额</span>
@@ -102,7 +102,7 @@ include __DIR__ . '/header.php';
         </div>
         <!-- 代理 / 管理账号才显示；角色以概览返回的实时资料为准 -->
         <div class="oa-tile" role="button" tabindex="0" id="oaAgentTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=agent_settings" data-title="代理配置" data-w="520" data-h="560"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=agent_settings" data-title="代理配置" data-w="520" data-h="560"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--blue"><i class="fa fa-sliders"></i></span>
                 <span class="oa-tile__name">代理配置</span>
@@ -113,7 +113,7 @@ include __DIR__ . '/header.php';
         </div>
         <!-- 代理 / 管理账号才显示 -->
         <div class="oa-tile" role="button" tabindex="0" id="oaWarehouseTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=code_warehouse" data-title="激活码仓库" data-w="600" data-h="620"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=code_warehouse" data-title="激活码仓库" data-w="600" data-h="620"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--orange"><i class="fa fa-cubes"></i></span>
                 <span class="oa-tile__name">激活码仓库</span>
@@ -124,7 +124,7 @@ include __DIR__ . '/header.php';
         </div>
 
         <div class="oa-tile" role="button" tabindex="0" id="oaVersionsTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=versions" data-title="版本安装包" data-w="600" data-h="560"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=versions" data-title="版本安装包" data-w="600" data-h="560"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--teal"><i class="fa fa-file-archive-o"></i></span>
                 <span class="oa-tile__name">版本安装包</span>
@@ -135,7 +135,7 @@ include __DIR__ . '/header.php';
         </div>
 
         <div class="oa-tile" role="button" tabindex="0" id="oaOrdersTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=orders" data-title="用户订单记录" data-w="640" data-h="660"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=orders" data-title="用户订单记录" data-w="640" data-h="660"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--purple"><i class="fa fa-shopping-cart"></i></span>
                 <span class="oa-tile__name">用户订单记录</span>
@@ -146,7 +146,7 @@ include __DIR__ . '/header.php';
         </div>
 
         <div class="oa-tile" role="button" tabindex="0" id="oaAdsTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=ad_slots" data-title="广告位管理" data-w="660" data-h="680"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=ad_slots" data-title="广告位管理" data-w="660" data-h="680"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--rose"><i class="fa fa-bullhorn"></i></span>
                 <span class="oa-tile__name">广告位管理</span>
@@ -157,7 +157,7 @@ include __DIR__ . '/header.php';
         </div>
 
         <div class="oa-tile" role="button" tabindex="0" id="oaInstallsTile"
-             data-popup="<?= EM_ADMIN_PATH ?>/license?_popup=install_records" data-title="安装记录" data-w="620" data-h="640"<?= $isAgent ? '' : ' hidden' ?>>
+             data-popup="<?= EM_ADMIN_PATH ?>/_license?_popup=install_records" data-title="安装记录" data-w="620" data-h="640"<?= $isAgent ? '' : ' hidden' ?>>
             <span class="oa-tile__top">
                 <span class="oa-tile__icon oa-tile__icon--cyan"><i class="fa fa-desktop"></i></span>
                 <span class="oa-tile__name">安装记录</span>
@@ -718,7 +718,7 @@ $(function () {
         function post(data) {
             data.csrf_token = csrfToken;
             return $.ajax({
-                url: '<?= EM_ADMIN_PATH ?>/license',
+                url: '<?= EM_ADMIN_PATH ?>/_license',
                 type: 'POST',
                 dataType: 'json',
                 data: data
@@ -785,7 +785,7 @@ $(function () {
 
         // 普通用户的开通引导：打开客服弹窗（与授权页「联系客服」同一个 iframe）
         $('#oaAgentApply').on('click', function () {
-            openFrame('<?= EM_ADMIN_PATH ?>/license?_popup=contact', '联系客服', 480, 620);
+            openFrame('<?= EM_ADMIN_PATH ?>/_license?_popup=contact', '联系客服', 480, 620);
         });
 
         // ---------- 添加激活码（独立 iframe 窗口） ----------
@@ -832,7 +832,7 @@ $(function () {
                 skin: 'admin-modal',
                 area: [width + 'px', height + 'px'],
                 shadeClose: true,
-                content: '<?= EM_ADMIN_PATH ?>/license?_popup=add_license'
+                content: '<?= EM_ADMIN_PATH ?>/_license?_popup=add_license'
             });
         });
 

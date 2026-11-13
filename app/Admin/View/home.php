@@ -242,7 +242,7 @@ $__runModeDesc   = $__deliveryAsync
     : '同步发货 · 请求执行';
 
 // 官方账号卡：登录态只读本地配置，不发请求；
-// 「管理」按钮打开 license.php?_popup=account 的大 iframe（激活码 / 账号信息 / 退出登录都在里面）
+// 「管理」按钮打开 _license?_popup=account 的大 iframe（激活码 / 账号信息 / 退出登录都在里面）
 $__officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
 
 /* ============================================================
@@ -2610,7 +2610,7 @@ $(function () {
             var origHtml = $btn.html();
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
             $.ajax({
-                url: '<?= EM_ADMIN_PATH ?>/license',
+                url: '<?= EM_ADMIN_PATH ?>/_license',
                 type: 'POST',
                 dataType: 'json',
                 data: {
@@ -2648,7 +2648,7 @@ $(function () {
 
     // ========== 附加操作卡（激活码 / 下载）==========
     // 激活码卡：正常情况直接用首页初始化时已拉到的 buy_links 渲染，
-    // 不再打开 {入口}/license?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
+    // 不再打开 {入口}/_license?_popup=agent —— 那个 iframe 会再向上游请求一次 base-data；
     // 上次请求失败则点「获取」时重新请求接口，成功后再弹。
     function openBuyLinksPopup() {
         var links = __dashIndexData.buy_links || [];
@@ -2765,7 +2765,7 @@ $(function () {
         dashEnsureIndexData(openDownloadPopup);
     });
 
-    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（{入口}/license?_popup=official_login）
+    // 官方账号卡：登录 / 注册统一用独立 iframe 弹窗（{入口}/_license?_popup=official_login）
     function openOfficialAuthPopup(initialTab) {
         if (typeof layui === 'undefined' || !layui.layer) return;
 
@@ -2784,7 +2784,7 @@ $(function () {
             skin: 'admin-modal',
             area: [width + 'px', height + 'px'],
             shadeClose: true,
-            content: '<?= EM_ADMIN_PATH ?>/license?_popup=official_login' +
+            content: '<?= EM_ADMIN_PATH ?>/_license?_popup=official_login' +
                      (initialTab === 'register' ? '&tab=register' : ''),
             end: function () {
                 try { delete window.__officialLoginResize; } catch (e) {}
@@ -2825,7 +2825,7 @@ $(function () {
                 window.innerHeight >= 760 ? '660px' : '88%'
             ],
             shadeClose: true,
-            content: '<?= EM_ADMIN_PATH ?>/license?_popup=account'
+            content: '<?= EM_ADMIN_PATH ?>/_license?_popup=account'
         });
     });
 
