@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\User;
 
+use App\Http\PrefixRouter;
 use App\User\Controller\AddressController;
 use App\User\Controller\ApiController;
 use App\User\Controller\BalanceLogController;
@@ -24,8 +25,10 @@ use App\User\Controller\WalletController;
  *
  * 接管 /user 下**不带扩展名**的路径（/user/xxx），/user/merchant/... 由 MerchantRouter 负责。
  * 带点/带扩展名的路径（静态资源）不接管，交给 Web 服务器或前台路由。
+ *
+ * 解析 / 分发 / REQUEST_URI 还原等公共逻辑在 App\Http\PrefixRouter。
  */
-final class UserRouter
+final class UserRouter extends PrefixRouter
 {
     public const PREFIX = '/user';
 
@@ -71,107 +74,30 @@ final class UserRouter
     }
 
     /**
-     * 当前请求命中用户中心路由时执行并返回 true。
-     */
-    public function handleCurrentRequest(): bool
-    {
-        $path = self::currentPath();
-        if ($path === null || !self::isUserPath($path)) {
-            return false;
-        }
-
-        $this->dispatch($path);
-        return true;
-    }
-
-    /**
      * 是否属于用户中心路由：/user 开头、不带扩展名，且不属于商户后台。
      */
     public static function isUserPath(string $path): bool
     {
-        $path = '/' . trim($path, '/');
-        if ($path !== self::PREFIX && strpos($path, self::PREFIX . '/') !== 0) {
-            return false;
-        }
-        if ($path === self::MERCHANT_PREFIX || strpos($path, self::MERCHANT_PREFIX . '/') === 0) {
-            return false;
-        }
-
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
-        if ($rest === '') {
-            return true;
-        }
-
-        foreach (explode('/', $rest) as $segment) {
-            if ($segment === '' || strpos($segment, '.') !== false) {
-                return false;
-            }
-        }
-
-        return true;
+        return self::instance()->isPath($path);
     }
 
-    /**
-     * 解析路径；未登记返回 null。
-     *
-     * @return array{class: class-string, action: string}|null
-     */
-    public function resolve(string $path): ?array
+    protected function prefix(): string
     {
-        $path = '/' . trim($path, '/');
-        if (!self::isUserPath($path)) {
-            return null;
-        }
-
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
-        $segments = $rest === '' ? [] : explode('/', $rest);
-        $key = $segments[0] ?? '';
-        if (!isset(self::ROUTES[$key])) {
-            return null;
-        }
-
-        return [
-            'class'  => self::ROUTES[$key][0],
-            'action' => self::ROUTES[$key][1],
-        ];
+        return self::PREFIX;
     }
 
-    public function dispatch(string $path): void
+    protected function excludedPrefixes(): array
     {
-        $route = $this->resolve($path);
-        if ($route === null) {
-            $route = ['class' => NotFoundController::class, 'action' => 'index'];
-        }
-
-        $class = $route['class'];
-        $action = $route['action'];
-        /** @var object $controller */
-        $controller = \App\Core\Application::instance()->container()->make($class);
-        $controller->{$action}();
+        return [self::MERCHANT_PREFIX];
     }
 
-    /**
-     * 从 REQUEST_URI 还原站点内路径，并剥离子目录安装前缀（与前台 Dispatcher 同规则）。
-     */
-    public static function currentPath(): ?string
+    protected function routes(): array
     {
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-        $path = (string) parse_url($uri, PHP_URL_PATH);
-        if ($path === '') {
-            return null;
-        }
+        return self::ROUTES;
+    }
 
-        $basePath = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'))), '/');
-        if ($basePath !== '' && $basePath !== '/') {
-            if ($path === $basePath) {
-                $path = '/';
-            } elseif (strpos($path, $basePath . '/') === 0) {
-                $path = substr($path, strlen($basePath));
-            } else {
-                return null;
-            }
-        }
-
-        return $path;
+    protected function notFoundRoute(): array
+    {
+        return ['class' => NotFoundController::class, 'action' => 'index'];
     }
 }

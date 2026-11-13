@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Merchant;
 
+use App\Http\PrefixRouter;
 use App\Merchant\Controller\ApplyController;
 use App\Merchant\Controller\AppstoreController;
 use App\Merchant\Controller\BlogEditController;
@@ -30,8 +31,10 @@ use App\Merchant\Controller\WithdrawController;
  *
  * 接管 /user/merchant 下**不带扩展名**的路径（/user/merchant/xxx）。
  * 带点/带扩展名的路径（静态资源）不接管，交给 Web 服务器或前台路由。
+ *
+ * 解析 / 分发 / REQUEST_URI 还原等公共逻辑在 App\Http\PrefixRouter。
  */
-final class MerchantRouter
+final class MerchantRouter extends PrefixRouter
 {
     public const PREFIX = '/user/merchant';
 
@@ -74,97 +77,26 @@ final class MerchantRouter
         return self::$instance;
     }
 
-    public function handleCurrentRequest(): bool
-    {
-        $path = self::currentPath();
-        if ($path === null || !self::isMerchantPath($path)) {
-            return false;
-        }
-
-        $this->dispatch($path);
-        return true;
-    }
-
     /**
      * 是否属于商户后台路由：/user/merchant 开头且不带扩展名。
      */
     public static function isMerchantPath(string $path): bool
     {
-        $path = '/' . trim($path, '/');
-        if ($path !== self::PREFIX && strpos($path, self::PREFIX . '/') !== 0) {
-            return false;
-        }
-
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
-        if ($rest === '') {
-            return true;
-        }
-
-        foreach (explode('/', $rest) as $segment) {
-            if ($segment === '' || strpos($segment, '.') !== false) {
-                return false;
-            }
-        }
-
-        return true;
+        return self::instance()->isPath($path);
     }
 
-    /**
-     * @return array{class: class-string, action: string}|null
-     */
-    public function resolve(string $path): ?array
+    protected function prefix(): string
     {
-        $path = '/' . trim($path, '/');
-        if (!self::isMerchantPath($path)) {
-            return null;
-        }
-
-        $rest = trim(substr($path, strlen(self::PREFIX)), '/');
-        $segments = $rest === '' ? [] : explode('/', $rest);
-        $key = $segments[0] ?? '';
-        if (!isset(self::ROUTES[$key])) {
-            return null;
-        }
-
-        return [
-            'class'  => self::ROUTES[$key][0],
-            'action' => self::ROUTES[$key][1],
-        ];
+        return self::PREFIX;
     }
 
-    public function dispatch(string $path): void
+    protected function routes(): array
     {
-        $route = $this->resolve($path);
-        if ($route === null) {
-            $route = ['class' => NotFoundController::class, 'action' => 'index'];
-        }
-
-        $class = $route['class'];
-        $action = $route['action'];
-        /** @var object $controller */
-        $controller = \App\Core\Application::instance()->container()->make($class);
-        $controller->{$action}();
+        return self::ROUTES;
     }
 
-    public static function currentPath(): ?string
+    protected function notFoundRoute(): array
     {
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-        $path = (string) parse_url($uri, PHP_URL_PATH);
-        if ($path === '') {
-            return null;
-        }
-
-        $basePath = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'))), '/');
-        if ($basePath !== '' && $basePath !== '/') {
-            if ($path === $basePath) {
-                $path = '/';
-            } elseif (strpos($path, $basePath . '/') === 0) {
-                $path = substr($path, strlen($basePath));
-            } else {
-                return null;
-            }
-        }
-
-        return $path;
+        return ['class' => NotFoundController::class, 'action' => 'index'];
     }
 }

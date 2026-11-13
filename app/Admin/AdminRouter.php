@@ -55,6 +55,7 @@ use App\Admin\Controller\UploadController;
 use App\Admin\Controller\UserLevelController;
 use App\Admin\Controller\UserListController;
 use App\Admin\Controller\WithdrawController;
+use App\Http\PrefixRouter;
 
 /**
  * 后台路由分发器（新 OOP 后台）。
@@ -68,8 +69,10 @@ use App\Admin\Controller\WithdrawController;
  *
  * 为什么限制扩展名：标准 Nginx 配置把 .php 请求直接交给 PHP-FPM，
  * 不经过 index.php 的 try_files 兜底；带扩展名的路径即使到达这里也不该由框架接管。
+ *
+ * 解析 / 分发 / REQUEST_URI 还原等公共逻辑在 App\Http\PrefixRouter。
  */
-final class AdminRouter
+final class AdminRouter extends PrefixRouter
 {
     /** 默认后台路径前缀 */
     public const DEFAULT_PREFIX = '/admin';
@@ -182,117 +185,25 @@ final class AdminRouter
     }
 
     /**
-     * 当前请求命中后台路由时执行并返回 true；否则返回 false。
-     *
-     * 调用方（index.php）在返回 true 后直接 exit，不再进入前台 Dispatcher。
-     */
-    public function handleCurrentRequest(): bool
-    {
-        $path = self::currentPath();
-        if ($path === null || !self::isAdminPath($path)) {
-            return false;
-        }
-
-        $this->dispatch($path);
-        return true;
-    }
-
-    /**
-     * 判断站点内路径是否属于后台路由。
-     *
-     * 带点的路径段（.php / .css / 文件名）一律不接管，交给 Web 服务器或前台路由。
+     * 判断站点内路径是否属于后台路由（兼容旧的静态调用方式）。
      */
     public static function isAdminPath(string $path): bool
     {
-        $prefix = self::pathPrefix();
-        $path = '/' . trim($path, '/');
-        if ($path !== $prefix && strpos($path, $prefix . '/') !== 0) {
-            return false;
-        }
-
-        $rest = trim(substr($path, strlen($prefix)), '/');
-        if ($rest === '') {
-            return true;
-        }
-
-        foreach (explode('/', $rest) as $segment) {
-            if ($segment === '' || strpos($segment, '.') !== false) {
-                return false;
-            }
-        }
-
-        return true;
+        return self::instance()->isPath($path);
     }
 
-    /**
-     * 解析后台路径，未登记的路由返回 null。
-     *
-     * @return array{class: class-string, action: string}|null
-     */
-    public function resolve(string $path): ?array
+    protected function prefix(): string
     {
-        $path = '/' . trim($path, '/');
-        if (!self::isAdminPath($path)) {
-            return null;
-        }
-
-        $rest = trim(substr($path, strlen(self::pathPrefix())), '/');
-        $segments = $rest === '' ? [] : explode('/', $rest);
-        $key = $segments[0] ?? '';
-        if (!isset(self::ROUTES[$key])) {
-            return null;
-        }
-
-        return [
-            'class'  => self::ROUTES[$key][0],
-            'action' => self::ROUTES[$key][1],
-        ];
+        return self::pathPrefix();
     }
 
-    /**
-     * 执行路由；未登记的路径交给 404 控制器（同样经过登录守卫）。
-     */
-    public function dispatch(string $path): void
+    protected function routes(): array
     {
-        $route = $this->resolve($path);
-        if ($route === null) {
-            $route = [
-                'class'  => NotFoundController::class,
-                'action' => 'index',
-            ];
-        }
-
-        $class = $route['class'];
-        $action = $route['action'];
-        /** @var object $controller */
-        $controller = \App\Core\Application::instance()->container()->make($class);
-        $controller->{$action}();
+        return self::ROUTES;
     }
 
-    /**
-     * 从 REQUEST_URI 还原站点内路径，并剥离子目录安装前缀。
-     *
-     * 规则与前台 Dispatcher 的 pathInfoFromRequestUri() 保持一致。
-     */
-    public static function currentPath(): ?string
+    protected function notFoundRoute(): array
     {
-        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-        $path = (string) parse_url($uri, PHP_URL_PATH);
-        if ($path === '') {
-            return null;
-        }
-
-        $basePath = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'))), '/');
-        if ($basePath !== '' && $basePath !== '/') {
-            if ($path === $basePath) {
-                $path = '/';
-            } elseif (strpos($path, $basePath . '/') === 0) {
-                $path = substr($path, strlen($basePath));
-            } else {
-                return null;
-            }
-        }
-
-        return $path;
+        return ['class' => NotFoundController::class, 'action' => 'index'];
     }
 }
