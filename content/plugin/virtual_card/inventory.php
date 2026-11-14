@@ -171,6 +171,7 @@ if (!defined('EM_ROOT')) {
             <button type="button" class="em-btn em-save-btn" id="cardExportBtn"><i class="fa fa-download"></i>导出卡密</button>
             <button type="button" class="em-btn em-red-btn em-disabled-btn" id="cardBatchDeleteBtn"><i class="fa fa-trash"></i>批量删除</button>
             <button type="button" class="em-btn em-red-btn" id="cardClearStockBtn"><i class="fa fa-eraser"></i>清空库存</button>
+            <button type="button" class="em-btn em-red-btn" id="cardClearSoldBtn" title="永久删除本商品全部已售卡密，并清空订单里对应的发货内容"><i class="fa fa-trash-o"></i>清空已售</button>
         </div>
     </div>
 
@@ -413,7 +414,7 @@ $(function(){
 
         // 导入 / 导出 / 批量删除 / 清空库存都是针对卡密的，「已删订单」选项卡下藏起来
         function setCardActionsVisible(visible){
-            $('#cardImportBtn, #cardExportBtn, #cardBatchDeleteBtn, #cardClearStockBtn').toggle(!!visible);
+            $('#cardImportBtn, #cardExportBtn, #cardBatchDeleteBtn, #cardClearStockBtn, #cardClearSoldBtn').toggle(!!visible);
         }
 
         // 弹窗尺寸：大屏用首选 px，小屏按视口百分比自适应（库存管理在 iframe 内）
@@ -517,6 +518,77 @@ $(function(){
                 }, 'json');
             });
         });
+
+        // 清空已售：分批删除，前端反复调用直到 remaining 归零
+        $('#cardClearSoldBtn').on('click', function () {
+            var sold = parseInt($('#tabSold').text(), 10) || 0;
+            if (sold <= 0) {
+                layer.msg('当前没有已售卡密');
+                return;
+            }
+            var tip = '<div style="line-height:1.8;">确定永久删除本商品全部 <strong>' + sold + '</strong> 条「已售」卡密吗？'
+                + '<div style="margin-top:8px;color:#d93026;">卡密和订单里对应的发货内容都会被删除且无法恢复，买家之后将无法再查看这些卡密。</div>'
+                + '</div>';
+            layer.confirm(tip, { title: '清空已售卡密', btn: ['永久删除', '取消'] }, function (idx) {
+                layer.close(idx);
+                startClearSold();
+            });
+        });
+
+        function startClearSold() {
+            var box = layer.open({
+                type: 1,
+                title: '清空已售卡密',
+                area: cardModalArea(360),
+                closeBtn: 0,
+                shade: 0.15,
+                shadeClose: false,
+                content: '<div id="clearSoldTip" style="padding:18px 20px;font-size:13px;color:#374151;line-height:1.8;">正在删除已售卡密…</div>'
+            });
+            var totalDeleted = 0;
+
+            function finish(msg) {
+                layer.close(box);
+                layer.msg(msg);
+                table.reload('cardTableId');
+            }
+
+            function step() {
+                $.post(cardUrl('card_clear_sold'), {
+                    csrf_token: csrfToken,
+                    goods_id: goodsId
+                }, function (res) {
+                    if (res && res.data && res.data.csrf_token) {
+                        csrfToken = res.data.csrf_token;
+                    }
+                    if (!res || res.code !== 200) {
+                        finish((res && res.msg) ? res.msg : '删除失败');
+                        return;
+                    }
+
+                    var data = res.data || {};
+                    totalDeleted += (data.deleted || 0);
+
+                    if ((data.remaining || 0) > 0) {
+                        // 这一轮一条都没删掉，多半是锁等待/超时，别死循环
+                        if (!data.deleted) {
+                            finish('删除停滞，剩余 ' + data.remaining + ' 条，请稍后重试');
+                            return;
+                        }
+                        $('#clearSoldTip').html('已删除 <strong>' + totalDeleted + '</strong> 条已售卡密，剩余 <strong>' + data.remaining + '</strong> 条，继续删除中…');
+                        step();
+                        return;
+                    }
+
+                    finish(totalDeleted > 0 ? '已删除 ' + totalDeleted + ' 条已售卡密' : '当前没有已售卡密');
+                }, 'json').fail(function (xhr) {
+                    var msg = (xhr && xhr.responseJSON && xhr.responseJSON.msg) ? xhr.responseJSON.msg : '请求失败，请稍后重试';
+                    finish(msg);
+                });
+            }
+
+            step();
+        }
 
         // ============================================================
         //  行内三点下拉菜单

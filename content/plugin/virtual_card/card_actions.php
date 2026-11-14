@@ -6,7 +6,7 @@
  * 商户端由 /user/merchant/goods 直接 require 本文件，并设置
  * $virtualCardRequireOwnerId 限制只能操作自有商品。
  *
- * 支持的 action：card_list / card_deleted_orders / card_import / card_delete / card_clear_available / card_export / card_manager
+ * 支持的 action：card_list / card_deleted_orders / card_import / card_delete / card_clear_available / card_clear_sold / card_export / card_manager
  */
 if (!defined('EM_ROOT')) {
     exit('Access Denied');
@@ -603,6 +603,45 @@ if ($action === 'card_clear_available') {
 
     Response::success($deleted > 0 ? "已清空 {$deleted} 条未售卡密" : '当前没有未售卡密', [
         'deleted'  => $deleted,
+        'csrf_token' => Csrf::token(),
+    ]);
+}
+
+// ================================================================
+// 清空已售：永久删除本商品全部「已售」卡密（status=0），
+// 连同这些卡密对应的订单发货内容一起清掉（明细表 + 兼容字段）。
+//
+// 单次请求只删一小段（见 virtualCardClearSoldCards 的注释），前端拿
+// remaining 反复调用，直到删完。
+// ================================================================
+if ($action === 'card_clear_sold') {
+    $csrf = (string) ($_POST['csrf_token'] ?? '');
+    if (!Csrf::validate($csrf)) {
+        Response::error('请求已失效，请刷新页面后重试');
+    }
+    $goodsId = (int) ($_POST['goods_id'] ?? 0);
+    if ($goodsId <= 0) {
+        Response::error('商品ID不能为空');
+    }
+    $virtualCardAssertGoodsAccess($goodsId);
+
+    $goods = app(\App\Model\GoodsModel::class)->getById($goodsId);
+    if (!$goods) {
+        Response::error('商品不存在');
+    }
+    if (($goods['goods_type'] ?? '') !== 'virtual_card') {
+        Response::error('非虚拟卡密商品');
+    }
+
+    $res = virtualCardClearSoldCards($goodsId);
+
+    $msg = $res['remaining'] > 0
+        ? "本轮已删除 {$res['deleted']} 条，剩余 {$res['remaining']} 条"
+        : ($res['deleted'] > 0 ? "已清空 {$res['deleted']} 条已售卡密" : '当前没有已售卡密');
+
+    Response::success($msg, [
+        'deleted'    => $res['deleted'],
+        'remaining'  => $res['remaining'],
         'csrf_token' => Csrf::token(),
     ]);
 }

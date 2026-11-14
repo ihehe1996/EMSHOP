@@ -3,7 +3,11 @@ if (!defined('EM_ROOT')) {
     exit('Access Denied');
 }
 /** @var array<string, mixed> $adminUser */
-/** @var string $siteName */ 
+
+// $siteName 平时由 AdminShell 提供；从别的菜单 Pjax 切到控制台时，视图由控制器直接
+// require，作用域里没有这个变量 —— 未激活授权的那块 Hero 会读到它，PHP 8 下直接致命。
+// 两种入口共用这份视图，所以在这里兜底。
+$siteName = (isset($siteName) && $siteName !== '') ? (string) $siteName : (string) \Config::get('sitename', 'EMSHOP');
 
 $esc = function (string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
