@@ -1,7 +1,7 @@
 <?php
 /**
 Plugin Name: 虚拟卡密商品类型
-Version: 1.1.8
+Version: 1.1.9
 Plugin URL:
 Description: 虚拟商品插件，支持卡密 / 账号 / 邮箱等。既可一键发货（从卡密库自动提取），也可切换为人工发货（管理员手动填写）。
 Author: EMSHOP
@@ -51,6 +51,104 @@ function virtualCardSyncCardStock(int $goodsId): void
     }
 
     app(\App\Model\GoodsModel::class)->updatePriceStockCache($goodsId);
+}
+
+/**
+ * 分批删除某商品全部「已售」卡密（status=0，彻底从库里抹掉），
+ * 同时清掉这些卡密对应的订单发货内容（明细表 + 兼容字段）。
+ *
+ * 已售卡密是百万级数据：一条 DELETE 全删会长时间锁行、撑大 undo，
+ * 也容易被 FPM / 网关超时掐断。所以按批删 + 单次调用限时，
+ * 由前端拿返回的 remaining 反复调用，直到删完。
+ *
+ * @return array{deleted:int, remaining:int} 本次删除条数 / 尚未删掉的条数
+ */
+function virtualCardClearSoldCards(int $goodsId): array
+{
+    $prefix = Database::prefix();
+    $batch = 5000;
+    $deleted = 0;
+    $last = 0;
+
+    @set_time_limit(0);
+    $deadline = microtime(true) + 12;
+
+    do {
+        // 先取出本批卡密 ID 和它所属的订单商品行 —— 卡密一删，这个关联就找不回来了
+        $rows = Database::query(
+            "SELECT id, order_goods_id FROM {$prefix}goods_virtual_card
+              WHERE goods_id = ? AND status = 0
+              ORDER BY id ASC LIMIT {$batch}",
+            [$goodsId]
+        );
+        $last = count($rows);
+        if ($last === 0) {
+            break;
+        }
+
+        $cardIds = [];
+        $orderGoodsIds = [];
+        foreach ($rows as $row) {
+            $cardIds[] = (int) $row['id'];
+            $ogId = (int) ($row['order_goods_id'] ?? 0);
+            if ($ogId > 0) {
+                $orderGoodsIds[$ogId] = true;
+            }
+        }
+
+        $placeholders = implode(',', array_fill(0, count($cardIds), '?'));
+        $deleted += Database::execute(
+            "DELETE FROM {$prefix}goods_virtual_card WHERE id IN ({$placeholders})",
+            $cardIds
+        );
+
+        if ($orderGoodsIds !== []) {
+            virtualCardClearOrderDeliveryContent(array_keys($orderGoodsIds), $goodsId);
+        }
+    } while ($last >= $batch && microtime(true) < $deadline);
+
+    // 没删满一批 = 已经删干净；删满一批说明是被时间预算截住的，剩余条数要查一次
+    $remaining = 0;
+    if ($last >= $batch) {
+        $remaining = (int) (Database::fetchOne(
+            "SELECT COUNT(*) AS cnt FROM {$prefix}goods_virtual_card WHERE goods_id = ? AND status = 0",
+            [$goodsId]
+        )['cnt'] ?? 0);
+    }
+
+    return ['deleted' => $deleted, 'remaining' => $remaining];
+}
+
+/**
+ * 清空一批订单商品行的发货内容（发货明细表 + 兼容字段）。
+ *
+ * @param list<int> $orderGoodsIds
+ */
+function virtualCardClearOrderDeliveryContent(array $orderGoodsIds, int $goodsId): void
+{
+    $prefix = Database::prefix();
+
+    // 明细表是后加的（老站没跑过迁移时不存在），那种情况下内容只在兼容字段里
+    try {
+        foreach (array_chunk($orderGoodsIds, 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            Database::execute(
+                "DELETE FROM {$prefix}order_goods_delivery_item WHERE order_goods_id IN ({$placeholders})",
+                $chunk
+            );
+        }
+    } catch (Throwable $e) {
+        // 表不存在就跳过，兼容字段下面照样清
+    }
+
+    foreach (array_chunk($orderGoodsIds, 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        Database::execute(
+            "UPDATE {$prefix}order_goods SET delivery_content = NULL
+              WHERE goods_id = ? AND id IN ({$placeholders})",
+            array_merge([$goodsId], $chunk)
+        );
+    }
 }
 
 /**
@@ -677,7 +775,7 @@ addAction('goods_before_force_delete', function ($goodsId) {
 // 后台 AJAX 路由注册（卡密增删查导出，通过 admin_plugin_action 钩子分发）
 // order_export_cards：按订单 ID 导出订单里所有 virtual_card 商品的发货内容为 txt
 // ================================================================
-foreach (['card_list', 'card_deleted_orders', 'card_import', 'card_import_page', 'card_delete', 'card_clear_available', 'card_export', 'card_save', 'card_priority', 'card_mark_sold', 'card_manager', 'order_export_cards'] as $_cardAction) {
+foreach (['card_list', 'card_deleted_orders', 'card_import', 'card_import_page', 'card_delete', 'card_clear_available', 'card_clear_sold', 'card_export', 'card_save', 'card_priority', 'card_mark_sold', 'card_manager', 'order_export_cards'] as $_cardAction) {
     addAction('admin_plugin_action_' . $_cardAction, function () {
         require __DIR__ . '/card_actions.php';
         exit;
