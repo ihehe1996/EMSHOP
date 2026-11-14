@@ -243,6 +243,20 @@ final class FindOrderController extends UserPublicBaseController
                 }
                 $_SESSION['em_find_order_visible'] = $visible;
 
+                // 业务要求：订单号查单也允许查看发货内容。
+                // 与可见性白名单保持同样的 30 分钟窗口，避免客户打开详情页时授权已过期。
+                if ($mode === 'orderno') {
+                    if (!isset($_SESSION['em_card_grant']) || !is_array($_SESSION['em_card_grant'])) {
+                        $_SESSION['em_card_grant'] = [];
+                    }
+                    foreach ($result as $r) {
+                        $oid = (int) ($r['id'] ?? 0);
+                        if ($oid > 0) {
+                            $_SESSION['em_card_grant'][$oid] = time() + 1800;
+                        }
+                    }
+                }
+
                 // 查单结果列表轮询用：与 order_poll.php action=find_pending_snapshot 的 hash 算法一致
                 $pendingPairs = [];
                 $pollOrderNos = [];
@@ -340,8 +354,8 @@ final class FindOrderController extends UserPublicBaseController
                 if ($row) {
                     $detailExtraPairs = app(\App\Model\OrderModel::class)->parseBuyerContactFields($row)['extra_pairs'];
 
-                    // 卡密内容只给「已验证身份」：登录本人 / v2 签名 Cookie 匹配 / 凭据换来的 60 秒 grant。
-                    // 仅凭订单号 + 验证码命中 session 白名单，只能看状态和金额，看不到卡密。
+                    // 卡密内容：登录本人 / v2 签名 Cookie 匹配 / 凭据换来的 60 秒 grant /
+                    // 订单号查单换来的 30 分钟 grant（业务要求订单号也能看发货内容）。
                     $cardAllowed = false;
                     if (!empty($frontUser['id']) && (int) ($row['user_id'] ?? 0) === (int) $frontUser['id']) {
                         $cardAllowed = true;
