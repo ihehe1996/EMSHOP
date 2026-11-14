@@ -1157,18 +1157,6 @@ class OrderModel extends Model
             return;
         }
 
-        // 请求前再校验一次：地址可能来自更早写入的历史数据（那时入库还没有内网校验），
-        // 也可能在这条记录存下之后才被解析到内网（DNS 变更）。任一情况都不应发出请求。
-        if (!app(\App\Support\DownloadUrlGuard::class)->isPublicHttpUrl($callbackUrl)) {
-            $this->writeSystemLog(
-                'warning',
-                '发货回调地址被拒绝',
-                'delivery_callback_url 指向内网或保留地址，已跳过回调',
-                ['order_id' => (int) ($row['order_id'] ?? 0), 'order_goods_id' => $orderGoodsId]
-            );
-            return;
-        }
-
         $payload = [
             'order_no'         => (string) ($row['order_no'] ?? ''),
             'order_goods_id'   => (int) ($row['order_goods_id'] ?? 0),
