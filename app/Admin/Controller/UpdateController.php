@@ -11,7 +11,7 @@ namespace App\Admin\Controller;
  * preflight → download → extract → apply → migrate → run_script → finalize 调度。
  *
  * 动作（_action）：
- *   preflight / download / extract / apply / migrate / run_script / finalize / rollback
+ *   preflight / download / download_stream / extract / extract_stream / check_permissions / check_permissions_stream / apply / migrate / run_script / finalize / rollback
  */
 final class UpdateController extends BaseAdminController
 {
@@ -54,6 +54,47 @@ final class UpdateController extends BaseAdminController
                     $this->response->success('下载完成', $res);
                 }
 
+                // 流式下载：边下边输出 NDJSON 进度，前端用 XHR onprogress 读取
+                case 'download_stream': {
+                    $url = (string) $this->input->post('package_url', '');
+                    $sha256 = (string) $this->input->post('package_sha256', '');
+
+                    @set_time_limit(0);
+                    @ini_set('zlib.output_compression', '0');
+                    header('Content-Type: application/x-ndjson; charset=utf-8');
+                    header('Cache-Control: no-cache, no-store');
+                    // 让 Nginx 不要缓冲，否则进度会攒到最后一次性下发
+                    header('X-Accel-Buffering: no');
+
+                    while (ob_get_level() > 0) {
+                        @ob_end_flush();
+                    }
+                    if (session_status() === PHP_SESSION_ACTIVE) {
+                        session_write_close();
+                    }
+
+                    try {
+                        $res = app(\App\Service\UpdateService::class)->download(
+                            $url,
+                            $sha256,
+                            static function (int $total, int $downloaded): void {
+                                echo json_encode([
+                                    'type'       => 'progress',
+                                    'total'      => $total,
+                                    'downloaded' => $downloaded,
+                                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                                @flush();
+                            }
+                        );
+                    } catch (\Throwable $e) {
+                        $res = ['ok' => false, 'path' => '', 'size' => 0, 'sha256' => '', 'error' => $e->getMessage()];
+                    }
+
+                    echo json_encode(['type' => 'done'] + $res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                    @flush();
+                    exit;
+                }
+
                 case 'extract': {
                     $zipPath = (string) $this->input->post('zip_path', '');
                     if ($zipPath === '') {
@@ -67,6 +108,105 @@ final class UpdateController extends BaseAdminController
                     $this->response->success('解压完成', $res);
                 }
 
+                // 流式解压：逐条解压并输出 NDJSON 进度
+                case 'extract_stream': {
+                    $zipPath = (string) $this->input->post('zip_path', '');
+
+                    @set_time_limit(0);
+                    @ini_set('zlib.output_compression', '0');
+                    header('Content-Type: application/x-ndjson; charset=utf-8');
+                    header('Cache-Control: no-cache, no-store');
+                    // 让 Nginx 不要缓冲，否则进度会攒到最后一次性下发
+                    header('X-Accel-Buffering: no');
+
+                    while (ob_get_level() > 0) {
+                        @ob_end_flush();
+                    }
+                    if (session_status() === PHP_SESSION_ACTIVE) {
+                        session_write_close();
+                    }
+
+                    try {
+                        $res = app(\App\Service\UpdateService::class)->extract(
+                            $zipPath,
+                            static function (int $done, int $total): void {
+                                echo json_encode([
+                                    'type'  => 'progress',
+                                    'done'  => $done,
+                                    'total' => $total,
+                                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                                @flush();
+                            }
+                        );
+                    } catch (\Throwable $e) {
+                        $res = ['ok' => false, 'extract_path' => '', 'files' => 0, 'error' => $e->getMessage()];
+                    }
+
+                    echo json_encode(['type' => 'done'] + $res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                    @flush();
+                    exit;
+                }
+
+                case 'check_permissions': {
+                    $extractPath = (string) $this->input->post('extract_path', '');
+                    if ($extractPath === '') {
+                        $this->response->error('缺少 extract_path 参数');
+                    }
+                    $res = app(\App\Service\UpdateService::class)->checkApplyPermissions($extractPath);
+                    if (!$res['ok']) {
+                        $this->response->error(
+                            '文件权限校验未通过：共 ' . count($res['errors'])
+                            . ' 项不可写，请将网站目录权限设置为755（为www用户设置），详见运行日志',
+                            $res
+                        );
+                    }
+                    $this->response->success('文件权限校验通过', $res);
+                }
+
+                // 流式权限校验：逐文件检查并输出 NDJSON 进度
+                case 'check_permissions_stream': {
+                    $extractPath = (string) $this->input->post('extract_path', '');
+
+                    @set_time_limit(0);
+                    @ini_set('zlib.output_compression', '0');
+                    header('Content-Type: application/x-ndjson; charset=utf-8');
+                    header('Cache-Control: no-cache, no-store');
+                    // 让 Nginx 不要缓冲，否则进度会攒到最后一次性下发
+                    header('X-Accel-Buffering: no');
+
+                    while (ob_get_level() > 0) {
+                        @ob_end_flush();
+                    }
+                    if (session_status() === PHP_SESSION_ACTIVE) {
+                        session_write_close();
+                    }
+
+                    try {
+                        $res = app(\App\Service\UpdateService::class)->checkApplyPermissions(
+                            $extractPath,
+                            static function (int $checked, int $total): void {
+                                echo json_encode([
+                                    'type'    => 'progress',
+                                    'checked' => $checked,
+                                    'total'   => $total,
+                                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                                @flush();
+                            }
+                        );
+                    } catch (\Throwable $e) {
+                        $res = ['ok' => false, 'checked' => 0, 'errors' => [['path' => '', 'reason' => $e->getMessage()]], 'warnings' => []];
+                    }
+
+                    if (!$res['ok']) {
+                        $res['msg'] = '文件权限校验未通过：共 ' . count($res['errors'])
+                            . ' 项不可写，请将网站目录权限设置为755（为www用户设置），详见运行日志';
+                    }
+
+                    echo json_encode(['type' => 'done'] + $res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+                    @flush();
+                    exit;
+                }
+
                 case 'apply': {
                     $extractPath = (string) $this->input->post('extract_path', '');
                     if ($extractPath === '') {
@@ -76,7 +216,8 @@ final class UpdateController extends BaseAdminController
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '应用失败', $res);
                     }
-                    $this->response->success('文件覆盖完成', $res);
+                    $msg = !empty($res['dry_run']) ? '已跳过文件覆盖（联调模式）' : '文件覆盖完成';
+                    $this->response->success($msg, $res);
                 }
 
                 case 'migrate': {

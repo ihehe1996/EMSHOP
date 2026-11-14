@@ -5,10 +5,9 @@ if (!defined('EM_ROOT')) {
     exit;
 }
 
-// 配置值优先取环境变量；开发时可在项目根目录 .env 覆盖（见 .env.example）。
-// Env 类由 init.php / server 在加载本文件之前引入。
+// 配置值优先取环境变量；开发时可在项目根目录 .env 覆盖（见 .env.example）
 
-// 应用配置（当前版本仅预留，功能后续接入）
+// 应用配置
 define('EM_APP_NAME', Env::get('EM_APP_NAME', 'EMSHOP'));   // 应用名
 define('EM_APP_ADMIN_ENTRY', Env::get('EM_APP_ADMIN_ENTRY', 'admin'));  // 后台入口路径段（admin → /admin，xadmin → /xadmin）
 
@@ -23,7 +22,7 @@ define('EM_DB_PREFIX', Env::get('EM_DB_PREFIX', 'em_'));
 
 // 后台认证
 define('EM_AUTH_SESSION_KEY', 'em_admin_auth');
-define('EM_AUTH_SECRET', 'f480abf5acef0c4a1cf642931ba939ce34e4d7e920e9622476ce4d35d425005d');
+define('EM_AUTH_SECRET', '750dea11594b8d8f9f3095ada3b4b76f95306149674747ef51cf826920fad2eb');
 define('EM_AUTH_REMEMBER_COOKIE', 'em_admin_remember');
 define('EM_AUTH_REMEMBER_DAYS_DEFAULT', 7);
 define('EM_AUTH_REMEMBER_DAYS_CHECKED', 365);

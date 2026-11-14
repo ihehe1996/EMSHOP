@@ -95,7 +95,7 @@ final class DashboardController extends BaseAdminController
             'used_fallback'    => false,
             'update'           => [
                 'has_new' => false, 'version' => '', 'force' => false,
-                'min_version' => '', 'package_url' => '',
+                'min_version' => '', 'package_url' => '', 'changelog' => '',
             ],
             'announcements'    => [],
             'ad_slots'         => [],
@@ -107,6 +107,7 @@ final class DashboardController extends BaseAdminController
             'error'           => $error,
             'current_version' => EM_VERSION,
             'app_updates'     => $appUpdates,
+            'update_dry_run'  => \App\Service\UpdateService::isApplyDryRun(),
         ]);
     }
 

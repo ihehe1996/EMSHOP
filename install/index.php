@@ -461,6 +461,108 @@ PHP;
 }
 
 /**
+ * 当前 Web 服务器类型，用于预选伪静态说明里的规则面板。
+ *
+ * SERVER_SOFTWARE 由 Web 服务器自己注入，足够可靠；识别不出来时按 Nginx 处理，
+ * 用户可以在页面上手动切换，不影响检测本身。
+ *
+ * @return array{key:string, label:string}
+ */
+function installer_rewrite_server(): array
+{
+    $software = trim((string) ($_SERVER['SERVER_SOFTWARE'] ?? ''));
+    $lower = strtolower($software);
+
+    if (strpos($lower, 'iis') !== false) {
+        $key = 'iis';
+    } elseif (strpos($lower, 'apache') !== false || strpos($lower, 'litespeed') !== false) {
+        // LiteSpeed / OpenLiteSpeed 直接读 .htaccess，与 Apache 共用一套规则
+        $key = 'apache';
+    } else {
+        $key = 'nginx';
+    }
+
+    return ['key' => $key, 'label' => $software !== '' ? $software : '未知'];
+}
+
+/**
+ * 伪静态规则说明，按 Web 服务器分组（内容与后台「伪静态配置说明」弹窗一致）。
+ *
+ * code 字段统一走 htmlspecialchars 输出；note 字段是纯文本，输出时同样转义。
+ * 后续要往 note 里拼 HTML 的话，必须先转义再拼。
+ *
+ * @return array<string, array{name:string, note:string, steps:list<array{title:string, code:string}>}>
+ */
+function installer_rewrite_guides(): array
+{
+    $nginxCode = <<<'CODE'
+location ~* ^/content/(uploads|uploadfile|cache|tmp)/.*\.php(/|$) {
+    return 404;
+}
+location / {
+    try_files $uri $uri/ /index.php$is_args$args;
+}
+CODE;
+
+    $apacheCode = <<<'CODE'
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 站点装在子目录（如 /shop/）时取消注释并改成实际目录
+    # RewriteBase /shop/
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+CODE;
+
+    $iisCode = <<<'CODE'
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="EMSHOP Rewrite" stopProcessing="true">
+          <match url="^(.*)$" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="index.php" appendQueryString="true" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+CODE;
+
+    return [
+        'nginx' => [
+            'name'  => 'Nginx',
+            'note'  => 'Nginx 不读站点根目录的 .htaccess 和 web.config，规则要加到站点配置或面板的伪静态里（宝塔：网站 → 设置 → 伪静态），保存后重新加载 Nginx。',
+            'steps' => [
+                ['title' => '把以下规则加入站点配置', 'code' => $nginxCode],
+            ],
+        ],
+        'apache' => [
+            'name'  => 'Apache',
+            'note'  => '.htaccess 已随程序放在站点根目录，正常情况下无需改动。检测不通过时依次确认：mod_rewrite 已启用、站点目录允许覆盖配置（AllowOverride All）、站点在子目录时已配置 RewriteBase。',
+            'steps' => [
+                ['title' => '.htaccess 缺失或被改坏时，按此内容补回', 'code' => $apacheCode],
+            ],
+        ],
+        'iis' => [
+            'name'  => 'IIS',
+            'note'  => 'web.config 已随程序放在站点根目录，但必须先安装 URL Rewrite 模块（未安装时整站会报 500.19）；同时确认 PHP 已按 FastCGI 方式接入。',
+            'steps' => [
+                ['title' => 'web.config 缺失或被改坏时，按此内容补回', 'code' => $iisCode],
+            ],
+        ],
+    ];
+}
+
+/**
  * 输出安装页 UI（不复用前台模板，避免依赖 init.php）。
  *
  * @param array<int, array{type:string, text:string}> $messages
@@ -483,6 +585,10 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
 
     $adminUsername = (string) (($defaults['admin']['username'] ?? '') ?: 'admin');
     $adminEmail = (string) (($defaults['admin']['email'] ?? '') ?: '');
+
+    // 第一步的伪静态检测：只有检测通过才允许进入配置表单
+    $rewriteServer = installer_rewrite_server();
+    $rewriteGuides = installer_rewrite_guides();
 
     ?>
 <!doctype html>
@@ -649,6 +755,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             height: 44px; padding: 0 22px;
             font-size: 14px; font-weight: 600; font-family: inherit; text-decoration: none;
+            white-space: nowrap;
             border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
             transition: transform 0.18s, box-shadow 0.18s, background 0.18s, border-color 0.18s, color 0.18s;
         }
@@ -661,6 +768,71 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
         .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 30px -12px rgba(79, 70, 229, 0.75); }
         .btn-ghost { color: var(--ink-2); background: #fff; border-color: #e3e6ef; }
         .btn-ghost:hover:not(:disabled) { color: var(--ink); background: #f8fafc; border-color: var(--line-strong); }
+        .btn-sm { height: 34px; padding: 0 14px; font-size: 13px; font-weight: 500; }
+        .btn.is-disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+        .btn.is-disabled:hover { transform: none; box-shadow: none; }
+
+        /* 伪静态检测 */
+        .gate-bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 13px 14px;
+            font-size: 13px; color: var(--ink-2);
+            background: #fafbfd; border: 1px solid var(--line); border-radius: var(--radius);
+        }
+        .gate-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #a3abbd; }
+        .gate-text { flex: 1; min-width: 0; }
+        .gate-bar.is-checking .gate-dot { background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+        .gate-bar.is-pass { color: #067647; background: #ecfdf3; border-color: #abefc6; }
+        .gate-bar.is-pass .gate-dot { background: #12b76a; }
+        .gate-bar.is-fail { color: #b42318; background: #fef3f2; border-color: #fecdca; }
+        .gate-bar.is-fail .gate-dot { background: #f04438; }
+        .gate-bar .btn-ghost { flex: none; background: rgba(255, 255, 255, 0.9); }
+
+        .gate-detail { margin-top: 14px; }
+        .gate-detail__hint { margin: 0 0 12px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+        .gate-detail__hint code {
+            padding: 1px 5px; border-radius: 4px;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--ink-2); background: #f1f3f8; overflow-wrap: break-word;
+        }
+
+        .rw-tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+        .rw-tab {
+            position: relative; display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; margin-bottom: -1px;
+            font: 500 13px/1 inherit; color: var(--muted); background: transparent;
+            border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0;
+            cursor: pointer; transition: color 0.15s, background 0.15s;
+        }
+        .rw-tab:hover { color: var(--ink-2); background: #f4f6fa; }
+        .rw-tab.is-active { color: var(--accent-strong); font-weight: 600; background: #fff; border-color: var(--line); }
+        .rw-tab__badge {
+            padding: 1px 6px; font-size: 10px; font-weight: 500;
+            border-radius: 999px; color: var(--accent-strong); background: #eef2ff;
+        }
+        .rw-panel { display: none; }
+        .rw-panel.is-active { display: block; }
+        .rw-panel__note { margin: 0 0 10px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+        .rw-panel__step + .rw-panel__step { margin-top: 10px; }
+        .rw-panel__step-title { margin-bottom: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+        .rw-code { position: relative; }
+        .rw-code pre {
+            margin: 0; padding: 12px 14px; padding-right: 76px;
+            overflow-x: auto; background: #fafbfd;
+            border: 1px solid var(--line); border-radius: 10px;
+        }
+        .rw-code code {
+            font: 12.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+            color: var(--ink); white-space: pre;
+        }
+        .rw-code__copy {
+            position: absolute; top: 8px; right: 8px;
+            padding: 4px 10px; font-size: 11.5px; font-family: inherit;
+            color: var(--muted); background: #fff; border: 1px solid var(--line);
+            border-radius: 6px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+        }
+        .rw-code__copy:hover { color: var(--accent-strong); border-color: #c7d2fe; }
+        .rw-code__copy.is-done { color: #067647; border-color: #abefc6; }
 
         /* 浮动提示 / 加载遮罩的样式已抽到公共组件：/content/static/css/em-toast.css */
 
@@ -755,6 +927,10 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             .install-success-modal .hero-sub { font-size: 12.5px; }
             .install-success-modal .modal-body { padding: 0 18px; }
             .install-success-modal .info-item { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 11px 12px; }
+
+            .gate-bar { flex-wrap: wrap; }
+            .rw-code pre { padding-right: 14px; }
+            .rw-code__copy { position: static; display: block; width: fit-content; margin: 0 0 8px auto; }
         }
     </style>
 </head>
@@ -781,6 +957,53 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
         <?php endif; ?>
 
         <?php if ($step === 'intro'): ?>
+            <section class="section" id="rewriteGate">
+                <div class="section-head">
+                    <div>
+                        <h2>伪静态检测</h2>
+                        <p>未配置伪静态时，后台、用户中心等页面会 404，支付回调也会失效</p>
+                    </div>
+                </div>
+
+                <div class="gate-bar is-checking" id="rewriteGateBar">
+                    <span class="gate-dot" aria-hidden="true"></span>
+                    <span class="gate-text" id="rewriteGateText">正在检测伪静态…</span>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btnRewriteRecheck">重新检测</button>
+                </div>
+
+                <div class="gate-detail" id="rewriteGateDetail" hidden>
+                    <p class="gate-detail__hint">
+                        请按当前服务器添加下面的规则，保存后再点「重新检测」。检测到当前服务器：<code><?php echo htmlspecialchars($rewriteServer['label'], ENT_QUOTES, 'UTF-8'); ?></code>
+                    </p>
+
+                    <div class="rw-tabs" role="tablist">
+                        <?php foreach ($rewriteGuides as $rwKey => $rwGuide): ?>
+                        <button type="button"
+                                class="rw-tab<?php echo $rwKey === $rewriteServer['key'] ? ' is-active' : ''; ?>"
+                                data-rw-tab="<?php echo htmlspecialchars($rwKey, ENT_QUOTES, 'UTF-8'); ?>">
+                            <?php echo htmlspecialchars($rwGuide['name'], ENT_QUOTES, 'UTF-8'); ?>
+                            <?php if ($rwKey === $rewriteServer['key']): ?><span class="rw-tab__badge">当前</span><?php endif; ?>
+                        </button>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php foreach ($rewriteGuides as $rwKey => $rwGuide): ?>
+                    <div class="rw-panel<?php echo $rwKey === $rewriteServer['key'] ? ' is-active' : ''; ?>" data-rw-panel="<?php echo htmlspecialchars($rwKey, ENT_QUOTES, 'UTF-8'); ?>">
+                        <p class="rw-panel__note"><?php echo htmlspecialchars($rwGuide['note'], ENT_QUOTES, 'UTF-8'); ?></p>
+                        <?php foreach ($rwGuide['steps'] as $rwStep): ?>
+                        <div class="rw-panel__step">
+                            <div class="rw-panel__step-title"><?php echo htmlspecialchars($rwStep['title'], ENT_QUOTES, 'UTF-8'); ?></div>
+                            <div class="rw-code">
+                                <button type="button" class="rw-code__copy" title="复制">复制</button>
+                                <pre><code><?php echo htmlspecialchars($rwStep['code'], ENT_QUOTES, 'UTF-8'); ?></code></pre>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+
             <section class="section">
                 <div class="section-head">
                     <div>
@@ -802,9 +1025,9 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             </section>
 
             <div class="panel-foot">
-                <span class="foot-hint">确认服务器满足以上要求后再继续</span>
+                <span class="foot-hint" id="rewriteGateHint">通过伪静态检测后才能继续</span>
                 <div class="foot-btns">
-                    <a class="btn btn-primary" href="?action=install">
+                    <a class="btn btn-primary is-disabled" id="btnStartInstall" href="?action=install" aria-disabled="true">
                         开始安装
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
                     </a>
@@ -1080,6 +1303,146 @@ layui.use(function () {
     showInstallSuccessDialog(INSTALL_DEMO);
   }
 });
+</script>
+<script>
+// 第一步的伪静态检测：检测通过才允许进入配置表单
+(function () {
+  var bar = document.getElementById('rewriteGateBar');
+  if (!bar) return;
+
+  var textEl = document.getElementById('rewriteGateText');
+  var detailEl = document.getElementById('rewriteGateDetail');
+  var recheckBtn = document.getElementById('btnRewriteRecheck');
+  var startBtn = document.getElementById('btnStartInstall');
+  var hintEl = document.getElementById('rewriteGateHint');
+  var busy = false;
+
+  function setState(state, text) {
+    bar.className = 'gate-bar is-' + state;
+    textEl.textContent = text;
+    if (recheckBtn) recheckBtn.disabled = state === 'checking';
+    if (startBtn) {
+      startBtn.classList.toggle('is-disabled', state !== 'pass');
+      startBtn.setAttribute('aria-disabled', state === 'pass' ? 'false' : 'true');
+    }
+    if (hintEl) {
+      hintEl.textContent = state === 'pass'
+        ? '伪静态检测通过，可以开始安装'
+        : '通过伪静态检测后才能继续';
+    }
+  }
+
+  // 探测一个不存在的路径，用它判断伪静态是否生效：
+  //   生效   → 请求被转发到 index.php；未安装时 init.php 会 302 到 /install/，
+  //            XHR 跟随重定向后 responseURL 最终落在 /install/ 上。
+  //   未生效 → Web 服务器直接返回 404，responseURL 仍是探测路径。
+  function checkRewrite() {
+    if (busy) return;
+    busy = true;
+    detailEl.hidden = true;
+    setState('checking', '正在检测伪静态…');
+
+    // 站点装在子目录时，探测路径也要带上子目录前缀
+    var pagePath = window.location.pathname;
+    var installAt = pagePath.indexOf('/install/');
+    var base = installAt > 0 ? pagePath.slice(0, installAt) : '';
+    var path = base + '/em-rewrite-check-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+    var xhr = new XMLHttpRequest();
+    var finished = false;
+
+    function finish(ok, message) {
+      if (finished) return;
+      finished = true;
+      busy = false;
+      if (ok) {
+        setState('pass', '伪静态配置正确');
+        detailEl.hidden = true;
+      } else {
+        setState('fail', message || '伪静态未配置或未生效');
+        detailEl.hidden = false;
+      }
+    }
+
+    xhr.open('GET', path + '?probe=' + Date.now(), true);
+    xhr.timeout = 10000;
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status === 0) {
+        finish(false, '检测请求被中断，请刷新页面后重试');
+        return;
+      }
+      var landed = /\/install\/?(?:[?#]|$)/.test(xhr.responseURL || '');
+      finish(xhr.status === 200 && landed);
+    };
+    xhr.ontimeout = function () {
+      finish(false, '检测超时，请检查服务器响应后重试');
+    };
+
+    try {
+      xhr.send();
+    } catch (e) {
+      finish(false, '检测请求发送失败，请刷新页面后重试');
+    }
+  }
+
+  if (recheckBtn) {
+    recheckBtn.addEventListener('click', checkRewrite);
+  }
+
+  // 未通过检测时拦住「开始安装」（直接改地址访问第二步的情况不在此拦截范围）
+  if (startBtn) {
+    startBtn.addEventListener('click', function (e) {
+      if (!startBtn.classList.contains('is-disabled')) return;
+      e.preventDefault();
+      EmToast.msg('请先完成伪静态配置并通过检测', 'err');
+    });
+  }
+
+  // 服务器规则切换
+  var tabs = document.querySelectorAll('.rw-tab');
+  Array.prototype.forEach.call(tabs, function (tab) {
+    tab.addEventListener('click', function () {
+      var key = tab.getAttribute('data-rw-tab');
+      Array.prototype.forEach.call(document.querySelectorAll('.rw-tab'), function (item) {
+        item.classList.toggle('is-active', item === tab);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.rw-panel'), function (panel) {
+        panel.classList.toggle('is-active', panel.getAttribute('data-rw-panel') === key);
+      });
+    });
+  });
+
+  // 复制规则：隐藏 textarea + execCommand —— http 直连 IP 访问时 clipboard API 不可用
+  Array.prototype.forEach.call(document.querySelectorAll('.rw-code__copy'), function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.parentNode.querySelector('code');
+      if (!code) return;
+      var tmp = document.createElement('textarea');
+      tmp.value = code.textContent;
+      tmp.style.position = 'fixed';
+      tmp.style.top = '-1000px';
+      document.body.appendChild(tmp);
+      tmp.select();
+      var copied = false;
+      try { copied = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(tmp);
+
+      if (copied) {
+        btn.textContent = '已复制';
+        btn.classList.add('is-done');
+        setTimeout(function () {
+          btn.textContent = '复制';
+          btn.classList.remove('is-done');
+        }, 1600);
+      } else {
+        EmToast.msg('复制失败，请手动选中代码复制', 'err');
+      }
+    });
+  });
+
+  checkRewrite();
+})();
 </script>
 </body>
 </html>

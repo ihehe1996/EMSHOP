@@ -1185,277 +1185,524 @@ $__officialAccount = app(\App\Service\LicenseService::class)->officialAccount();
     background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
 }
 
-/* ---------- 版本更新弹窗（分版本逐条列出） ---------- */
-/* popup.css 只在 iframe 弹窗里引，这里把本弹窗依赖的几条样式内联并限定在 dash-update-modal 下 */
-.layui-layer.dash-update-modal .layui-layer-content { padding: 0 !important; height: 100% !important; }
-.layui-layer.dash-update-modal .popup-wrap {
-    display: flex; flex-direction: column;
+/* ============================================================
+   升级窗口（发现新版本 + 在线升级向导）— 后台菜单同色
+   ============================================================ */
+.layui-layer.dash-update-modal,
+.layui-layer.dash-wizard-modal {
+    background: #ffffff;
+    border: none;
+    overflow: hidden;
+}
+.layui-layer.dash-update-modal .layui-layer-content,
+.layui-layer.dash-wizard-modal .layui-layer-content {
+    padding: 0 !important;
+    height: 100% !important;
+    background: transparent;
+}
+
+.uw-shell {
+    --uw-bg: #f7f8fa;
+    --uw-surface: #ffffff;
+    --uw-line: #e5e7eb;
+    --uw-line-soft: #eef1f5;
+    --uw-text: #1f2937;
+    --uw-muted: #6b7280;
+    --uw-dim: #9ca3af;
+    --uw-blue: #1e9fff;
+    --uw-blue-dark: #1677c8;
+    --uw-green: #10b981;
+    --uw-green-dark: #059669;
+    --uw-red: #ff4d4f;
+    --uw-red-dark: #d9363e;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--uw-bg);
+    color: var(--uw-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
-.layui-layer.dash-update-modal .popup-inner {
-    flex: 1; min-height: 0;
-    overflow-y: auto;
-    padding: 16px 20px;
-    -webkit-overflow-scrolling: touch;
-}
-.layui-layer.dash-update-modal .popup-footer {
+
+/* ---------- Hero：浅色，与后台内容区一致 ---------- */
+.uw-hero {
+    position: relative;
     flex-shrink: 0;
-    display: flex; align-items: center; justify-content: flex-end;
+    padding: 22px 24px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--uw-line);
+}
+.uw-hero__inner { position: relative; }
+.uw-hero__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.uw-hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--uw-muted);
+    font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+.uw-hero__badge i { color: var(--uw-blue); }
+.uw-hero__count {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: 1px solid #e0e6ef;
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--uw-blue-dark);
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.06em;
+}
+.uw-hero__main { margin-top: 14px; }
+.uw-hero__title {
+    color: #111827;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+}
+.uw-hero__title b { font-weight: 700; color: var(--uw-blue-dark); }
+.uw-hero__sub {
+    margin-top: 6px;
+    color: var(--uw-muted);
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+.uw-hero__foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    color: #b0b8c6;
+    font: 500 9.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.16em;
+}
+.uw-progress {
+    position: relative;
+    height: 6px;
+    margin-top: 16px;
+    border-radius: 999px;
+    background: #e8ecf4;
+    overflow: hidden;
+}
+.uw-progress i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--uw-blue);
+    transition: width 0.35s ease;
+}
+.uw-progress.is-fail i { background: var(--uw-red); }
+
+/* ---------- 主体：步骤 + 日志双栏 ---------- */
+.uw-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 14px;
+    padding: 16px 20px 14px;
+}
+.uw-pane {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--uw-line);
+    border-radius: 8px;
+    background: var(--uw-surface);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.uw-pane__head {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--uw-line-soft);
+    background: #f8fafc;
+    color: var(--uw-muted);
+    font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.uw-pane__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--uw-blue);
+}
+.uw-pane__hint { margin-left: auto; color: #b0b8c6; letter-spacing: 0.12em; }
+.uw-log-live {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--uw-green-dark);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+}
+.uw-log-live::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--uw-green);
+}
+.uw-pane--steps .dash-wizard__steps {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 6px 10px;
+}
+.uw-pane--log .dash-wizard__log { flex: 1 1 auto; min-height: 0; }
+
+.uw-pane .dash-wizard__steps::-webkit-scrollbar,
+.dash-wizard__log::-webkit-scrollbar,
+.uw-changelog::-webkit-scrollbar { width: 6px; height: 6px; }
+.uw-pane .dash-wizard__steps::-webkit-scrollbar-thumb,
+.dash-wizard__log::-webkit-scrollbar-thumb,
+.uw-changelog::-webkit-scrollbar-thumb {
+    background: #d7dde8;
+    border-radius: 999px;
+}
+
+/* ---------- 步骤流水线 ---------- */
+.dash-wizard__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.dash-wizard__step {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 10px 7px 8px;
+    border-radius: 8px;
+}
+.dash-wizard__step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 31px;
+    bottom: -6px;
+    width: 1px;
+    background: #e8ecf2;
+}
+.dash-wizard__step-ico {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #9aa3b2;
+    background: #ffffff;
+    border: 1px solid #dfe3ea;
+    font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+.dash-wizard__step-body { flex: 1; min-width: 0; padding-top: 2px; }
+.dash-wizard__step-title {
+    color: var(--uw-muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+.dash-wizard__step-msg {
+    margin-top: 2px;
+    color: var(--uw-dim);
+    font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    word-break: break-all;
+}
+.dash-wizard__step-code {
+    flex-shrink: 0;
+    padding-top: 5px;
+    color: #cbd5e1;
+    font: 500 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.08em;
+}
+.dash-wizard__step.is-running {
+    background: #eaf4ff;
+    box-shadow: inset 0 0 0 1px #cfe7ff;
+}
+.dash-wizard__step.is-running .dash-wizard__step-ico {
+    color: #ffffff;
+    background: var(--uw-blue);
+    border-color: var(--uw-blue);
+}
+.dash-wizard__step.is-running .dash-wizard__step-title { color: var(--uw-blue-dark); font-weight: 600; }
+.dash-wizard__step.is-running .dash-wizard__step-msg { color: var(--uw-blue-dark); }
+.dash-wizard__step.is-done .dash-wizard__step-ico {
+    color: #ffffff;
+    background: var(--uw-green);
+    border-color: var(--uw-green);
+}
+.dash-wizard__step.is-done .dash-wizard__step-title { color: #374151; }
+.dash-wizard__step.is-done .dash-wizard__step-msg { color: var(--uw-green-dark); }
+.dash-wizard__step.is-fail {
+    background: #fff1f0;
+    box-shadow: inset 0 0 0 1px #ffccc7;
+}
+.dash-wizard__step.is-fail .dash-wizard__step-ico {
+    color: #ffffff;
+    background: var(--uw-red);
+    border-color: var(--uw-red);
+}
+.dash-wizard__step.is-fail .dash-wizard__step-title { color: #991b1b; font-weight: 600; }
+.dash-wizard__step.is-fail .dash-wizard__step-msg { color: var(--uw-red-dark); }
+
+/* ---------- 运行日志 ---------- */
+.dash-wizard__log {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 12px;
+    background: #fbfcfe;
+    color: #475569;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Cascadia Code", monospace;
+    font-size: 11.5px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.dash-wizard__log-line { padding: 1px 0; }
+.dash-wizard__log-placeholder {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 18px;
+    text-align: center;
+}
+.dash-wizard__log-placeholder i { color: #cfd6e2; font-size: 22px; }
+.dash-wizard__log-placeholder-title { color: #9aa3b2; font-size: 12.5px; }
+.dash-wizard__log-placeholder-sub { color: #c2c9d6; font-size: 11px; }
+.dash-wizard__log-line.is-err { color: var(--uw-red-dark); }
+.dash-wizard__log-line.is-ok { color: var(--uw-green-dark); }
+.dash-wizard__log-line.is-info { color: var(--uw-blue-dark); }
+
+/* ---------- 发现新版本：更新内容 ---------- */
+.uw-detail-hero {
+    position: relative;
+    flex-shrink: 0;
+    padding: 22px 24px 18px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--uw-line);
+}
+.uw-detail-hero .uw-hero__inner { position: relative; }
+.uw-detail-ver {
+    margin-top: 12px;
+    color: #111827;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+}
+.uw-detail-ver span {
+    margin-left: 9px;
+    color: var(--uw-dim);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+.uw-detail-force {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    padding: 4px 9px;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: #dc2626;
+    font: 600 10.5px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.08em;
+}
+.uw-close {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #64748b;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.uw-close:hover {
+    color: #111827;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+.uw-detail-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 20px 16px;
+}
+.uw-changelog-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--uw-line);
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.uw-changelog {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 16px;
+    color: #374151;
+    font-size: 13px;
+    line-height: 1.75;
+    word-break: break-word;
+}
+.uw-changelog p { margin: 0 0 10px; }
+.uw-changelog p:last-child { margin-bottom: 0; }
+.uw-changelog ul,
+.uw-changelog ol { margin: 0 0 10px; padding-left: 20px; }
+.uw-changelog li { margin-bottom: 5px; }
+.uw-changelog li::marker { color: var(--uw-blue-dark); }
+.uw-changelog a { color: var(--uw-blue-dark); text-decoration: none; }
+.uw-changelog a:hover { text-decoration: underline; }
+.uw-changelog code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #eaf4ff;
+    color: var(--uw-blue-dark);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+.uw-changelog pre {
+    margin: 8px 0;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #334155;
+    overflow-x: auto;
+    font-size: 12px;
+}
+.uw-changelog img { max-width: 100%; border-radius: 6px; }
+.uw-changelog strong,
+.uw-changelog b { color: #111827; }
+.uw-changelog blockquote {
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border-left: 2px solid var(--uw-blue);
+    background: #f4f9ff;
+    color: #4b5563;
+}
+.uw-changelog-empty {
+    padding: 18px 4px;
+    color: var(--uw-dim);
+    font-size: 13px;
+    text-align: center;
+}
+
+/* ---------- 弹窗底部：沿用 iframe 弹窗的 popup-footer / popup-btn ---------- */
+.popup-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 10px;
     padding: 12px 16px;
     background: #fff;
     border-top: 1px solid #f0f0f0;
     box-sizing: border-box;
 }
-.layui-layer.dash-update-modal .popup-btn {
-    height: 34px; line-height: 34px;
+.popup-footer--single { justify-content: center; }
+.popup-btn {
+    height: 34px;
     padding: 0 15px;
     border: none;
     border-radius: 4px;
     font-size: 14px;
     cursor: pointer;
     transition: background 0.2s, opacity 0.2s;
+    line-height: 34px;
 }
-.layui-layer.dash-update-modal .popup-btn .fa { margin-right: 5px; }
-.layui-layer.dash-update-modal .popup-btn--primary { background: #1e9fff; color: #fff; }
-.layui-layer.dash-update-modal .popup-btn--primary:hover { background: #1d87e2; }
-.layui-layer.dash-update-modal .popup-btn--default {
-    background: #fff; color: #333;
-    border: 1px solid #e0e0e0;
-}
-.layui-layer.dash-update-modal .popup-btn--default:hover { background: #f5f5f5; }
-.dash-update__item {
-    padding: 14px 16px;
-    margin-bottom: 12px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
-}
-.dash-update__item:last-child { margin-bottom: 0; }
-.dash-update__head {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 8px; gap: 8px;
-}
-.dash-update__ver {
-    font-size: 14px; font-weight: 600; color: #0f172a;
-}
-.dash-update__ver i { color: #e11d48; margin-right: 4px; }
-.dash-update__time { font-size: 12px; color: #9ca3af; }
-.dash-update__time i { margin-right: 4px; }
-.dash-update__body {
-    font-size: 13px; color: #374151;
-    line-height: 1.7;
-    word-break: break-word;
-}
-/* 更新内容后端返回 HTML（含 p / ul / li 等），这里做一些常见标签的还原 */
-.dash-update__body p { margin: 0 0 8px; }
-.dash-update__body p:last-child { margin-bottom: 0; }
-.dash-update__body ul,
-.dash-update__body ol { margin: 0 0 8px; padding-left: 22px; }
-.dash-update__body li { margin-bottom: 4px; }
-.dash-update__body a { color: #6366f1; text-decoration: none; }
-.dash-update__body a:hover { text-decoration: underline; }
-.dash-update__body code {
-    background: #eef2ff; color: #4338ca;
-    padding: 1px 6px; border-radius: 3px;
-    font-family: Consolas, Monaco, monospace; font-size: 12px;
-}
-.dash-update__body pre {
-    background: #0f172a; color: #e2e8f0;
-    padding: 10px 12px; border-radius: 6px;
-    overflow-x: auto; font-size: 12px; margin: 6px 0;
-}
-.dash-update__body img { max-width: 100%; border-radius: 4px; }
-.dash-update__body strong, .dash-update__body b { color: #0f172a; }
+.popup-btn--primary { background: #1e9fff; color: #fff; }
+.popup-btn--primary .fa { width: 14px; }
+.popup-btn--primary:hover { background: #1d87e2; }
+.popup-btn--primary:disabled { background: #a0cfff; cursor: not-allowed; }
+.popup-btn--default { background: #fff; color: #333; border: 1px solid #e0e0e0; }
+.popup-btn--default:hover { background: #f5f5f5; }
+.popup-btn--danger { background: #ff4d4f; color: #fff; }
+.popup-btn--danger:hover { background: #e63c3e; }
+.popup-btn--left { margin-right: auto; }
+.popup-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* 手机端：版本更新 / 升级向导弹窗 */
-@media (max-width: 640px) {
-    .layui-layer.dash-update-modal .popup-inner,
-    .layui-layer.dash-wizard-modal .popup-inner { padding: 12px 14px; }
-    .layui-layer.dash-update-modal .popup-footer,
-    .layui-layer.dash-wizard-modal .popup-footer {
-        flex-wrap: wrap;
-        justify-content: stretch;
-        gap: 8px;
-        padding: 10px 12px;
-    }
-    .layui-layer.dash-update-modal .popup-footer .popup-btn,
-    .layui-layer.dash-wizard-modal .popup-footer .dash-wizard__btn,
-    .layui-layer.dash-wizard-modal .popup-footer .em-btn {
-        flex: 1 1 auto;
-        min-width: 0;
-        text-align: center;
-        justify-content: center;
-        white-space: nowrap;
-    }
-    .dash-update__item { padding: 12px 12px; }
-    .dash-update__head { flex-wrap: wrap; align-items: flex-start; }
-    .dash-wizard__hero { padding: 12px 14px; gap: 10px; }
-    .dash-wizard__hero-ico { width: 34px; height: 34px; font-size: 16px; }
-    .dash-wizard__hero-title { font-size: 14px; }
-    .dash-wizard__log { padding: 9px 10px; }
-    .dash-wizard__logwrap { min-height: 72px; }
-}
-
-/* ---------- 升级向导弹窗 ---------- */
-.layui-layer.dash-wizard-modal .layui-layer-content { padding: 0 !important; height: 100% !important; }
-.layui-layer.dash-wizard-modal .popup-wrap { display: flex; flex-direction: column; height: 100%; }
-.layui-layer.dash-wizard-modal .popup-inner {
-    flex: 1 1 auto; min-height: 0; overflow: hidden;
-    display: flex; flex-direction: column;
-    padding: 16px 18px 0;
-    background: #f8fafc;
-}
-.layui-layer.dash-wizard-modal .popup-footer {
-    flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-    padding: 12px 18px; background: #fff; border-top: 1px solid #eef0f4;
-}
-
-/* Hero：目标版本 + 进度条 */
-.dash-wizard__hero {
-    flex-shrink: 0;
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px;
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 55%, #7c6cf5 100%);
-    color: #fff; border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.22);
-}
-.dash-wizard__hero-ico {
-    flex-shrink: 0; width: 42px; height: 42px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 11px; font-size: 19px;
-    background: rgba(255, 255, 255, 0.18);
-}
-.dash-wizard__hero-main { flex: 1; min-width: 0; }
-.dash-wizard__hero-title {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 15px; font-weight: 500;
-}
-.dash-wizard__hero-title b { font-weight: 700; letter-spacing: 0.3px; }
-.dash-wizard__hero-count {
-    margin-left: auto; flex-shrink: 0;
-    padding: 2px 9px; border-radius: 999px;
-    font-size: 11px; font-weight: 600;
-    background: rgba(255, 255, 255, 0.2);
-}
-.dash-wizard__hero-sub { font-size: 12px; opacity: 0.82; margin-top: 3px; }
-.dash-wizard__progress {
-    height: 4px; margin-top: 10px;
-    background: rgba(255, 255, 255, 0.22);
-    border-radius: 999px; overflow: hidden;
-}
-.dash-wizard__progress i {
-    display: block; height: 100%; width: 0;
-    background: #fff; border-radius: 999px;
-    transition: width 0.35s ease;
-}
-.dash-wizard__progress.is-fail i { background: #fecaca; }
-
-/* 主体：步骤时间轴（定高）+ 日志（占满剩余） */
-.dash-wizard__body {
-    flex: 1 1 auto; min-height: 0;
-    display: flex; flex-direction: column;
-    padding: 14px 0 16px;
-    overflow-y: auto;   /* 窗口极矮时兜底，避免时间轴/日志被裁掉 */
-}
-
-/* 时间轴：去掉每步的卡片边框，用左侧竖线 + 圆点表达流程 */
-.dash-wizard__steps { list-style: none; margin: 0; padding: 0; flex-shrink: 0; }
-.dash-wizard__step {
-    position: relative;
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 5px 6px 5px 2px;
-    border-radius: 8px;
-}
-/* 连接线：最后一步不画 */
-.dash-wizard__step:not(:last-child)::before {
-    content: ''; position: absolute;
-    left: 12px; top: 26px; bottom: -6px;
-    width: 1.5px; background: #e2e6ee;
-}
-.dash-wizard__step-ico {
-    position: relative; z-index: 1;
-    flex-shrink: 0; width: 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; font-size: 11px; font-weight: 600;
-    background: #fff; color: #9aa3b2;
-    border: 1.5px solid #e2e6ee;
-    transition: all 0.2s ease;
-}
-.dash-wizard__step-body { flex: 1; min-width: 0; padding-top: 1px; }
-.dash-wizard__step-title { font-size: 13px; color: #6b7280; line-height: 1.5; }
-.dash-wizard__step-msg {
-    font-size: 12px; color: #9aa3b2; margin-top: 1px;
-    line-height: 1.5; word-break: break-all;
-}
-/* 进行中 */
-.dash-wizard__step.is-running { background: #eef2ff; }
-.dash-wizard__step.is-running .dash-wizard__step-ico {
-    background: #4f46e5; border-color: #4f46e5; color: #fff;
-}
-.dash-wizard__step.is-running .dash-wizard__step-title { color: #4338ca; font-weight: 600; }
-.dash-wizard__step.is-running .dash-wizard__step-msg { color: #6366f1; }
-/* 已完成 */
-.dash-wizard__step.is-done .dash-wizard__step-ico {
-    background: #10b981; border-color: #10b981; color: #fff;
-}
-.dash-wizard__step.is-done .dash-wizard__step-title { color: #374151; }
-.dash-wizard__step.is-done .dash-wizard__step-msg { color: #10b981; }
-/* 失败 */
-.dash-wizard__step.is-fail { background: #fef2f2; }
-.dash-wizard__step.is-fail .dash-wizard__step-ico {
-    background: #ef4444; border-color: #ef4444; color: #fff;
-}
-.dash-wizard__step.is-fail .dash-wizard__step-title { color: #991b1b; font-weight: 600; }
-.dash-wizard__step.is-fail .dash-wizard__step-msg { color: #ef4444; }
-
-/* 日志：不再写死 max-height，改为撑满剩余空间，避免步骤多时溢出弹窗 */
-.dash-wizard__logwrap {
-    flex: 1 1 auto; min-height: 96px;
-    display: flex; flex-direction: column;
-    margin-top: 12px;
-}
-.dash-wizard__loghead {
-    flex-shrink: 0;
-    display: flex; align-items: center; gap: 5px;
-    margin-bottom: 5px;
-    font-size: 11px; color: #9aa3b2; letter-spacing: 0.5px;
-}
-.dash-wizard__log {
-    flex: 1 1 auto; min-height: 0; overflow-y: auto;
-    background: #0f172a; color: #cbd5e1;
-    font-family: Consolas, "Cascadia Code", Monaco, monospace;
-    font-size: 12px; line-height: 1.7;
-    border-radius: 10px;
-    padding: 10px 12px;
-    white-space: pre-wrap; word-break: break-all;
-}
-.dash-wizard__log-line { padding: 1px 0; }
-.dash-wizard__log-line.is-err { color: #fca5a5; }
-.dash-wizard__log-line.is-ok { color: #86efac; }
-.dash-wizard__log-line.is-info { color: #93c5fd; }
-
-/* 底部按钮：统一一套（原来「开始升级」混用了 em-btn，和另两个不一致） */
+/* ---------- 应用更新弹窗仍复用这套浅色按钮 ---------- */
 .dash-wizard__btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    height: 34px; padding: 0 16px;
-    border: 1px solid #e5e7eb; border-radius: 8px;
-    background: #fff; color: #374151;
-    font-size: 13px; font-weight: 500; cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
     transition: all 0.15s ease;
 }
 .dash-wizard__btn:hover:not(:disabled) { background: #f9fafb; border-color: #d8dde6; }
 .dash-wizard__btn--primary {
-    background: #4f46e5; color: #fff; border-color: #4f46e5;
+    background: #4f46e5;
+    color: #fff;
+    border-color: #4f46e5;
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
 }
 .dash-wizard__btn--primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca; }
 .dash-wizard__btn--danger { background: #fff; color: #dc2626; border-color: #fecaca; }
 .dash-wizard__btn--danger:hover:not(:disabled) { background: #fef2f2; border-color: #fca5a5; }
-/* 回滚是破坏性操作，放最左边和其他按钮拉开距离 */
 .dash-wizard__btn--left { margin-right: auto; }
 .dash-wizard__btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
+/* ---------- 窄屏 ---------- */
+@media (max-width: 640px) {
+    .uw-hero { padding: 18px 16px 14px; }
+    .uw-hero__title { font-size: 18px; }
+    .uw-hero__foot { display: none; }
+    .uw-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        gap: 10px;
+        padding: 12px;
+    }
+    .uw-detail-body { padding: 12px; }
+    .uw-detail-ver { font-size: 24px; }
+    .popup-footer { padding: 10px 12px; }
+    .popup-btn { height: 32px; line-height: 32px; padding: 0 12px; font-size: 13px; }
+    .uw-hero__count { padding: 5px 8px; font-size: 10px; }
+}
 /* ---------- 卡片通用 ---------- */
 .dash-card {
     background: #fff;
@@ -2055,15 +2302,20 @@ $(function () {
         var $btn = $('#dashCheckUpdate');
         $btn.prop('disabled', false);
         var u = data.update || {};
+        var dryRun = !!data.update_dry_run;
         if (u.has_new) {
             // 只写「发现新版本」：版本号与是否强制都不在卡片上占位置
             // （目标版本在升级向导标题里，force 标记暂不外露；数据里都还在）
             $label.html('<i class="fa fa-bell" style="margin-right:4px;"></i>发现新版本')
                   .css({ color: '#e11d48', fontWeight: 600 });
-            $btn.addClass('dash-version-btn--alert').html('<i class="fa fa-cloud-download"></i> 立即更新');
+            $btn.addClass('dash-version-btn--alert')
+                .html('<i class="fa fa-cloud-download"></i> ' + (dryRun ? '联调更新' : '立即更新'))
+                .attr('title', dryRun ? '联调模式：升级不会覆盖文件' : '');
         } else {
             $label.text('当前已是最新版本').css({ color: '', fontWeight: '' });
-            $btn.removeClass('dash-version-btn--alert').html('<i class="fa fa-refresh"></i> 检查更新');
+            $btn.removeClass('dash-version-btn--alert')
+                .html('<i class="fa fa-refresh"></i> 检查更新')
+                .removeAttr('title');
         }
     }
     function renderVersionError() {
@@ -2280,19 +2532,76 @@ $(function () {
             loadDashIndex();
             return;
         }
-        // package_url 非空 = 服务端给了增量包且当前版本满足 min_version，可走在线升级
-        if (u.package_url) {
-            startUpdateWizard(u);
-            return;
-        }
-        var tip = u.min_version
-            ? '当前版本低于最低可升级版本 v' + u.min_version + '，只能下载完整安装包手动升级。'
-            : '该版本暂未提供在线升级包，请下载安装包手动升级。';
-        layui.layer.confirm(tip, function (idx) {
-            layui.layer.close(idx);
-            $('#dashGetDownloadBtn').trigger('click');
-        });
+        // 先展示更新内容，由用户决定是否立即升级 / 下载安装包
+        showUpdateDetails(u);
     });
+
+    // ------------------------------------------------------------------
+    // 发现新版本：先展示更新内容，再进入升级向导 / 手动下载
+    // ------------------------------------------------------------------
+    function showUpdateDetails(u) {
+        if (typeof layui === 'undefined' || !layui.layer) return;
+
+        var changelog = String(u.changelog || '').trim();
+        var current = String((__dashIndexData && __dashIndexData.current_version) || '');
+        var bodyHtml = changelog !== ''
+            ? '<div class="uw-changelog">' + changelog + '</div>'
+            : '<div class="uw-changelog-empty">该版本暂无更新说明</div>';
+
+        var html =
+            '<div class="uw-shell">' +
+                '<header class="uw-hero uw-detail-hero">' +
+                    '<div class="uw-hero__grid"></div>' +
+                    '<div class="uw-hero__inner">' +
+                        '<div class="uw-hero__top">' +
+                            '<span class="uw-hero__badge"><i class="fa fa-bolt"></i> UPDATE READY</span>' +
+                            '<button type="button" class="uw-close" id="dashUpdateClose" aria-label="关闭">&times;</button>' +
+                        '</div>' +
+                        '<div class="uw-detail-ver">v' + escapeHtml(u.version || '') +
+                            (current !== '' ? '<span>当前 v' + escapeHtml(current) + '</span>' : '') +
+                        '</div>' +
+                        (u.force ? '<span class="uw-detail-force"><i class="fa fa-exclamation-circle"></i> FORCE UPDATE</span>' : '') +
+                    '</div>' +
+                '</header>' +
+                '<div class="uw-detail-body">' +
+                    '<div class="uw-changelog-wrap">' +
+                        '<div class="uw-pane__head"><span class="uw-pane__dot"></span> 更新内容 <span class="uw-pane__hint">CHANGELOG</span></div>' +
+                        bodyHtml +
+                    '</div>' +
+                '</div>' +
+                '<div class="popup-footer">' +
+                    '<button type="button" class="popup-btn popup-btn--default" id="dashUpdateLater">稍后再说</button>' +
+                    '<button type="button" class="popup-btn popup-btn--primary" id="dashUpdateGo">' +
+                        (u.package_url ? '<i class="fa fa-cloud-download"></i> 立即升级' : '<i class="fa fa-download"></i> 下载安装包') +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+
+        var idx = layui.layer.open({
+            type: 1,
+            title: false,
+            skin: 'admin-modal dash-update-modal',
+            area: [
+                window.innerWidth >= 640 ? '560px' : '94%',
+                window.innerHeight >= 640 ? '74%' : '88%'
+            ],
+            shadeClose: true,
+            closeBtn: 0,
+            content: html
+        });
+
+        $('#dashUpdateClose, #dashUpdateLater').on('click', function () {
+            layui.layer.close(idx);
+        });
+        $('#dashUpdateGo').on('click', function () {
+            layui.layer.close(idx);
+            if (u.package_url) {
+                startUpdateWizard(u);
+            } else {
+                $('#dashGetDownloadBtn').trigger('click');
+            }
+        });
+    }
 
     // ==================================================================
     // 在线升级向导：6 步顺序执行，每步独立 AJAX（不备份、不保留升级包）
@@ -2304,6 +2613,7 @@ $(function () {
             { id: 'preflight', name: '环境预检' },
             { id: 'download',  name: '下载升级包' },
             { id: 'extract',   name: '解压升级包' },
+            { id: 'check_permissions', name: '校验文件权限' },
             { id: 'apply',     name: '应用新文件' },
             { id: 'migrate',   name: '数据库迁移' },
             { id: 'run_script', name: '执行更新脚本' },
@@ -2319,6 +2629,14 @@ $(function () {
             return bytes.toFixed(2) + ' ' + u[i];
         }
 
+        function formatDuration(seconds) {
+            seconds = Math.max(0, parseInt(seconds, 10) || 0);
+            if (seconds < 60) return seconds + 's';
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            return m + 'm ' + (s < 10 ? '0' + s : s) + 's';
+        }
+
         // 组装步骤时间轴 + 初始按钮区
         var stepsHtml = STEPS.map(function (s, i) {
             return '<li class="dash-wizard__step is-pending" data-step="' + s.id + '">' +
@@ -2327,41 +2645,54 @@ $(function () {
                     '<div class="dash-wizard__step-title">' + escapeHtml(s.name) + '</div>' +
                     '<div class="dash-wizard__step-msg"></div>' +
                 '</div>' +
+                '<span class="dash-wizard__step-code">' + ('0' + (i + 1)).slice(-2) + '</span>' +
             '</li>';
         }).join('');
-        var html = '<div class="popup-wrap">' +
-            '<div class="popup-inner">' +
-                '<div class="dash-wizard__hero">' +
-                    '<span class="dash-wizard__hero-ico"><i class="fa fa-cloud-download"></i></span>' +
-                    '<div class="dash-wizard__hero-main">' +
-                        '<div class="dash-wizard__hero-title">' +
-                            '<span>升级到 <b>v' + escapeHtml(target.version || '') + '</b></span>' +
-                            '<span class="dash-wizard__hero-count" id="dashWizardCount">0 / ' + STEPS.length + '</span>' +
+        var html =
+            '<div class="uw-shell">' +
+                '<header class="uw-hero">' +
+                    '<div class="uw-hero__grid"></div>' +
+                    '<div class="uw-hero__inner">' +
+                        '<div class="uw-hero__top">' +
+                            '<span class="uw-hero__badge"><i class="fa fa-bolt"></i> SYSTEM UPDATE</span>' +
+                            '<span class="uw-hero__count" id="dashWizardCount">0 / ' + STEPS.length + '</span>' +
                         '</div>' +
-                        '<div class="dash-wizard__hero-sub" id="dashWizardHint">升级过程请不要关闭浏览器或离开本页</div>' +
-                        '<div class="dash-wizard__progress" id="dashWizardProgress"><i id="dashWizardBar"></i></div>' +
+                        '<div class="uw-hero__main">' +
+                            '<div class="uw-hero__title">升级到 <b>v' + escapeHtml(target.version || '') + '</b></div>' +
+                            '<div class="uw-hero__sub" id="dashWizardHint">升级过程请不要关闭浏览器或离开本页</div>' +
+                        '</div>' +
+                        '<div class="uw-progress" id="dashWizardProgress"><i id="dashWizardBar"></i></div>' +
+                        '<div class="uw-hero__foot"><span>PIPELINE</span><span>SECURE UPDATE</span></div>' +
                     '</div>' +
+                '</header>' +
+                '<div class="uw-body">' +
+                    '<section class="uw-pane uw-pane--steps">' +
+                        '<div class="uw-pane__head"><span class="uw-pane__dot"></span> 执行步骤 <span class="uw-pane__hint">PIPELINE</span></div>' +
+                        '<ul class="dash-wizard__steps">' + stepsHtml + '</ul>' +
+                    '</section>' +
+                    '<section class="uw-pane uw-pane--log">' +
+                        '<div class="uw-pane__head"><span class="uw-pane__dot"></span> 运行日志 <span class="uw-log-live">LIVE</span></div>' +
+                        '<div class="dash-wizard__log" id="dashWizardLog">' +
+                            '<div class="dash-wizard__log-placeholder">' +
+                                '<i class="fa fa-terminal"></i>' +
+                                '<div class="dash-wizard__log-placeholder-title">请点击「开始升级」</div>' +
+                                '<div class="dash-wizard__log-placeholder-sub">升级步骤和运行日志会在这里实时显示</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</section>' +
                 '</div>' +
-                '<div class="dash-wizard__body">' +
-                    '<ul class="dash-wizard__steps">' + stepsHtml + '</ul>' +
-                    '<div class="dash-wizard__logwrap">' +
-                        '<div class="dash-wizard__loghead"><i class="fa fa-terminal"></i> 运行日志</div>' +
-                        '<div class="dash-wizard__log" id="dashWizardLog"></div>' +
-                    '</div>' +
+                '<div class="popup-footer">' +
+                    '<button type="button" class="popup-btn popup-btn--danger popup-btn--left" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 删除本次新增文件</button>' +
+                    '<button type="button" class="popup-btn popup-btn--default" id="dashWizardClose">关闭</button>' +
+                    '<button type="button" class="popup-btn popup-btn--primary" id="dashWizardStart"><i class="fa fa-play"></i> 开始升级</button>' +
                 '</div>' +
-            '</div>' +
-            '<div class="popup-footer">' +
-                '<button type="button" class="dash-wizard__btn dash-wizard__btn--danger dash-wizard__btn--left" id="dashWizardRollback" style="display:none;"><i class="fa fa-undo"></i> 删除本次新增文件</button>' +
-                '<button type="button" class="dash-wizard__btn" id="dashWizardClose">关闭</button>' +
-                '<button type="button" class="dash-wizard__btn dash-wizard__btn--primary" id="dashWizardStart"><i class="fa fa-play"></i> 开始升级</button>' +
-            '</div>' +
-        '</div>';
+            '</div>';
 
         var idx = layui.layer.open({
             type: 1,
-            title: '在线升级',
+            title: false,
             skin: 'admin-modal dash-wizard-modal',
-            area: [window.innerWidth >= 640 ? '620px' : '94%', window.innerHeight >= 640 ? '600px' : '90%'],
+            area: [window.innerWidth >= 900 ? '800px' : '94%', window.innerHeight >= 760 ? '700px' : '92%'],
             shadeClose: false,
             closeBtn: 0,  // 运行中不允许点遮罩/右上角关，只能走底部按钮
             content: html
@@ -2369,6 +2700,7 @@ $(function () {
 
         function log(msg, type) {
             var $log = $('#dashWizardLog');
+            $log.find('.dash-wizard__log-placeholder').remove();
             var t = new Date().toTimeString().slice(0, 8);
             $log.append('<div class="dash-wizard__log-line is-' + (type || 'info') + '">[' + t + '] ' + escapeHtml(msg) + '</div>');
             $log.scrollTop($log[0].scrollHeight);
@@ -2418,25 +2750,280 @@ $(function () {
                 });
             },
             download: function () {
-                setStep('download', 'running', '下载中…');
-                log('开始下载：' + target.package_url);
-                // 服务端不下发 SHA256，完整性靠后端「https + 授权线路同域」白名单把关
-                return callStep('download', {
-                    package_url: target.package_url
-                }).then(function (res) {
-                    if (res.code !== 200) throw new Error(res.msg || '下载失败');
-                    state.zip_path = res.data.path;
-                    setStep('download', 'done', formatBytes(res.data.size));
-                    log('下载完成 · 大小 ' + formatBytes(res.data.size), 'ok');
+                setStep('download', 'running', '准备下载…');
+                state.zip_path = '';
+
+                // 日志里只保留一条「实时进度」行，不显示下载地址
+                var dlStartedAt = Date.now();
+                var dlLiveDone = false;
+                var $dlLog = $('#dashWizardLog');
+                var $dlLive = $(
+                    '<div class="dash-wizard__log-line is-info">[' +
+                    new Date().toTimeString().slice(0, 8) +
+                    '] <span class="dl-live">开始下载升级包…</span></div>'
+                ).appendTo($dlLog);
+                var $dlText = $dlLive.find('.dl-live');
+                $dlLog.scrollTop($dlLog[0].scrollHeight);
+
+                function elapsedText() {
+                    return formatDuration(Math.max(0, Math.round((Date.now() - dlStartedAt) / 1000)));
+                }
+                function setLive(text, type) {
+                    $dlLive.removeClass('is-info is-ok is-err').addClass('is-' + (type || 'info'));
+                    $dlText.text(text);
+                    $dlLog.scrollTop($dlLog[0].scrollHeight);
+                }
+
+                // 服务端不下发 SHA256，完整性靠后端「https + 授权线路同域」白名单把关。
+                // download_stream 会边下边输出 NDJSON 进度，XHR 的 onprogress 实时读取。
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '<?= EM_ADMIN_PATH ?>/update', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+
+                    var seen = 0;
+                    var buffer = '';
+
+                    function handleLine(line) {
+                        line = String(line || '').trim();
+                        if (line === '') return;
+                        var ev;
+                        try { ev = JSON.parse(line); } catch (e) { return; }
+
+                        if (ev.type === 'progress') {
+                            var total = parseInt(ev.total, 10) || 0;
+                            var downloaded = parseInt(ev.downloaded, 10) || 0;
+                            var pct = total > 0 ? Math.floor(downloaded / total * 100) : 0;
+                            var text = total > 0
+                                ? formatBytes(downloaded) + ' / ' + formatBytes(total) + '（' + pct + '%）'
+                                : formatBytes(downloaded);
+                            setStep('download', 'running', text);
+                            setLive('下载中 · ' + text + ' · 耗时 ' + elapsedText(), 'info');
+                            return;
+                        }
+
+                        if (ev.type === 'done') {
+                            if (dlLiveDone) return;
+                            dlLiveDone = true;
+                            if (!ev.ok) {
+                                setLive('下载失败 · 耗时 ' + elapsedText(), 'err');
+                                reject(new Error(ev.error || '下载失败'));
+                                return;
+                            }
+                            state.zip_path = ev.path;
+                            setStep('download', 'done', formatBytes(ev.size));
+                            setLive('下载完成 · 大小 ' + formatBytes(ev.size) + ' · 耗时 ' + elapsedText(), 'ok');
+                            resolve();
+                            return;
+                        }
+
+                        // 非流式错误（如 CSRF 失效）走普通 JSON 响应
+                        if (ev.code !== undefined && !dlLiveDone) {
+                            dlLiveDone = true;
+                            setLive('下载失败 · 耗时 ' + elapsedText(), 'err');
+                            reject(new Error(ev.msg || '下载失败'));
+                        }
+                    }
+
+                    function drain() {
+                        var text = xhr.responseText || '';
+                        if (text.length <= seen) return;
+                        buffer += text.slice(seen);
+                        seen = text.length;
+                        var lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        lines.forEach(handleLine);
+                    }
+
+                    xhr.onprogress = drain;
+                    xhr.onload = function () {
+                        drain();
+                        if (buffer.trim() !== '') {
+                            handleLine(buffer);
+                            buffer = '';
+                        }
+                        if (!state.zip_path && !dlLiveDone) {
+                            dlLiveDone = true;
+                            setLive('下载失败 · 耗时 ' + elapsedText(), 'err');
+                            reject(new Error('下载未完成：服务端没有返回结果'));
+                        }
+                    };
+                    xhr.onerror = function () {
+                        if (!dlLiveDone) {
+                            dlLiveDone = true;
+                            setLive('下载失败 · 耗时 ' + elapsedText(), 'err');
+                        }
+                        reject(new Error('网络异常'));
+                    };
+
+                    xhr.send(
+                        '_action=download_stream'
+                        + '&csrf_token=' + encodeURIComponent(window.adminCsrfToken || '')
+                        + '&package_url=' + encodeURIComponent(target.package_url || '')
+                        + '&package_sha256='
+                    );
                 });
             },
             extract: function () {
-                setStep('extract', 'running', '解压中…');
-                return callStep('extract', { zip_path: state.zip_path }).then(function (res) {
-                    if (res.code !== 200) throw new Error(res.msg || '解压失败');
-                    state.extract_path = res.data.extract_path;
-                    setStep('extract', 'done', '共 ' + res.data.files + ' 个文件');
-                    log('解压完成 · 共 ' + res.data.files + ' 个文件（升级包已删除）', 'ok');
+                setStep('extract', 'running', '准备解压…');
+                state.extract_path = '';
+
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '<?= EM_ADMIN_PATH ?>/update', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+
+                    var seen = 0;
+                    var buffer = '';
+                    var done = false;
+
+                    function handleLine(line) {
+                        line = String(line || '').trim();
+                        if (line === '') return;
+                        var ev;
+                        try { ev = JSON.parse(line); } catch (e) { return; }
+
+                        if (ev.type === 'progress') {
+                            var total = parseInt(ev.total, 10) || 0;
+                            var n = parseInt(ev.done, 10) || 0;
+                            setStep('extract', 'running', total > 0
+                                ? '已解压 ' + n + ' / ' + total + ' 个文件（' + Math.floor(n / total * 100) + '%）'
+                                : '已解压 ' + n + ' 个文件');
+                            return;
+                        }
+
+                        if (ev.type === 'done') {
+                            if (done) return;
+                            done = true;
+                            if (!ev.ok) {
+                                reject(new Error(ev.error || '解压失败'));
+                                return;
+                            }
+                            state.extract_path = ev.extract_path;
+                            setStep('extract', 'done', '共 ' + ev.files + ' 个文件');
+                            log('解压完成 · 共 ' + ev.files + ' 个文件（升级包已删除）', 'ok');
+                            resolve();
+                            return;
+                        }
+
+                        if (ev.code !== undefined) {
+                            done = true;
+                            reject(new Error(ev.msg || '解压失败'));
+                        }
+                    }
+
+                    function drain() {
+                        var text = xhr.responseText || '';
+                        if (text.length <= seen) return;
+                        buffer += text.slice(seen);
+                        seen = text.length;
+                        var lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        lines.forEach(handleLine);
+                    }
+
+                    xhr.onprogress = drain;
+                    xhr.onload = function () {
+                        drain();
+                        if (buffer.trim() !== '') {
+                            handleLine(buffer);
+                            buffer = '';
+                        }
+                        if (!done) {
+                            reject(new Error('解压未完成：服务端没有返回结果'));
+                        }
+                    };
+                    xhr.onerror = function () { reject(new Error('网络异常')); };
+
+                    xhr.send(
+                        '_action=extract_stream'
+                        + '&csrf_token=' + encodeURIComponent(window.adminCsrfToken || '')
+                        + '&zip_path=' + encodeURIComponent(state.zip_path || '')
+                    );
+                });
+            },
+            check_permissions: function () {
+                setStep('check_permissions', 'running', '准备检查…');
+
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('POST', '<?= EM_ADMIN_PATH ?>/update', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+
+                    var seen = 0;
+                    var buffer = '';
+                    var done = false;
+
+                    function handleLine(line) {
+                        line = String(line || '').trim();
+                        if (line === '') return;
+                        var ev;
+                        try { ev = JSON.parse(line); } catch (e) { return; }
+
+                        if (ev.type === 'progress') {
+                            var total = parseInt(ev.total, 10) || 0;
+                            var n = parseInt(ev.checked, 10) || 0;
+                            setStep('check_permissions', 'running', total > 0
+                                ? '已检查 ' + n + ' / ' + total + ' 个文件（' + Math.floor(n / total * 100) + '%）'
+                                : '已检查 ' + n + ' 个文件');
+                            return;
+                        }
+
+                        if (ev.type === 'done') {
+                            if (done) return;
+                            done = true;
+                            if (!ev.ok) {
+                                var errs = ev.errors || [];
+                                if (errs.length) {
+                                    log('发现 ' + errs.length + ' 个文件/目录不可写：', 'err');
+                                    errs.forEach(function (e) {
+                                        log('  · ' + (e.path || '（未知路径）') + ' —— ' + (e.reason || '不可写'), 'err');
+                                    });
+                                }
+                                reject(new Error(ev.msg || '文件权限校验失败'));
+                                return;
+                            }
+                            (ev.warnings || []).forEach(function (w) { log('注意：' + w, 'info'); });
+                            setStep('check_permissions', 'done', '共检查 ' + (ev.checked || 0) + ' 个文件，全部可写');
+                            log('文件权限校验通过 · 共检查 ' + (ev.checked || 0) + ' 个文件', 'ok');
+                            resolve();
+                            return;
+                        }
+
+                        if (ev.code !== undefined) {
+                            done = true;
+                            reject(new Error(ev.msg || '文件权限校验失败'));
+                        }
+                    }
+
+                    function drain() {
+                        var text = xhr.responseText || '';
+                        if (text.length <= seen) return;
+                        buffer += text.slice(seen);
+                        seen = text.length;
+                        var lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        lines.forEach(handleLine);
+                    }
+
+                    xhr.onprogress = drain;
+                    xhr.onload = function () {
+                        drain();
+                        if (buffer.trim() !== '') {
+                            handleLine(buffer);
+                            buffer = '';
+                        }
+                        if (!done) {
+                            reject(new Error('权限校验未完成：服务端没有返回结果'));
+                        }
+                    };
+                    xhr.onerror = function () { reject(new Error('网络异常')); };
+
+                    xhr.send(
+                        '_action=check_permissions_stream'
+                        + '&csrf_token=' + encodeURIComponent(window.adminCsrfToken || '')
+                        + '&extract_path=' + encodeURIComponent(state.extract_path || '')
+                    );
                 });
             },
             apply: function () {
@@ -2446,8 +3033,10 @@ $(function () {
                 }).then(function (res) {
                     if (res.code !== 200) throw new Error(res.msg || '应用失败');
                     state.manifest_file = res.data.manifest_file;
-                    setStep('apply', 'done', '替换 ' + res.data.replaced + ' · 新增 ' + res.data.added + ' · 跳过 ' + res.data.skipped);
-                    log('文件覆盖完成', 'ok');
+                    setStep('apply', 'done', res.data.dry_run
+                        ? '已跳过文件覆盖（联调模式）· 包内 ' + res.data.skipped + ' 个文件'
+                        : '替换 ' + res.data.replaced + ' · 新增 ' + res.data.added + ' · 跳过 ' + res.data.skipped);
+                    log(res.data.dry_run ? '联调模式：未覆盖任何文件' : '文件覆盖完成', 'ok');
                 });
             },
             migrate: function () {
@@ -2518,12 +3107,13 @@ $(function () {
         $(document).on('click.dashWizard', '#dashWizardStart', function () {
             var $start = $(this);
             var $close = $('#dashWizardClose');
+            $('#dashWizardLog .dash-wizard__log-placeholder').remove();
             $start.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 升级中…');
             $close.prop('disabled', true);
             runAll().then(function () {
                 $('#dashWizardHint').text('升级完成，请刷新页面验证新版本');
                 $start.hide();
-                $close.prop('disabled', false).addClass('dash-wizard__btn--primary')
+                $close.prop('disabled', false).removeClass('popup-btn--default').addClass('popup-btn--primary')
                       .html('<i class="fa fa-refresh"></i> 刷新页面');
                 $close.off('click').on('click', function () { location.reload(); });
             }, function (err) {
@@ -2549,7 +3139,7 @@ $(function () {
                         if (res.data && res.data.csrf_token) window.adminCsrfToken = res.data.csrf_token;
                         log('已删除本次新增文件（共 ' + (res.data.restored_files || 0) + ' 个）', 'ok');
                         $btn.hide();
-                        $('#dashWizardClose').addClass('dash-wizard__btn--primary').html('<i class="fa fa-refresh"></i> 刷新页面');
+                        $('#dashWizardClose').removeClass('popup-btn--default').addClass('popup-btn--primary').html('<i class="fa fa-refresh"></i> 刷新页面');
                         $('#dashWizardClose').off('click').on('click', function () { location.reload(); });
                     }, function () {
                         log('回滚请求失败', 'err');
