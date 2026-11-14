@@ -43,6 +43,23 @@ final class UpdateService extends BaseService
     private const APPLY_DRY_RUN = false;
 
     /**
+     * 【联调临时开关】true = 权限校验固定返回一条模拟错误，用于查看失败界面。
+     *
+     * 测试完必须改回 false。
+     */
+    private const CHECK_PERMISSIONS_FORCE_FAIL = false;
+
+    /**
+     * 是否处于「只统计不覆盖文件」的联调模式。
+     *
+     * 后台首页用它把「立即更新」按钮改成「联调更新」，避免忘记关闭开关。
+     */
+    public static function isApplyDryRun(): bool
+    {
+        return self::APPLY_DRY_RUN;
+    }
+
+    /**
      * apply 时保留不覆盖的相对路径白名单。
      * 命中这些路径前缀的文件，即使升级包里带了也不会被写入。
      */
@@ -171,9 +188,10 @@ final class UpdateService extends BaseService
      * 注意：base-data 接口（含 patch_package_url）不提供 SHA256，因此正常链路下这里
      * 白名单。若服务端将来补上校验值，传进来即可自动生效，不需要改调用方。
      *
+     * @param callable|null $onProgress 下载进度回调：function(int $total, int $downloaded): void
      * @return array{ok:bool, path:string, size:int, sha256:string, error?:string}
      */
-    public function download(string $packageUrl, string $expectedSha256 = ''): array
+    public function download(string $packageUrl, string $expectedSha256 = '', ?callable $onProgress = null): array
     {
         if ($packageUrl === '') {
             return ['ok' => false, 'path' => '', 'size' => 0, 'sha256' => '', 'error' => '升级包 URL 为空'];
@@ -210,7 +228,7 @@ final class UpdateService extends BaseService
         }
 
         $ch = curl_init($packageUrl);
-        curl_setopt_array($ch, [
+        $curlOptions = [
             CURLOPT_FILE           => $fp,
             // 不跟随重定向：否则上面的 host 白名单可被授权主机的 302 绕过
             // （第一次请求确实去了白名单主机，最终内容却来自任意地址）
@@ -219,7 +237,37 @@ final class UpdateService extends BaseService
             CURLOPT_CONNECTTIMEOUT => 10,  // 10秒建立连接时间
             CURLOPT_USERAGENT      => 'emshop-update/' . (defined('EM_VERSION') ? \EM_VERSION : 'dev'),
             // 证书与主机名校验默认开启；自签线路由 config 的 license_insecure_tls=1 显式降级
-        ] + $this->licenseClient->tlsOptions());
+        ] + $this->licenseClient->tlsOptions();
+
+        if ($onProgress !== null) {
+            $lastAt = 0.0;
+            $lastPct = -1;
+            $progressCallback = static function ($ch, $dltotal, $dlnow, $ultotal, $ulnow) use ($onProgress, &$lastAt, &$lastPct): int {
+                $dltotal = (int) $dltotal;
+                $dlnow = (int) $dlnow;
+                $now = microtime(true);
+                $pct = $dltotal > 0 ? (int) floor($dlnow / $dltotal * 100) : -1;
+                if ($now - $lastAt < 0.2 && $pct === $lastPct) {
+                    return 0;
+                }
+                if ($dlnow > 0 || $dltotal > 0) {
+                    $lastAt = $now;
+                    $lastPct = $pct;
+                    $onProgress($dltotal, $dlnow);
+                }
+                return 0;
+            };
+
+            $curlOptions[CURLOPT_NOPROGRESS] = false;
+            // 老系统（如 CentOS 7 的 libcurl 7.29）没有 XFERINFOFUNCTION，退回旧回调常量
+            if (defined('CURLOPT_XFERINFOFUNCTION')) {
+                $curlOptions[CURLOPT_XFERINFOFUNCTION] = $progressCallback;
+            } else {
+                $curlOptions[CURLOPT_PROGRESSFUNCTION] = $progressCallback;
+            }
+        }
+
+        curl_setopt_array($ch, $curlOptions);
         $ok = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlErr = curl_error($ch);
@@ -264,9 +312,10 @@ final class UpdateService extends BaseService
     /**
      * 解压升级包到 extract 目录。
      *
+     * @param callable|null $onProgress 解压进度回调：function(int $done, int $total): void
      * @return array{ok:bool, extract_path:string, files:int, error?:string}
      */
-    public function extract(string $zipPath): array
+    public function extract(string $zipPath, ?callable $onProgress = null): array
     {
         // zip_path 来自客户端：只允许临时下载目录里的 .zip，防止拿服务器上的任意文件来解压
         $realZip = str_replace('\\', '/', (string) realpath($zipPath));
@@ -293,7 +342,36 @@ final class UpdateService extends BaseService
         }
 
         $count = $zip->numFiles;
-        $ok = $zip->extractTo(EM_ROOT . self::EXTRACT_DIR);
+        $ok = true;
+
+        if ($onProgress !== null) {
+            // 逐条解压并回调进度：total 只统计文件条目（目录条目跳过）
+            $names = [];
+            for ($i = 0; $i < $count; $i++) {
+                $stat = $zip->statIndex($i);
+                $name = (string) ($stat['name'] ?? '');
+                if ($name !== '' && substr($name, -1) !== '/') {
+                    $names[] = $name;
+                }
+            }
+
+            $total = count($names);
+            $step = max(1, (int) floor($total / 100));
+            $done = 0;
+
+            foreach ($names as $name) {
+                if (!$zip->extractTo(EM_ROOT . self::EXTRACT_DIR, $name)) {
+                    $ok = false;
+                    break;
+                }
+                $done++;
+                if ($done % $step === 0 || $done === $total) {
+                    $onProgress($done, $total);
+                }
+            }
+        } else {
+            $ok = $zip->extractTo(EM_ROOT . self::EXTRACT_DIR);
+        }
         $zip->close();
 
         if (!$ok) {
@@ -440,6 +518,152 @@ final class UpdateService extends BaseService
             'ok' => true, 'replaced' => $replaced, 'added' => $added, 'skipped' => $skipped,
             'manifest_file' => $manifestPath,
         ];
+    }
+
+    // ================================================================
+    // Step 4.5: check_permissions — apply 前校验待覆盖文件权限
+    // ================================================================
+
+    /**
+     * 检查升级包内所有待写入文件在站点根目录下的写权限。
+     *
+     * 只读检查，不做任何写入。用于在真正覆盖前提前发现：
+     *   - 目标文件只读 / 属主不对
+     *   - 新文件的上级目录不可写
+     *   - 目标位置被同名目录占用
+     *   - 目标上级路径是普通文件
+     *
+     * @param callable|null $onProgress 检查进度回调：function(int $checked, int $total): void
+     * @return array{ok:bool, checked:int, errors:list<array{path:string, reason:string}>, warnings:list<string>}
+     */
+    public function checkApplyPermissions(string $extractPath, ?callable $onProgress = null): array
+    {
+        // 与 apply 相同的路径校验：只允许固定的解压目录
+        $realExtract = str_replace('\\', '/', (string) realpath($extractPath));
+        $extractRoot = str_replace('\\', '/', (string) realpath(EM_ROOT . self::EXTRACT_DIR));
+        $extractPrefix = rtrim($extractRoot, '/') . '/';
+        if ($realExtract === '' || $extractRoot === ''
+            || ($realExtract !== $extractRoot && strpos($realExtract, $extractPrefix) !== 0)
+        ) {
+            return ['ok' => false, 'checked' => 0, 'errors' => [['path' => '', 'reason' => '解压目录非法']], 'warnings' => []];
+        }
+        if (!is_dir($extractPath)) {
+            return ['ok' => false, 'checked' => 0, 'errors' => [['path' => '', 'reason' => '解压目录不存在']], 'warnings' => []];
+        }
+
+        $srcRoot = $this->detectPackageRoot($extractPath);
+        $errors = [];
+        $warnings = [];
+
+        // 先收集待检查文件（与 apply 的覆盖范围一致），便于计算进度总数
+        $candidates = [];
+        $iter = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($srcRoot, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iter as $fileInfo) {
+            if ($fileInfo->isDir() || $fileInfo->isLink()) {
+                continue;
+            }
+
+            $rel = ltrim(str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($srcRoot))), '/');
+            if ($this->isPreserved($rel)) {
+                continue;
+            }
+
+            $dst = EM_ROOT . '/' . $rel;
+            if ($this->serverConfigDisposition($rel, $dst) === self::CONFIG_LEAVE) {
+                continue;
+            }
+
+            $candidates[] = $rel;
+        }
+
+        $total = count($candidates);
+        $step = max(1, (int) floor($total / 100));
+        $checked = 0;
+
+        foreach ($candidates as $rel) {
+            $checked++;
+            if ($onProgress !== null && ($checked % $step === 0 || $checked === $total)) {
+                $onProgress($checked, $total);
+            }
+
+            $dst = EM_ROOT . '/' . $rel;
+            $disposition = $this->serverConfigDisposition($rel, $dst);
+
+            if (is_link($dst)) {
+                $warnings[] = $rel . ' 是符号链接，升级会写入链接指向的文件';
+                continue;
+            }
+
+            if (is_dir($dst)) {
+                $errors[] = ['path' => $rel, 'reason' => '目标位置已存在同名目录，无法覆盖为文件'];
+                continue;
+            }
+
+            if (file_exists($dst)) {
+                if (!is_writable($dst)) {
+                    $errors[] = ['path' => $rel, 'reason' => '文件不可写（当前权限 ' . $this->fileMode($dst) . '）'];
+                } elseif ($disposition === self::CONFIG_OVERWRITE && !is_writable(dirname($dst))) {
+                    $warnings[] = $rel . ' 的备份文件可能无法写入：上级目录不可写';
+                }
+                continue;
+            }
+
+            // 新文件：向上找到最近的存在路径，检查能否在其下创建
+            $dir = dirname($dst);
+            while (!file_exists($dir) && !is_link($dir) && dirname($dir) !== $dir) {
+                $dir = dirname($dir);
+            }
+            if (!is_dir($dir)) {
+                $errors[] = ['path' => $rel, 'reason' => '上级路径不是目录：' . $this->relativePath($dir)];
+            } elseif (!is_writable($dir)) {
+                $errors[] = ['path' => $rel, 'reason' => '上级目录不可写：' . $this->relativePath($dir) . '（当前权限 ' . $this->fileMode($dir) . '）'];
+            }
+
+            if (count($errors) >= 50) {
+                $warnings[] = '错误过多，仅校验前 50 个文件';
+                break;
+            }
+        }
+
+        // 固定注入几条错误，用于查看权限校验失败时的界面与日志
+        if (self::CHECK_PERMISSIONS_FORCE_FAIL) {
+            $errors[] = ['path' => 'app/Admin/View/home.php', 'reason' => '文件不可写（当前权限 0444）'];
+            $errors[] = ['path' => 'app/Admin/View/shell.php', 'reason' => '文件不可写（当前权限 0444）'];
+            $errors[] = ['path' => 'app/Service/UpdateService.php', 'reason' => '文件不可写（当前权限 0444）'];
+            $errors[] = ['path' => 'content/tmp/update/extract/demo/assets/app.css', 'reason' => '上级目录不可写：content/tmp（当前权限 0555）'];
+            $errors[] = ['path' => 'app/Admin/View/popup', 'reason' => '目标位置已存在同名目录，无法覆盖为文件'];
+        }
+
+        return [
+            'ok' => $errors === [],
+            'checked' => $checked,
+            'errors' => $errors,
+            'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * 绝对路径 → 相对站点根目录的展示路径。
+     */
+    private function relativePath(string $abs): string
+    {
+        $root = rtrim(str_replace('\\', '/', EM_ROOT), '/');
+        $abs = str_replace('\\', '/', $abs);
+
+        return strpos($abs, $root . '/') === 0 ? substr($abs, strlen($root) + 1) : $abs;
+    }
+
+    /**
+     * 文件权限位（如 0644），取不到时返回「未知」。
+     */
+    private function fileMode(string $path): string
+    {
+        $perms = @fileperms($path);
+
+        return $perms === false ? '未知' : substr(sprintf('%o', $perms), -4);
     }
 
     // ================================================================

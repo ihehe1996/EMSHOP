@@ -331,7 +331,7 @@ final class LicenseService extends BaseService
      * 让前端退回「手动下载」（前端只认 package_url 非空 = 可以走在线升级）。
      *
      * @param array<string, mixed> $data 服务端 data 原文
-     * @return array{has_new:bool, version:string, force:bool, min_version:string, package_url:string}
+     * @return array{has_new:bool, version:string, force:bool, min_version:string, package_url:string, changelog:string}
      */
     private function normalizeUpdate(array $data): array
     {
@@ -350,6 +350,8 @@ final class LicenseService extends BaseService
             'force'       => ($data['force_update'] ?? null) === true,
             'min_version' => $minVersion,
             'package_url' => $patchOk ? $patchUrl : '',
+            // 更新内容：服务端下发 HTML，清洗后再交给后台弹窗渲染
+            'changelog'   => app(\App\Support\HtmlSanitizer::class)->clean((string) ($data['latest_changelog'] ?? '')),
         ];
     }
 
