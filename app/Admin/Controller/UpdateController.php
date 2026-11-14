@@ -76,7 +76,8 @@ final class UpdateController extends BaseAdminController
                     if (!$res['ok']) {
                         $this->response->error($res['error'] ?? '应用失败', $res);
                     }
-                    $this->response->success('文件覆盖完成', $res);
+                    $msg = !empty($res['dry_run']) ? '已跳过文件覆盖（联调模式）' : '文件覆盖完成';
+                    $this->response->success($msg, $res);
                 }
 
                 case 'migrate': {

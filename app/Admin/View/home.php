@@ -2446,8 +2446,10 @@ $(function () {
                 }).then(function (res) {
                     if (res.code !== 200) throw new Error(res.msg || '应用失败');
                     state.manifest_file = res.data.manifest_file;
-                    setStep('apply', 'done', '替换 ' + res.data.replaced + ' · 新增 ' + res.data.added + ' · 跳过 ' + res.data.skipped);
-                    log('文件覆盖完成', 'ok');
+                    setStep('apply', 'done', res.data.dry_run
+                        ? '已跳过文件覆盖（联调模式）· 包内 ' + res.data.skipped + ' 个文件'
+                        : '替换 ' + res.data.replaced + ' · 新增 ' + res.data.added + ' · 跳过 ' + res.data.skipped);
+                    log(res.data.dry_run ? '联调模式：未覆盖任何文件' : '文件覆盖完成', 'ok');
                 });
             },
             migrate: function () {

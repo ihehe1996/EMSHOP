@@ -36,6 +36,13 @@ final class UpdateService extends BaseService
     private const MANIFEST_FILE = '/content/tmp/update/manifest.json';
 
     /**
+     * 【联调临时开关】true = apply 只统计、不复制任何文件。
+     *
+     * 测试升级流程时打开，避免真实覆盖站点文件；发布前必须改回 false。
+     */
+    private const APPLY_DRY_RUN = false;
+
+    /**
      * apply 时保留不覆盖的相对路径白名单。
      * 命中这些路径前缀的文件，即使升级包里带了也不会被写入。
      */
@@ -330,6 +337,42 @@ final class UpdateService extends BaseService
         }
 
         $srcRoot = $this->detectPackageRoot($extractPath);
+
+        // 联调模式：只统计包内文件，不向站点根目录写入任何内容。
+        if (self::APPLY_DRY_RUN) {
+            $count = 0;
+            $dryIter = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($srcRoot, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($dryIter as $fileInfo) {
+                if ($fileInfo->isDir() || $fileInfo->isLink()) {
+                    continue;
+                }
+                $rel = ltrim(str_replace('\\', '/', substr($fileInfo->getPathname(), strlen($srcRoot))), '/');
+                if ($this->isPreserved($rel)) {
+                    continue;
+                }
+                $count++;
+            }
+
+            $manifest = [
+                'applied'    => [],
+                'added'      => [],
+                'replaced'   => [],
+                'dry_run'    => true,
+                'skipped'    => $count,
+                'started_at' => date('c'),
+            ];
+            $manifestPath = EM_ROOT . self::MANIFEST_FILE;
+            @file_put_contents($manifestPath, json_encode($manifest, JSON_UNESCAPED_UNICODE | \JSON_PRETTY_PRINT));
+            $this->audit('update_apply_dry_run', ['skipped' => $count]);
+
+            return [
+                'ok' => true, 'replaced' => 0, 'added' => 0, 'skipped' => $count,
+                'manifest_file' => $manifestPath, 'dry_run' => true,
+            ];
+        }
+
         $manifest = ['applied' => [], 'added' => [], 'replaced' => [], 'started_at' => date('c')];
 
         $replaced = 0; $added = 0; $skipped = 0;
