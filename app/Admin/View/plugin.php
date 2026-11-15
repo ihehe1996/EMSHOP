@@ -11,7 +11,7 @@ $csrfToken = $csrfToken ?? \Csrf::token();
 .admin-page-plugin { padding: 8px 4px 40px; background: unset; }
 
 /* 顶部工具条：刷新 + 应用商店（参考模板管理）；不再有搜索 */
-.plugin-filter-bar { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.plugin-filter-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .plugin-appstore-btn { height:32px; padding:0 14px; border:1px solid rgba(99,102,241,.3); border-radius:8px; background:rgba(99,102,241,.06); font-size:13px; font-weight:500; color:#6366f1; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all .15s; }
 .plugin-appstore-btn:hover { background:rgba(99,102,241,.12); border-color:rgba(99,102,241,.5); }
 
@@ -116,6 +116,9 @@ $csrfToken = $csrfToken ?? \Csrf::token();
 .plugin-card__action--settings:hover { background: rgba(59, 130, 246, 0.15); }
 .plugin-card__action--update { background: #f59e0b; color: #fff; }
 .plugin-card__action--update:hover { background: #d97706; color: #fff; }
+/* 有新版本但站点未授权：外观与「更新」按钮完全一致，点开后弹出激活提示 */
+.plugin-card__action--update-locked { background: #f59e0b; color: #fff; }
+.plugin-card__action--update-locked:hover { background: #d97706; color: #fff; }
 .plugin-card__action--price { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .plugin-card__action--price:hover { background: rgba(245, 158, 11, 0.18); }
 .plugin-card__action--disabled { background: rgba(0, 0, 0, 0.04) !important; color: #c9cdd4 !important; cursor: not-allowed !important; }
@@ -172,6 +175,159 @@ $csrfToken = $csrfToken ?? \Csrf::token();
 .plugin-empty__btn--primary:hover { background: linear-gradient(135deg, #4338ca, #4f46e5); }
 .plugin-empty__btn--ghost { background: #fff; border: 1px solid #e5e7eb; color: #4b5563; }
 .plugin-empty__btn--ghost:hover { background: #f8f9ff; border-color: #c7d2fe; color: #4f46e5; }
+
+/* ===== 版本检查提示：页面顶部居中的「灵动岛」 ===== */
+.em-island {
+    position: fixed;
+    top: 14px;
+    /* 左右都设 0 + margin auto 居中：不用 transform，避免首帧画在错误位置再跳过去 */
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
+    z-index: 19000000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100vw - 24px);
+    padding: 7px 12px 7px 8px;
+    border-radius: 5px;
+    background: rgba(15, 23, 42, 0.96);
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.3), 0 2px 6px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: emIslandIn 0.2s ease-out;
+}
+.em-island[hidden] { display: none; }
+@keyframes emIslandIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.em-island__icon {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.85);
+}
+.em-island__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.em-island__title { font-size: 12.5px; font-weight: 600; line-height: 1.35; color: #fff; }
+.em-island.is-checking .em-island__icon { color: #a5b4fc; }
+.em-island.is-new .em-island__icon { background: rgba(245, 158, 11, 0.22); color: #fbbf24; }
+.em-island.is-done .em-island__icon { background: rgba(16, 185, 129, 0.22); color: #34d399; }
+.em-island.is-error .em-island__icon { background: rgba(239, 68, 68, 0.22); color: #f87171; }
+@media (max-width: 640px) {
+    .em-island { top: 10px; max-width: calc(100vw - 20px); padding-right: 10px; }
+}
+
+/* ===== 未激活提示弹窗（点击「更新」时） ===== */
+.update-lock { position: relative; padding: 30px 24px 24px; text-align: center; }
+.update-lock__close {
+    position: absolute; top: 12px; right: 12px;
+    width: 26px; height: 26px; padding: 0;
+    border: 0; border-radius: 50%;
+    background: #f3f4f6; color: #9ca3af;
+    font-size: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.update-lock__close:hover { background: #e5e7eb; color: #4b5563; }
+.update-lock__icon {
+    width: 52px; height: 52px; margin: 0 auto 14px;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    color: #d97706; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.15);
+}
+.update-lock__title { font-size: 17px; font-weight: 700; color: #111827; letter-spacing: 0.2px; }
+.update-lock__sub { margin-top: 8px; font-size: 13px; color: #6b7280; line-height: 1.7; }
+.update-lock__actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
+.update-lock__btn {
+    height: 38px; padding: 0 20px;
+    border: 1px solid #e5e7eb; border-radius: 9px;
+    background: #fff; color: #4b5563;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.update-lock__btn:not(.update-lock__btn--primary):hover { background: #f9fafb; border-color: #d1d5db; }
+.update-lock__btn--primary {
+    border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+.update-lock__btn--primary:hover {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    filter: brightness(1.05);
+}
+@media (max-width: 640px) {
+    .update-lock { padding: 26px 16px 18px; }
+    .update-lock__actions { gap: 8px; }
+    .update-lock__actions .update-lock__btn { flex: 1; padding: 0 10px; }
+}
+
+/* ===== 激活弹窗（与首页/应用商店同款视觉） ===== */
+.lic-activate { padding: 22px 22px 18px; box-sizing: border-box; }
+.lic-activate__hero { text-align: center; margin-bottom: 20px; }
+.lic-activate__icon {
+    width: 52px; height: 52px; margin: 0 auto 12px;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+    color: #6366f1; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.12);
+}
+.lic-activate__title { font-size: 17px; font-weight: 700; color: #0f172a; }
+.lic-activate__sub { margin-top: 5px; font-size: 12.5px; color: #6b7280; line-height: 1.6; }
+.lic-activate__label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+.lic-activate__field { position: relative; }
+.lic-activate__field > i {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af; font-size: 13px; pointer-events: none;
+}
+.lic-activate__input {
+    width: 100%; height: 46px;
+    padding: 0 118px 0 38px;
+    border: 1.5px solid #e5e7eb; border-radius: 11px;
+    background: #fafbfc;
+    font-family: 'JetBrains Mono', Consolas, Monaco, monospace;
+    font-size: 13px; letter-spacing: 0.5px;
+    outline: none; box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.lic-activate__input:focus { border-color: #6366f1; background: #fff; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12); }
+.lic-activate__inline-btn {
+    position: absolute; top: 6px; right: 6px; bottom: 6px;
+    padding: 0 16px;
+    border: 0; border-radius: 8px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.26);
+    transition: filter 0.15s;
+}
+.lic-activate__inline-btn:hover { filter: brightness(1.06); }
+.lic-activate__inline-btn:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
+.lic-activate__note {
+    margin-top: 14px; padding: 8px 12px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 11.5px; color: #9ca3af;
+    background: #f8fafc;
+    border: 1px dashed #e5e7eb;
+    border-radius: 8px;
+}
+@media (max-width: 640px) {
+    .lic-activate { padding: 18px 16px 14px; }
+    .lic-activate__input { padding-right: 106px; }
+}
 </style>
 
 <div class="admin-page admin-page-plugin">
@@ -231,6 +387,15 @@ $csrfToken = $csrfToken ?? \Csrf::token();
     </div>
 </div>
 
+<!-- 灵动岛放在 .admin-page 之外：pageIn 动画的 transform 会临时成为 fixed 的包含块，
+     放里面会导致先按内容区居中、动画结束再跳到视口居中 -->
+<div class="em-island" id="pluginUpdateStatus" hidden>
+    <span class="em-island__icon"><i class="fa fa-spinner fa-spin" id="pluginUpdateStatusIcon"></i></span>
+    <span class="em-island__body">
+        <span class="em-island__title" id="pluginUpdateStatusText">正在检查更新…</span>
+    </span>
+</div>
+
 <script>
 layui.use(function(){
     'use strict';
@@ -244,6 +409,9 @@ layui.use(function(){
     var merchantLoaded = false;
     var currentFilter = 'all';
     var loading = false;
+    var updateChecking = false;
+    var updateChecked = false;               // 本轮页面是否已检查过（切 tab 回来不重复请求）
+    var updateMap = {};                      // 插件目录名 => {version, file_path}
 
     function updateCsrf(token) { if (token) csrfToken = token; }
     window.updateCsrf = updateCsrf;
@@ -377,7 +545,12 @@ layui.use(function(){
         } else if (!isInstalled) {
             actionHtml = '<button class="plugin-card__action plugin-card__action--install" data-action="install" data-name="' + escHtml(p.name) + '"><i class="fa fa-download"></i> 安装</button>';
         } else if (hasUpdate) {
-            actionHtml = '<button class="plugin-card__action plugin-card__action--update" data-action="update" data-name="' + escHtml(p.name) + '" data-file-path="' + escHtml(p.latest_file_path || '') + '" data-version="' + escHtml(p.latest_version || '') + '"><i class="fa fa-cloud-download"></i> 更新 v' + escHtml(p.latest_version || '') + '</button>';
+            if (p.latest_file_path) {
+                actionHtml = '<button class="plugin-card__action plugin-card__action--update" data-action="update" data-name="' + escHtml(p.name) + '" data-file-path="' + escHtml(p.latest_file_path) + '" data-version="' + escHtml(p.latest_version || '') + '"><i class="fa fa-cloud-download"></i> 更新 v' + escHtml(p.latest_version || '') + '</button>';
+            } else {
+                // 未授权：中心只回了版本号、没给下载地址。展示版本，但不给一个点了必然失败的按钮
+                actionHtml = '<span class="plugin-card__action plugin-card__action--update-locked" data-action="needLicense" data-name="' + escHtml(p.name) + '" data-version="' + escHtml(p.latest_version || '') + '"><i class="fa fa-cloud-download"></i> 更新 v' + escHtml(p.latest_version || '') + '</span>';
+            }
         } else if (hasSettings) {
             actionHtml = '<button class="plugin-card__action plugin-card__action--settings" data-action="settings" data-name="' + escHtml(p.name) + '"><i class="fa fa-gear"></i> 配置</button>';
         } else {
@@ -409,7 +582,7 @@ layui.use(function(){
                     '<div class="plugin-card__more-dropdown">' +
                         (isInstalled
                             ? '<button class="plugin-card__more-item plugin-card__more-item--danger" data-action="uninstall" data-name="' + escHtml(p.name) + '"><i class="fa fa-trash"></i> 卸载</button>'
-                              + (hasUpdate ? '<button class="plugin-card__more-item" data-action="update" data-name="' + escHtml(p.name) + '" data-file-path="' + escHtml(p.latest_file_path || '') + '" data-version="' + escHtml(p.latest_version || '') + '"><i class="fa fa-arrow-up"></i> 升级 v' + escHtml(p.latest_version || '') + '</button>' : '')
+                              + (hasUpdate && p.latest_file_path ? '<button class="plugin-card__more-item" data-action="update" data-name="' + escHtml(p.name) + '" data-file-path="' + escHtml(p.latest_file_path) + '" data-version="' + escHtml(p.latest_version || '') + '"><i class="fa fa-arrow-up"></i> 升级 v' + escHtml(p.latest_version || '') + '</button>' : '')
                             : ''
                         ) +
                     '</div>' +
@@ -454,6 +627,69 @@ layui.use(function(){
         return (n / 1000000).toFixed(2);
     }
 
+    // ===== 版本检查提示（右下角浮动卡片，列表不等中心接口） =====
+    // 只在检查期间显示「正在检查更新…」，检查结束立刻收起（不展示结果）
+    function showUpdateChecking() {
+        $('#pluginUpdateStatus')
+            .removeAttr('hidden')
+            .removeClass('is-done is-new is-error')
+            .addClass('is-checking');
+        $('#pluginUpdateStatusIcon').attr('class', 'fa fa-spinner fa-spin');
+        $('#pluginUpdateStatusText').text('正在检查更新…');
+    }
+
+    function hideUpdateStatus() {
+        $('#pluginUpdateStatus').attr('hidden', true);
+    }
+
+    // 把检查结果合并进列表数据（rerender=false 时只改字段不重绘）
+    function applyUpdateMap(rerender) {
+        var count = 0;
+        allPlugins.forEach(function(p) {
+            var u = updateMap[p.name];
+            if (u && u.version) {
+                p.has_update = true;
+                p.latest_version = u.version;
+                p.latest_file_path = u.file_path || '';
+                count++;
+            } else {
+                p.has_update = false;
+                p.latest_version = '';
+                p.latest_file_path = '';
+            }
+        });
+        if (rerender !== false && currentFilter !== 'merchant') {
+            renderPlugins(allPlugins);
+        }
+        return count;
+    }
+
+    // 单独请求中心查更新：结果只回填卡片；灵动岛只在请求期间显示，结束就收起
+    function checkUpdates() {
+        if (updateChecking || currentFilter === 'merchant') return;
+        if (!allPlugins.length) { hideUpdateStatus(); return; }   // 没有插件就不用查
+        updateChecking = true;
+        showUpdateChecking();
+
+        $.ajax({
+            url: '<?= EM_ADMIN_PATH ?>/plugin?_action=check_updates',
+            type: 'GET',
+            dataType: 'json',
+            success: function(res) {
+                if (!res || (res.code !== 0 && res.code !== 200)) return;
+                csrfToken = res.csrf_token || csrfToken;
+                if (res.error) return;
+                updateMap = res.data || {};
+                applyUpdateMap();
+            },
+            complete: function() {
+                updateChecking = false;
+                updateChecked = true;
+                hideUpdateStatus();
+            }
+        });
+    }
+
     // ===== 加载插件列表 =====
     function loadPlugins() {
         if (loading) return;
@@ -477,8 +713,11 @@ layui.use(function(){
                         renderPlugins(merchantPlugins);
                     } else {
                         allPlugins = res.data || [];
+                        // 先用上一次的检查结果补字段（避免刷新后角标短暂消失），再单独查更新
+                        applyUpdateMap(false);
                         renderStats();
                         renderPlugins(allPlugins);
+                        checkUpdates();
                     }
                 }
             },
@@ -491,7 +730,110 @@ layui.use(function(){
     }
 
     // ===== 操作处理 =====
+    // 有新版本但站点未授权：点卡片上的「更新」时弹出提示，引导去激活
+    function openLicenseRequired(version) {
+        var v = String(version || '');
+        var idx = layui.layer.open({
+            type: 1,
+            title: false,
+            closeBtn: 0,
+            skin: 'admin-modal',
+            area: [window.innerWidth >= 640 ? '420px' : '92%', 'auto'],
+            shadeClose: true,
+            content:
+                '<div class="update-lock">' +
+                    '<button type="button" class="update-lock__close" data-role="close" aria-label="关闭">&times;</button>' +
+                    '<div class="update-lock__icon"><i class="fa fa-lock"></i></div>' +
+                    '<div class="update-lock__title">检测到新版本' + (v !== '' ? ' v' + escHtml(v) : '') + '</div>' +
+                    '<div class="update-lock__sub">当前站点尚未激活，激活后才能下载并更新插件。</div>' +
+                    '<div class="update-lock__actions">' +
+                        '<button type="button" class="update-lock__btn" data-role="later">我知道了</button>' +
+                        '<button type="button" class="update-lock__btn update-lock__btn--primary" data-role="activate">立即激活</button>' +
+                    '</div>' +
+                '</div>',
+            success: function (layero) {
+                layero.find('[data-role="close"], [data-role="later"]').on('click', function () {
+                    layui.layer.close(idx);
+                });
+                layero.find('[data-role="activate"]').on('click', function () {
+                    layui.layer.close(idx);
+                    openActivatePopup();
+                });
+            }
+        });
+    }
+
+    // 激活弹窗（与后台首页 / 应用商店同一套交互）
+    function openActivatePopup() {
+        layui.layer.open({
+            type: 1,
+            title: '立即激活',
+            skin: 'admin-modal',
+            area: [window.innerWidth >= 640 ? '460px' : '94%', 'auto'],
+            shadeClose: false,
+            content:
+                '<div class="lic-activate">' +
+                    '<div class="lic-activate__hero">' +
+                        '<div class="lic-activate__icon"><i class="fa fa-shield"></i></div>' +
+                        '<div class="lic-activate__title">激活正版 EMSHOP</div>' +
+                        '<div class="lic-activate__sub">解锁专属模板 · 付费插件 · 应用商店 · 优先技术支持</div>' +
+                    '</div>' +
+                    '<label class="lic-activate__label" for="pluginLicenseCode">授权许可证（License Key）</label>' +
+                    '<div class="lic-activate__field">' +
+                        '<i class="fa fa-key"></i>' +
+                        '<input type="text" id="pluginLicenseCode" class="lic-activate__input" placeholder="请输入您的激活码" maxlength="64" autocomplete="off" spellcheck="false">' +
+                        '<button type="button" class="lic-activate__inline-btn" data-role="submit">立即激活</button>' +
+                    '</div>' +
+                    '<div class="lic-activate__note"><i class="fa fa-lock"></i> 激活码与当前域名绑定，请妥善保管</div>' +
+                '</div>',
+            success: function (layero) {
+                var $input = layero.find('.lic-activate__input');
+                var $btn = layero.find('[data-role="submit"]');
+
+                function submit() {
+                    var code = $.trim($input.val() || '');
+                    if (code === '') { $input.focus(); layui.layer.msg('请输入激活码'); return; }
+
+                    var orig = $btn.html();
+                    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
+                    $.ajax({
+                        url: '<?= EM_ADMIN_PATH ?>/official',
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            _action: 'activate',
+                            license_code: code,
+                            csrf_token: window.adminCsrfToken || ''
+                        }
+                    }).done(function (res) {
+                        if (res && res.code === 200) {
+                            if (res.data && res.data.csrf_token) window.adminCsrfToken = res.data.csrf_token;
+                            layui.layer.msg('激活成功：' + escHtml((res.data && res.data.level_label) || ''));
+                            setTimeout(function () { location.reload(); }, 900);
+                            return;
+                        }
+                        layui.layer.msg((res && res.msg) || '激活失败');
+                        $btn.prop('disabled', false).html(orig);
+                    }).fail(function () {
+                        layui.layer.msg('网络异常');
+                        $btn.prop('disabled', false).html(orig);
+                    });
+                }
+
+                $btn.on('click', submit);
+                $input.on('keydown', function (e) {
+                    if (e.key === 'Enter') submit();
+                }).focus();
+            }
+        });
+    }
+
     function handleAction(action, name, extraData) {
+        if (!action) return;
+        if (action === 'needLicense') {
+            openLicenseRequired(extraData && extraData.version);
+            return;
+        }
         if (action === 'toggle') {
             action = $('#toggle_' + name).prop('checked') ? 'enable' : 'disable';
         }
@@ -735,6 +1077,14 @@ layui.use(function(){
             } else {
                 loadPlugins();
             }
+        }
+
+        // 灵动岛只在「主站 tab 正在检查」时出现；分站插件不查更新
+        if (currentFilter === 'merchant') {
+            hideUpdateStatus();
+        } else if (!updateChecked) {
+            // 还没检查过（比如首屏列表返回前就切到了分站 tab）——补一次
+            checkUpdates();
         }
     });
 

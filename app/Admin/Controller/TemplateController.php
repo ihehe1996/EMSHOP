@@ -13,7 +13,9 @@ namespace App\Admin\Controller;
  *   - 模板配置通过 TemplateStorage（em_options 表）存取
  *
  * 动作：activate_pc / activate_mobile / save_config / uninstall
- * GET _action=list 返回模板列表 JSON；?_popup=1&name=xxx 渲染模板设置页。
+ * GET _action=list 返回模板列表 JSON（只读本地，不等中心接口）；
+ * GET _action=check_updates 单独查新版本（中心接口，页面渲染后再请求）；
+ * ?_popup=1&name=xxx 渲染模板设置页。
  *
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
@@ -33,9 +35,15 @@ final class TemplateController extends BaseAdminController
 
         $isPopup = (string) $this->input->get('_popup', '') === '1';
 
-        // AJAX 列表（GET）：扫磁盘 + 左联 DB 状态，并问一次中心"哪些有新版本"
+        // AJAX 列表（GET）：只扫磁盘 + 左联 DB 状态
         if (!$isPopup && (string) $this->input->get('_action', '') === 'list') {
             $this->outputList($model);
+            return;
+        }
+
+        // 版本检查从列表里拆出来（2026-11-15）：列表立刻返回，中心接口只拖住状态条
+        if (!$isPopup && (string) $this->input->get('_action', '') === 'check_updates') {
+            $this->outputUpdates($model);
             return;
         }
 
@@ -139,10 +147,9 @@ final class TemplateController extends BaseAdminController
     {
         header('Content-Type: application/json; charset=utf-8');
 
+        // 只读本地：版本检查已拆到 _action=check_updates（见 outputUpdates），
+        // 列表不再等中心接口；has_update 先给 false，前端拿到检查结果后再补。
         $scanned = $model->scanWithStatus(self::SCOPE);
-
-        // 已装模板问一次中心"哪些有新版本"；中心不可达时 service 内已降级成空数组
-        $latestVersions = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, 'template');
 
         $data = [];
         foreach ($scanned as $name => $info) {
@@ -166,17 +173,10 @@ final class TemplateController extends BaseAdminController
                 'config'           => (string) ($info['config'] ?? '{}'),
             ];
 
-            // 比对远端版本判定有无更新
-            $latest = $latestVersions[$name] ?? null;
-            if ($latest && !empty($latest['version']) && version_compare((string) $latest['version'], $version, '>')) {
-                $row['has_update'] = true;
-                $row['latest_version'] = (string) $latest['version'];
-                $row['latest_file_path'] = (string) ($latest['file_path'] ?? '');
-            } else {
-                $row['has_update'] = false;
-                $row['latest_version'] = '';
-                $row['latest_file_path'] = '';
-            }
+            // 版本信息由 _action=check_updates 异步补，列表这里先给空
+            $row['has_update'] = false;
+            $row['latest_version'] = '';
+            $row['latest_file_path'] = '';
 
             $data[] = $row;
         }
@@ -189,6 +189,51 @@ final class TemplateController extends BaseAdminController
             'csrf_token'     => $this->csrf->token(),
         ], JSON_UNESCAPED_UNICODE);
         return;
+    }
+
+    /**
+     * 检查已装模板的新版本（`_action=check_updates`）。
+     *
+     * 与插件管理页同一套：列表先出来，中心接口只拖住「正在检查更新」状态条。
+     * 返回 data：`{模板目录名: {version, file_path}}`，只含有更新的条目；
+     * 未授权时 `file_path` 为空串（中心只回版本号），前端显示成「激活后可更新」。
+     */
+    private function outputUpdates(\App\Model\TemplateModel $model): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $scanned = $model->scanWithStatus(self::SCOPE);
+
+        $failed = false;
+        $updates = [];
+        try {
+            // 第 5 个参数 true：未授权时也要把「有新版本」报上来（只是没有下载地址）
+            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, 'template', 15, $failed, true);
+        } catch (\Throwable $e) {
+            $failed = true;
+        }
+
+        // 再按本地当前版本比一次（同改造前列表里的口径），只回前端用得到的字段
+        $data = [];
+        foreach ($updates as $name => $row) {
+            $current = (string) ($scanned[$name]['version'] ?? '1.0.0');
+            $latest  = (string) ($row['version'] ?? '');
+            if ($latest === '' || !version_compare($latest, $current, '>')) {
+                continue;
+            }
+            $data[$name] = [
+                'version'   => $latest,
+                'file_path' => (string) ($row['file_path'] ?? ''),
+            ];
+        }
+
+        echo json_encode([
+            'code'       => 0,
+            'msg'        => '',
+            'data'       => $data,
+            'error'      => $failed ? '检查更新失败：授权服务器请求失败' : '',
+            'csrf_token' => $this->csrf->token(),
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**
