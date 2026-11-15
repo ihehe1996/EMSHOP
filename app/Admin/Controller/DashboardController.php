@@ -68,25 +68,55 @@ final class DashboardController extends BaseAdminController
             session_write_close();
         }
 
-        // 授权状态核对挪到这里异步做
-        app(\App\Service\LicenseService::class)->revalidateCurrent();
+        /*
+         * 一次请求拿全：授权状态 + 公告/广告/版本 + 已装应用更新。
+         *
+         * 2026-11-15 合并前这里要串行打 4 个上游接口（license/status + base-data +
+         * 插件 app-update-check + 模板 app-update-check），最坏 30 多秒；合并后只剩
+         * base-data 一个。三块数据的来源与老口径一一对应：
+         *   · license/status → base-data 的 authorized / license_type（revalidateFromBaseData）
+         *   · 两次 app-update-check → base-data 的 app_updates（请求里带 apps 才回）
+         * 老服务端不支持 apps 时 bundled_app_updates_available=false，下面会自动退回原来的两条请求。
+         */
+        $installed = $this->installedAppsForUpdateCheck();
+
+        // 上限与服务端 app-update-check 的约定一致（一次 100 个）。超过时不合并 ——
+        // 那种站点极少，交给原来的分批请求，别为它把服务端上限撑开
+        $appsForRequest = count($installed) <= 100
+            ? array_map(static fn (array $app): array => [
+                'name_en' => $app['name_en'],
+                'version' => $app['version'],
+            ], $installed)
+            : [];
 
         // 每次都实时拉（接口不通则返回失败态，latency_ms = -1）
         $start = microtime(true);
         $data = null;
         $error = '';
         try {
-            $data = app(\App\Service\LicenseService::class)->fetchBaseData();
+            $data = app(\App\Service\LicenseService::class)->fetchBaseData($appsForRequest);
         } catch (\Throwable $e) {
             $error = $e->getMessage();
         }
         $latency = $data !== null ? (int) round((microtime(true) - $start) * 1000) : -1;
 
-        // 已装插件 / 模板的新版本检测（与插件管理、模板管理页同一套逻辑）。
-        // 中心不可达时 AppUpdateService 内部静默降级为空数组。
-        $appUpdates = $this->collectAppUpdates();
+        // 授权状态核对：base-data 自带 authorized / license_type（服务端同样按「码 + 域名」
+        // 判定），不必再单独调 license/status。服务端明确判定未授权时会清空本地授权。
+        if ($data !== null) {
+            app(\App\Service\LicenseService::class)->revalidateFromBaseData($data);
+        }
 
-        // 这里的 authorized / license_type 只作为展示数据回给前端，不用来改本地授权状态
+        // 已装插件 / 模板的新版本检测（与插件管理、模板管理页同一套逻辑）。
+        // 合并数据不可用（老服务端 / 超过上报上限）时退回原来的两条独立请求。
+        $appUpdates = $this->collectAppUpdates($data, $installed);
+
+        // 合并用的两个内部字段用完就摘掉：前端弹窗要的是下面那个 {plugins,templates} 结构
+        if ($data !== null) {
+            unset($data['bundled_app_updates_available'], $data['bundled_app_updates']);
+        }
+
+        // 回给前端的 authorized / license_type 沿用 base-data 原值（本地授权状态已在
+        // revalidateFromBaseData() 里核对过，这里不再改）。app_updates 是弹窗用的结构。
         $this->response->success('', ($data ?? [
             'authorized'       => null,
             'license_type'     => '',
@@ -112,66 +142,181 @@ final class DashboardController extends BaseAdminController
     }
 
     /**
-     * 检测已装插件 / 模板是否有新版本（后台首页弹窗用）。
+     * 本机已装插件 / 模板清单（查更新用）。
      *
-     * 复用插件管理页 / 模板管理页的 AppUpdateService::checkInstalled()：
-     * 只保留确实版本更高、且中心给了下载地址的条目 —— 未授权时中心只回"有新版本"
-     * 但 package_url 为空，那种条目点更新必然失败，不能列出来。
-     * 中心不可达 / 未激活时静默降级为空，不影响首页其它数据。
+     * 插件和模板合成一份列表一起上报：服务端的 name_en 是唯一索引，一条应用只认
+     * 一行，所以放进同一个数组不会串；响应里每条带 type，客户端再按类型拆回去。
+     * 未激活 / 没有授权码时返回空数组（老逻辑在这种情况本来就不查更新）。
      *
-     * @return array{plugins: list<array<string,string>>, templates: list<array<string,string>>}
+     * @return list<array{type:string, name_en:string, title:string, version:string}>
      */
-    private function collectAppUpdates(): array
+    private function installedAppsForUpdateCheck(): array
     {
-        $out = ['plugins' => [], 'templates' => []];
-
-        // 未激活：中心只会回「未授权、无下载地址」，两次请求纯属浪费
         $licenseRow = app(\App\Service\LicenseService::class)->currentLicense();
         if (!$licenseRow || (string) ($licenseRow['license_code'] ?? '') === '') {
-            return $out;
+            return [];
         }
 
+        $apps = [];
+
         try {
-            $plugins = app(\App\Model\PluginModel::class)->scanWithStatus('main');
-            // 首页的检测是"顺便"，单次上游超时压到 8 秒，避免拖垮首页数据
-            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($plugins, 'plugin', 8);
-            foreach ($updates as $slug => $row) {
-                $current = (string) ($plugins[$slug]['version'] ?? '1.0.0');
-                $latest = (string) ($row['version'] ?? '');
-                if ($latest === '' || !version_compare($latest, $current, '>')) {
-                    continue;
-                }
-                $out['plugins'][] = [
-                    'name'           => (string) $slug,
-                    'title'          => (string) ($plugins[$slug]['title'] ?? $slug),
-                    'version'        => $current,
-                    'latest_version' => $latest,
-                    'file_path'      => (string) ($row['file_path'] ?? ''),
+            foreach (app(\App\Model\PluginModel::class)->scanWithStatus('main') as $slug => $info) {
+                $apps[] = [
+                    'type'    => 'plugin',
+                    'name_en' => (string) $slug,
+                    'title'   => (string) ($info['title'] ?? $slug),
+                    'version' => (string) ($info['version'] ?? '1.0.0'),
                 ];
             }
         } catch (\Throwable $e) {
-            // 检测失败不影响首页其它数据
+            // 扫盘失败就当没有插件，别影响首页
         }
 
         try {
-            $templates = app(\App\Model\TemplateModel::class)->scanTemplates();
-            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($templates, 'template', 8);
-            foreach ($updates as $slug => $row) {
-                $current = (string) ($templates[$slug]['version'] ?? '1.0.0');
-                $latest = (string) ($row['version'] ?? '');
-                if ($latest === '' || !version_compare($latest, $current, '>')) {
-                    continue;
-                }
-                $out['templates'][] = [
-                    'name'           => (string) $slug,
-                    'title'          => (string) ($templates[$slug]['title'] ?? $slug),
-                    'version'        => $current,
-                    'latest_version' => $latest,
-                    'file_path'      => (string) ($row['file_path'] ?? ''),
+            foreach (app(\App\Model\TemplateModel::class)->scanTemplates() as $slug => $info) {
+                $apps[] = [
+                    'type'    => 'template',
+                    'name_en' => (string) $slug,
+                    'title'   => (string) ($info['title'] ?? $slug),
+                    'version' => (string) ($info['version'] ?? '1.0.0'),
                 ];
             }
         } catch (\Throwable $e) {
             // 同上
+        }
+
+        return $apps;
+    }
+
+    /**
+     * 检测已装插件 / 模板是否有新版本（后台首页弹窗用）。
+     *
+     * 优先用 base-data 合并回来的 app_updates（一次请求）；老服务端没有那块数据时
+     * 退回原来的两条独立请求（AppUpdateService::checkInstalled，插件、模板各一次）。
+     *
+     * 只保留确实版本更高、且中心给了下载地址的条目 —— 未授权时中心只回"有新版本"
+     * 但 package_url 为空，那种条目点更新必然失败，不能列出来。
+     * 中心不可达 / 未激活 / base-data 整体失败时静默降级为空，不影响首页其它数据。
+     *
+     * @param array<string, mixed>|null $baseData fetchBaseData() 归一化结果（失败时 null）
+     * @param list<array{type:string, name_en:string, title:string, version:string}> $installed
+     * @return array{plugins: list<array<string,string>>, templates: list<array<string,string>>}
+     */
+    private function collectAppUpdates(?array $baseData, array $installed): array
+    {
+        $out = ['plugins' => [], 'templates' => []];
+
+        // 未激活 / 没有授权码：中心只会回「未授权、无下载地址」，查了也是空。
+        // ⚠️ 必须在 revalidateFromBaseData() 之后看：服务端判定未授权时本地刚被清掉
+        $licenseRow = app(\App\Service\LicenseService::class)->currentLicense();
+        if (!$licenseRow || (string) ($licenseRow['license_code'] ?? '') === '') {
+            return $out;
+        }
+        if ($installed === []) {
+            return $out;
+        }
+
+        // 合并数据不可用：老服务端，或者这次因为超过上报上限没带 apps
+        if ($baseData === null || empty($baseData['bundled_app_updates_available'])) {
+            return $this->collectAppUpdatesSeparately($installed);
+        }
+
+        return $this->mapBundledAppUpdates($baseData['bundled_app_updates'] ?? [], $installed);
+    }
+
+    /**
+     * 把 base-data 合并回来的更新行映射成首页弹窗要的结构。
+     *
+     * 服务端是按「客户端报上去的版本」比过的，这里再比一次是为了防老服务端口径差异；
+     * 类型也必须对上 —— 同名应用在中心可能是另一种类型（name_en 唯一，但站点起名会撞），
+     * 不能把模板的更新装到插件上。
+     *
+     * @param list<array<string,mixed>> $rows
+     * @param list<array{type:string, name_en:string, title:string, version:string}> $installed
+     * @return array{plugins: list<array<string,string>>, templates: list<array<string,string>>}
+     */
+    private function mapBundledAppUpdates(array $rows, array $installed): array
+    {
+        $out = ['plugins' => [], 'templates' => []];
+
+        // 本地清单索引：类型 + 小写英文名（服务端 name_en 排序规则大小写不敏感）
+        $index = [];
+        foreach ($installed as $app) {
+            $index[$app['type'] . '|' . mb_strtolower($app['name_en'])] = $app;
+        }
+
+        foreach ($rows as $row) {
+            $type = (string) ($row['type'] ?? '');
+            if ($type !== 'plugin' && $type !== 'template') {
+                continue;
+            }
+            $key   = $type . '|' . mb_strtolower((string) ($row['name_en'] ?? ''));
+            $local = $index[$key] ?? null;
+            if ($local === null) {
+                continue;
+            }
+
+            $latest = (string) ($row['version'] ?? '');
+            $filePath = (string) ($row['package_url'] ?? '');
+            // 没安装包的不列：报了也下不了，只会留一个点不动的「更新」按钮
+            // （LicenseService::normalizeAppUpdates 已经过滤过一次，这里再防一道）
+            if ($latest === '' || $filePath === '' || !version_compare($latest, $local['version'], '>')) {
+                continue;
+            }
+
+            $out[$type === 'plugin' ? 'plugins' : 'templates'][] = [
+                'name'           => $local['name_en'],
+                'title'          => $local['title'],
+                'version'        => $local['version'],
+                'latest_version' => $latest,
+                'file_path'      => $filePath,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * 老口径：插件、模板各发一次 app-update-check（base-data 合并不可用时才走）。
+     *
+     * @param list<array{type:string, name_en:string, title:string, version:string}> $installed
+     * @return array{plugins: list<array<string,string>>, templates: list<array<string,string>>}
+     */
+    private function collectAppUpdatesSeparately(array $installed): array
+    {
+        $out = ['plugins' => [], 'templates' => []];
+
+        foreach (['plugin' => 'plugins', 'template' => 'templates'] as $type => $bucket) {
+            $scanned = [];
+            foreach ($installed as $app) {
+                if ($app['type'] === $type) {
+                    $scanned[$app['name_en']] = ['version' => $app['version'], 'title' => $app['title']];
+                }
+            }
+            if ($scanned === []) {
+                continue;
+            }
+
+            try {
+                // 首页的检测是"顺便"，单次上游超时压到 8 秒，避免拖垮首页数据
+                $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, $type, 8);
+                foreach ($updates as $slug => $row) {
+                    $current = (string) ($scanned[$slug]['version'] ?? '1.0.0');
+                    $latest  = (string) ($row['version'] ?? '');
+                    if ($latest === '' || !version_compare($latest, $current, '>')) {
+                        continue;
+                    }
+                    $out[$bucket][] = [
+                        'name'           => (string) $slug,
+                        'title'          => (string) ($scanned[$slug]['title'] ?? $slug),
+                        'version'        => $current,
+                        'latest_version' => $latest,
+                        'file_path'      => (string) ($row['file_path'] ?? ''),
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // 检测失败不影响首页其它数据
+            }
         }
 
         return $out;

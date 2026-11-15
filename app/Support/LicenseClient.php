@@ -257,6 +257,10 @@ final class LicenseClient
      *   version   客户端当前版本号（形如 1.3.18，开头的 v 可有可无）
      *   code      本地保存的授权码（可选）。传了服务端就按「授权码 + 域名」两个都对上
      *             才算授权（同 license/status）；没传时老口径「只认域名」
+     *   apps      **可选**：本机已装插件 / 模板清单（形状同 app-update-check），
+     *             服务端会在同一个响应里多回一个 `app_updates`。传了它就不必再单独调
+     *             license/status 和两次 app-update-check —— 后台首页只发这一个请求。
+     *             服务端不支持（老版本）时响应里没有这个键，调用方自己判断降级。
      *
      * 返回 data 的字段（原样交给 app(\App\Service\LicenseService::class)->fetchBaseData() 归一化）：
      *   domain / authorized / license_type / license_type_label
@@ -275,14 +279,21 @@ final class LicenseClient
      * @return array 服务端 data 整段
      * @throws \RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public function baseData(string $identity, string $domain, string $version, string $code = ''): array
+    public function baseData(string $identity, string $domain, string $version, string $code = '', array $apps = []): array
     {
-        return $this->postForm('api/open/v1/em/base-data', [
+        $payload = [
             'identity' => $identity,
             'domain'   => $domain,
             'version'  => $version,
             'code'     => $code,
-        ], 8);
+        ];
+
+        // 顺带查更新：表单编码成 apps[0][name_en]=... 服务端 $_POST 直接就是数组
+        if ($apps !== []) {
+            $payload['apps'] = array_values($apps);
+        }
+
+        return $this->postForm('api/open/v1/em/base-data', $payload, 8);
     }
 
     /**

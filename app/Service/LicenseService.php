@@ -22,8 +22,10 @@ namespace App\Service;
  *   - 解绑：只清 main_host + emkey_type；emkey 和 alias 保留
  *   - isActivated 判据：main_host 已配置
  *   - 访问别名域名时，isActivated 仍返 true；所有中心服务调用的 host 参数一律用 main_host
- *   - 授权状态由 activate(=bind) 写入，由 api/open/v1/em/license/status 周期核对。
- *     fetchBaseData() 仅供后台首页展示（公告/广告/版本/代理商），不参与授权判定
+ *   - 授权状态由 activate(=bind) 写入，周期核对有两个入口：
+ *     · 后台首页：base-data 一个请求同时带回 authorized / license_type 和公告等展示数据，
+ *       由 revalidateFromBaseData() 落本地（2026-11-15 合并，少了单独一次 license/status）
+ *     · license 页等其它入口：仍走 revalidateCurrent()（api/open/v1/em/license/status）
  */
 final class LicenseService extends BaseService
 {
@@ -259,6 +261,49 @@ final class LicenseService extends BaseService
     }
 
     /**
+     * 用 **base-data 已经返回的**授权字段核对本地状态（后台首页专用，2026-11-15）。
+     *
+     * 与 revalidateCurrent() 是同一套判定，只是数据来源从 license/status 换成
+     * base-data —— 后者本来就带 authorized / license_type（而且服务端也是按
+     * 「码 + 域名」算的，与 status 同口径），所以首页不必再单独打一次 status。
+     *
+     * 判定完全对齐 revalidateCurrent()：
+     *  - 本地没绑域名（未激活）→ 不动，不发请求
+     *  - authorized === false  → 服务端明确判定未授权 → 清空本地授权
+     *  - authorized === true   → 档位与服务端不一致就以服务端为准
+     *  - authorized === null   → 老服务端响应里没这个字段 → 保守保留
+     *
+     * @param array<string, mixed> $baseData fetchBaseData() 归一化之后的数组
+     */
+    public function revalidateFromBaseData(array $baseData): void
+    {
+        if ((string) $this->config->get('license_main_host', '') === '') {
+            return;
+        }
+
+        $authorized = $baseData['authorized'] ?? null;
+
+        if ($authorized === false) {
+            // 服务端明确判定未授权 → 清空本地授权
+            $this->clearLocalAuthorization();
+            return;
+        }
+
+        if ($authorized !== true) {
+            return; // 字段缺失（老服务端 / 响应异常）→ 不动本地，别误清
+        }
+
+        // 已授权：档位以服务端返回的为准（没授权时它是空串，走不到这里）
+        $type = (int) ($baseData['license_type'] ?? 0);
+        if (!isset(self::TYPE_TO_LEVEL[$type])) {
+            return; // 授权有效但档位没给全 → 保留本地原值，不误清
+        }
+        if ((int) $this->config->get('license_emkey_type', '0') !== $type) {
+            $this->config->set('license_emkey_type', (string) $type);
+        }
+    }
+
+    /**
      * 清空本地授权：把站点打回「未授权」。
      *
      * 只清授权状态本身 —— main_host + emkey_type（判据见 currentLicense()）；
@@ -286,23 +331,33 @@ final class LicenseService extends BaseService
      * 返回结构：
      *   domain / license_type / license_label / identity_matched / used_fallback
      *   authorized  三态：true=已授权 / false=服务端明确判定未授权 / null=字段缺失
-     *               —— 仅作展示与排查用，**不参与**本地授权判定（那只看激活码那条链路）
      *   update      {has_new, version, force, min_version, package_url}
      *   buy_links / download_links   [{name, url}]
      *   contact     固定 6 个键，wechat_qr 已补成完整图片地址
      *   announcements / ad_slots     公告与广告位（content 是富文本 HTML）
+     *   bundled_app_updates_available  服务端这次有没有顺带回 app_updates（老服务端 = false）
+     *   bundled_app_updates            已装应用的新版本（形状见 normalizeAppUpdates），没回时是 []
+     *
+     * ⚠️ 字段名**故意不叫 `app_updates`**：后台首页最后要往响应里塞一个给前端弹窗用的
+     *    `app_updates`（{plugins, templates} 结构），而那里是 `$data + [...]` 合并 ——
+     *    同名字段左边优先，会把前端契约覆盖掉。
+     *
+     * @param list<array{name_en:string, version:string}> $apps 本机已装插件 / 模板清单；
+     *        非空时服务端会在同一响应里多回 app_updates（免去单独的 app-update-check）。
+     *        调用方只在「已激活」时传 —— 未激活时中心只会回未授权、无下载地址。
      *
      * @return array<string, mixed>
      * @throws RuntimeException 网络不可达 / 响应格式异常 / code != 200
      */
-    public function fetchBaseData(): array
+    public function fetchBaseData(array $apps = []): array
     {
         $data = $this->licenseClient->baseData(
             defined('SERVICE_TOKEN') ? (string) SERVICE_TOKEN : '',
             $this->effectiveHost(),
             defined('EM_VERSION') ? (string) EM_VERSION : '',
             // 本地保存的授权码：上游据此按「码 + 域名」双重校验（未激活时为空串）
-            (string) $this->config->get('license_emkey', '')
+            (string) $this->config->get('license_emkey', ''),
+            $apps
         );
 
         // echo '<pre>'; print_r($data);die;
@@ -320,7 +375,45 @@ final class LicenseService extends BaseService
             'announcements'    => $this->normalizeEntries($data['announcements'] ?? [], false),
             'ad_slots'         => $this->normalizeEntries($data['ad_slots'] ?? [], true),
             'update'           => $this->normalizeUpdate($data),
+            // 服务端只在「客户端带了 apps」时回这个键 —— 没有就说明是老服务端，
+            // 调用方要退回单独调 app-update-check（见 DashboardController）
+            'bundled_app_updates_available' => array_key_exists('app_updates', $data),
+            'bundled_app_updates'           => $this->normalizeAppUpdates($data['app_updates'] ?? []),
         ];
+    }
+
+    /**
+     * 归一 base-data 里合并回来的 `app_updates`。
+     *
+     * 上游形状与 app-update-check 的 `data` 一致，这里只留客户端用得到的字段：
+     * 英文名 / 类型 / 新版本号 / 安装包地址 / 要求的最低主程序版本。
+     * **没安装包的直接丢掉** —— 报了也下不了，只会留下一个点不动的「更新」按钮
+     * （与 AppUpdateService::checkInstalled 的过滤口径一致）。
+     *
+     * @param mixed $raw
+     * @return list<array{name_en:string, type:string, version:string, package_url:string, min_version:string}>
+     */
+    private function normalizeAppUpdates($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $item) {
+            if (!is_array($item)) continue;
+            $name = trim((string) ($item['name_en'] ?? ''));
+            $url  = trim((string) ($item['package_url'] ?? ''));
+            if ($name === '' || $url === '') continue;
+            $out[] = [
+                'name_en'     => $name,
+                'type'        => (string) ($item['type'] ?? ''),
+                'version'     => (string) ($item['version'] ?? ''),
+                'package_url' => $url,
+                'min_version' => (string) ($item['min_version'] ?? ''),
+            ];
+        }
+        return $out;
     }
 
     /**
