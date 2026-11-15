@@ -2087,37 +2087,6 @@ $(function () {
     $(document).off('.dashHome');
     $(window).off('.dashHome');
 
-    checkRewriteStatus();
-    /**
-     * 探测伪静态是否生效
-     */ 
-    function checkRewriteStatus() {
-        $.ajax({
-            url: '/test',
-            method: 'GET',
-            data: {},
-            dataType: 'json',
-            timeout: 15000
-        }).done(function (resp) {
-            console.log(resp);
-        }).fail(function (xhr, status, error) {
-            // 失败捕获
-            if (xhr.status === 404) {
-                console.log('未配置伪静态');
-                layui.layer.open({
-                    type: 2,
-                    title: '未配置伪静态',
-                    skin: 'admin-modal',
-                    maxmin: false,
-                    area: [window.innerWidth >= 640 ? '580px' : '94%', window.innerHeight >= 640 ? '580px' : '88%'],
-                    shadeClose: true,
-                    content: '<?= EM_ADMIN_PATH ?>/home?popup=rewrite'
-                });
-            }
-        });
-    }
-    
-
     // 官方公告第一条：客服QQ / QQ群 点击复制
     $(document).on('click.dashHome', '.dash-contact-chip[data-copy]', function () {
         var text = $(this).data('copy');
