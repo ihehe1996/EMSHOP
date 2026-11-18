@@ -36,11 +36,25 @@ final class AppUpdateService extends BaseService
      * @param array<string, array{version?:string}> $installed 以 name_en（slug = 目录名）为 key
      * @param string $type 'plugin' / 'template'
      * @param int $timeout 单次上游请求超时（秒）；首页这类"顺便检测"可传更短
+     * @param bool|null $failed 出参：本次有没有上游请求失败（网络 / 超时 / 响应异常）。
+     *        默认 null 时行为与改造前完全一致（不关心成败）；插件/模板列表页要把
+     *        「检查失败」和「没有更新」分开显示，才需要它
+     * @param bool $includeWithoutPackage 是否保留**没有安装包地址**的更新条目。
+     *        默认 false（改造前的口径）：未授权时中心只回版本号、不回 package_url，
+     *        那种条目点更新必然失败，所以直接丢掉。插件/模板管理页传 true ——
+     *        用户至少要看到「有新版本」，卡片上会把更新入口显示成「激活后可更新」
      * @return array<string, array{version:string, file_path:string, min_version:string}>
      *         只含"有更新"的条目，key 与入参一致
      */
-    public function checkInstalled(array $installed, string $type, int $timeout = 15): array
-    {
+    public function checkInstalled(
+        array $installed,
+        string $type,
+        int $timeout = 15,
+        ?bool &$failed = null,
+        bool $includeWithoutPackage = false
+    ): array {
+        $failed = false;
+
         if (!in_array($type, ['plugin', 'template'], true) || $installed === []) {
             return [];
         }
@@ -70,7 +84,9 @@ final class AppUpdateService extends BaseService
             try {
                 $res = $this->licenseClient->appUpdateCheck($batch, $domain, $code, $timeout);
             } catch (\Throwable $e) {
-                // 中心不可达：静默降级，别让插件/模板列表页整体报错
+                // 中心不可达：静默降级，别让插件/模板列表页整体报错。
+                // 但要把「失败」告诉调用方 —— 列表页的「检查失败」不能显示成「没有更新」
+                $failed = true;
                 continue;
             }
 
@@ -89,10 +105,10 @@ final class AppUpdateService extends BaseService
                 if ((string) ($row['type'] ?? '') !== $type) continue;
                 $filePath = (string) ($row['package_url'] ?? '');
                 // 未授权 / 授权与域名不匹配时，服务端只回"有新版本"但不给下载地址
-                // （package_url 为空串）。这种条目不能当成"可更新"：页面会画出更新按钮，
-                // 点下去却因为 file_path 为空被后台应用商店页的 update 分支拒绝
-                // （"EM官方未提供下载地址"）。宁可这条不显示更新，也不给一个必然失败的按钮。
-                if ($filePath === '') continue;
+                // （package_url 为空串）。默认丢掉：页面会画出更新按钮，点下去却因为
+                // file_path 为空被后台应用商店页的 update 分支拒绝（"EM官方未提供下载地址"）。
+                // 管理页传 includeWithoutPackage=true 时保留，由前端显示成「需激活」条目。
+                if ($filePath === '' && !$includeWithoutPackage) continue;
 
                 $out[$slug] = [
                     'version'     => (string) ($row['version'] ?? ''),

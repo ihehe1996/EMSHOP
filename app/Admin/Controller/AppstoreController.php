@@ -161,7 +161,8 @@ final class AppstoreController extends BaseAdminController
                 $this->response->error('请先登录官方账号后再使用应用商店');
             }
 
-            app(\App\Service\LicenseService::class)->revalidateCurrent(); // 获取最新授权状态
+            // 授权状态核对不再单独打 license/status：这次 app-list 带着码和域名，
+            // 响应里的 license 块会做同一套判定（见下面 revalidateFromLicensePayload）
 
             $officialToken = app(\App\Service\LicenseService::class)->officialAccountToken();
             $accountName   = (string) ($officialAccount['username'] ?? '');
@@ -223,13 +224,13 @@ final class AppstoreController extends BaseAdminController
                     ? $this->licenseClient->merchantAppList($params, $officialToken)
                     : $this->licenseClient->mainAppList($params, $officialToken);
 
-                // 这次列表是带着本地激活码去问的：服务端明确回未授权 → 清空本地授权
-                // （码不存在 / 已作废 / 域名对不上都是这个值，口径与 license/status 一致）
-                // 前提是**确实带了码**：没带码时服务端照样回 false，那不是「码失效」，
-                // 不能拿它清本地（未激活时 local 就没有码，走不到这个分支）
-                if ($emkey !== '' && ($result['license']['authorized'] ?? null) === false) {
-                    app(\App\Service\LicenseService::class)->clearLocalAuthorization();
-                }
+                // 这次列表是带着本地激活码去问的：响应里的 license 块顺带完成授权状态核对
+                // （原来这里先单独调一次 revalidateCurrent，一页要发两个官方请求）。
+                // 判定与 license/status 一致：明确 false 才清、档位以服务端为准、没带码不动。
+                app(\App\Service\LicenseService::class)->revalidateFromLicensePayload(
+                    is_array($result['license'] ?? null) ? $result['license'] : [],
+                    $emkey
+                );
 
                 if ($tab === 'main') {
                     // tab=main:主站自用,合并已装状态

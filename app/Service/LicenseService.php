@@ -22,9 +22,11 @@ namespace App\Service;
  *   - 解绑：只清 main_host + emkey_type；emkey 和 alias 保留
  *   - isActivated 判据：main_host 已配置
  *   - 访问别名域名时，isActivated 仍返 true；所有中心服务调用的 host 参数一律用 main_host
- *   - 授权状态由 activate(=bind) 写入，周期核对有两个入口：
+ *   - 授权状态由 activate(=bind) 写入，周期核对有三个入口：
  *     · 后台首页：base-data 一个请求同时带回 authorized / license_type 和公告等展示数据，
  *       由 revalidateFromBaseData() 落本地（2026-11-15 合并，少了单独一次 license/status）
+ *     · 后台应用商店：app-list 响应的 license 块顺带核对，由
+ *       revalidateFromLicensePayload() 落本地（同上，一页一个官方接口）
  *     · license 页等其它入口：仍走 revalidateCurrent()（api/open/v1/em/license/status）
  */
 final class LicenseService extends BaseService
@@ -297,6 +299,54 @@ final class LicenseService extends BaseService
         $type = (int) ($baseData['license_type'] ?? 0);
         if (!isset(self::TYPE_TO_LEVEL[$type])) {
             return; // 授权有效但档位没给全 → 保留本地原值，不误清
+        }
+        if ((int) $this->config->get('license_emkey_type', '0') !== $type) {
+            $this->config->set('license_emkey_type', (string) $type);
+        }
+    }
+
+    /**
+     * 用 **app-list / app-update-check 响应里的 `license` 块**核对本地状态
+     * （后台应用商店列表用，2026-11-15）。
+     *
+     * 应用商店拉列表时本来就带着 domain + 码去问，服务端在同一响应里回了
+     * `license: {authorized, type, type_label, ...}`（见 OpenAppController::licensePayload）。
+     * 这次请求已经完成「码 + 域名」校验，所以不必再单独打一次 license/status ——
+     * 一页只发一个官方接口。
+     *
+     * 判定与 revalidateCurrent() 对齐，但**必须传本次实际带上去的码**：
+     *   · 没带码（`$sentCode === ''`）→ 什么都不做。服务端这时照样回
+     *     `authorized: false`，那不是「码失效」，不能拿它清本地
+     *     （与 AppUpdateService::checkInstalled 同口径）
+     *   · authorized === false → 清空本地授权
+     *   · authorized === true  → 档位与服务端不一致就以服务端为准
+     *   · 字段缺失（老服务端）  → 保守保留
+     *
+     * @param array<string, mixed> $license 上游 license 块（app-list 的 data.license）
+     * @param string $sentCode 本次请求带上去的授权码；空串表示没带
+     */
+    public function revalidateFromLicensePayload(array $license, string $sentCode): void
+    {
+        if ($sentCode === '' || (string) $this->config->get('license_main_host', '') === '') {
+            return;
+        }
+
+        $authorized = $license['authorized'] ?? null;
+
+        if ($authorized === false) {
+            // 服务端带着码明确判定未授权 → 清空本地授权
+            $this->clearLocalAuthorization();
+            return;
+        }
+
+        if ($authorized !== true) {
+            return; // 字段缺失（老服务端 / 响应异常）→ 不动本地
+        }
+
+        // 已授权：档位以服务端返回的为准
+        $type = (int) ($license['type'] ?? 0);
+        if (!isset(self::TYPE_TO_LEVEL[$type])) {
+            return;
         }
         if ((int) $this->config->get('license_emkey_type', '0') !== $type) {
             $this->config->set('license_emkey_type', (string) $type);

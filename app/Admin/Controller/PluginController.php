@@ -13,7 +13,9 @@ namespace App\Admin\Controller;
  *   - 元数据走 parseHeader 实时读
  *
  * 动作：enable / disable / uninstall / save_config / set_merchant_price / set_merchant_listed
- * GET _action=list 返回插件列表 JSON；?_popup=1&name=xxx 渲染插件设置页。
+ * GET _action=list 返回插件列表 JSON（只读本地，不等中心接口）；
+ * GET _action=check_updates 单独查新版本（中心接口，页面渲染后再请求）；
+ * ?_popup=1&name=xxx 渲染插件设置页。
  *
  * 整页请求由 AdminShell 渲染（app/Admin/View/shell.php）。
  */
@@ -34,6 +36,14 @@ final class PluginController extends BaseAdminController
 
         if (!$isPopup && (string) $this->input->get('_action', '') === 'list') {
             $this->outputList($model);
+            return;
+        }
+
+        // 已装插件的版本检查：从列表请求里拆出来（2026-11-15）。
+        // 列表只读本地磁盘/数据库、立刻返回；中心接口慢的时候只拖住这个状态条，
+        // 不会让整个插件列表跟着等。
+        if (!$isPopup && (string) $this->input->get('_action', '') === 'check_updates') {
+            $this->outputUpdates($model);
             return;
         }
 
@@ -348,8 +358,9 @@ final class PluginController extends BaseAdminController
             return;
         }
 
+        // 只读本地：版本检查已拆到 _action=check_updates（见 outputUpdates），
+        // 这里不再等中心接口。has_update 先给 false，前端拿到检查结果后再补。
         $scanned = $model->scanWithStatus(self::SCOPE);
-        $latestVersions = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, 'plugin');
         $licenseError = '';
 
         $data = [];
@@ -359,9 +370,6 @@ final class PluginController extends BaseAdminController
                 continue;
             }
             $version = (string) ($info['version'] ?? '1.0.0');
-            $latest = $latestVersions[$name] ?? null;
-            $hasUpdate = (bool) ($latest && !empty($latest['version'])
-                && version_compare((string) $latest['version'], $version, '>'));
             $data[] = [
                 'name'         => $name,
                 'title'        => (string) ($info['title']       ?? $name),
@@ -378,9 +386,9 @@ final class PluginController extends BaseAdminController
                 'is_enabled'   => !empty($info['is_enabled']),
                 'id'           => (int) ($info['state_id'] ?? 0),
                 'config'       => '{}',
-                'has_update'       => $hasUpdate,
-                'latest_version'   => $hasUpdate ? (string) ($latest['version'] ?? '') : '',
-                'latest_file_path' => $hasUpdate ? (string) ($latest['file_path'] ?? '') : '',
+                'has_update'       => false,
+                'latest_version'   => '',
+                'latest_file_path' => '',
             ];
         }
 
@@ -394,6 +402,58 @@ final class PluginController extends BaseAdminController
             '_license_error' => $licenseError,
         ], JSON_UNESCAPED_UNICODE);
         return;
+    }
+
+    /**
+     * 检查已装插件的新版本（`_action=check_updates`）。
+     *
+     * 从列表请求里拆出来的目的只有一个：让插件列表先渲染出来，中心接口慢/不通时
+     * 只影响页面上的「正在检查更新」状态条，不再让整页骷髅屏等 15 秒。
+     *
+     * 返回 data：`{插件目录名: {version, file_path}}`，只含有更新的条目；
+     * 没有更新就是空对象。**未授权时 `file_path` 为空串**（中心只回版本号），
+     * 前端会把这类条目显示成「有新版本 · 激活后可更新」。前端按目录名合并到卡片上。
+     *
+     * 降级：中心不可达时 AppUpdateService 内部静默返回空数组，但会把失败标记带回来
+     * （`$failed`）—— 前端据此显示「检查失败」而不是「没有更新」。
+     */
+    private function outputUpdates(\App\Model\PluginModel $model): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $scanned = $model->scanWithStatus(self::SCOPE);
+
+        $failed = false;
+        $updates = [];
+        try {
+            // 第 5 个参数 true：未授权时也要把「有新版本」报上来（只是没有下载地址）
+            $updates = app(\App\Service\AppUpdateService::class)->checkInstalled($scanned, 'plugin', 15, $failed, true);
+        } catch (\Throwable $e) {
+            $failed = true;
+        }
+
+        // 再按本地当前版本比一次（同改造前列表里的口径），并只回前端用得到的字段
+        $data = [];
+        foreach ($updates as $name => $row) {
+            $current = (string) ($scanned[$name]['version'] ?? '1.0.0');
+            $latest  = (string) ($row['version'] ?? '');
+            if ($latest === '' || !version_compare($latest, $current, '>')) {
+                continue;
+            }
+            $data[$name] = [
+                'version'   => $latest,
+                'file_path' => (string) ($row['file_path'] ?? ''),
+            ];
+        }
+
+        echo json_encode([
+            'code'       => 0,
+            'msg'        => '',
+            'data'       => $data,
+            // 空串 = 检查确实完成；非空 = 中心不可达 / 超时，别把「没查到」当成「没更新」
+            'error'      => $failed ? '检查更新失败：授权服务器请求失败' : '',
+            'csrf_token' => $this->csrf->token(),
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**
