@@ -57,8 +57,27 @@ final class SystemLogModel extends Model
      */
     private function write(string $level, string $type, string $action, string $message, array $detail, ?int $userId, ?string $username): int
     {
-        $userId = $userId ?? ($GLOBALS['adminUser']['id'] ?? 0);
-        $username = $username ?? ($GLOBALS['adminUser']['username'] ?? ($GLOBALS['user']['username'] ?? 'system'));
+        // 后台管理员身份只存在后台会话里；旧后台的 $GLOBALS['adminUser'] 已废弃。
+        // CLI / 队列里没有会话，$userId、$username 由调用方显式传入。
+        $adminSession = $_SESSION[EM_AUTH_SESSION_KEY] ?? null;
+        $frontSession = $_SESSION['em_front_user'] ?? null;
+
+        if ($userId === null) {
+            $userId = is_array($adminSession) ? (int) ($adminSession['id'] ?? 0) : 0;
+            if ($userId <= 0) {
+                $userId = is_array($frontSession) ? (int) ($frontSession['id'] ?? 0) : 0;
+            }
+        }
+
+        if ($username === null) {
+            if (is_array($adminSession) && !empty($adminSession['username'])) {
+                $username = (string) $adminSession['username'];
+            } elseif (is_array($frontSession) && !empty($frontSession['username'])) {
+                $username = (string) $frontSession['username'];
+            } else {
+                $username = 'system';
+            }
+        }
 
         $sql = sprintf(
             'INSERT INTO `%s` (`level`, `type`, `action`, `message`, `detail`, `user_id`, `username`, `ip`, `user_agent`, `created_at`)

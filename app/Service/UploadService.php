@@ -97,16 +97,13 @@ final class UploadService extends BaseService
             $relativePath = '/content/uploads/' . $dateDir . '/' . $newName;
             $resultUrl = $relativePath;
 
-            // 上传者身份：后台取 adminUser，用户中心 / 商户中心取前台登录会话。
+            // 上传者身份：后台管理员取后台会话，用户中心 / 商户中心取前台登录会话。
             //
-            // 原实现只认 $GLOBALS['adminUser'] —— 商户端上传时它并不存在，于是 user_id
-            // 落库为 NULL。而商户媒体库是按 user_id 过滤的，结果就是商户上传的图片
-            // 永远不出现在自己的媒体库里，也无法删除（删除同样按 user_id 校验）。
-            $uploaderId = 0;
-            if (!empty($GLOBALS['adminUser']['id'])) {
-                $uploaderId = (int) $GLOBALS['adminUser']['id'];
-            } elseif (!empty($_SESSION['em_front_user']['id'])) {
-                $uploaderId = (int) $_SESSION['em_front_user']['id'];
+            // 后台登录态只存在 $_SESSION[EM_AUTH_SESSION_KEY]；旧后台的
+            // $GLOBALS['adminUser'] 已随 admin/ 目录迁移废弃，不能再作为身份来源。
+            $uploaderId = (int) ($_SESSION[EM_AUTH_SESSION_KEY]['id'] ?? 0);
+            if ($uploaderId <= 0) {
+                $uploaderId = (int) ($_SESSION['em_front_user']['id'] ?? 0);
             }
 
             // 写入附件记录
