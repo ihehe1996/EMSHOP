@@ -9,8 +9,8 @@ $pageTitle  = '登录官方账号';
 $initialTab = ($initialTab ?? 'login') === 'register' ? 'register' : 'login';
 
 // EmToast（全站统一浮动提示）；样式须排在 layui.css 之后
-$extraHead  = '<link rel="stylesheet" href="/content/static/css/em-toast.css">'
-            . '<script src="/content/static/js/em-toast.js"></script>';
+$extraHead  = '<link rel="stylesheet" href="/content/static/css/em-toast.css?v=<?= EM_VERSION ?>">'
+            . '<script src="/content/static/js/em-toast.js?v=<?= EM_VERSION ?>"></script>';
 
 include __DIR__ . '/header.php';
 ?>

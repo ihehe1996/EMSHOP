@@ -11,12 +11,12 @@ if (!defined('EM_ROOT')) {
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/cropper.min.css">
-    <link rel="stylesheet" href="/content/static/admin/css/popup.css">
-    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css">
-    <link rel="stylesheet" href="/content/static/admin/css/style.css">
-    <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>;</script>
+    <link rel="stylesheet" href="/content/static/admin/css/popup.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/style.css?v=<?= EM_VERSION ?>">
+    <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>; window.EM_VERSION = <?php echo json_encode(EM_VERSION); ?>;</script>
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
-    <script src="/content/static/admin/js/em-editor-upload.js"></script>
+    <script src="/content/static/admin/js/em-editor-upload.js?v=<?= EM_VERSION ?>"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
     <script src="/content/static/lib/cropper.min.js"></script>
     <script src="/content/static/lib/sortable.min.js"></script>
@@ -36,7 +36,7 @@ if (!defined('EM_ROOT')) {
     </script>
 
 <script src="/content/static/lib/tinymce/tinymce.min.js"></script>
-    <script src="/content/static/admin/js/em-tinymce.js"></script> 
+    <script src="/content/static/admin/js/em-tinymce.js?v=<?= EM_VERSION ?>"></script> 
     <?php if (isset($extraHead)) echo $extraHead; ?>
 </head> 
 <body class="popup-body">

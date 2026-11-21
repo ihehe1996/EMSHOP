@@ -19,23 +19,23 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !app(\App\Ser
     <link rel="stylesheet" href="/content/static/lib/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="/content/static/lib/cropper.min.css">
     <link rel="stylesheet" href="/content/static/lib/viewer.js/viewer.min.css">
-    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css">
-    <link rel="stylesheet" href="/content/static/admin/css/admin.css">
-    <link rel="stylesheet" href="/content/static/admin/css/admin-modal.css">
-    <link rel="stylesheet" href="/content/static/admin/css/style.css">
-    <link rel="stylesheet" href="/content/static/admin/css/disclaimer.css">
-    <link rel="stylesheet" href="/content/static/css/em-toast.css">
+    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/admin.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/admin-modal.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/style.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/disclaimer.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/css/em-toast.css?v=<?= EM_VERSION ?>">
     <?php if (basename($adminContentView) === 'home.php'): ?>
-    <link rel="stylesheet" href="/content/static/admin/css/dashboard.css" id="emDashboardCss">
+    <link rel="stylesheet" href="/content/static/admin/css/dashboard.css?v=<?= EM_VERSION ?>" id="emDashboardCss">
     <?php endif; ?>
-    <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>;</script>
+    <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>; window.EM_VERSION = <?php echo json_encode(EM_VERSION); ?>;</script>
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
-    <script src="/content/static/js/em-toast.js"></script>
+    <script src="/content/static/js/em-toast.js?v=<?= EM_VERSION ?>"></script>
 
     <script src="/content/static/lib/tinymce/tinymce.min.js"></script> 
-    <script src="/content/static/admin/js/em-editor-upload.js"></script>
-    <script src="/content/static/admin/js/em-tinymce.js"></script>
+    <script src="/content/static/admin/js/em-editor-upload.js?v=<?= EM_VERSION ?>"></script>
+    <script src="/content/static/admin/js/em-tinymce.js?v=<?= EM_VERSION ?>"></script>
  
 
     <style>
@@ -392,8 +392,8 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !app(\App\Ser
 <script src="/content/static/lib/echarts.min.js"></script>
 <script src="/content/static/lib/qrcode.min.js"></script>
 <script>window.adminCsrfToken = <?php echo json_encode($csrfToken); ?>;</script>
-<script src="/content/static/admin/js/em-editor-upload.js"></script>
-<script src="/content/static/admin/js/admin.js"></script>
+<script src="/content/static/admin/js/em-editor-upload.js?v=<?= EM_VERSION ?>"></script>
+<script src="/content/static/admin/js/admin.js?v=<?= EM_VERSION ?>"></script>
 <script>
 $(function () {
     layui.use(['layer'], function () {

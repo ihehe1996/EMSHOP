@@ -27,8 +27,8 @@ $siteTitle = $siteName !== '' ? $siteName : 'EMSHOP';
     <title>后台登录 - <?php echo htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="icon" href="<?php echo htmlspecialchars(site_favicon_href(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="/content/static/lib/layui-v2.13.5/layui/css/layui.css">
-    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css">
-    <link rel="stylesheet" href="/content/static/admin/css/sign.css">
+    <link rel="stylesheet" href="/content/static/admin/css/reset-layui.css?v=<?= EM_VERSION ?>">
+    <link rel="stylesheet" href="/content/static/admin/css/sign.css?v=<?= EM_VERSION ?>">
     <?php doAction('admin_sign_head'); ?>
 </head>
 <body>
@@ -76,7 +76,7 @@ if (typeof jQuery !== 'undefined' && typeof jQuery.trim !== 'function') {
 }
 </script>
 <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
-<script src="/content/static/admin/js/sign.js"></script>
+<script src="/content/static/admin/js/sign.js?v=<?= EM_VERSION ?>"></script>
 <?php doAction('admin_sign_footer'); ?>
 </body>
 </html>

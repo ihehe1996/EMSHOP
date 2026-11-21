@@ -318,7 +318,7 @@
         var link = document.createElement('link');
         link.id = 'emDashboardCss';
         link.rel = 'stylesheet';
-        link.href = '/content/static/admin/css/dashboard.css';
+        link.href = '/content/static/admin/css/dashboard.css?v=' + encodeURIComponent(window.EM_VERSION || '');
         (document.head || document.getElementsByTagName('head')[0]).appendChild(link);
     }
 
