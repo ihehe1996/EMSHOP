@@ -306,6 +306,23 @@
     }
 
     /**
+     * 控制台样式按需加载。
+     * 整页渲染 /{入口}/home 时 shell 会把 dashboard.css 放进 <head>；
+     * Pjax 切回控制台不会重建 head，这里在请求发出时先补上，
+     * 避免慢网下内容区先按无样式渲染一帧。
+     */
+    function ensureDashboardCss() {
+        if (document.getElementById('emDashboardCss')) {
+            return;
+        }
+        var link = document.createElement('link');
+        link.id = 'emDashboardCss';
+        link.rel = 'stylesheet';
+        link.href = '/content/static/admin/css/dashboard.css';
+        (document.head || document.getElementsByTagName('head')[0]).appendChild(link);
+    }
+
+    /**
      * Pjax 局部页面加载
      */
     function initPjax() {
@@ -324,6 +341,20 @@
             var link = (options && options.target) || event.target;
             if ($(link).closest('.admin-sidebar').length) {
                 closeMobileSidebar();
+            }
+        });
+
+        // 控制台样式按需加载：整页渲染 /{入口}/home 时 shell 已把 dashboard.css 放进 head；
+        // Pjax（含浏览器前进/后退）不会重建 head，这里按目标 URL 在请求开始时就补上，
+        // 避免慢网下控制台内容先按无样式渲染一帧。
+        $(document).on('pjax:start', function (event, xhr, options) {
+            if (!options || !options.url) {
+                return;
+            }
+            var target = document.createElement('a');
+            target.href = options.url;
+            if (target.pathname === (window.EM_ADMIN_PATH || '/admin') + '/home') {
+                ensureDashboardCss();
             }
         });
 

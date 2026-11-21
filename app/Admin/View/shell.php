@@ -25,6 +25,9 @@ $emDisclaimerShow = (!defined('EM_DEMO_MODE') || !EM_DEMO_MODE) && !app(\App\Ser
     <link rel="stylesheet" href="/content/static/admin/css/style.css">
     <link rel="stylesheet" href="/content/static/admin/css/disclaimer.css">
     <link rel="stylesheet" href="/content/static/css/em-toast.css">
+    <?php if (basename($adminContentView) === 'home.php'): ?>
+    <link rel="stylesheet" href="/content/static/admin/css/dashboard.css" id="emDashboardCss">
+    <?php endif; ?>
     <script>window.EM_ADMIN_PATH = <?php echo json_encode(EM_ADMIN_PATH, JSON_UNESCAPED_SLASHES); ?>;</script>
     <script src="/content/static/lib/jquery.min.3.5.1.js"></script>
     <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
