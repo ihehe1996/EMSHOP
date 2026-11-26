@@ -654,7 +654,7 @@ CODE;
  * @param array<int, array{type:string, text:string}> $messages
  * @param array<string, mixed> $defaults
  * @param string $step intro=第一步（介绍与环境建议） / form=第二步（配置表单）
- * @param bool $demo 调试用：带上 ?demo=1 时用假数据直接弹出「安装成功」弹窗，方便调样式
+ * @param bool $demo 演示用：?action=test 或 ?action=install&demo=1 时，页面加载后直接弹出「安装成功」弹窗
  */
 function installer_render(array $messages, array $defaults, string $step = 'intro', bool $demo = false): void
 {
@@ -673,7 +673,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
     $rewriteServer = installer_rewrite_server();
     $rewriteGuides = installer_rewrite_guides();
 
-    // 演示模式（?demo=1）：成功弹窗里用随机生成的账号密码，和真实安装看到的一致
+    // 演示模式（?action=test / ?demo=1）：成功弹窗里用随机生成的账号密码，和真实安装看到的一致
     $demoCredentials = $demo ? installer_generate_admin_credentials() : [];
 
     ?>
@@ -927,7 +927,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             overflow: hidden;
             background: #fff;
             border: 1px solid var(--line);
-            border-radius: 18px;
+            border-radius: 5px;
             box-shadow: 0 30px 70px -34px rgba(15, 23, 41, 0.45), 0 1px 2px rgba(15, 23, 41, 0.04);
         }
         .install-success-skin .layui-layer-setwin { display: none; }
@@ -940,13 +940,27 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             height: 44px; line-height: 42px; margin: 0; padding: 0 30px;
             font-family: inherit; font-size: 14px; font-weight: 600; color: #fff;
             background: linear-gradient(180deg, #6366f1, #4338ca);
-            border: 0; border-radius: var(--radius);
+            border: 0; border-radius: 5px;
             box-shadow: 0 12px 24px -14px rgba(79, 70, 229, 0.8);
             transition: transform 0.18s, box-shadow 0.18s;
         }
         .install-success-skin .layui-layer-btn a:hover {
             transform: translateY(-1px);
             box-shadow: 0 16px 30px -14px rgba(79, 70, 229, 0.95);
+        }
+        /* 第二个按钮（下载账号信息）：次要样式，不和「进入后台」抢焦点 */
+        .install-success-skin .layui-layer-btn a + a { margin-left: 10px; }
+        .install-success-skin .layui-layer-btn a.layui-layer-btn1 {
+            color: var(--accent-strong);
+            background: #fff;
+            border: 1px solid var(--line);
+            box-shadow: none;
+        }
+        .install-success-skin .layui-layer-btn a.layui-layer-btn1:hover {
+            transform: none;
+            background: #f7f8ff;
+            border-color: var(--accent-strong);
+            box-shadow: none;
         }
 
         .install-success-modal { color: var(--ink); }
@@ -960,7 +974,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             position: absolute; top: 12px; right: 12px;
             width: 30px; height: 30px; margin: 0; padding: 0;
             font-size: 16px; line-height: 30px; text-align: center; color: var(--muted);
-            background: transparent; border: 0; border-radius: 50%;
+            background: transparent; border: 0; border-radius: 5px;
             cursor: pointer; transition: color 0.18s, background 0.18s;
         }
         .install-success-modal .modal-close:hover { color: var(--ink); background: #f1f3f8; }
@@ -972,7 +986,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
         }
         .install-success-modal .info-grid {
             display: grid; overflow: hidden;
-            background: #fcfcfe; border: 1px solid var(--line); border-radius: var(--radius);
+            background: #fcfcfe; border: 1px solid var(--line); border-radius: 5px;
         }
         .install-success-modal .info-item {
             display: grid; grid-template-columns: 74px minmax(0, 1fr);
@@ -1003,9 +1017,10 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             .panel-foot { flex-direction: column-reverse; align-items: stretch; padding: 16px 20px 20px; }
             .foot-btns .btn { flex: 1; }
             .foot-hint { text-align: center; }
-            .install-success-skin { border-radius: 16px; }
+            .install-success-skin { border-radius: 5px; }
             .install-success-skin .layui-layer-btn { padding: 16px 18px 18px; }
             .install-success-skin .layui-layer-btn a { display: block; width: 100%; padding: 0; }
+            .install-success-skin .layui-layer-btn a + a { margin-left: 0; margin-top: 10px; }
 
             .install-success-modal .modal-hero { padding: 24px 18px 18px; }
             .install-success-modal .hero-icon { font-size: 36px; }
@@ -1195,7 +1210,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
 <script src="/content/static/lib/layui-v2.13.5/layui/layui.js"></script>
 <script src="/content/static/js/em-toast.js"></script>
 <script>
-// 调试用：URL 带 demo=1 时用假数据直接弹出成功弹窗（不落库、不写文件）
+// 演示用：?action=test（或 ?action=install&demo=1）时直接弹出成功弹窗（不落库、不写文件）
 var INSTALL_DEMO = <?php echo $demo
     ? json_encode([
         'admin_url' => installer_admin_url(installer_effective_admin_entry()),
@@ -1222,6 +1237,38 @@ layui.use(function () {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function pad2(n) {
+    return n < 10 ? '0' + n : '' + n;
+  }
+
+  // 把后台地址 / 账号 / 密码存成 txt。
+  // 带 UTF-8 BOM：Windows 记事本不认编码时会按 GBK 打开，中文会全是乱码。
+  function downloadAdminInfo(adminUrl, adminUser, adminPass) {
+    var now = new Date();
+    var stamp = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate())
+      + ' ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+    var lines = [
+      'EMSHOP 后台登录信息',
+      '================================',
+      '',
+      '后台地址：' + adminUrl,
+      '登录账号：' + adminUser,
+      '登录密码：' + adminPass,
+      '',
+      '生成时间：' + stamp,
+      '提示：账号、密码与后台入口只在本次安装结果中显示一次，请妥善保存。'
+    ];
+    var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/plain;charset=utf-8' });
+    var href = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = href;
+    link.download = 'EMSHOP后台账号信息.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
   }
 
   function showInstallSuccessDialog(data) {
@@ -1255,7 +1302,7 @@ layui.use(function () {
       + '        <div class="info-value">' + escapeHtml(adminPass) + '</div>'
       + '      </div>'
       + '    </div>'
-      + '    <div class="tips">账号、密码与后台入口只在本次安装结果中显示一次，请立即保存；登录后建议修改密码。</div>'
+      + '    <div class="tips">账号、密码与后台入口只在本次安装结果中显示一次，请立即下载保存。</div>'
       + '  </div>'
       + '</div>';
     var layerIndex = layer.open({
@@ -1268,14 +1315,21 @@ layui.use(function () {
       shade: [0.32, '#0f172a'],
       shadeClose: false,
       btnAlign: 'c',
-      btn: ['进入后台'],
+      btn: ['进入后台', '下载账号信息'],
       success: function (layero, index) {
         $(layero).find('.modal-close').on('click', function () {
           layer.close(index);
         });
       },
       yes: function () {
-        window.location.href = adminUrl;
+        // 新窗口打开后台（点击触发，不会被拦截）；弹窗保留，方便继续下载账号信息
+        var win = window.open(adminUrl, '_blank');
+        if (win) { win.opener = null; }
+      },
+      btn2: function () {
+        downloadAdminInfo(adminUrl, adminUser, adminPass);
+        layer.msg('账号信息已下载', { time: 1500 });
+        return false;   // 返回 false：下载后保留弹窗
       }
     });
   }
@@ -1310,6 +1364,13 @@ layui.use(function () {
 
   $form.on('submit', function (e) {
     e.preventDefault();
+
+    // 演示模式（?action=test / ?action=install&demo=1）：不真的安装，直接展示成功弹窗
+    if (INSTALL_DEMO) {
+      showInstallSuccessDialog(INSTALL_DEMO);
+      return;
+    }
+
     var formData = $form.serializeArray();
     formData.push({ name: 'mode', value: 'install' });
 
@@ -1500,8 +1561,7 @@ layui.use(function () {
 $action = isset($_GET['action']) ? (string) $_GET['action'] : '';
 if (installer_is_installed()) {
     // 已安装：安装入口一律按 404 处理，不暴露安装目录，也不给重定向提示。
-    http_response_code(404);
-    exit;
+    http_response_code(404); exit;
 }
 // 第一步：不带参数展示介绍与运行环境建议
 if ($action === '') {
@@ -1511,8 +1571,19 @@ if ($action === '') {
     installer_render([], [], 'intro');
 }
 
+// 演示：GET ?action=test 打开配置表单并在页面加载后弹出「安装成功」弹窗。
+// 弹窗用的是真实安装成功后的同一套样式和数据（后台入口、账号密码都是随机生成），
+// 只是不落库、不写文件，用来对照实际效果。
+if ($action === 'test') {
+    http_response_code(404); exit;
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        Response::error('非法请求');
+    }
+    installer_render([], [], 'form', true);
+}
+
 // 第二步：GET ?action=install 展示配置表单（POST 则继续往下执行安装）
-// 附加 demo=1 时为演示模式，页面加载后用假数据弹出成功弹窗，方便调试样式
+// 附加 demo=1 时为同样的演示模式
 if ($action === 'install' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     installer_render([], [], 'form', !empty($_GET['demo']));
 }
