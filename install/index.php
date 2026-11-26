@@ -66,13 +66,57 @@ function installer_is_ajax_request(): bool
     return is_string($xrw) && strtolower($xrw) === 'xmlhttprequest';
 }
 
-function installer_admin_url(): string
+/**
+ * 随机生成后台入口路径段：8 位，大小写字母 + 数字。
+ *
+ * 装完就把 /admin 暴露给扫后台的脚本并不合适，所以入口在安装时随机生成写进 config.php。
+ * random_int 是密码学安全的随机源，不要换成 mt_rand / rand。
+ */
+function installer_generate_admin_entry(): string
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    $max = strlen($alphabet) - 1;
+    $entry = '';
+    for ($i = 0; $i < 8; $i++) {
+        $entry .= $alphabet[random_int(0, $max)];
+    }
+
+    // 过一遍规范化：随机串本身不会被改写（8 位字母数字既合法也不在保留字里），
+    // 这里兜的是将来改生成规则的情况 —— 写进配置的和提示给用户的必须是同一个值
+    return \App\Admin\AdminRouter::normalizeEntry($entry);
+}
+
+/**
+ * 安装后真正生效的后台入口。
+ *
+ * .env / 系统环境变量里写了 EM_APP_ADMIN_ENTRY 时以它为准 —— 运行时也是这个优先级
+ * （config.php 里那个值只是默认值），此时随机入口不生效，提示给用户的必须是环境里那个；
+ * 没写才随机生成。
+ */
+function installer_effective_admin_entry(): string
+{
+    $envEntry = trim((string) Env::get('EM_APP_ADMIN_ENTRY', ''));
+
+    return $envEntry !== ''
+        ? \App\Admin\AdminRouter::normalizeEntry($envEntry)
+        : installer_generate_admin_entry();
+}
+
+/**
+ * 后台登录页地址。
+ *
+ * @param string $adminEntry 安装流程里刚生成、随后会写进 config.php 的入口；
+ *                           不传时读 .env / 默认值（演示模式等场景）
+ */
+function installer_admin_url(string $adminEntry = ''): string
 {
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ((int) ($_SERVER['SERVER_PORT'] ?? 80) === 443);
     $scheme = $isHttps ? 'https' : 'http';
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    $entry = \App\Admin\AdminRouter::normalizeEntry((string) Env::get('EM_APP_ADMIN_ENTRY', 'admin'));
+    $entry = $adminEntry !== ''
+        ? \App\Admin\AdminRouter::normalizeEntry($adminEntry)
+        : \App\Admin\AdminRouter::normalizeEntry((string) Env::get('EM_APP_ADMIN_ENTRY', 'admin'));
     return $scheme . '://' . $host . '/' . $entry . '/';
 }
 
@@ -129,6 +173,13 @@ function installer_success_response(string $action, string $message, array $defa
 {
     if ($action === 'install' && installer_is_ajax_request()) {
         Response::success($message, $data);
+    }
+
+    // 非 AJAX 提交（页面被直接 POST）没有成功弹窗，后台入口又是随机生成的，
+    // 这里必须把它带进提示文案，否则用户装完就找不到登录地址了
+    $adminUrl = (string) ($data['admin_url'] ?? '');
+    if ($adminUrl !== '') {
+        $message .= ' 后台地址：' . $adminUrl;
     }
     installer_render([['type' => 'ok', 'text' => $message]], $defaults, 'form');
 }
@@ -403,8 +454,9 @@ function installer_drop_tables(array $db, array $tables): array
  * 生成 config.php 内容。
  *
  * @param array<string, mixed> $db
+ * @param string $adminEntry 后台入口路径段（安装时随机生成，见 installer_generate_admin_entry）
  */
-function installer_generate_config_php(array $db): string
+function installer_generate_config_php(array $db, string $adminEntry): string
 {
     $directAccessGuard = <<<'PHP'
 if (!defined('EM_ROOT')) {
@@ -430,9 +482,9 @@ PHP;
         '',
         '// 配置值优先取环境变量；开发时可在项目根目录 .env 覆盖（见 .env.example）',
         '',
-        '// 应用配置（当前版本仅预留，功能后续接入）',
+        '// 应用配置',
         "define('EM_APP_NAME', Env::get('EM_APP_NAME', 'EMSHOP'));   // 应用名",
-        "define('EM_APP_ADMIN_ENTRY', Env::get('EM_APP_ADMIN_ENTRY', 'admin'));  // 后台入口路径段（admin → /admin，xadmin → /xadmin）",
+        "define('EM_APP_ADMIN_ENTRY', Env::get('EM_APP_ADMIN_ENTRY', " . var_export($adminEntry, true) . "));  // 后台入口路径段（安装时随机生成，改成别的值后旧入口立即失效）",
         '',
         '// 数据库连接',
         "define('EM_DB_HOST', Env::get('EM_DB_HOST', " . var_export($host, true) . '));',
@@ -1128,7 +1180,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
                 </section>
 
                 <div class="panel-foot">
-                    <span class="foot-hint">安装将写入 config.php 并初始化数据表</span>
+                    <span class="foot-hint">安装将写入 config.php 并初始化数据表，后台入口随机生成</span>
                     <div class="foot-btns">
                         <button class="btn btn-ghost" type="button" id="btnTestDb">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -1151,7 +1203,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
 // 调试用：URL 带 demo=1 时用假数据直接弹出成功弹窗（不落库、不写文件）
 var INSTALL_DEMO = <?php echo $demo
     ? json_encode([
-        'admin_url' => installer_admin_url(),
+        'admin_url' => installer_admin_url(installer_effective_admin_entry()),
         'admin_username' => 'admin',
         'admin_password' => 'Emshop@2026',
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
@@ -1505,8 +1557,6 @@ $adminClean = [
 
 $messages = [];
 
-$generatedConfig = installer_generate_config_php($dbClean);
-
 // AJAX 测试数据库连接：返回 JSON，不刷新页面（只测账号连通性，不受表单必填项影响）
 if ($action === 'test_db') {
     $test = installer_test_db_connection($dbClean);
@@ -1571,6 +1621,12 @@ if ($dbClean['host'] === '') {
 if ($error !== '') {
     installer_fail_response($action, [['type' => 'bad', 'text' => $error]], ['db' => $dbClean, 'admin' => $adminClean]);
 }
+
+// 后台入口在「即将写配置」这一刻才确定：没被环境变量指定时随机生成 8 位大小写字母 + 数字。
+// 它必须原样交给安装成功页展示 —— 用户只有这一次机会看到它，
+// 关掉弹窗后只能去 config.php 里翻。
+$adminEntry = installer_effective_admin_entry();
+$generatedConfig = installer_generate_config_php($dbClean, $adminEntry);
 
 $configPath = EM_ROOT . '/config.php';
 
@@ -1745,7 +1801,7 @@ installer_success_response(
         : '安装完成：已初始化数据库并写入安装锁。',
     ['db' => $dbClean, 'admin' => $adminClean],
     [
-        'admin_url' => installer_admin_url(),
+        'admin_url' => installer_admin_url($adminEntry),
         'admin_username' => $adminClean['username'],
         'admin_password' => $adminClean['password'],
     ]
