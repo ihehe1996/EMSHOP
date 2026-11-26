@@ -719,7 +719,7 @@ function formRadio(string $name, array $options, string $selected = ''): string 
                         <div class="layui-form-item">
                             <label class="layui-form-label">已售罄商品禁止访问</label>
                             <div class="layui-input-block">
-                                <?php echo formSwitch('shop_block_sold_out_access', $cfg['shop_block_sold_out_access'] ?? '1'); ?>
+                                <?php echo formSwitch('shop_block_sold_out_access', $cfg['shop_block_sold_out_access'] ?? '0'); ?>
                             </div>
                             <div class="layui-form-mid layui-word-aux">开启后，已售罄商品无法打开详情页（列表仍可见）</div>
                         </div>

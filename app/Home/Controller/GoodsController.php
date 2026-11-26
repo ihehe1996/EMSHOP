@@ -72,7 +72,7 @@ class GoodsController extends BaseController
             && $row["deleted_at"] === null
             && (int) $row["is_on_sale"] === 1;
         if ($canView
-            && (string) $this->config->get("shop_block_sold_out_access", "1") !== "0"
+            && (string) $this->config->get("shop_block_sold_out_access", "0") !== "0"
             && (int) ($row["total_stock"] ?? 0) === 0
         ) {
             $canView = false;
