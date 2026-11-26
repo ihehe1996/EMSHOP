@@ -750,22 +750,6 @@ button, input, textarea, select { font-family: inherit; font-size: inherit; }
 /* 查单模式 section 容器（仅作 DOM 锚点，供 guest_find.js 判断；不加额外样式） */
 .detail-guest-find-section { /* no-op */ }
 
-/* 商品数据/优惠信息 选项卡 */
-.detail-meta-tabs { margin-bottom: 24px; }
-.detail-meta-tab-nav {
-    display: flex; gap: 0; border-bottom: 1px solid #f0f0f0; margin-bottom: 16px;
-}
-.detail-meta-tab-btn {
-    padding: 8px 20px; border: none; background: none;
-    font-size: 14px; color: #999; cursor: pointer;
-    border-bottom: 2px solid transparent; transition: all 0.2s;
-}
-.detail-meta-tab-btn:hover { color: #333; }
-.detail-meta-tab-btn.active { color: #4e6ef2; border-bottom-color: #4e6ef2; font-weight: 500; }
-.detail-meta-tab-pane { display: none; }
-.detail-meta-tab-pane.active { display: block; }
-/* 附加选项卡（如「优惠信息」）的内容样式归提供它的插件 */
-
 /* 销量/库存 */
 .detail-stats-row {
     display: flex; align-items: center; gap: 12px;

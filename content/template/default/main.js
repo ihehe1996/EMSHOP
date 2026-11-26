@@ -438,14 +438,6 @@ var GoodsDetail = (function () {
             $(this).addClass('active').siblings().removeClass('active');
         });
 
-        // 选项卡切换
-        $(document).on('click.goodsDetail', '.detail-meta-tab-btn', function () {
-            var tab = $(this).data('tab');
-            $(this).addClass('active').siblings().removeClass('active');
-            $(this).closest('.detail-meta-tabs').find('.detail-meta-tab-pane').removeClass('active');
-            $('#' + tab).addClass('active');
-        });
-
         // ======== 优惠券（详情页）；后台关闭时不绑定、不提交券码 ========
         // detailCouponState 已提升到模块顶层（供 renderCurrentPrice 做数量变化后的重校验）
         detailCouponState = { applied: false, code: '' };

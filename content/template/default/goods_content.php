@@ -169,6 +169,13 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                 </div>
                 <?php endif; ?>
 
+                <?php
+                // 价格区下方的内容扩展点（位于规格选择之后、购买数量之前）。
+                // 插件用 addAction 挂到 goods_detail_price_below，直接输出自己的 HTML；
+                // 没有插件注册时这里不输出任何内容，默认详情页该位置为空。
+                doAction('goods_detail_price_below', $goods, $specs);
+                ?>
+
                 <!-- 购买数量 -->
                 <div class="detail-qty-row">
                     <span class="detail-qty-label"><i class="fa fa-cubes"></i> 数量</span>
@@ -294,53 +301,6 @@ $_shopDispSales = (string) Config::get('shop_display_sales', '1') !== '0';
                 <!-- 操作按钮 -->
                 <div class="detail-actions">
                     <button class="btn btn-primary btn-lg" id="buyNowBtn" data-goods-id="<?= $goods['id'] ?>">立即购买</button>
-                </div>
-
-                <!-- 商品数据 / （插件提供的）附加选项卡 -->
-                <?php
-                // 附加选项卡扩展点：插件返回 [['id' => '元素id', 'label' => '导航文字', 'html' => '面板 HTML'], ...]
-                // 有附加项时才显示 tab 导航，否则只展示「商品数据」的内容
-                $extraMetaTabs = applyFilter('goods_detail_meta_tabs', [], $goods, $specs);
-                $extraMetaTabs = is_array($extraMetaTabs) ? $extraMetaTabs : [];
-                ?>
-                <div class="detail-meta-tabs">
-                    <?php if (!empty($extraMetaTabs)): ?>
-                    <div class="detail-meta-tab-nav">
-                        <button type="button" class="detail-meta-tab-btn active" data-tab="metaInfo">商品数据</button>
-                        <?php foreach ($extraMetaTabs as $tab): ?>
-                        <button type="button" class="detail-meta-tab-btn" data-tab="<?= htmlspecialchars((string) ($tab['id'] ?? '')) ?>"><?= htmlspecialchars((string) ($tab['label'] ?? '')) ?></button>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
-                    <div class="detail-meta-tab-pane active" id="metaInfo">
-                        <div class="detail-meta">
-                            <?php if (!empty($goods['sku'])): ?>
-                            <div class="detail-meta-row">
-                                <span class="detail-meta-label">商品编号</span>
-                                <span class="detail-meta-value"><?= htmlspecialchars($goods['sku']) ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if (!empty($goods['category'])): ?>
-                            <div class="detail-meta-row">
-                                <span class="detail-meta-label">商品分类</span>
-                                <span class="detail-meta-value"><?= htmlspecialchars($goods['category']) ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if (empty($specs) || count($specs) <= 1): ?>
-                            <?php if ($_shopDispStock && isset($goods['stock_text'])): ?>
-                            <div class="detail-meta-row">
-                                <span class="detail-meta-label">库存</span>
-                                <span class="detail-meta-value">
-                                    <?= htmlspecialchars($goods['stock_text'] . ' ' . $goods['unit']) ?>
-                                </span>
-                            </div>
-                            <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <?php foreach ($extraMetaTabs as $tab): ?>
-                    <div class="detail-meta-tab-pane" id="<?= htmlspecialchars((string) ($tab['id'] ?? '')) ?>"><?= $tab['html'] ?? '' ?></div>
-                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
