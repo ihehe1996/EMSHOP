@@ -344,7 +344,8 @@ final class Dispatcher
             $path = $qPos === false ? $uri : substr($uri, 0, $qPos);
         }
         if ($path === '' || $path === '/') {
-            $path = $_SERVER['PATH_INFO'] ?? $_SERVER['ORIG_PATH_INFO'] ?? '';
+            // 同 parseRoute：IIS 的 ORIG_PATH_INFO 给的是脚本路径（/index.php）而不是请求路径，先剥掉
+            $path = $this->stripScriptPrefix($_SERVER['PATH_INFO'] ?? $_SERVER['ORIG_PATH_INFO'] ?? '');
         }
         if ($path === '' || $path === '/') return false;
         $path = trim($path, '/');
@@ -629,6 +630,17 @@ final class Dispatcher
 
         $pathinfo = $_SERVER['PATH_INFO'] ?? $_SERVER['ORIG_PATH_INFO'] ?? '';
 
+        // IIS（PHP 7.x）会把「重写前的脚本路径」写进 ORIG_PATH_INFO：任意 URL 被 Rewrite 到
+        // index.php 之后，这里读到的都是 /index.php，而不是真实的请求路径。
+        // 当路由段用会解析出 controller=indexphp（sanitize 去掉了点），
+        // 首页 / 和所有伪静态地址就全掉进 notfound → 404。
+        //
+        // 只处理「整段等于脚本路径」和「脚本路径 + / 开头」两种形状，按整段边界匹配：
+        //   /index.php            → ''
+        //   /index.php/goods_list → '/goods_list'
+        // Nginx / Apache 正常的 PATH_INFO（如 '/goods_list'）不以脚本路径开头，不会走到这里。
+        $pathinfo = $this->stripScriptPrefix($pathinfo);
+
         // 标准伪静态（Nginx try_files / Apache RewriteRule / IIS Rewrite）只保留
         // REQUEST_URI，不传 PATH_INFO。这里补出路径，否则没命中 pretty 规则的 URL
         // （/xxx/xxx、/abc.html 等）会拿不到路径，退化成默认控制器 index ——
@@ -743,6 +755,37 @@ final class Dispatcher
             $this->controller = 'notfound';
             $this->action = '_index';
         }
+    }
+
+    /**
+     * 剥掉 pathinfo 里「当前脚本路径」这层前缀（IIS 的 ORIG_PATH_INFO 会带上来）。
+     *
+     * 只有两种形状会被处理，按整段边界判断，避免把 /index.php2 之类的路径误剥：
+     *   {SCRIPT_NAME}            → ''
+     *   {SCRIPT_NAME}/其余部分    → '/其余部分'
+     * 其它情况原样返回 —— 正常 PATH_INFO（Apache 的 /index.php/xxx 由 PHP 给出的是 '/xxx'，
+     * Nginx 一般根本没有 PATH_INFO）不受影响。
+     *
+     * @param mixed $pathinfo
+     */
+    private function stripScriptPrefix($pathinfo): string
+    {
+        $pathinfo = (string) $pathinfo;
+        $scriptName = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+
+        if ($pathinfo === '' || $scriptName === '') {
+            return $pathinfo;
+        }
+
+        if ($pathinfo === $scriptName) {
+            return '';
+        }
+
+        if (strpos($pathinfo, $scriptName . '/') === 0) {
+            return (string) substr($pathinfo, strlen($scriptName));
+        }
+
+        return $pathinfo;
     }
 
     /**
