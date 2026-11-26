@@ -87,6 +87,35 @@ function installer_generate_admin_entry(): string
 }
 
 /**
+ * 随机生成管理员账号与密码（安装时自动创建，不再让用户填写）。
+ *
+ * 字符集只含大小写字母和数字：账号要能过「字母/数字/下划线」的校验，
+ * 密码不放符号也能避开输入法、复制粘贴带来的歧义。账号 8 位、密码 12 位。
+ *
+ * @return array{username: string, email: string, password: string}
+ */
+function installer_generate_admin_credentials(): array
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    $max = strlen($alphabet) - 1;
+
+    $pick = static function (int $length) use ($alphabet, $max): string {
+        $out = '';
+        for ($i = 0; $i < $length; $i++) {
+            $out .= $alphabet[random_int(0, $max)];
+        }
+        return $out;
+    };
+
+    return [
+        'username' => $pick(8),
+        // 邮箱留空：`user`.`email` 是 NOT NULL DEFAULT ''，后台可以登录后再补
+        'email'    => '',
+        'password' => $pick(12),
+    ];
+}
+
+/**
  * 安装后真正生效的后台入口。
  *
  * .env / 系统环境变量里写了 EM_APP_ADMIN_ENTRY 时以它为准 —— 运行时也是这个优先级
@@ -175,11 +204,16 @@ function installer_success_response(string $action, string $message, array $defa
         Response::success($message, $data);
     }
 
-    // 非 AJAX 提交（页面被直接 POST）没有成功弹窗，后台入口又是随机生成的，
-    // 这里必须把它带进提示文案，否则用户装完就找不到登录地址了
+    // 非 AJAX 提交（页面被直接 POST）没有成功弹窗，而后台入口和管理员账号密码都是
+    // 随机生成、只显示这一次的，必须把它们带进提示文案，否则用户装完就找不回来了
     $adminUrl = (string) ($data['admin_url'] ?? '');
+    $adminUser = (string) ($data['admin_username'] ?? '');
+    $adminPass = (string) ($data['admin_password'] ?? '');
     if ($adminUrl !== '') {
         $message .= ' 后台地址：' . $adminUrl;
+    }
+    if ($adminUser !== '' || $adminPass !== '') {
+        $message .= ' 登录账号：' . $adminUser . '，登录密码：' . $adminPass;
     }
     installer_render([['type' => 'ok', 'text' => $message]], $defaults, 'form');
 }
@@ -635,12 +669,12 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
     $dbPass = is_array($db) ? (string) ($db['password'] ?? '') : '';
     $dbPrefix = is_array($db) ? (string) ($db['prefix'] ?? 'em_') : 'em_';
 
-    $adminUsername = (string) (($defaults['admin']['username'] ?? '') ?: 'admin');
-    $adminEmail = (string) (($defaults['admin']['email'] ?? '') ?: '');
-
     // 第一步的伪静态检测：只有检测通过才允许进入配置表单
     $rewriteServer = installer_rewrite_server();
     $rewriteGuides = installer_rewrite_guides();
+
+    // 演示模式（?demo=1）：成功弹窗里用随机生成的账号密码，和真实安装看到的一致
+    $demoCredentials = $demo ? installer_generate_admin_credentials() : [];
 
     ?>
 <!doctype html>
@@ -719,7 +753,7 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
             background: linear-gradient(180deg, #131a2e 24%, #4d5a79);
             -webkit-background-clip: text; background-clip: text; color: transparent;
         }
-        .lede { margin: 14px 0 0; max-width: 30em; font-size: 14.5px; color: var(--muted); text-wrap: pretty; }
+        .lede { margin: 14px 0 0; font-size: 14.5px; color: var(--muted); text-wrap: pretty; }
 
         /* 面板 */
         .panel {
@@ -995,8 +1029,8 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
     <h1 class="title"><?php echo $step === 'intro' ? '安装向导 - EMSHOP' : '配置安装信息 - EMSHOP'; ?></h1>
     <p class="lede"><?php
         echo $step === 'intro'
-            ? '本向导会引导你完成数据库配置与管理员账号创建。'
-            : '填写数据库连接信息并创建管理员账号，完成后系统将自动初始化数据表并写入 config.php。';
+            ? '本向导会引导你完成数据库配置；管理员账号与后台入口由程序自动生成。'
+            : '填写数据库连接信息，完成后系统会自动初始化数据表、创建管理员账号。';
     ?></p>
 
     <div class="panel">
@@ -1140,47 +1174,8 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
                     </div>
                 </section>
 
-                <section class="section">
-                    <div class="section-head">
-                        <div>
-                            <h2>管理员账号</h2>
-                            <p>用于登录后台，密码至少 6 位</p>
-                        </div>
-                    </div>
-                    <div class="fields">
-                        <div class="field">
-                            <label for="adminUser" class="required">登录账号</label>
-                            <div class="control">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
-                                <input id="adminUser" name="admin[username]" value="<?php echo htmlspecialchars($adminUsername); ?>" placeholder="admin">
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label for="adminEmail">邮箱（选填）</label>
-                            <div class="control">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7" /></svg>
-                                <input id="adminEmail" name="admin[email]" value="<?php echo htmlspecialchars($adminEmail); ?>" placeholder="admin@example.com">
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label for="adminPass" class="required">登录密码</label>
-                            <div class="control">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                                <input id="adminPass" name="admin[password]" value="" placeholder="至少 6 位，建议更长">
-                            </div>
-                        </div>
-                        <div class="field">
-                            <label for="adminPass2" class="required">确认密码</label>
-                            <div class="control">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
-                                <input id="adminPass2" name="admin[password2]" value="" placeholder="再次输入密码">
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 <div class="panel-foot">
-                    <span class="foot-hint">安装将写入 config.php 并初始化数据表，后台入口随机生成</span>
+                    <span class="foot-hint">写入 config.php 并建表；入口与账号随机生成</span>
                     <div class="foot-btns">
                         <button class="btn btn-ghost" type="button" id="btnTestDb">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -1204,8 +1199,8 @@ function installer_render(array $messages, array $defaults, string $step = 'intr
 var INSTALL_DEMO = <?php echo $demo
     ? json_encode([
         'admin_url' => installer_admin_url(installer_effective_admin_entry()),
-        'admin_username' => 'admin',
-        'admin_password' => 'Emshop@2026',
+        'admin_username' => (string) ($demoCredentials['username'] ?? 'admin'),
+        'admin_password' => (string) ($demoCredentials['password'] ?? 'Emshop@2026'),
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
     : 'null'; ?>;
 layui.use(function () {
@@ -1260,7 +1255,7 @@ layui.use(function () {
       + '        <div class="info-value">' + escapeHtml(adminPass) + '</div>'
       + '      </div>'
       + '    </div>'
-      + '    <div class="tips">请妥善保存以上信息，登录后建议立即修改密码</div>'
+      + '    <div class="tips">账号、密码与后台入口只在本次安装结果中显示一次，请立即保存；登录后建议修改密码。</div>'
       + '  </div>'
       + '</div>';
     var layerIndex = layer.open({
@@ -1533,9 +1528,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $mode = (string) ($_POST['mode'] ?? 'test');
 $db = $_POST['db'] ?? [];
-$admin = $_POST['admin'] ?? [];
 if (!is_array($db)) $db = [];
-if (!is_array($admin)) $admin = [];
 
 $dbClean = [
     'host' => trim((string) ($db['host'] ?? '127.0.0.1')),
@@ -1548,12 +1541,8 @@ $dbClean = [
     'prefix' => trim((string) ($db['prefix'] ?? 'em_')),
 ];
 
-$adminClean = [
-    'username' => trim((string) ($admin['username'] ?? 'admin')),
-    'email' => trim((string) ($admin['email'] ?? '')),
-    'password' => (string) ($admin['password'] ?? ''),
-    'password2' => (string) ($admin['password2'] ?? ''),
-];
+// 管理员账号密码由安装程序随机生成，不再让用户填写；装完在成功弹窗里展示一次。
+$adminClean = installer_generate_admin_credentials();
 
 $messages = [];
 
@@ -1570,7 +1559,7 @@ if ($mode === 'test') {
     $test = installer_test_db_connection($dbClean);
     installer_render(
         [['type' => $test['ok'] ? 'ok' : 'bad', 'text' => $test['message']]],
-        ['db' => $dbClean, 'admin' => $adminClean],
+        ['db' => $dbClean],
         'form'
     );
 }
@@ -1578,11 +1567,6 @@ if ($mode === 'test') {
 // 表单校验：严格按页面上字段的展示顺序逐项校验，命中第一条即返回，不堆积多条提示
 // 端口要区分「没填」和「填了但非法」，所以用原始输入判断（空串被 (int) 转成 0 后会丢失区别）
 $portRaw = trim((string) ($db['port'] ?? ''));
-// mbstring 不保证开启，缺失时退回字节长度（安装程序尽量不引入新的扩展依赖）
-$adminPasswordLength = function_exists('mb_strlen')
-    ? mb_strlen($adminClean['password'])
-    : strlen($adminClean['password']);
-
 $error = '';
 if ($dbClean['host'] === '') {
     $error = '请填写数据库地址';
@@ -1602,24 +1586,10 @@ if ($dbClean['host'] === '') {
     $error = '请填写数据库用户名';
 } elseif ($dbClean['password'] === '') {
     $error = '请填写数据库密码';
-} elseif ($adminClean['username'] === '') {
-    $error = '请输入登录账号';
-} elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $adminClean['username'])) {
-    $error = '登录账号只能包含字母、数字和下划线';
-} elseif (!preg_match('/^[a-zA-Z0-9_]{3,50}$/', $adminClean['username'])) {
-    $error = '登录账号长度需为 3-50 个字符';
-} elseif ($adminClean['email'] !== '' && !filter_var($adminClean['email'], FILTER_VALIDATE_EMAIL)) {
-    $error = '请输入正确的邮箱地址';
-} elseif ($adminClean['password'] === '') {
-    $error = '请输入登录密码';
-} elseif ($adminPasswordLength < 6) {
-    $error = '登录密码不能少于 6 位';
-} elseif ($adminClean['password'] !== $adminClean['password2']) {
-    $error = '两次密码输入不一致';
 }
 
 if ($error !== '') {
-    installer_fail_response($action, [['type' => 'bad', 'text' => $error]], ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, [['type' => 'bad', 'text' => $error]], ['db' => $dbClean]);
 }
 
 // 后台入口在「即将写配置」这一刻才确定：没被环境变量指定时随机生成 8 位小写字母 + 数字。
@@ -1634,7 +1604,7 @@ $configPath = EM_ROOT . '/config.php';
 $test = installer_test_db_connection($dbClean);
 if (!$test['ok']) {
     $messages[] = ['type' => 'bad', 'text' => $test['message']];
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 
 // 清理同前缀的残留表：安装只做「删表重建」，避免旧表被 IF NOT EXISTS 跳过、
@@ -1643,7 +1613,7 @@ $droppedTables = 0;
 $existing = installer_fetch_tables($dbClean);
 if (!$existing['ok']) {
     $messages[] = ['type' => 'bad', 'text' => '安装前读取数据表失败：' . (string) $existing['message']];
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 $staleTables = installer_filter_prefixed_tables((array) ($existing['tables'] ?? []), (string) $dbClean['prefix']);
 if ($staleTables !== []) {
@@ -1652,7 +1622,7 @@ if ($staleTables !== []) {
         $failed = (array) ($cleanup['failed'] ?? []);
         $detail = $failed === [] ? (string) $cleanup['message'] : implode('、', $failed);
         $messages[] = ['type' => 'bad', 'text' => '清理旧数据表失败：' . $detail . '（请确认数据库账号具备 DROP 权限）'];
-        installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+        installer_fail_response($action, $messages, ['db' => $dbClean]);
     }
     $droppedTables = (int) $cleanup['dropped'];
 }
@@ -1661,7 +1631,7 @@ if ($staleTables !== []) {
 $snapshotBefore = $staleTables === [] ? $existing : installer_fetch_tables($dbClean);
 if (!$snapshotBefore['ok']) {
     $messages[] = ['type' => 'bad', 'text' => '安装前读取表快照失败：' . (string) $snapshotBefore['message']];
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 
 // 切换到项目 Database：用内存常量启动 InstallService
@@ -1740,14 +1710,14 @@ try {
             'debug' => $debug,
         ]);
     }
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 
 // 写 config.php（失败即中断，提示先修复环境后重试）
 $written = @file_put_contents($configPath, $generatedConfig, LOCK_EX);
 if ($written === false) {
     $messages[] = ['type' => 'bad', 'text' => '写入 config.php 失败：请先修复目录权限后重试安装'];
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 
 // 写安装锁（用于禁用安装入口）
@@ -1772,7 +1742,7 @@ if (@file_put_contents(EM_INSTALL_LOCK, (string) $lockPayload, LOCK_EX) === fals
         'text' => '写入安装锁 install/install.lock 失败。站点数据已初始化，但安装入口**仍处于开放状态** —— '
                 . '请立即修复 install/ 目录写权限并手动创建该文件，否则任何人都能重跑安装程序并接管站点。',
     ];
-    installer_fail_response($action, $messages, ['db' => $dbClean, 'admin' => $adminClean]);
+    installer_fail_response($action, $messages, ['db' => $dbClean]);
 }
 
 // 跟授权服务器报一次「这台机器装好了」（服务端落在安装记录表里，代理端能看见）。
@@ -1799,7 +1769,7 @@ installer_success_response(
     $droppedTables > 0
         ? sprintf('安装完成：已删除 %d 张旧表并重建数据结构，配置与管理员账号已重新写入。', $droppedTables)
         : '安装完成：已初始化数据库并写入安装锁。',
-    ['db' => $dbClean, 'admin' => $adminClean],
+    ['db' => $dbClean],
     [
         'admin_url' => installer_admin_url($adminEntry),
         'admin_username' => $adminClean['username'],
