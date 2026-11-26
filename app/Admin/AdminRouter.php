@@ -94,20 +94,18 @@ final class AdminRouter extends PrefixRouter
     /**
      * 把配置值规范成合法的路径段；非法值或保留值回退 admin。
      *
-     * 大小写原样保留：安装时生成的后台入口是大小写混合的随机串（8 位字母数字），
-     * 一旦在这里转成小写，config.php 里写着的入口和真正能访问的地址就对不上了。
-     * 路径匹配本身也大小写敏感（见 PrefixRouter::isPath），保留大小写才一致。
+     * 统一转小写：URL 里的大小写靠人肉记容易出错，安装生成的后台入口也是纯小写，
+     * 这里把手工写在 config.php / .env 里的大小写一并抹平。
      */
     public static function normalizeEntry(string $entry): string
     {
-        $entry = trim($entry, " \t/");
+        $entry = strtolower(trim($entry, " \t/"));
 
-        if ($entry === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9_-]*$/', $entry)) {
+        if ($entry === '' || !preg_match('/^[a-z0-9][a-z0-9_-]*$/', $entry)) {
             return 'admin';
         }
 
-        // 保留字按小写比较：/User 这类入口虽然不与 /user 冲突，但容易和固定路由混淆
-        if (in_array(strtolower($entry), self::RESERVED_ENTRIES, true)) {
+        if (in_array($entry, self::RESERVED_ENTRIES, true)) {
             return 'admin';
         }
 

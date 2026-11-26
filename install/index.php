@@ -67,14 +67,14 @@ function installer_is_ajax_request(): bool
 }
 
 /**
- * 随机生成后台入口路径段：8 位，大小写字母 + 数字。
+ * 随机生成后台入口路径段：8 位，小写字母 + 数字。
  *
  * 装完就把 /admin 暴露给扫后台的脚本并不合适，所以入口在安装时随机生成写进 config.php。
  * random_int 是密码学安全的随机源，不要换成 mt_rand / rand。
  */
 function installer_generate_admin_entry(): string
 {
-    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    $alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
     $max = strlen($alphabet) - 1;
     $entry = '';
     for ($i = 0; $i < 8; $i++) {
@@ -1622,7 +1622,7 @@ if ($error !== '') {
     installer_fail_response($action, [['type' => 'bad', 'text' => $error]], ['db' => $dbClean, 'admin' => $adminClean]);
 }
 
-// 后台入口在「即将写配置」这一刻才确定：没被环境变量指定时随机生成 8 位大小写字母 + 数字。
+// 后台入口在「即将写配置」这一刻才确定：没被环境变量指定时随机生成 8 位小写字母 + 数字。
 // 它必须原样交给安装成功页展示 —— 用户只有这一次机会看到它，
 // 关掉弹窗后只能去 config.php 里翻。
 $adminEntry = installer_effective_admin_entry();
