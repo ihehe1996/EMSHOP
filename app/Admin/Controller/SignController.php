@@ -37,7 +37,7 @@ final class SignController extends AbstractAdminController
                     (string) $this->input->post('remember', '0') === '1'
                 );
 
-                $this->csrf->refresh();
+                $this->csrf->rotate();
 
                 if ($isAjax) {
                     $this->response->success('登录成功', ['redirect' => EM_ADMIN_PATH . '/home']);

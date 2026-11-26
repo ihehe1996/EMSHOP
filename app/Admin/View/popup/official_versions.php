@@ -249,12 +249,18 @@ $(function () {
 
             var id = String($btn.data('id') || '');
             var version = String($btn.data('version') || '');
-            var url = '<?= EM_ADMIN_PATH ?>/official?_download=version&id=' + encodeURIComponent(id) +
-                      '&csrf_token=' + encodeURIComponent(csrfToken);
+            var url = '<?= EM_ADMIN_PATH ?>/official';
 
             $btn.prop('disabled', true).text('下载中…');
 
-            fetch(url, { credentials: 'same-origin' })
+            // 令牌放请求体：放查询串会写进 Web / CDN 访问日志
+            fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: '_download=version&id=' + encodeURIComponent(id) +
+                      '&csrf_token=' + encodeURIComponent(csrfToken)
+            })
                 .then(function (res) {
                     if (!res.ok) {
                         return res.json().catch(function () { return null; }).then(function (json) {

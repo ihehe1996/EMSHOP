@@ -15,14 +15,21 @@ final class LicenseController extends BaseAdminController
     {
         $admin = $this->user();
 
-if ($this->request->isPost()) {
+// 版本源码包下载走 POST 请求体（令牌不再放查询串），交给下面的下载分支
+if ($this->request->isPost()
+    && (string) $this->input->post('_download', '') !== 'version') {
     try {
         // 本分支的动作全是写操作（激活 / 解绑 / 重新校验 / 保存别名 / 购买 / 切换线路 /
         // 代理配置），都会改动授权状态，必须校验 CSRF。
         // 前端（旧 license 视图的 post() 包装、框架壳的线路切换）
         // 都已经在请求里带上 csrf_token。
         if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
-            $this->response->error('请求已失效，请刷新页面后重试');
+            // 把当前有效 token 一起回给前端：前端换掉缓存的 token 后自动重试一次。
+            // session 被系统回收 / 临时目录被清理时旧 token 一定失效，重试能立刻自愈，
+            // 用户不必刷新页面（后台首页的「立即激活」弹窗就靠这个自动重试）。
+            $this->response->error('请求已失效，请刷新页面后重试', [
+                'csrf_token' => $this->csrf->token(),
+            ]);
         }
 
         $action = (string) $this->input->post('_action', '');
@@ -357,16 +364,19 @@ if ($this->request->isPost()) {
 }
 
 // ============================================================
-// 版本源码包下载（GET）：本地把上游的 zip 代理下来，token 不出服务端。
-// 下载不能带请求体，CSRF 令牌放查询串里校验。
+// 版本源码包下载：本地把上游的 zip 代理下来，token 不出服务端。
+// 前端用 fetch POST（拿 blob 再触发下载），CSRF 令牌走请求体，
+// 不进 URL —— 否则会写进 Web / CDN 访问日志。
 // ============================================================
-if ((string) $this->input->get('_download', '') === 'version') {
-    if (!$this->csrf->validate((string) $this->input->get('csrf_token', ''))) {
-        $this->response->error('请求已失效，请刷新页面后重试');
+if ((string) $this->input->post('_download', '') === 'version') {
+    if (!$this->csrf->validate((string) $this->input->post('csrf_token', ''))) {
+        $this->response->error('请求已失效，请刷新页面后重试', ['csrf_token' => $this->csrf->token()]);
     }
 
     try {
-        $source = app(\App\Service\LicenseService::class)->officialAccountVersionSource((int) $this->input->get('id', 0));
+        $source = app(\App\Service\LicenseService::class)->officialAccountVersionSource(
+            $this->input->postInt('id', 0)
+        );
     } catch (\Throwable $e) {
         $this->response->error($e->getMessage() ?: '下载失败');
     }

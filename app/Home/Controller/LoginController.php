@@ -149,7 +149,7 @@ class LoginController extends BaseController
         );
 
         // 刷新 CSRF token
-        $this->csrf->refresh();
+        $this->csrf->rotate();
 
         $this->response->success('登录成功');
     }
@@ -241,7 +241,7 @@ class LoginController extends BaseController
             $this->response->error($result['msg'], $data);
         }
 
-        $this->csrf->refresh();
+        $this->csrf->rotate();
         $this->response->success($result['msg']);
     }
 
@@ -263,7 +263,7 @@ class LoginController extends BaseController
             $this->response->error($result['msg']);
         }
 
-        $this->csrf->refresh();
+        $this->csrf->rotate();
         $this->response->success($result['msg']);
     }
 }

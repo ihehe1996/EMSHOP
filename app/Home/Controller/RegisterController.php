@@ -192,7 +192,7 @@ class RegisterController extends BaseController
             'money'    => 0,
         ];
 
-        $this->csrf->refresh();
+        $this->csrf->rotate();
 
         $this->response->success('注册成功');
     }

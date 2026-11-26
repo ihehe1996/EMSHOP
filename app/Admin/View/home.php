@@ -1649,7 +1649,8 @@ $(function () {
             dashEnsureIndexData(openBuyLinksPopup);
         });
 
-        function submitActivate() {
+        // retried：已经用服务端新发的 token 自动重试过一次，避免死循环
+        function submitActivate(retried) {
             var code = $.trim($('#dashLicenseCode').val() || '');
             if (!code) {
                 $('#dashLicenseCode').focus();
@@ -1657,7 +1658,9 @@ $(function () {
                 return;
             }
             var $btn = $('#dashActivateSubmit');
-            var origHtml = $btn.html();
+            // 重试时按钮还停在 loading 状态，原始文案要取第一次记下的
+            var origHtml = $btn.data('origHtml') || $btn.html();
+            $btn.data('origHtml', origHtml);
             $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> 激活中');
             $.ajax({
                 url: '<?= EM_ADMIN_PATH ?>/official',
@@ -1675,6 +1678,14 @@ $(function () {
                     setTimeout(function () { location.reload(); }, 900);
                     return;
                 }
+                // 请求已失效：服务端会把当前有效 token 带回来，换掉缓存的再自动重试一次。
+                // 常见于后台标签页开了很久、session 被回收，刷新页面反而会丢掉输入内容。
+                if (!retried && res && res.msg && res.msg.indexOf('请求已失效') !== -1
+                        && res.data && res.data.csrf_token) {
+                    window.adminCsrfToken = res.data.csrf_token;
+                    submitActivate(true);
+                    return;
+                }
                 layer.msg((res && res.msg) || '激活失败');
                 $btn.prop('disabled', false).html(origHtml);
             }).fail(function () {
@@ -1683,9 +1694,10 @@ $(function () {
             });
         }
 
-        $('#dashActivateSubmit').on('click', submitActivate);
+        // 注意用包装函数：直接传 submitActivate 会把 jQuery Event 当成 retried
+        $('#dashActivateSubmit').on('click', function () { submitActivate(false); });
         $('#dashLicenseCode').on('keydown', function (e) {
-            if (e.key === 'Enter') submitActivate();
+            if (e.key === 'Enter') submitActivate(false);
         }).focus();
     });
 
