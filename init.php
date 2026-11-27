@@ -33,8 +33,8 @@ if (!defined('EM_ROOT')) {
     define('EM_ROOT', __DIR__);
 }
 define('EM_INITIALIZED', true); 
-define('EM_VERSION', '1.3.59'); // 版本号
-define('EM_VERSION_TIMESTAMP', '1359'); // 文件版本号
+define('EM_VERSION', '1.3.60'); // 版本号
+define('EM_VERSION_TIMESTAMP', '1360'); // 文件版本号
 
 // 授权服务器地址定义在 Config::load() 之后（要读「开发模式」开关），见下方。
 
