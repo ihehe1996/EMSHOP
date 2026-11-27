@@ -1,7 +1,7 @@
 <?php
 /*
 Template Name:默认模板
-Version:1.0.2
+Version:1.0.3
 Template Url:
 Description:系统内置默认模板
 Author:EMSHOP
